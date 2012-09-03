@@ -45,6 +45,8 @@ import unittest
 
 from decimal import Decimal
 
+import coreutils
+
 import processingfw.pfwdb
 
 from processingfw.errors import DuplicateDBFiletypeError
@@ -145,7 +147,7 @@ for ft in testMHOutput:
     testMHOutput [ft]['other_header_names'] = sorted (hdrs)
 
 
-class PFWDBTest (processingfw.pfwdb.PFWDB):
+class PFWDBTest (processingfw.pfwdb.PFWDB, coreutils.DBTestMixin):
     """
     This is a convenience class.  It adds a few database-related methods used
     by the test cases.
@@ -161,33 +163,41 @@ class PFWDBTest (processingfw.pfwdb.PFWDB):
 
         cols = ['filetype', 'metadata_table', 'filename_pattern',
                 'ops_dir_pattern']
-        data = [(k, v ['metadata_table'], v ['filename_pattern'],
-                 v ['ops_dir_pattern']) for k, v in MHSource.items ()]
+        data = [(key, val ['metadata_table'], val ['filename_pattern'],
+                 val ['ops_dir_pattern']) for key, val in MHSource.items ()]
         self.insert_many ('filetype', cols, data)
+
+        # Add a row for each metadata table.
+
+        cols = ['table_name', 'id_column']
+        data = {(val ['metadata_table'], 'id') for val in MHSource.values ()}
+        data = [row for row in data]
+        self.insert_many ('metadata_table', cols, data)
 
         # Add a row for each metadata header.
 
-        data = set ()
-        for v in MHSource.values ():
-            for hdr, col in v ['other_header_names'].items ():
-                data.add ((hdr, col [0], 0))
+        data = set ()   # Use a set to remove duplicates.
+        for val in MHSource.values ():
+            for hdr, col in val ['other_header_names'].items ():
+                data.add ((hdr, col [0], 0, 1, 0))
 
-            for hdr, col in v ['derived_header_names'].items ():
-                data.add ((hdr, col [0], 1))
+            for hdr, col in val ['derived_header_names'].items ():
+                data.add ((hdr, col [0], 1, 1, 0))
 
-        data = [i for i in data]
-        cols = ['file_header_name', 'column_name', 'derived']
+        data = [i for i in data]    # DB API doesn't accept sets
+        cols = ['file_header_name', 'column_name', 'derived', 'position',
+                'bands_for_coadd']
         self.insert_many ('metadata', cols, data)
 
         # Add a link between each file type and each of its metadata headers.
 
         data = []
-        for (ft, v) in MHSource.items ():
-            for hdr in v ['other_header_names']:
-                data.append ((ft, hdr))
+        for (ftype, val) in MHSource.items ():
+            for hdr in val ['other_header_names']:
+                data.append ((ftype, hdr))
 
-            for hdr in v ['derived_header_names']:
-                data.append ((ft, hdr))
+            for hdr in val ['derived_header_names']:
+                data.append ((ftype, hdr))
 
         cols = ['filetype', 'file_header_name']
         self.insert_many ('required_metadata', cols, data)
@@ -198,10 +208,10 @@ class PFWDBTest (processingfw.pfwdb.PFWDB):
         map = dict ([('id', ('id', 'integer'))] +
                     testMHSource [filetype]['other_header_names'].items () +
                     testMHSource [filetype]['derived_header_names'].items ())
-        colStr = ','.join ([map [hdr][0] for hdr in hdrs])
+        colstr = ','.join ([map [hdr][0] for hdr in hdrs])
         cursor = self.cursor ()
         table = testMHSource [filetype]['metadata_table']
-        stmt = 'SELECT %s FROM %s' % (colStr, table)
+        stmt = 'SELECT %s FROM %s' % (colstr, table)
         cursor.execute (stmt)
         rows = cursor.fetchall ()
         cursor.close ()
@@ -210,30 +220,32 @@ class PFWDBTest (processingfw.pfwdb.PFWDB):
     def metadata_header_add (self, header, column, derived, filetype = None):
         "Add a metadata header to database and link to filetype if provided."
 
-        bindStr = self.get_positional_bind_string() 
+        bindstr = self.get_positional_bind_string() 
         cursor  = self.cursor ()
-        stmt = ("INSERT INTO metadata (file_header_name, column_name, derived) "
-                "VALUES (%s, %s, %s)" % (bindStr, bindStr, bindStr))
-        cursor.execute (stmt, (header, column, derived))
+        stmt = ("INSERT INTO metadata (file_header_name, column_name, "
+                "                      derived, position, bands_for_coadd) "
+                "VALUES (%s, %s, %s, %s, %s)" %
+                                (bindstr, bindstr, bindstr, bindstr, bindstr))
+        cursor.execute (stmt, (header, column, derived, 1, 0))
 
         if filetype:
             stmt = ("INSERT INTO required_metadata (filetype, file_header_name)"
-                    "VALUES (%s, %s)" % (bindStr, bindStr))
+                    "VALUES (%s, %s)" % (bindstr, bindstr))
             cursor.execute (stmt, (filetype, header))
         cursor.close ()
 
     def metadata_header_remove (self, header):
         "Remove a metadata header and any links to filetypes."
 
-        bindStr = self.get_positional_bind_string() 
+        bindstr = self.get_positional_bind_string() 
         cursor  = self.cursor ()
 
         stmt = ("DELETE FROM required_metadata "
-                "WHERE file_header_name = " + bindStr)
+                "WHERE file_header_name = " + bindstr)
         cursor.execute (stmt, (header, ))
 
         stmt = ("DELETE FROM metadata "
-                "WHERE file_header_name = " + bindStr)
+                "WHERE file_header_name = " + bindstr)
         cursor.execute (stmt, (header, ))
 
         cursor.close ()
@@ -249,63 +261,14 @@ class PFWDBTest (processingfw.pfwdb.PFWDB):
     def remove_a_filetype (self, filetype):
         "Rmove all rows associated with a filetype."
 
-        bindStr = self.get_positional_bind_string() 
+        bindstr = self.get_positional_bind_string() 
         cursor  = self.cursor ()
 
-        stmt = 'DELETE FROM required_metadata WHERE filetype = ' + bindStr
+        stmt = 'DELETE FROM required_metadata WHERE filetype = ' + bindstr
         cursor.execute (stmt, (filetype, ))
 
-        stmt = 'DELETE FROM filetype WHERE filetype = ' + bindStr
+        stmt = 'DELETE FROM filetype WHERE filetype = ' + bindstr
         cursor.execute (stmt, (filetype, ))
-
-    def sequence_create (self, sequence):
-        cursor = self.cursor ()
-        try:
-            cursor.execute ('CREATE SEQUENCE %s' % sequence)
-        except Exception as e:
-            # Postgres requires that the connection be reset before it can be
-            # used again.
-            self.rollback ()
-            raise
-        finally:
-            cursor.close ()
-
-    def sequence_drop (self, sequence):
-        cursor = self.cursor ()
-        try:
-            cursor.execute ('DROP SEQUENCE %s' % sequence)
-        except Exception as e:
-            # Postgres requires that the connection be reset before it can be
-            # used again.
-            self.rollback ()
-            raise
-        finally:
-            cursor.close ()
-
-    def table_copy_empty (self, dest, src):
-        "Create an empty copy of the source table."
-
-        # Note that the copy will not have any constraints, triggers, indexes,
-        # etc. except for NOT NULL constraints.  This means that DML tests
-        # may succeed while production operation fails, but a portable table
-        # copy is much more difficult to create.
-
-        stmt = 'CREATE TABLE %s AS SELECT * FROM %s WHERE 0 = 1' % (dest, src)
-        cursor = self.cursor ()
-        cursor.execute (stmt)
-        cursor.close ()
-
-    def table_create (self, table, columns):
-        cursor = self.cursor ()
-        try:
-            cursor.execute ('CREATE TABLE %s (%s)' % (table, columns))
-        except Exception:
-            # Postgres requires that the connection be reset before it can be
-            # used again.
-            self.rollback ()
-            raise
-        finally:
-            cursor.close ()
 
 
 class TestPFWDB (unittest.TestCase):
@@ -315,22 +278,22 @@ class TestPFWDB (unittest.TestCase):
     """
 
     @classmethod
-    def setUpClass (self):
+    def setUpClass (cls):
         # Open a connection for use by all tests.  This opens the possibility of
         # tests interfering with one another, but connecting for each test
         # seems a bit excessive.
 
         if dbType == 'oracle':
-            self.testSection = 'db-oracle-unittest'
+            cls.testSection = 'db-oracle-unittest'
         elif dbType == 'postgres':
-            self.testSection = 'db-postgres-unittest'
+            cls.testSection = 'db-postgres-unittest'
 
-        self.dbh = PFWDBTest (section=self.testSection)
+        cls.dbh = PFWDBTest (section=cls.testSection)
 
         # Map various generic column types to dialect-specific types.
 
         if dbType == 'oracle':
-            self.typeMap = {'bigint'   : 'NUMBER (38)',
+            cls.typeMap = {'bigint'   : 'NUMBER (38)',
                             'smallint' : 'NUMBER (3)',
                             'integer'  : 'INTEGER',
                             'numeric'  : 'NUMBER (8,5)',
@@ -339,7 +302,7 @@ class TestPFWDB (unittest.TestCase):
                             'string'   : 'VARCHAR2 (20)'
                            }
         elif dbType == 'postgres':
-            self.typeMap = {'bigint'   : 'bigint',
+            cls.typeMap = {'bigint'   : 'bigint',
                             'smallint' : 'smallint',
                             'integer'  : 'integer',
                             'numeric'  : 'numeric (8,5)',
@@ -354,67 +317,70 @@ class TestPFWDB (unittest.TestCase):
         # Create test tables, sequences, etc. and populate with test data.
 
         try:
-            self.dbh.sequence_drop ('location_seq')
+            cls.dbh.sequence_drop ('location_seq')
         except Exception:
             pass
 
-        self.dbh.sequence_create ('location_seq')
-        self.dbh.commit ()
+        cls.dbh.sequence_create ('location_seq')
+        cls.dbh.commit ()
 
-        self.dbh.table_drop ('required_metadata')
-        self.dbh.table_drop ('filetype')
-        self.dbh.table_drop ('metadata')
+        cls.dbh.table_drop ('required_metadata')
+        cls.dbh.table_drop ('metadata_table')
+        cls.dbh.table_drop ('filetype')
+        cls.dbh.table_drop ('metadata')
 
-        self.dbh.table_copy_empty ('filetype', 'filetype')
-        self.dbh.table_copy_empty ('metadata', 'metadata')
-        self.dbh.table_copy_empty ('required_metadata', 'required_metadata')
+        cls.dbh.table_copy_empty ('metadata_table', 'metadata_table')
+        cls.dbh.table_copy_empty ('filetype', 'filetype')
+        cls.dbh.table_copy_empty ('metadata', 'metadata')
+        cls.dbh.table_copy_empty ('required_metadata', 'required_metadata')
 
-        self.dbh.add_test_metadata_headers (testMHSource)
-        self.dbh.commit ()
+        cls.dbh.add_test_metadata_headers (testMHSource)
+        cls.dbh.commit ()
 
         # Drop and re-create the metadata tables to which test data will be
         # ingested.
 
         table = testMHSource ['both']['metadata_table']
-        self.dbh.table_drop (table)
+        cls.dbh.table_drop (table)
 
-        v      = testMHSource ['both']
+        val    = testMHSource ['both']
         cols   = ([('id', 'integer')]                +
-                  v ['other_header_names'].values () +
-                  v ['derived_header_names'].values ())
-        cols   = [(col [0], self.typeMap [col [1]]) for col in cols]
-        colStr = ','.join (['%s %s' % col for col in cols])
-        self.dbh.table_create (table, colStr)
-        self.dbh.commit ()
+                  val ['other_header_names'].values () +
+                  val ['derived_header_names'].values ())
+        cols   = [(col [0], cls.typeMap [col [1]]) for col in cols]
+        colstr = ','.join (['%s %s' % col for col in cols])
+        cls.dbh.table_create (table, colstr)
+        cls.dbh.commit ()
 
         table = testMHSource ['UPPERCASE']['metadata_table']
-        self.dbh.table_drop (table)
+        cls.dbh.table_drop (table)
 
-        v      = testMHSource ['UPPERCASE']
+        val    = testMHSource ['UPPERCASE']
         cols   = ([('id', 'integer')]                +
-                  v ['other_header_names'].values () +
-                  v ['derived_header_names'].values ())
-        cols   = [(col [0], self.typeMap [col [1]]) for col in cols]
-        colStr = ','.join (['%s %s' % col for col in cols])
-        self.dbh.table_create (table, colStr)
+                  val ['other_header_names'].values () +
+                  val ['derived_header_names'].values ())
+        cols   = [(col [0], cls.typeMap [col [1]]) for col in cols]
+        colstr = ','.join (['%s %s' % col for col in cols])
+        cls.dbh.table_create (table, colstr)
 
-        self.dbh.commit()
+        cls.dbh.commit()
 
     @classmethod
-    def tearDownClass (self):
+    def tearDownClass (cls):
         try:
-            self.dbh.sequence_drop ('location_seq')
+            cls.dbh.sequence_drop ('location_seq')
         except Exception:
             pass
 
-        self.dbh.table_drop ('required_metadata')
-        self.dbh.table_drop ('filetype')
-        self.dbh.table_drop ('metadata')
-        self.dbh.table_drop (testMHSource ['both']['metadata_table'])
-        self.dbh.table_drop (testMHSource ['UPPERCASE']['metadata_table'])
+        cls.dbh.table_drop ('required_metadata')
+        cls.dbh.table_drop ('metadata_table')
+        cls.dbh.table_drop ('filetype')
+        cls.dbh.table_drop ('metadata')
+        cls.dbh.table_drop (testMHSource ['both']['metadata_table'])
+        cls.dbh.table_drop (testMHSource ['UPPERCASE']['metadata_table'])
 
-        self.dbh.commit ()
-        self.dbh.close ()
+        cls.dbh.commit ()
+        cls.dbh.close ()
 
     def setUp (self):
         self.maxDiff = None
@@ -426,22 +392,22 @@ class TestPFWDB (unittest.TestCase):
         # any of the headers in its input to exist, so be sure there is no
         # overlap there.
 
-        ft = 'NO_DERIVED'
-        newFiletype = {ft : {'filename_pattern'    : 'no_derived_filename_pat',
-                             'ops_dir_pattern'     : 'no_derived_ops_pat',
-                             'metadata_table'      : 'test_no_derived2',
-                             'derived_header_names': {},
-                             'other_header_names'  : {'casehdr':'case_col'}
-                            }
-                      }
-        self.dbh.add_test_metadata_headers (newFiletype)
+        ftype = 'NO_DERIVED'
+        new_ftype = {ftype : {'filename_pattern'    : 'no_derived_filename_pat',
+                              'ops_dir_pattern'     : 'no_derived_ops_pat',
+                              'metadata_table'      : 'test_no_derived2',
+                              'derived_header_names': {},
+                              'other_header_names'  : {'casehdr':'case_col'}
+                             }
+                    }
+        self.dbh.add_test_metadata_headers (new_ftype)
 
         try:
             self.assertRaises (DuplicateDBFiletypeError,
                                self.dbh.get_required_metadata_headers,
-                               ft.lower ())
+                               ftype.lower ())
         finally:
-            self.dbh.remove_a_filetype (ft)
+            self.dbh.remove_a_filetype (ftype)
 
     def test_get_all_types (self):
         "All variations of filetype-metadata header relationships should work."
@@ -453,44 +419,58 @@ class TestPFWDB (unittest.TestCase):
         self.assertEqual (res, testMHOutput)
 
     def test_get_filetype_metadata_map (self):
+        "Attempt to retrieve map for a valid filetype."
+
         h2c = dict (testMHSource ['both']['derived_header_names'].items () +
                     testMHSource ['both']['other_header_names'].items ())
         d = {'table'     : testMHSource ['both']['metadata_table'],
-             'hdr_to_col': {k : v [0] for k, v in h2c.items ()}
+             'id_column' : 'id',
+             'hdr_to_col': {key : val [0] for key, val in h2c.items ()}
             }
         map = self.dbh.get_filetype_metadata_map ('both')
         self.assertEqual (d, map)
 
     def test_get_filetype_metadata_map_bad (self):
-        d = {'table': None, 'hdr_to_col': {}}
+        "Attempt to retrieve map for an unknwon filetype."
+
+        d = {'table': None, 'id_column': None, 'hdr_to_col': {}}
         map = self.dbh.get_filetype_metadata_map ('unknown file type')
         self.assertEqual (d, map)
 
     def test_get_filetype_metadata_table (self):
-        table = self.dbh.get_filetype_metadata_table ('both')
-        self.assertEqual (testMHSource ['both']['metadata_table'], table)
+        "Attempt to retrieve a table for a valid filetype."
+
+        res = self.dbh.get_filetype_metadata_table ('both')
+        self.assertEqual ((testMHSource ['both']['metadata_table'],'id'), res)
 
     def test_get_filetype_metadata_table_bad (self):
-        table = self.dbh.get_filetype_metadata_table ('unknown file type')
-        self.assertIsNone (table)
+        "Attempt to retrieve table for unknown filetype."
+
+        res = self.dbh.get_filetype_metadata_table ('unknown file type')
+        self.assertEqual (res, (None, None))
 
     def test_get_neither_type (self):
-        """
-        Specifying a filetype with no associated headers should work.
-        """
+        "Specifying a filetype with no associated headers should work."
+
         res = self.dbh.get_required_metadata_headers ('neither')
         self.assertEqual (res, {})
 
     def test_get_nonexistent_type (self):
+        "Attempt to retrieve an unknown filetype."
+
         res = self.dbh.get_required_metadata_headers ('no such thing')
         self.assertEqual (res, {})
 
     def test_get_one_type (self):
+        "Attempt to retrieve a single filetype."
+
         res = self.dbh.get_required_metadata_headers ('both')
         headers = {'both' : testMHOutput ['both']}
         self.assertEqual (res, headers)
 
     def test_get_several_types (self):
+        "Attempt to retrieve multiple filetypes."
+
         names = ['no_derived', 'no_other', 'one_each']
         res = self.dbh.get_required_metadata_headers (names)
 
@@ -500,18 +480,21 @@ class TestPFWDB (unittest.TestCase):
 
     def test_get_type_lower_with_upper (self):
         "Attempt to retrieve an uppercase filetype using lowercase letters."
+
         res = self.dbh.get_required_metadata_headers ('ONE_EACH')
         headers = {'one_each' : testMHOutput ['one_each']}
         self.assertEqual (res, headers)
 
     def test_get_type_upper_with_lower (self):
         "Attempt to retrieve an uppercase filetype using lowercase letters."
+
         res = self.dbh.get_required_metadata_headers ('uppercase')
         headers = {'UPPERCASE' : testMHOutput ['UPPERCASE']}
         self.assertEqual (res, headers)
 
     def test_get_several_types_with_case (self):
         "A list of types with cases that don't match actual values should work."
+
         request_names = ['no_derived', 'no_other', 'ONE_EACH', 'uppercase']
         actual_names  = ['no_derived', 'no_other', 'one_each', 'UPPERCASE']
 
@@ -522,17 +505,19 @@ class TestPFWDB (unittest.TestCase):
         self.assertEqual (res, headers)
 
     def test_metadata_ingest (self):
+        "Ingesting a set of metadata headers should work."
+
         filetype = 'both'
-        mdIngest, retVal, hdrs, expected_rows = self.get_test_data_both ()
+        md_ingest, retval, hdrs, expected_rows = self.get_test_data_both ()
 
         try:
             try:
-                res = self.dbh.metadata_ingest (filetype, mdIngest)
+                res = self.dbh.metadata_ingest (filetype, md_ingest)
             except Exception:
                 self.dbh.rollback ()
                 raise
 
-            self.assertEqual (retVal, res)
+            self.assertEqual (retval, res)
 
             try:
                 actual_rows = set (self.dbh.filetype_get_rows (filetype, hdrs))
@@ -545,27 +530,30 @@ class TestPFWDB (unittest.TestCase):
             self.dbh.metadata_remove (filetype)
 
     def test_metadata_ingest_filetype_unknown (self):
-        ft = 'unknown file type'
-        d = {'bad_filetypes' : [ft],
+        "An attempt to ingest an unknown filetype should be reported."
+
+        ftype = 'unknown file type'
+        d = {'bad_filetypes' : [ftype],
              'bad_file_ids'  : [],
              'missing_hdrs'  : {},
              'extra_hdrs'    : {},
              'duplicate_hdrs': {}
             }
 
-        self.assertEqual (d, self.dbh.metadata_ingest (ft, None))
+        self.assertEqual (d, self.dbh.metadata_ingest (ftype, None))
 
     def test_metadata_ingest_filetype_lower (self):
         "Ingesting a lowercase version of an uppercase filetype should work."
+
         filetype = 'UPPERCASE'
         cols = ['DER9', 'HDR9']
-        md = {'file1': {'DER9': 11, 'HDR9': 12},
-              'file2': {'DER9': 21, 'HDR9': 22}
-             }
-        mdIngest = self.md2str (md)
+        meta = {'file1': {'DER9': 11, 'HDR9': 12},
+                'file2': {'DER9': 21, 'HDR9': 22}
+               }
+        md_ingest = self.md2str (meta)
         expected_rows = set ()
-        for fn in md:
-            expected_rows.add (tuple ([md [fn].get (c) for c in cols]))
+        for fn in meta:
+            expected_rows.add (tuple ([meta [fn].get (c) for c in cols]))
         d = {'bad_filetypes' : [],
              'bad_file_ids'  : [],
              'missing_hdrs'  : {},
@@ -574,8 +562,8 @@ class TestPFWDB (unittest.TestCase):
             }
 
         try:
-            upFT = filetype.lower ()
-            self.assertEqual (d, self.dbh.metadata_ingest (upFT, mdIngest))
+            upft = filetype.lower ()
+            self.assertEqual (d, self.dbh.metadata_ingest (upft, md_ingest))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, cols))
 
@@ -585,12 +573,13 @@ class TestPFWDB (unittest.TestCase):
 
     def test_metadata_ingest_filetype_upper (self):
         "Ingest with an uppercase version of a lowercase filetype should work."
+
         filetype = 'both'
-        mdIngest, retVal, hdrs, expected_rows = self.get_test_data_both ()
+        md_ingest, retval, hdrs, expected_rows = self.get_test_data_both ()
 
         try:
-            upFT = filetype.upper ()
-            self.assertEqual (retVal, self.dbh.metadata_ingest (upFT, mdIngest))
+            upft = filetype.upper ()
+            self.assertEqual (retval, self.dbh.metadata_ingest(upft, md_ingest))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, hdrs))
 
@@ -600,15 +589,16 @@ class TestPFWDB (unittest.TestCase):
 
     def test_metadata_ingest_header_corrupt (self):
         "Metadata header rows that differ only by case should cause exception."
+
         filetype = 'corrupt_hdr'
         # Use base data for "both" filetype since it shouldn't matter
-        mdIngest, retVal, hdrs, expected_rows = self.get_test_data_both ()
+        md_ingest, retval, hdrs, expected_rows = self.get_test_data_both ()
 
         self.dbh.metadata_header_add ('DER1', 'der1_col', 1, filetype)
 
         try:
             self.assertRaises (DuplicateDBHeaderError,
-                               self.dbh.metadata_ingest, filetype, mdIngest)
+                               self.dbh.metadata_ingest, filetype, md_ingest)
         finally:
             self.dbh.metadata_header_remove ('DER1')
             # Remove the metadata if the exception wasn't raised.
@@ -616,28 +606,30 @@ class TestPFWDB (unittest.TestCase):
 
     def test_metadata_ingest_header_corrupt_id (self):
         "An id column in the METADATA should raise an exception."
+
         filetype = 'id_hdr'
         # Use base data for "both" filetype since it shouldn't matter
-        mdIngest, retVal, hdrs, expected_rows = self.get_test_data_both ()
+        md_ingest, retval, hdrs, expected_rows = self.get_test_data_both ()
 
         try:
             self.assertRaises (IdMetadataHeaderError,
-                               self.dbh.metadata_ingest, filetype, mdIngest)
+                               self.dbh.metadata_ingest, filetype, md_ingest)
         finally:
             # Remove the metadata if the exception wasn't raised.
             self.dbh.metadata_remove (filetype)
 
     def test_metadata_ingest_header_duplicate (self):
         "Ingest metadata with headers that differ only by case should fail."
+
         filetype = 'both'
-        md, retVal, hdrs, expected_rows = self.get_test_data_both ()
+        meta, retval, hdrs, expected_rows = self.get_test_data_both ()
 
         # Add another file that shouldn't be ingested.
-        md ['file3'] = {'DER1': '45', 'Der1': '78', 'der1': '12'}
-        retVal ['duplicate_hdrs'] = {'file3': [('DER1', 'Der1', 'der1')]}
+        meta ['file3'] = {'DER1': '45', 'Der1': '78', 'der1': '12'}
+        retval ['duplicate_hdrs'] = {'file3': [('DER1', 'Der1', 'der1')]}
 
         try:
-            self.assertEqual (retVal, self.dbh.metadata_ingest (filetype, md))
+            self.assertEqual (retval, self.dbh.metadata_ingest (filetype, meta))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, hdrs))
 
@@ -646,19 +638,21 @@ class TestPFWDB (unittest.TestCase):
             self.dbh.metadata_remove (filetype)
 
     def test_metadata_ingest_header_extra (self):
+        "Extra metadata headers should be reported."
+
         filetype = 'both'
-        md, retVal, hdrs, expected_rows = self.get_test_data_both ()
+        meta, retval, hdrs, expected_rows = self.get_test_data_both ()
 
         # Add some extra headers to input and expected return value.
 
-        md ['file1']['ext1'] = '34'
-        md ['file1']['ext2'] = '85'
-        md ['file2']['ext3'] = '45'
+        meta ['file1']['ext1'] = '34'
+        meta ['file1']['ext2'] = '85'
+        meta ['file2']['ext3'] = '45'
 
-        retVal ['extra_hdrs'] = {'file1': ['ext1', 'ext2'], 'file2': ['ext3']}
+        retval ['extra_hdrs'] = {'file1': ['ext1', 'ext2'], 'file2': ['ext3']}
 
         try:
-            self.assertEqual (retVal, self.dbh.metadata_ingest (filetype, md))
+            self.assertEqual (retval, self.dbh.metadata_ingest (filetype, meta))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, hdrs))
 
@@ -668,20 +662,21 @@ class TestPFWDB (unittest.TestCase):
 
     def test_metadata_ingest_header_id (self):
         "An input id header should be reported as extra and not inserted."
+
         filetype = 'both'
-        md, retVal, hdrs, expected_rows = self.get_test_data_both ()
+        meta, retval, hdrs, expected_rows = self.get_test_data_both ()
 
         # Add an id header to each file in input and output.  Create a set of
         # rows that would match the ingested id columns if the provided id
         # metdata values were actually used.
-        idList = [4, 5]
-        md ['file1']['id'] = idList [0]
-        md ['file2']['id'] = idList [1]
-        bad_id_rows = {(id, ) for id in idList}
-        retVal ['extra_hdrs'] = {'file1': ['id'], 'file2': ['id']}
+        idlist = [4, 5]
+        meta ['file1']['id'] = idlist [0]
+        meta ['file2']['id'] = idlist [1]
+        bad_id_rows = {(id, ) for id in idlist}
+        retval ['extra_hdrs'] = {'file1': ['id'], 'file2': ['id']}
 
         try:
-            self.assertEqual (retVal, self.dbh.metadata_ingest (filetype, md))
+            self.assertEqual (retval, self.dbh.metadata_ingest (filetype, meta))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, hdrs))
             actual_id_rows = set (self.dbh.filetype_get_rows (filetype, ['id']))
@@ -693,16 +688,17 @@ class TestPFWDB (unittest.TestCase):
 
     def test_metadata_ingest_header_lower (self):
         "Ingesting a lowercase version of an uppercase header name should work."
+
         filetype = 'UPPERCASE'
         cols = ['DER9', 'HDR9']
-        md = {'file1': {'der9': 11, 'hdr9': 12},
-              'file2': {'DER9': 21, 'HDR9': 22}
-             }
-        mdIngest = self.md2str (md)
+        meta = {'file1': {'der9': 11, 'hdr9': 12},
+                'file2': {'DER9': 21, 'HDR9': 22}
+               }
+        md_ingest = self.md2str (meta)
         expected_rows = set ()
-        for fn in md:
-            upKeys = {k.upper (): v for k, v in md [fn].items()}
-            expected_rows.add (tuple ([upKeys.get (c) for c in cols]))
+        for fn in meta:
+            upkeys = {key.upper (): val for key, val in meta [fn].items()}
+            expected_rows.add (tuple ([upkeys.get (c) for c in cols]))
         d = {'bad_filetypes' : [],
              'bad_file_ids'  : [],
              'missing_hdrs'  : {},
@@ -711,7 +707,7 @@ class TestPFWDB (unittest.TestCase):
             }
 
         try:
-            self.assertEqual (d, self.dbh.metadata_ingest (filetype, mdIngest))
+            self.assertEqual (d, self.dbh.metadata_ingest (filetype, md_ingest))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, cols))
 
@@ -720,13 +716,15 @@ class TestPFWDB (unittest.TestCase):
             self.dbh.metadata_remove (filetype)
 
     def test_metadata_ingest_header_missing (self):
+        "Missing metadata headers should be reported."
+
         filetype = 'both'
         x = [('file1', 'der2'), ('file2', 'der2'), ('file2', 'hdr2')]
-        md, retVal, hdrs, expected_rows = self.get_test_data_both (exclude = x)
-        retVal ['missing_hdrs'] = {'file1': ['der2'], 'file2': ['der2', 'hdr2']}
+        meta, retval, hdrs, expected_rows = self.get_test_data_both (exclude=x)
+        retval ['missing_hdrs'] = {'file1': ['der2'], 'file2': ['der2', 'hdr2']}
 
         try:
-            self.assertEqual (retVal, self.dbh.metadata_ingest(filetype, md))
+            self.assertEqual (retval, self.dbh.metadata_ingest(filetype, meta))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, hdrs))
 
@@ -736,19 +734,20 @@ class TestPFWDB (unittest.TestCase):
 
     def test_metadata_ingest_header_upper (self):
         "Ingesting an uppercase version of a lowercase header name should work."
+
         filetype = 'both'
-        md, retVal, hdrs, expected_rows = self.get_test_data_both ()
-        md ['file1'] ['HDR2'] = md ['file1'] ['hdr2']
-        md ['file1'] ['HDR3'] = md ['file1'] ['hdr3']
-        md ['file2'] ['DER1'] = md ['file2'] ['der1']
-        md ['file2'] ['DER2'] = md ['file2'] ['der2']
-        del md ['file1'] ['hdr2']
-        del md ['file1'] ['hdr3']
-        del md ['file2'] ['der1']
-        del md ['file2'] ['der2']
+        meta, retval, hdrs, expected_rows = self.get_test_data_both ()
+        meta ['file1'] ['HDR2'] = meta ['file1'] ['hdr2']
+        meta ['file1'] ['HDR3'] = meta ['file1'] ['hdr3']
+        meta ['file2'] ['DER1'] = meta ['file2'] ['der1']
+        meta ['file2'] ['DER2'] = meta ['file2'] ['der2']
+        del meta ['file1'] ['hdr2']
+        del meta ['file1'] ['hdr3']
+        del meta ['file2'] ['der1']
+        del meta ['file2'] ['der2']
 
         try:
-            self.assertEqual (retVal, self.dbh.metadata_ingest (filetype, md))
+            self.assertEqual (retval, self.dbh.metadata_ingest (filetype, meta))
 
             actual_rows = set (self.dbh.filetype_get_rows (filetype, hdrs))
 
@@ -756,14 +755,14 @@ class TestPFWDB (unittest.TestCase):
         finally:
             self.dbh.metadata_remove (filetype)
 
-    def md2str (self, md):
+    def md2str (self, meta):
         "Return a metadata input structure with all values as strings."
 
-        mdStr = {}
-        for file, colValues in md.items ():
-            mdStr [file] = {h : str (v) for h, v in colValues.items ()}
+        mdstr = {}
+        for fname, colvalues in meta.items ():
+            mdstr [fname] = {h : str (val) for h, val in colvalues.items ()}
 
-        return mdStr
+        return mdstr
 
     def get_test_data_both (self, exclude = None):
         """
@@ -786,38 +785,42 @@ class TestPFWDB (unittest.TestCase):
 
         hdrs = ['der1', 'der2', 'der3', 'hdr2', 'hdr3', 'hdr5']
 
-        md = {'file1': {'der1': 11,   'der2': 12.3,           'der3': 'str1',
-                        'hdr2': 13.5, 'hdr3': Decimal (14.5), 'hdr5': 12345},
-              'file2': {'der1': 21,   'der2': 22.3,           'der3': 'str2',
-                        'hdr2': 23.5, 'hdr3': Decimal (24.5), 'hdr5': 54321}
+        meta = {'file1': {'der1': 11,   'der2': 12.3,           'der3': 'str1',
+                          'hdr2': 13.5, 'hdr3': Decimal (14.5), 'hdr5': 12345},
+                'file2': {'der1': 21,   'der2': 22.3,           'der3': 'str2',
+                          'hdr2': 23.5, 'hdr3': Decimal (24.5), 'hdr5': 54321}
              }
 
         if exclude:
-            for file, header in exclude:
-                del md [file] [header]
+            for fname, header in exclude:
+                del meta [fname] [header]
 
         expected_rows = set ()
-        for fn in md:
-            expected_rows.add (tuple ([md [fn].get (c) for c in hdrs]))
+        for fn in meta:
+            expected_rows.add (tuple ([meta [fn].get (c) for c in hdrs]))
 
-        mdIngest = self.md2str (md)
+        md_ingest = self.md2str (meta)
 
-        retVal = {'bad_filetypes' : [], 'bad_file_ids' : [],
+        retval = {'bad_filetypes' : [], 'bad_file_ids' : [],
                   'missing_hdrs'  : {}, 'extra_hdrs'   : {},
                   'duplicate_hdrs': {}}
 
-        return mdIngest, retVal, hdrs, expected_rows
+        return md_ingest, retval, hdrs, expected_rows
 
 if __name__ == '__main__':
-    usage = 'Usage: test.py oracle|postgres [unittest_args...]'
+    if sys.hexversion < 0x02070000:
+        sys.exit (sys.argv [0] + ': Error: Python version >= 2.7 and < 3.0 '
+                  'required.') 
+
+    usage = 'Usage: %s oracle|postgres [unittest_args...]' % sys.argv [0]
 
     try:
         dbType = sys.argv [1]
     except IndexError:
-        raise Exception (usage) 
+        sys.exit (usage) 
 
     if dbType not in ['oracle', 'postgres']:
-        raise Exception (usage) 
+        sys.exit (usage) 
 
     del sys.argv [1]
 

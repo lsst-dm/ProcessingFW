@@ -97,6 +97,18 @@ class PFWDB (coreutils.DesDbi):
 
         cursor.close ()
 
+        # The file_header_name column is case sensitive in the database, but
+        # header names are meant to be case insensitive; this can lead to
+        # duplicate header names in the database.  In addition, various mis-
+        # configuration of the metadata mapping tables could lead to duplicate
+        # rows returned from the query above.  Check for this problem.
+
+        for ftype in retval:
+            hdrs = {hdr for hdr in retval [ftype]['derived_header_names'] +
+                                   retval [ftype]['other_header_names']}
+            if len ({hdr.lower () for hdr in hdrs}) != len (hdrs):
+                raise DuplicateDBHeaderError ()
+
         # The filetype column in the filetype table is case sensitive in the
         # database, but this method forces case insensitive matching.  This
         # could lead to multiple filetypes being returned for a single
@@ -125,12 +137,14 @@ class PFWDB (coreutils.DesDbi):
 
         The returned dictionary contains two keys:
             table       value is name of the database table for the filetype
+            id_column   value is name of id column for the table
             hdr_to_col  value is a dictionary mapping metadata header name to
                         database column name
         """
 
-        fmap = {'table'     : self.get_filetype_metadata_table (filetype),
-                'hdr_to_col': {}}
+        tab, idcol = self.get_filetype_metadata_table (filetype)
+
+        fmap = {'table': tab, 'id_column': idcol, 'hdr_to_col': {}}
 
         cursor = self.cursor ()
         bindstr = self.get_positional_bind_string ()
@@ -148,14 +162,24 @@ class PFWDB (coreutils.DesDbi):
         return fmap
 
     def get_filetype_metadata_table (self, filetype):
-        "Retrieve the metadata table name for the specified filetype."
+        """
+        Retrieve the metadata table name and id column name for the specified
+        filetype.
+ 
+        Filetypes are considered case insensitive, but may appear multiple
+        times with different case in the database.  This condition is detected
+        and reported.  Other mis-configurations of the metadata mapping tables
+        may lead to this report as well, however.
+        """
 
         cursor  = self.cursor ()
         bindstr = self.get_positional_bind_string ()
 
-        stmt = ("SELECT metadata_table "
-                "FROM   filetype "
-                "WHERE  LOWER (filetype) = " + bindstr)
+        stmt = ("SELECT f.metadata_table, LOWER (m.id_column) "
+                "FROM   filetype f "
+                "       JOIN metadata_table m "
+                "           ON m.table_name = f.metadata_table "
+                "WHERE  LOWER (f.filetype) = " + bindstr)
 
         try:
             cursor.execute (stmt, (filetype.lower (), ))
@@ -164,9 +188,9 @@ class PFWDB (coreutils.DesDbi):
             cursor.close ()
 
         if len (res) == 1:
-            return res [0][0]
+            return res [0][0], res [0][1]
         elif len (res) == 0:
-            return None
+            return None, None
         else:
             raise DuplicateDBFiletypeError ()
 
@@ -193,7 +217,8 @@ class PFWDB (coreutils.DesDbi):
         indicated conditions.
 
         Headers are considered duplicate if they are different only by case, so
-        such duplication can exist in the metadata_by_filename parameter.
+        such duplication can exist in the metadata_by_filename parameter and is
+        reported when detected.
 
         Metadata is not ingested for any files listed in bad_file_ids or
         duplicate_hdrs.  No metadata was ingested if bad_filetypes is not
@@ -228,7 +253,7 @@ class PFWDB (coreutils.DesDbi):
         # to be in the same order, so construct a list of columns and and a
         # list of headers that are in the same order.  Start with "id" since
         # that must be added, but shouldn't be in the database.
-        columns  = ['id']
+        columns  = [fmap ['id_column']]
         hdr_list = ['id']
         for hdr, col in fmap ['hdr_to_col'].items ():
             columns.append (col)

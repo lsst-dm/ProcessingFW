@@ -1,0 +1,23 @@
+########################################################################
+#  $Id: localjob.condor 4383 2009-09-24 16:05:40Z mgower $
+#  $Rev:: 4383                             $:  # Revision of last commit.
+#  $LastChangedBy:: mgower                 $:  # Author of last commit.
+#  $LastChangedDate:: 2009-09-24 11:05:40 #$:  # Date of last commit.
+#######################################################################
+
+universe=local
+executable= $(exec)
+arguments = $(args)
+getenv=true
+notification=never
+output=$(jobname).out
+error=$(jobname).err
+log=localjob.log
++des_isdesjob=TRUE
++des_project="$(project)"
++des_run="$(run)"
++des_runsite="$(runsite)"
++des_block="$(block)"
++des_subblock="$(jobname)"
+#initialdir = ../$(block)
+queue

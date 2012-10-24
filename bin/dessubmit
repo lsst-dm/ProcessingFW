@@ -1,14 +1,129 @@
 #!/usr/bin/env python
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedDate::                      $:  # Date of last commit.
 
-#$Id$
-#$Rev::                                  $:  # Revision of last commit.
-#$LastChangedBy::                        $:  # Author of last commit. 
-#$LastChangedDate::                      $:  # Date of last commit.
+""" TODO docstring """
 
-"""
-Submit a WCL input file describing a run to the processing framework
-"""
-
+import argparse
+import os
+import shutil
 import sys
+import processingfw.pfwsubmit as pfwsubmit
+import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwlog as pfwlog
 
-print "Number of args = ", len(sys.argv)
+VERSION = '$Rev$'
+
+################################################################
+def create_dags(config, logfh):
+    """ Call functions to write condor dags needed at submission time """
+    realstdout = sys.stdout
+    realstderr = sys.stderr
+
+    sys.stdout = logfh
+    sys.stderr = logfh
+
+    maindag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'mainmngr'}})
+    processdag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'processmngr'}})
+
+    try:
+        pfwsubmit.write_process_dag(config, processdag)
+        pfwsubmit.write_main_dag(config, maindag, processdag)
+    except:
+        sys.stdout = realstdout
+        sys.stderr = realstderr
+        raise
+
+    sys.stdout = realstdout
+    sys.stderr = realstderr
+
+    return maindag
+
+
+def main(args):
+    try:
+        parser = argparse.ArgumentParser(description='dessubmit')
+        parser.add_argument('--notarget', action='store_true', default=False)
+        parser.add_argument('--gensubmit', action='store')
+        parser.add_argument('--version', action='store_true', default=False)
+        parser.add_argument('submitwcl', nargs=1, action='store')
+
+        args = parser.parse_args()
+
+        print 'Using version %s of dessubmit\n' % VERSION
+
+        if args.version:
+            return 0
+
+        if args.notarget:
+            args.notarget = 1
+        else:
+            args.notarget = 0
+
+        print "submitwcl = ", args.submitwcl[0]
+        config = pfwconfig.PfwConfig({'wclfile':args.submitwcl[0], 
+                                      'querydb':1, 
+                                      'notarget':args.notarget})
+
+        if args.gensubmit:
+            config.save_file(args.gensubmit)
+        else:
+            config.set_submit_info()
+
+            print 'Checking submit file:'
+            (errcnt, warncnt, cleancnt) = config.check()
+            if errcnt > 0:
+                raise Exception("Errors in submit file")
+            elif warncnt > 0:
+                print "\t(Note: %d warning(s) in config)" % warncnt
+            elif cleancnt > 0:
+                print "\t(Note: %d item(s) cleaned in config)" % cleancnt
+
+            print 'Checking system:'
+            pfwsubmit.run_sys_checks()
+
+            print 'Creating submit dirs:'
+            pfwsubmit.create_submitside_dirs(config)
+
+            uberctrl = config['uberctrl_dir']
+
+            # log file for dessubmit
+            logfile = '%s/dessubmit.log' % (uberctrl)
+            logfh = open(logfile, 'w', 0)
+
+            #insertRun(config)
+
+            pfwlog.log_pfw_event(config, 'submit', '', '')
+
+            # save original submit file as is
+            print 'Saving submit file...',
+            shutil.copy2(args.submitwcl[0], "%s/orig_submit.des" % uberctrl)
+            print 'DONE'
+
+            # save config
+            config.save_file('%s/expand_submit.des' % uberctrl)
+            config.save_file('%s/config.des' % uberctrl)
+
+            # must be in internal directory when submitting simulation
+            os.chdir(uberctrl)
+
+            print 'Writing internal files...',
+            maindag = create_dags(config, logfh)
+            print 'DONE'
+
+            pfwsubmit.submit_main_dag(config, maindag, logfh)
+    except Exception:
+        # error handling code here
+        print 'ERROR\nABORTING SUBMISSION' 
+        raise
+
+        return 1  # exit on error
+    else:
+        return 0  # exit errorlessly
+ 
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
+
+

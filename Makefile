@@ -18,7 +18,7 @@ endif
 	-rsync -Caq bin ${INSTALL_ROOT}
 #	-rsync -Caq etc ${INSTALL_ROOT}
 	-mkdir -p ${INSTALL_ROOT}/python
-	-rsync -Caq python/ProcessingFW ${INSTALL_ROOT}/python
+	-rsync -Caq python/processingfw ${INSTALL_ROOT}/python
 	-rsync -Caq libexec ${INSTALL_ROOT}
 	-rsync -Caq share ${INSTALL_ROOT}
 #	-rsync -Caq man ${INSTALL_ROOT}

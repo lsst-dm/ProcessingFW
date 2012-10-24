@@ -22,7 +22,7 @@ class PfwConfig:
     """ Contains configuration and state information for PFW """
 
     # order in which to search for values
-    DEFORDER = ['file', 'list', 'exec', 'job', 'module', 'block', 'archive', 'software', 'site']
+    DEFORDER = ['file', 'list', 'exec', 'job', 'module', 'block', 'archive', 'site']
 
     # misc constants 
     ATTRIB_PREFIX='des_'
@@ -270,37 +270,37 @@ class PfwConfig:
         if 'submit_node' not in self.config:
             print 'Error: submit_node is not specified.'
             errcnt += 1
-        elif self.config['submit_node'] not in self.config['archive']:
-            print 'Error:  Could not find archive information for submit node %s' % self.config['submit_node']
-            errcnt += 1
-        elif 'archive_root' not in self.config['archive'][self.config['submit_node']]:
-            print 'Error:  archive_root not specified for submit node %s' % self.config['submit_node']
-            errcnt += 1
-        elif 'site_id' not in self.config['archive'][self.config['submit_node']]:
-            print 'Error: site_id not specified for submit node %s' % self.config['submit_node']
-            errcnt += 1
-        else:
-            submit_node = self.config['submit_node']
-            archiveroot = self.config['archive'][submit_node]['archive_root']
-            if not os.path.exists(archiveroot):
-                print 'Warning: archive_root (%s) from submit_node does not exist on disk' % archiveroot
-                warncnt += 1
-    
-            submit_siteid = self.config['archive'][submit_node]['site_id']
-            if submit_siteid not in self.siteid2name:
-                print 'Error: Could not find site information for site %s from submit node info.' % submit_siteid
-                errcnt += 1
-                submit_siteid = None
-            elif 'login_host' not in self.config['site'][self.siteid2name[submit_siteid]]:
-                print 'Error:  login_host is not defined for submit site %s (%s).\n' % (self.siteid2name[submit_siteid], submit_siteid)
-                errcnt += 1
-            elif os.uname()[1] != self.config['site'][self.siteid2name[submit_siteid]]['login_host']:
-                print 'Error:  submit node %s (%s) does not match submit host (%s).' % (submit_node, self.config['site'][self.siteid2name[submit_siteid]]['login_host'], os.uname()[1])
-                print 'Debugging tips: '
-                print '\tCheck submit_node value, '
-                print '                Check correct site_id defined for submit_node,'
-                print '\tcheck login_host defined for site linked to submit_node'
-#mmg                errcnt += 1
+#        elif self.config['submit_node'] not in self.config['archive']:
+#            print 'Error:  Could not find archive information for submit node %s' % self.config['submit_node']
+#            errcnt += 1
+#        elif 'archive_root' not in self.config['archive'][self.config['submit_node']]:
+#            print 'Error:  archive_root not specified for submit node %s' % self.config['submit_node']
+#            errcnt += 1
+#        elif 'site_id' not in self.config['archive'][self.config['submit_node']]:
+#            print 'Error: site_id not specified for submit node %s' % self.config['submit_node']
+#            errcnt += 1
+#        else:
+#            submit_node = self.config['submit_node']
+#            archiveroot = self.config['archive'][submit_node]['archive_root']
+#            if not os.path.exists(archiveroot):
+#                print 'Warning: archive_root (%s) from submit_node does not exist on disk' % archiveroot
+#                warncnt += 1
+#    
+#            submit_siteid = self.config['archive'][submit_node]['site_id']
+#            if submit_siteid not in self.siteid2name:
+#                print 'Error: Could not find site information for site %s from submit node info.' % submit_siteid
+#                errcnt += 1
+#                submit_siteid = None
+#            elif 'login_host' not in self.config['site'][self.siteid2name[submit_siteid]]:
+#                print 'Error:  login_host is not defined for submit site %s (%s).\n' % (self.siteid2name[submit_siteid], submit_siteid)
+#                errcnt += 1
+#            elif os.uname()[1] != self.config['site'][self.siteid2name[submit_siteid]]['login_host']:
+#                print 'Error:  submit node %s (%s) does not match submit host (%s).' % (submit_node, self.config['site'][self.siteid2name[submit_siteid]]['login_host'], os.uname()[1])
+#                print 'Debugging tips: '
+#                print '\tCheck submit_node value, '
+#                print '                Check correct site_id defined for submit_node,'
+#                print '\tcheck login_host defined for site linked to submit_node'
+#                   errcnt += 1
     
     
         # Check block definitions for simple single module blocks.
@@ -445,7 +445,7 @@ class PfwConfig:
         else:
             self.config['listtargets'] = targetnode
         
-        curdict['curr_software'] = self['software_node']
+#depricated?        curdict['curr_software'] = self['software_node']
     
         (exists, siteid) = self.search('site_id')
         if exists and self.siteid2name:
@@ -728,6 +728,8 @@ class PfwConfig:
 
         if dirpat in self.config['dir_patterns']:
             filepathpat = self.config['dir_patterns'][dirpat][pathtype]
+        else:
+            raise Exception("Could not find pattern %s in dir_patterns" % dirpat)
                 
         filepath = self.interpolate(filepathpat, searchopts)
         return filepath

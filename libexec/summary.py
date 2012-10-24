@@ -35,14 +35,15 @@ def summary(argv = None):
             status = pfwconfig.PfwConfig.FAILURE
     else:
         print "summary: Missing status value"
-        status = pfwconfig.PfwConfig.FAILURE
+        status = None
     
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': argv[1]})
     
     log_pfw_event(config, 'process', 'mngr', 'j', ['posttask', status])
     
-    msgstr = "End of run tasks (replicating data, ingesting submit runtime, etc) are starting."
+    msgstr = ""
+#    msgstr = "End of run tasks (replicating data, ingesting submit runtime, etc) are starting."
     
     msg1 = ""
     subject = ""
@@ -50,24 +51,30 @@ def summary(argv = None):
         msg1 = "Processing finished with unknown results.\n%s" % msgstr
         subject = "[Unknown]"
 #MMG        status = orch.dbutils.update_run_status(config, orch.orchconfig.FAILURE)
-    elif 'notarget' in config and config['notarget']:
+    elif 'notarget' in config and config['notarget'] == '1':
         print "notarget =", config['notarget'], int(config['notarget'])
 
         msg1 = "Processing ended after notarget\n%s" % msgstr
-        subject = "[NOTARGET]"
+#        subject = "[NOTARGET]"
 #MMG        status = orch.dbutils.update_run_status(config, orch.orchconfig.NOTARGET)
     else:
 #MMG        status = orch.dbutils.update_run_status(config, status)
     
-        if status == pfwconfig.PfwConfig.SUCCESS:
-            msg1 = "Processing is complete.\nEnd of run tasks (replicating data, ingesting submit runtime, etc) are starting."
-            subject = ""
+        if int(status) == pfwconfig.PfwConfig.SUCCESS:
+#            msg1 = "Processing is complete.\nEnd of run tasks (replicating data, ingesting submit runtime, etc) are starting."
+            msg1 = "Processing has successfully completed.\n"
+#            subject = ""
         else:
-            msg1 = "Processing aborted.\n" 
-            subject = "[FAILED]"
+            print "status = '%s'" % status
+            print "type(status) =", type(status)
+            print "SUCCESS = '%s'" % pfwconfig.PfwConfig.SUCCESS
+            print "type(SUCCESS) =", type(pfwconfig.PfwConfig.SUCCESS)
+            msg1 = "Processing aborted with status %s.\n" % (status) 
+#            subject = "[FAILED]"
     
     #my $RunID = config->getValueReq("runid");
     #my $msg2 = `$DESHome/bin/desstat -l $Nite $RunID 2>&1`;
+    subject = ""
     pfwemail.send_email(config, "processing", status, subject, msg1, '')
     
     print "summary: status = '%s'" % status

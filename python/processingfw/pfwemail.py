@@ -64,9 +64,9 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.close()
 
     subject = "DESDM: %s %s %s %s" % (project, run, block, subject)
-    if status == pfwconfig.PfwConfig.NOTARGET:
+    if int(status) == pfwconfig.PfwConfig.NOTARGET:
         subject += " [NOTARGET]"
-    elif status != pfwconfig.PfwConfig.SUCCESS:
+    elif int(status) != pfwconfig.PfwConfig.SUCCESS:
         subject += " [FAILED]"
 
     if 'email' in config:

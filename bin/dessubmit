@@ -58,11 +58,11 @@ def main(args):
             return 0
 
         if args.notarget:
+            print "RUNNING WITH NOTARGET\n"
             args.notarget = 1
         else:
             args.notarget = 0
 
-        print "submitwcl = ", args.submitwcl[0]
         config = pfwconfig.PfwConfig({'wclfile':args.submitwcl[0], 
                                       'querydb':1, 
                                       'notarget':args.notarget})

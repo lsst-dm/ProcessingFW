@@ -44,7 +44,7 @@ def print_header():
     print "%7s %1s %3s %-27s %-30s %-15s %-17s %-8s %-15s" % \
           ("ID", "T","PRJ","RUN","BLOCK","SUBBLOCK","STAT",
            "OPERATOR", "RUNSITE")
-    print "="*122
+    print "="*123
 
 
 def status_target_jobs(job, qjobs):

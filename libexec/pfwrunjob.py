@@ -5,7 +5,7 @@ import sys
 import os
 import time
 import processingfw.pfwutils as pfwutils
-import processingfw.cache as cache
+import filemgmt.cache as cache
 import intgutils.wclutils as wclutils
 
 

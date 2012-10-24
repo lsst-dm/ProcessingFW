@@ -61,7 +61,8 @@ def create_master_list(config, modname, moddict,
 
     # handle both outputxml and outputfile args
     args = config.interpolate(args, {'currentvals':{'module':modname, 
-                              'outputxml':qoutfile, 'outputfile':qoutfile}, 
+                              'outputxml':qoutfile, 'outputfile':qoutfile, 
+                              'qoutfile':qoutfile}, 
                               'searchobj':search_dict})
 
 

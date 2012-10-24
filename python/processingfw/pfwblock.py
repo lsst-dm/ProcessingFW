@@ -654,13 +654,19 @@ def write_runjob_script(config):
     jobdir = 'r%sp%02d_j%04d' % (config['reqnum'], 
                                  int(config['attnum']),
                                  int(jobnum))
-    print "jobdir =", jobdir
+    print "The jobdir =", jobdir
 
     scriptstr = """#!/bin/sh
 source %(eups)s 
-#setup %(pipe)s %(ver)s
+echo "Using eups to setup up %(pipe)s %(ver)s"
+setup %(pipe)s %(ver)s
+echo "PATH = " $PATH
+echo "PYTHONPATH = " $PYTHONPATH
+
 initdir=`/bin/pwd`
-pwd
+echo ""
+echo "Initial condor job directory = " $initdir
+echo "Files copied over by condor:"
 ls -l
 """ % ({'eups': config['eups_setup'], 
         'pipe':config['pipeline'],
@@ -670,6 +676,8 @@ ls -l
         rdir = config['runtime_root'] + '/' + jobdir
         print "rdir =", rdir
         scriptstr += """
+echo ""
+echo "Making run directory in runtime_root: %(rdir)s"
 if [ ! -e %(rdir)s ]; then
     mkdir -p %(rdir)s
 fi
@@ -677,10 +685,13 @@ cd %(rdir)s
         """ % ({'rdir': rdir})
 
     scriptstr += """
-echo $PATH
-echo $PYTHONPATH
 
+echo ""
+echo "Untaring input wcl file: $1"
 time tar -xzvf $initdir/$1
+
+echo ""
+echo "Calling pfwrunjob.py"
 ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py $initdir/$2
 """ 
 
@@ -707,6 +718,7 @@ def create_runjob_condorfile(config):
                 'when_to_transfer_output': 'ON_EXIT_OR_EVICT',
                 'transfer_input_files': '$(transinput)', 
                 'transfer_executable': 'True',
+                'notification': 'Never',
                 'output':'%sout' % condorbase,
                 'error':'%serr' % condorbase,
                 'log': '%slog' % condorbase,

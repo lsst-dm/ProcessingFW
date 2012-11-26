@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -187,7 +187,16 @@ def finish_wrapper_inst(config, modname, wrapperinst):
 def add_needed_values(config, modname, wrapinst, wrapwcl):
     """ Make sure all variables in the wrapper instance have values in the wcl """
     pfwutils.debug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
-    neededvals = {}
+    
+    # start with those needed by framework
+    neededvals = {'reqnum': True, 
+                  'unitname': True,
+                  'attnum': True,
+                  'blknum': True,
+                  'jobnum': True,
+                  'wrapnum': True,
+                  'wrapname': True
+                 }
 
     # start with specified
     if 'req_vals' in config['module'][modname]: 
@@ -611,7 +620,7 @@ def create_wrapper_wcl(config, wrapinst):
     """ Create wcl for single wrapper instance """
     pfwutils.debug(1, "PFWBLOCK_DEBUG", "BEG")
     print "wrapinst.keys = ", wrapinst.keys()
-    modulelist = pfwutils.pfwsplit(config['module_list'].lower())
+    modulelist = pfwutils.pfwsplit(config['modulelist'].lower())
     tasks = []
 
     os.mkdir('wcl')
@@ -651,9 +660,7 @@ def create_wrapper_wcl(config, wrapinst):
 
 def write_runjob_script(config):
     jobnum = 1
-    jobdir = 'r%sp%02d_j%04d' % (config['reqnum'], 
-                                 int(config['attnum']),
-                                 int(jobnum))
+    jobdir = '%s_j%04d' % (config['submit_run'], int(jobnum))
     print "The jobdir =", jobdir
 
     scriptstr = """#!/bin/sh
@@ -668,16 +675,16 @@ echo ""
 echo "Initial condor job directory = " $initdir
 echo "Files copied over by condor:"
 ls -l
-""" % ({'eups': config['eups_setup'], 
+""" % ({'eups': config['setupeups'], 
         'pipe':config['pipeline'],
         'ver':config['pipever']})
    
-    if 'runtime_root' in config:
-        rdir = config['runtime_root'] + '/' + jobdir
+    if 'runroot' in config and config['runroot'] is not None:
+        rdir = config['runroot'] + '/' + jobdir
         print "rdir =", rdir
         scriptstr += """
 echo ""
-echo "Making run directory in runtime_root: %(rdir)s"
+echo "Making run directory in runroot: %(rdir)s"
 if [ ! -e %(rdir)s ]; then
     mkdir -p %(rdir)s
 fi
@@ -690,9 +697,13 @@ echo ""
 echo "Untaring input wcl file: $1"
 time tar -xzvf $initdir/$1
 
+# copy file so I can test by hand after job
+cp $initdir/$2 $2
+
 echo ""
 echo "Calling pfwrunjob.py"
-${PROCESSINGFW_DIR}/libexec/pfwrunjob.py $initdir/$2
+echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --useDB $initdir/$2"
+${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --useDB $initdir/$2
 """ 
 
     scriptfile = config.get_filename('jobscript')
@@ -707,12 +718,13 @@ def create_runjob_condorfile(config):
     """ Write runjob condor description file for target job """
     condorbase = config.get_filename('block', {'currentvals': {'filetype': 'runjob', 'suffix':''}})
     condorfile = '%scondor' % condorbase
+    initialdir = "../%s_tjobs" % config['blockname']
     
     jobattribs = { 
                 'executable':'$(exec)', 
                 'arguments':'$(args)',
 #               'remote_initialdir':remote_initialdir, 
-#               'initialdir':initialdir,
+                'initialdir':initialdir,
 #               'transfer_output_files': '$(jobnum).pipeline.log',
 #                'should_transfer_files': 'IF_NEEDED',
                 'when_to_transfer_output': 'ON_EXIT_OR_EVICT',
@@ -727,13 +739,15 @@ def create_runjob_condorfile(config):
 #    jobattribs.update(config.get_grid_info())
     userattribs = config.get_condor_attributes('$(jobnum)')
     gridinfo = config.get_grid_info()
+    if 'batchtype' not in gridinfo:
+        raise Exception("Error:  Missing batchtype")
     if 'localcondor' in gridinfo['batchtype'].lower():
-        if 'login_host' in config:
-            machine = config['login_host']
-        elif 'grid_host' in config:
-            machine = config['grid_host']
+        if 'loginhost' in config:
+            machine = config['loginhost']
+        elif 'gridhost' in config:
+            machine = config['gridhost']
         else:
-            raise Exception("Error:  Cannot determine machine name (missing login_host and grid_host)\n")
+            raise Exception("Error:  Cannot determine machine name (missing loginhost and gridhost)\n")
 
         jobattribs['requirements'] = 'machine == "%s"' % machine
 

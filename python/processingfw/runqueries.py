@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -136,15 +136,15 @@ def main(argv = None):
     # log condor jobid
     log_pfw_event(config, config['curr_block'], 'runqueries', 'j', ['cid', condorid])
 
-    if 'module_list' not in config:
+    if 'modulelist' not in config:
         raise Exception("Error:  No modules to run.")
     
     ### Get master lists and files calling external codes when needed
     
-    module_list = pfwutils.pfwsplit(config['module_list'].lower())
+    modulelist = pfwutils.pfwsplit(config['modulelist'].lower())
     
     modules_prev_in_list = {}
-    for modname in module_list:
+    for modname in modulelist:
         if modname not in config['module']:
             raise Exception("Error: Could not find module description for module %s\n" % (modname))
         runqueries(config, modname, modules_prev_in_list)

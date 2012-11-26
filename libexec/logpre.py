@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -31,13 +31,15 @@ def logpre(argv = None):
     
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
+    print config['reqnum']
 
     # now that have more information, can rename output file
-    debugfh.close()
     new_log_name = config.get_filename('block', {'currentvals':
                                                     {'filetype': 'logpre_${subblock}',
                                                      'subblock': subblock,
                                                      'suffix':'out'}})
+    print "new_log_name=",new_log_name
+    debugfh.close()
     os.rename('logpre.out', new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

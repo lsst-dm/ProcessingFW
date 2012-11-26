@@ -13,6 +13,7 @@ import sys
 import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwlog as pfwlog
+import processingfw.pfwdb as pfwdb
 
 VERSION = '$Rev$'
 
@@ -47,6 +48,8 @@ def main(args):
         parser = argparse.ArgumentParser(description='dessubmit')
         parser.add_argument('--notarget', action='store_true', default=False)
         parser.add_argument('--gensubmit', action='store')
+        parser.add_argument('--querydb', action='store_true', default=True)
+        parser.add_argument('--pfwconfig', action='store_true', default=True)
         parser.add_argument('--version', action='store_true', default=False)
         parser.add_argument('submitwcl', nargs=1, action='store')
 
@@ -64,25 +67,22 @@ def main(args):
             args.notarget = 0
 
         config = pfwconfig.PfwConfig({'wclfile':args.submitwcl[0], 
-                                      'querydb':1, 
+                                      'querydb':args.querydb,
+                                      'pfwconfig':args.pfwconfig,
                                       'notarget':args.notarget})
 
         if args.gensubmit:
             config.save_file(args.gensubmit)
         else:
-            config.set_submit_info()
-
-            print 'Checking submit file:'
-            (errcnt, warncnt, cleancnt) = config.check()
-            if errcnt > 0:
-                raise Exception("Errors in submit file")
-            elif warncnt > 0:
-                print "\t(Note: %d warning(s) in config)" % warncnt
-            elif cleancnt > 0:
-                print "\t(Note: %d item(s) cleaned in config)" % cleancnt
+            print 'Inserting run into PFW tables...',
+            dbh = pfwdb.PFWDB()
+            dbh.insert_run(config)
+            print 'DONE'
 
             print 'Checking system:'
             pfwsubmit.run_sys_checks()
+
+            config.set_submit_info()
 
             print 'Creating submit dirs:'
             pfwsubmit.create_submitside_dirs(config)
@@ -93,8 +93,6 @@ def main(args):
             logfile = '%s/dessubmit.log' % (uberctrl)
             logfh = open(logfile, 'w', 0)
 
-            #insertRun(config)
-
             pfwlog.log_pfw_event(config, 'submit', '', '')
 
             # save original submit file as is
@@ -104,13 +102,23 @@ def main(args):
 
             # save config
             config.save_file('%s/expand_submit.des' % uberctrl)
-            config.save_file('%s/config.des' % uberctrl)
+
+
+            print 'Checking submit file:'
+            (errcnt, warncnt, cleancnt) = config.check()
+            if errcnt > 0:
+                raise Exception("Errors in submit file")
+            elif warncnt > 0:
+                print "\t(Note: %d warning(s) in config)" % warncnt
+            elif cleancnt > 0:
+                print "\t(Note: %d item(s) cleaned in config)" % cleancnt
 
             # must be in internal directory when submitting simulation
             os.chdir(uberctrl)
 
             print 'Writing internal files...',
             maindag = create_dags(config, logfh)
+            config.save_file('%s/config.des' % uberctrl)
             print 'DONE'
 
             pfwsubmit.submit_main_dag(config, maindag, logfh)

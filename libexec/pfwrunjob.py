@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import subprocess
+import argparse
 import sys
 import os
 import time
@@ -9,20 +10,15 @@ import filemgmt.cache as cache
 import intgutils.wclutils as wclutils
 
 
-def setupwrapper(inputwclfile, logfilename):
+VERSION = '$Rev$'
+
+def setupwrapper(inputwcl, logfilename, useDB=False):
     """ Create output directories, get files from cache, and other setup work """
 
     # make directory for log file
     logdir = os.path.dirname(logfilename)
     if not os.path.exists(logdir):
         os.makedirs(logdir)
-
-    if not os.path.exists(inputwclfile):
-        print "Error: input wcl file does not exist (%s)" % inputwclfile
-        return(1)
-
-    with open(inputwclfile, 'r') as wclfh:
-        inputwcl = wclutils.read_wcl(wclfh)
 
     # make directory for outputwcl
     outputwclfile = inputwcl['wrapper']['outputfile']
@@ -59,6 +55,15 @@ def setupwrapper(inputwclfile, logfilename):
                     return(len(problemfiles))
             else:
                 print "Note: 0 parents in exec section", sect
+
+
+    # create wrapper db entry
+    if useDB: 
+        import processingfw.pfwdb as pfwdb
+        dbh = pfwdb.PFWDB()
+        inputwcl['wrapperid'] = dbh.insert_wrapper(inputwcl)
+        print "wrapperid =", inputwcl['wrapperid']
+
     return(0)
 
 
@@ -75,11 +80,10 @@ def runwrapper(wrappercmd, logfilename, useQCF=False, bufsize = 5000):
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
     if useQCF:
-        cmdQCF = "./myQCF"
+        cmdQCF = "qcf_controller.pl -wrapperInstanceId %s -execnames %s"
         processQCF = subprocess.Popen(cmdQCF.split(),
                                       shell=False,
                                       stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT)
 
     buf = os.read(processWrap.stdout.fileno(), bufsize)
@@ -111,34 +115,60 @@ def runwrapper(wrappercmd, logfilename, useQCF=False, bufsize = 5000):
 #                os.makedirs(thedir)
 #            line = pathsfh.readline()
 
-def runtasks(taskfile):
+def postwrapper(inputwcl, exitcode, useDB=False):
+    if useDB: 
+        import processingfw.pfwdb as pfwdb
+        dbh = pfwdb.PFWDB()
+        dbh.update_wrapper_end(inputwcl, exitcode)
+    
+
+
+def runtasks(taskfile, useDB=False, useQCF=False):
     # run each wrapper execution sequentially
     with open(taskfile, 'r') as tasksfh:
+        # for each task
         line = tasksfh.readline()
         while line:
-            task = pfwutils.pfwsplit(line.strip())
-            wrappercmd = task[0] + " --input=" + task[1]
-            print "Wrappercmd:", wrappercmd
+            (wrapnum, wrapname, wclfile, logfile) = pfwutils.pfwsplit(line.strip())
+            wrappercmd = "%s --input=%s" % (wrapname, wclfile)
+            print "%04d: wrappercmd: %s" % (int(wrapnum), wrappercmd)
 
-            if setupwrapper(task[1], task[2]) == 0:
-                exitcode = runwrapper(wrappercmd, task[2])
+            if not os.path.exists(wclfile):
+                print "Error: input wcl file does not exist (%s)" % wclfile
+                return(1)
+
+            with open(wclfile, 'r') as wclfh:
+                inputwcl = wclutils.read_wcl(wclfh)
+
+            if setupwrapper(inputwcl, logfile, useDB) == 0:
+                exitcode = runwrapper(wrappercmd, logfile, useQCF)
+                postwrapper(inputwcl, exitcode, useDB) 
                 if exitcode:
                     print "Aborting due to non-zero exit code"
                     sys.exit(exitcode)
             line = tasksfh.readline()
 
 
-def runjob(taskfile): 
-    """Run tasks inside single job"""
 
-    # untar wcltar
-#    pfwutils.untar_dir(wcltar, '.')
-    runtasks(taskfile)
+def runjob(args): 
+    """Run tasks inside single job"""
+    runtasks(args.taskfile[0], args.useDB, args.useQCF)
         
 
-if __name__ == '__main__':
-#    print runwrapper("/usr/bin/env", "myfile.log", True)
-    if len(sys.argv) != 2: 
-        raise Exception("Usage: pfwrunjob.py taskslist")
+def parseArgs(argv):
+    parser = argparse.ArgumentParser(description='pfwrunjob.py')
+    parser.add_argument('--useDB', action='store_true', default=False)
+    parser.add_argument('--useQCF', action='store_true', default=False)
+    parser.add_argument('--version', action='store_true', default=False)
+    parser.add_argument('taskfile', nargs=1, action='store')
 
-    runjob(sys.argv[1])
+    args = parser.parse_args()
+
+    if args.version:
+        print VERSION
+        sys.exit(0)
+
+    return args
+
+if __name__ == '__main__':
+    sys.exit(runjob(parseArgs(sys.argv)))

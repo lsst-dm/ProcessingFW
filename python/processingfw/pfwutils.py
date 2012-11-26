@@ -5,6 +5,7 @@ import os
 import inspect
 import tarfile
 from collections import OrderedDict
+from collections import Mapping
 
 """ Miscellaneous support functions for processing framework """
 
@@ -94,3 +95,4 @@ def untar_dir(filename, outputdir):
         mode = 'r'
     with tarfile.open(filename, mode) as tar:
        tar.extractall(outputdir)
+

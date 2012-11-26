@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -574,9 +574,9 @@ def check_condor(minver):
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
     process.wait()
-    if process.returncode:
-        raise CondorException('Condor is not running on this machine' + \
-                              'Contact your condor administrator')
+#    if process.returncode:
+#        raise CondorException('Condor is not running on this machine' + \
+#                              'Contact your condor administrator')
 
     # check have new enough version of condor
     if compare_condor_version(minver) < 0:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -14,6 +14,8 @@ import subprocess
 
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwlog as pfwlog
+import processingfw.pfwdb as pfwdb
+from processingfw.pfwutils import debug
 
 
 ######################################################################
@@ -36,13 +38,15 @@ def write_block_dag(config, block, debugfh=None):
     jobmngr = write_stub_jobmngr_dag(config, block, debugfh)
     dag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'block'}})
 
+    run = config['submit_run']
     dagfh = open(dag, 'w')
-    dagfh.write('DOT block.dot\n')
+    dagfh.write('DOT %s_block.dot\n' % run)
 
     dagfh.write('JOB begblock %s/share/condor/localjob.condor\n' % pfwdir)
     dagfh.write('VARS begblock exec="%s/libexec/begblock.py"\n' % pfwdir)
     dagfh.write('VARS begblock args="../uberctrl/config.des"\n')
     dagfh.write('VARS begblock jobname="begblock"\n')
+    dagfh.write('VARS begblock run="%s"\n' % run)
     dagfh.write('SCRIPT pre begblock %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, block))
     dagfh.write('SCRIPT post begblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, block))  
 
@@ -100,9 +104,9 @@ SCRIPT pre %(bl)s %(pd)s/libexec/logpre.py ../uberctrl/config.des %(bl)s j $JOB
 SCRIPT post %(bl)s %(pd)s/libexec/logpost.py ../uberctrl/config.des %(bl)s j $JOB $RETURN
 """ % ({'bl': block, 'bldag': blockdag, 'pd': pfwdir}))
 
-        config.inc_block_num()
+        config.inc_blknum()
             
-    config.reset_block_num()
+    config.reset_blknum()
     config.set_block_info()
 
     print blockarray
@@ -183,7 +187,9 @@ def submit_main_dag(config, dagfile, logfh):
     if len(jobids) == 1:
         pfwlog.log_pfw_event(config, 'analysis', 'j', 'mngr', 'pretask')
         pfwlog.log_pfw_event(config, 'analysis', 'j', 'mngr', 
-                             {'cid': jobids[0]})
+                             {'cid': int(jobids[0])})
+        dbh = pfwdb.PFWDB()
+        dbh.update_attempt_cid(config, int(jobids[0]))
 
 
 ######################################################################
@@ -191,6 +197,8 @@ def create_submitside_dirs(config):
     """ Create directories for storage of pfw files on submit side """
     # make local working dir
     workdir = config['work_dir']
+    debug(3, 'PFWSUBMIT_DEBUG', "workdir = %s" % workdir)
+
     if os.path.exists(workdir):
         raise Exception('%s subdirectory already exists.\nAborting submission' % (workdir))
 
@@ -198,8 +206,10 @@ def create_submitside_dirs(config):
     os.makedirs(workdir)
     print 'DONE'
 
+    uberdir = config['uberctrl_dir']
+    debug(3, 'PFWSUBMIT_DEBUG', "uberdir = %s" % uberdir)
     print '\tMaking submit uberctrl directory...',
-    os.makedirs(config['uberctrl_dir'])
+    os.makedirs(uberdir)
     print 'DONE'
 
 

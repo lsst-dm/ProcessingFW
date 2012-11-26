@@ -5,12 +5,14 @@
 # LastChangedDate::                      :  # Date of last commit.
 
 import sys
+import os
 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwutils as pfwutils
 from processingfw.runqueries import runqueries
 import processingfw.pfwwrappers as pfwwrappers
 import processingfw.pfwblock as pfwblock
+import processingfw.pfwdb as pfwdb
 
 def begblock(argv):
     if argv == None:
@@ -20,10 +22,20 @@ def begblock(argv):
     config = pfwconfig.PfwConfig({'wclfile': configfile}) 
     config.set_block_info()
 
-    module_list = pfwutils.pfwsplit(config['module_list'].lower())
+    os.chdir('../%s' % config['blockname'])
+
+    dbh = pfwdb.PFWDB()
+    dbh.insert_block(config)
+
+    pfwutils.debug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config['blknum']))
+    if config['blknum'] == '0':
+        pfwutils.debug(3, 'PFWBLOCK_DEBUG', "Calling update_attempt_beg")
+        dbh.update_attempt_beg(config)
+
+    modulelist = pfwutils.pfwsplit(config['modulelist'].lower())
     modules_prev_in_list = {}
     tasks = []
-    for modname in module_list:
+    for modname in modulelist:
         if modname not in config['module']:
             raise Exception("Error: Could not find module description for module %s\n" % (modname))
 
@@ -44,6 +56,8 @@ def begblock(argv):
     dagfile = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'jobmngr'}})
     pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile)
 
+    os.mkdir('../%s_tjobs' % block)
+    
     return(pfwconfig.PfwConfig.SUCCESS)
 
 if __name__ == "__main__":
@@ -51,5 +65,5 @@ if __name__ == "__main__":
         print "Usage: begblock.py configfile"
         sys.exit(pfwconfig.PfwConfig.FAILURE)
 
-    print sys.argv
+    print ' '.join(sys.argv)
     sys.exit(begblock(sys.argv[1:]))

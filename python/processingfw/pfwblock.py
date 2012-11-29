@@ -184,18 +184,74 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                 create_simple_list(config, lname, ldict, currvals)
     pfwutils.debug(1, "PFWBLOCK_DEBUG", "END")
 
+
+def write_jobwcl(config, jobnum, numexpwrap):
+    """ write a little config file containing variables needed at the job level """
+
+    jobwclfile = config.get_filename('job', {'currentvals': {'jobnum': jobnum, 'endstr': 'jobinfo', 'suffix':'wcl'}, 'required': True, 'interpolate': True})
+
+    jobwcl = {'reqnum': config.search('reqnum', { 'required': True,
+                                    'interpolate': True})[1], 
+              'unitname':config.search('unitname', { 'required': True,
+                                    'interpolate': True})[1], 
+              'attnum': config.search('attnum', { 'required': True,
+                                    'interpolate': True})[1], 
+              'blknum': config.search('blknum', { 'required': True,
+                                    'interpolate': True})[1], 
+              'jobnum': jobnum,
+              'numexpwrap': numexpwrap,
+              'usedb': config.search('usedb', { 'required': True,
+                                    'interpolate': True})[1], 
+              'useqcf': config.search('useqcf', {'required': True,
+                                    'interpolate': True})[1], 
+            }
+
+    with open(jobwclfile, 'w') as wclfh:
+        wclutils.write_wcl(jobwcl, wclfh, True, 4)
+
+    return jobwclfile
+    
+
 def add_needed_values(config, modname, wrapinst, wrapwcl):
     """ Make sure all variables in the wrapper instance have values in the wcl """
     pfwutils.debug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     
     # start with those needed by framework
-    neededvals = {'reqnum': True, 
-                  'unitname': True,
-                  'attnum': True,
-                  'blknum': True,
-                  'jobnum': True,
-                  'wrapnum': True,
-                  'wrapname': True
+    neededvals = {'reqnum': config.search('reqnum',
+                                   {'currentvals': {'curr_module': modname},
+                                    'searchobj': wrapinst,
+                                    'required': True,
+                                    'interpolate': True})[1], 
+                  'unitname':config.search('unitname', 
+                                   {'currentvals': {'curr_module': modname},
+                                    'searchobj': wrapinst,
+                                    'required': True,
+                                    'interpolate': True})[1], 
+                  'attnum': config.search('attnum',
+                                   {'currentvals': {'curr_module': modname},
+                                    'searchobj': wrapinst,
+                                    'required': True,
+                                    'interpolate': True})[1], 
+                  'blknum': config.search('blknum',
+                                   {'currentvals': {'curr_module': modname},
+                                    'searchobj': wrapinst,
+                                    'required': True,
+                                    'interpolate': True})[1], 
+                  'jobnum': config.search('jobnum',
+                                   {'currentvals': {'curr_module': modname},
+                                    'searchobj': wrapinst,
+                                    'required': True,
+                                    'interpolate': True})[1], 
+                  'wrapnum': config.search('wrapnum',
+                                   {'currentvals': {'curr_module': modname},
+                                    'searchobj': wrapinst,
+                                    'required': True,
+                                    'interpolate': True})[1], 
+                  'wrapname': config.search('wrapname',
+                                   {'currentvals': {'curr_module': modname},
+                                    'searchobj': wrapinst,
+                                    'required': True,
+                                    'interpolate': True})[1], 
                  }
 
     # start with specified
@@ -214,27 +270,42 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
         done = True
         count += 1
         for nval in neededvals.keys():
+            pfwutils.debug(4, "PFWBLOCK_DEBUG", "nval = %s" % nval)
             if type(neededvals[nval]) is bool:
+                if ':' in nval:
+                    nval = nval.split(':')[0]
+
                 if '.' not in nval:
-                    if ':' in nval:
-                        nval = nval.split(':')[0]
                     (found, val) = config.search(nval, 
                                    {'currentvals': {'curr_module': modname},
                                     'searchobj': wrapinst, 
                                     'required': True, 
                                     'interpolate': False})
+                    if not found:
+                        print "WHYYYYYYYYY"
                 else:
                     val = pfwutils.get_wcl_value(nval, wrapwcl)
+
+                pfwutils.debug(4, "PFWBLOCK_DEBUG", "val = %s" % val)
 
                 neededvals[nval] = val
                 viter = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
                 for vstr in viter:
+                    if ':' in vstr:
+                        vstr = vstr.split(':')[0]
                     if vstr not in neededvals:
                         neededvals[vstr] = True
                         done = False
                     
     if count >= maxtries:
         raise Exception("Error: exceeded maxtries")
+
+
+    print "neededvals = "
+    wclutils.write_wcl(neededvals)
+    print "wrapwcl = "
+    wclutils.write_wcl(wrapwcl)
+
 
     # add needed values to wrapper wcl
     for key, val in neededvals.items():
@@ -258,7 +329,11 @@ def create_wrapper_inst(config, modname, loopvals):
         valproduct = itertools.product(*loopvals)
         for instvals in valproduct:
             config.inc_wrapnum()
-            winst = {'wrapnum': config['wrapnum']}
+            winst = {'wrapnum': config['wrapnum'],
+                     'wrapname':  config.search('wrappername',
+                            {'currentvals': {'curr_module': modname},
+                             'required': True, 'interpolate': True})[1]
+                    }
             instkey = ""
             for k in range(0, len(loopkeys)):
                 winst[loopkeys[k]] = instvals[k] 
@@ -267,7 +342,11 @@ def create_wrapper_inst(config, modname, loopvals):
                 wrapperinst[instkey] = winst
     else:
         config.inc_wrapnum()
-        wrapperinst['noloop'] = {'wrapnum': config['wrapnum']}
+        wrapperinst['noloop'] = {'wrapnum': config['wrapnum'],
+                                 'wrapname':  config.search('wrappername',
+                            {'currentvals': {'curr_module': modname},
+                             'required': True, 'interpolate': True})[1]
+                                }
 
     print "\tNumber wrapper inst: ", len(wrapperinst)
     pfwutils.debug(1, "PFWBLOCK_DEBUG", "END")
@@ -699,14 +778,16 @@ time tar -xzvf $initdir/$1
 
 # copy file so I can test by hand after job
 cp $initdir/$2 $2
+cp $initdir/$3 $3
 
 echo ""
 echo "Calling pfwrunjob.py"
-echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --useDB $initdir/$2"
-${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --useDB $initdir/$2
+echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $initdir/$2 $initdir/$3"
+${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $initdir/$2 $initdir/$3
 """ 
 
-    scriptfile = config.get_filename('jobscript')
+    scriptfile = config.get_filename('job', {'currentvals': {'endstr': 'runjob',
+                                                             'suffix': 'sh'}})
     with open(scriptfile, 'w') as scriptfh:
         scriptfh.write(scriptstr)
 
@@ -758,15 +839,15 @@ def create_runjob_condorfile(config):
 
 
 
-def create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile):
+def create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfile):
     """ Write job manager DAG file """
 
     condorfile = create_runjob_condorfile(config)
     pfwdir = config['processingfw_dir']
     tjpad = "TJ0001"
     blockname = config['curr_block']
-    args = "%s %s" % (tarfile, tasksfile)
-    transinput = "%s,%s" % (tarfile, tasksfile)
+    args = "%s %s %s" % (tarfile, jobwclfile, tasksfile)
+    transinput = "%s,%s,%s" % (tarfile, tasksfile, jobwclfile)
     with open(dagfile, 'w') as dagfh:
         dagfh.write('JOB %s %s\n' % (tjpad, condorfile))
         dagfh.write('VARS %s jobnum="%s"\n' % (tjpad, tjpad))

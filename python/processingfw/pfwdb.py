@@ -36,70 +36,35 @@ class PFWDB (coreutils.DesDbi):
     def __init__ (self, *args, **kwargs):
         coreutils.DesDbi.__init__ (self, *args, **kwargs)
 
-    def get_filename_patterns(self):
-        """
-        Return ops_filename_patterns table as dictionary
-        """
-        curs = self.cursor()
-        sql = "select * from ops_filename_patterns"
-        curs.execute(sql)
-        result = OrderedDict()
-        for line in curs:
-            result[line[0].lower()] = line[1]
+    def get_database_defaults(self):
+        """ Grab default configuration information stored in database """
 
-        curs.close()
+        result = OrderedDict()
+        
+        result['archive'] = self.get_database_table('OPS_ARCHIVE_NODES', 'NAME') 
+        result['directory_patterns'] = self.get_database_table('OPS_DIRECTORY_PATTERNS', 'NAME')
+        result['filename_patterns'] = self.get_database_table('OPS_FILENAME_PATTERNS', 'NAME')
+        result['filetype'] = self.get_database_table('OPS_FILETYPE', 'FILETYPE')
+        result['filetype_metadata'] = self.get_database_table('OPS_FILETYPE_METADATA', 'FILETYPE')
+        result['metadata'] = self.get_database_table('OPS_METADATA', 'FILE_HEADER_NAME')
+        result['sites'] = self.get_database_table('OPS_SITES', 'NAME')
+
         return result
 
-    def get_directory_patterns(self):
-        """
-        Return directory_patterns table as dictionary
-        """
+    def get_database_table(self, tname, tkey):
+        sql = "select * from %s" % tname
         curs = self.cursor()
-        sql = "select * from ops_directory_patterns"
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
+
         result = OrderedDict()
         for line in curs:
             d = dict(zip(desc, line))
-            result[d['name']] = d
+            result[d[tkey.lower()].lower()] = d
 
         curs.close()
         return result
-
-    def get_sites_info(self):
-        """
-        Return ops_sites table as dictionary
-        """
-        curs = self.cursor()
-        sql = "select * from ops_sites"
-        curs.execute(sql)
-        desc = [d[0].lower() for d in curs.description]
-        result = OrderedDict()
-        for line in curs:
-            d = dict(zip(desc, line))
-            result[d['name']] = d
-
-        curs.close()
-        debug(3, 'PFWDB_DEBUG', "Query of ops_sites table %s\n" % result)
-        return result
-
-
-    def get_archive_nodes(self):
-        """
-        Return ops_archive_nodes table as dictionary
-        """
-        curs = self.cursor()
-        sql = "select * from ops_archive_nodes"
-        curs.execute(sql)
-        desc = [d[0].lower() for d in curs.description]
-        result = OrderedDict()
-        for line in curs:
-            d = dict(zip(desc, line))
-            result[d['name']] = d
-
-        curs.close()
-        debug(3, 'PFWDB_DEBUG', "Query of ops_archive_nodes table %s\n" % result)
-        return result
+        
 
     ##### request, unit, attempt #####
     def insert_run(self, wcl):
@@ -267,18 +232,18 @@ class PFWDB (coreutils.DesDbi):
         debug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
 
         row = {}
-        row['reqnum'] = wcl.search('reqnum', {'interpolate': True})[1]
-        row['unitname'] = wcl.search('unitname', {'interpolate': True})[1]
-        row['attnum'] = wcl.search('attnum', {'interpolate': True})[1]
-        row['blknum'] = wcl.search('blknum', {'interpolate': True})[1]
-        row['jobnum'] = wcl.search('jobnum', {'interpolate': True})[1]
+        row['reqnum'] = wcl['reqnum']
+        row['unitname'] = wcl['unitname']
+        row['attnum'] = wcl['attnum']
+        row['blknum'] = wcl['blknum']
+        row['jobnum'] = wcl['jobnum']
         row['starttime'] = 'CURRENT_TIMESTAMP'
-        row['numexpwrap'] = wcl.search('numexpwrap')[1]
+        row['numexpwrap'] = wcl['numexpwrap']
 
         self.insert_pfw_row('PFW_JOB', row)
 
 
-    def update_job_end (self, wcl, jobnum, exitcode):
+    def update_job_end (self, wcl, exitcode):
         """ update row in pfw_job with end of job info"""
 
         updatevals = {}
@@ -286,11 +251,10 @@ class PFWDB (coreutils.DesDbi):
         updatevals['status'] = exitcode
 
         wherevals = {}
-        wherevals['reqnum'] = wcl.search('reqnum', {'interpolate': True})[1]
-        wherevals['unitname'] = wcl.search('unitname', {'interpolate': True})[1]
-        wherevals['attnum'] = wcl.search('attnum', {'interpolate': True})[1]
-        wherevals['blknum'] = wcl.search('blknum', {'interpolate': True})[1]
-        wherevals['jobnum'] = jobnum
+        wherevals['reqnum'] = wcl['reqnum']
+        wherevals['unitname'] = wcl['unitname']
+        wherevals['attnum'] = wcl['attnum']
+        wherevals['jobnum'] = wcl['jobnum']
 
         self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
 
@@ -329,7 +293,42 @@ class PFWDB (coreutils.DesDbi):
         
 
 
+    ##### PFW_EXEC
+    def insert_exec (self, inputwcl, sect):
+        """ insert row into pfw_exec """
 
+        debug(3, 'PFWDB_DEBUG', sect)
+        row = {}
+        row['reqnum'] = inputwcl['reqnum']
+        row['unitname'] = inputwcl['unitname']
+        row['attnum'] = inputwcl['attnum']
+        row['wrapnum'] = inputwcl['wrapnum']
+
+        row['id'] = self.get_seq_next_value('pfw_exec_seq')
+        row['execnum'] = inputwcl[sect]['execnum']
+        row['name'] = inputwcl[sect]['execname']
+
+        self.insert_pfw_row('PFW_EXEC', row)
+        debug(3, 'PFWDB_DEBUG', "end")
+        return row['id']
+
+
+    def update_exec_end (self, execwcl, execid, exitcode):
+        """ update row in pfw_exec with end of exec info """
+        debug(3, 'PFWDB_DEBUG', execid)
+
+        updatevals = {}
+        updatevals['cmdargs'] = execwcl['cmdlineargs']
+        updatevals['walltime'] = execwcl['walltime']
+        updatevals['status'] = exitcode
+
+        wherevals = {}
+        wherevals['id'] = execid
+
+        self.update_PFW_row ('PFW_EXEC', wherevals, updatevals)
+
+
+    ##########
     def insert_pfw_row (self, pfwtable, row):
         """ Insert a row into a table and return any specified cols """ 
         cols = [] 
@@ -345,8 +344,11 @@ class PFWDB (coreutils.DesDbi):
         debug(3, 'PFWDB_DEBUG', sql)
 
         curs = self.cursor()
+        debug(3, 'PFWDB_DEBUG', "cursor")
         curs.execute(sql)
+        debug(3, 'PFWDB_DEBUG', "execute")
         self.commit()
+        debug(3, 'PFWDB_DEBUG', "end")
                                                    
 
     def quote(self, val):
@@ -354,7 +356,7 @@ class PFWDB (coreutils.DesDbi):
         if str(val).upper() == 'CURRENT_TIMESTAMP':
             retval = val
         else:
-            retval = "'%s'" % val
+            retval = "'%s'" % str(val).replace("'", "''")
         return retval
             
             

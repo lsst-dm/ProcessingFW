@@ -24,7 +24,7 @@ class PfwConfig:
     """ Contains configuration and state information for PFW """
 
     # order in which to search for values
-    DEFORDER = ['file', 'list', 'exec', 'job', 'module', 'block', 'archive', 'site']
+    DEFORDER = ['file', 'list', 'exec', 'job', 'module', 'block', 'archive', 'sites']
 
     # misc constants 
     ATTRIB_PREFIX='des_'
@@ -56,21 +56,9 @@ class PfwConfig:
         if 'querydb' in args and args['querydb']:
             import processingfw.pfwdb as pfwdb
             dbh = pfwdb.PFWDB()
-            if 'filename_patterns' not in self.config:
-                self.config['filename_patterns'] = OrderedDict()
-            wclutils.updateDict(self.config['filename_patterns'], dbh.get_filename_patterns())
-
-            if 'directory_patterns' not in self.config:
-                self.config['directory_patterns'] = OrderedDict()
-            wclutils.updateDict(self.config['directory_patterns'], dbh.get_directory_patterns())
-
-            if 'site' not in self.config:
-                self.config['site'] = OrderedDict()
-            wclutils.updateDict(self.config['site'], dbh.get_sites_info())
-
-            if 'archive' not in self.config:
-                self.config['archive'] = OrderedDict()
-            wclutils.updateDict(self.config['archive'], dbh.get_archive_nodes())
+            wclutils.updateDict(self.config, dbh.get_database_defaults())
+        with open('dbdump.des', 'w') as fh:
+            wclutils.write_wcl(self.config, fh, True, 4)
 
         if 'wclfile' in args:
             debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
@@ -147,6 +135,17 @@ class PfwConfig:
     #    return val
 
 
+    def set(self, key, val):
+        """ store a value in wcl """
+        subkeys = key.split('.')
+        valkey = subkeys.pop()
+        wcldict = self.config
+        for k in subkeys:
+            wcldict = wcldict[k]
+
+        wcldict[valkey] = val
+
+
     ###########################################################################
     def search(self, key, opt=None):
         """ Searches for key using given opt following hierarchy rules """ 
@@ -159,43 +158,56 @@ class PfwConfig:
         found = False
         value = ''
         key = key.lower()
-    
-        # start with stored current values
-        curvals = copy.deepcopy(self.config['current'])
 
-        # override with current values passed into function if given
-        if opt is not None and 'currentvals' in opt:
-            for k,v in opt["currentvals"].items():
-                #print "using specified curval %s = %s" % (k,v)
-                curvals[k] = v
-    
-        #print "curvals = ", curvals
-        if key in curvals:
-            #print "found %s in curvals" % (key)
+        # if key contains period, use it exactly instead of scoping rules
+        if '.' in key:
+            val = self.config
             found = True
-            value = curvals[key]
-        elif opt and 'searchobj' in opt and key in opt['searchobj']:
-            found = True
-            value = opt['searchobj'][key]
+            for k in key.split('.'):
+                #print "get_wcl_value: k=", k
+                if k in val:
+                    val = val[k]
+                else:
+                    found = False
+                    break
         else:
-            for sect in self.DEFORDER:
-                #print "Searching section %s for key %s" % (sect, key)
-                if "curr_" + sect in curvals:
-                    currkey = curvals["curr_"+sect]
-                    #print "\tcurrkey for section %s = %s" % (sect, currkey)
-                    if sect in self.config:
-                        if currkey in self.config[sect]:
-                            if key in self.config[sect][currkey]:
-                                found = True
-                                value = self.config[sect][currkey][key]
-                                break
+            # start with stored current values
+            curvals = copy.deepcopy(self.config['current'])
+
+            # override with current values passed into function if given
+            if opt is not None and 'currentvals' in opt:
+                for k,v in opt["currentvals"].items():
+                    #print "using specified curval %s = %s" % (k,v)
+                    curvals[k] = v
     
-        # lastly check global values
-        if not found:
-            #print "\t%s not found, checking global values" % (key)
-            if key in self.config:
+            #print "curvals = ", curvals
+            if key in curvals:
+                #print "found %s in curvals" % (key)
                 found = True
-                value = self.config[key]
+                value = curvals[key]
+            elif opt and 'searchobj' in opt and key in opt['searchobj']:
+                found = True
+                value = opt['searchobj'][key]
+            else:
+                for sect in self.DEFORDER:
+                    #print "Searching section %s for key %s" % (sect, key)
+                    if "curr_" + sect in curvals:
+                        currkey = curvals["curr_"+sect]
+                        #print "\tcurrkey for section %s = %s" % (sect, currkey)
+                        if sect in self.config:
+                            if currkey in self.config[sect]:
+                                if key in self.config[sect][currkey]:
+                                    found = True
+                                    value = self.config[sect][currkey][key]
+                                    break
+    
+            # lastly check global values
+            if not found:
+                #print "\t%s not found, checking global values" % (key)
+                if key in self.config:
+                    found = True
+                    value = self.config[key]
+
 
         if not found and opt and 'required' in opt and opt['required']:
             print "\n\nError: search for %s failed" % (key)
@@ -203,7 +215,7 @@ class PfwConfig:
             print "\topt = ", opt
             print "\tcurvals = ", curvals
             print "\n\n"
-            raise Exception("Search failed")
+            raise Exception("Search failed (%s)" % key)
     
         if found and opt and 'interpolate' in opt and opt['interpolate']:
             opt['interpolate'] = False
@@ -471,7 +483,7 @@ class PfwConfig:
 #depricated?        curdict['curr_software'] = self['software_node']
     
         (exists, sitename) = self.search('sitename')
-        if exists and sitename in self.config['site']:
+        if exists and sitename in self.config['sites']:
             self.config['runsite'] = sitename
             curdict['curr_site'] = sitename
         else:

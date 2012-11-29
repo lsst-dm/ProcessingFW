@@ -48,6 +48,8 @@ def traverse_wcl(wcl):
         else:
             viter = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
             for vstr in viter:
+                if ':' in vstr:
+                    vstr = vstr.split(':')[0]
                 usedvars[vstr] = True
     debug(9, "PFWUTILS_DEBUG", "END")
     return usedvars

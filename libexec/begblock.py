@@ -52,11 +52,16 @@ def begblock(argv):
     tasksfile = pfwwrappers.write_workflow_taskfile(config, tasks)
     tarfile = pfwblock.tar_inputwcl(config)
     scriptfile = pfwblock.write_runjob_script(config)
+    jobwclfile = pfwblock.write_jobwcl(config, '1', len(tasks))
 
     dagfile = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'jobmngr'}})
-    pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile)
+    pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfile)
 
-    os.mkdir('../%s_tjobs' % block)
+    os.mkdir('../%s_tjobs' % config['blockname'])
+    os.rename(tarfile, "../%s_tjobs/%s" % (config['blockname'], tarfile))
+    os.rename(tasksfile, "../%s_tjobs/%s" % (config['blockname'], tasksfile))
+    os.rename(jobwclfile, "../%s_tjobs/%s" % (config['blockname'], jobwclfile))
+#    os.rename(scriptfile, "../%s_tjobs/%s" % (config['blockname'], scriptfile))
     
     return(pfwconfig.PfwConfig.SUCCESS)
 

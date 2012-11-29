@@ -1,0 +1,23 @@
+useqcf = False
+usedb = True
+tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
+<filename_patterns>
+    qoutput = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
+    config = ${unitname}_r${reqnum}p${attnum:2}_config.des
+    block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${filetype}.${suffix}
+    wcl = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}_${wcltype}.wcl
+    log = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}.log
+
+    job = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${endstr}.${suffix}
+    mngrdag = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
+</filename_patterns>
+<directory_patterns>
+    <wcl>
+        ops = tbd 
+        runtime = ${wcltype}wcl/${modulename}
+    </wcl>
+    <log> 
+        ops = tbd 
+        runtime = log/${modulename}
+    </log>
+</directory_patterns>

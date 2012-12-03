@@ -45,9 +45,9 @@ class PFWDB (coreutils.DesDbi):
         result['directory_patterns'] = self.get_database_table('OPS_DIRECTORY_PATTERNS', 'NAME')
         result['filename_patterns'] = self.get_database_table('OPS_FILENAME_PATTERNS', 'NAME')
         result['filetype'] = self.get_database_table('OPS_FILETYPE', 'FILETYPE')
-        result['filetype_metadata'] = self.get_database_table('OPS_FILETYPE_METADATA', 'FILETYPE')
-        result['metadata'] = self.get_database_table('OPS_METADATA', 'FILE_HEADER_NAME')
-        result['sites'] = self.get_database_table('OPS_SITES', 'NAME')
+        result['filetype_metadata'] = self.get_filetype_metadata()
+        result['metadata'] = self.get_metadata()
+        result['site'] = self.get_database_table('OPS_SITES', 'NAME')
 
         return result
 
@@ -64,7 +64,50 @@ class PFWDB (coreutils.DesDbi):
 
         curs.close()
         return result
+
+    def get_filetype_metadata(self):
+        sql = "select * from ops_filetype_metadata"
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        result = OrderedDict()
+        for line in curs:
+            d = dict(zip(desc, line))
+            filetype = d['filetype'].lower()
+            headername = d['file_header_name'].lower()
+            if filetype not in result:
+                result[filetype] = OrderedDict()
+            if headername not in result[filetype]:
+                result[filetype][headername] = d
+            else:
+                raise Exception("Found duplicate row in filetype_metadata (%s, %s)" % (filetype, headername))
+
+        curs.close()
+        return result
+    
         
+    def get_metadata(self):
+        sql = "select * from ops_metadata"
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        result = OrderedDict()
+        for line in curs:
+            d = dict(zip(desc, line))
+            headername = d['file_header_name'].lower()
+            columnname = d['column_name'].lower()
+            if headername not in result:
+                result[headername] = OrderedDict()
+            if columnname not in result[headername]:
+                result[headername][columnname] = d
+            else:
+                raise Exception("Found duplicate row in metadata (%s, %s)" % (headername, columnname))
+
+        curs.close()
+        return result
+    
 
     ##### request, unit, attempt #####
     def insert_run(self, wcl):

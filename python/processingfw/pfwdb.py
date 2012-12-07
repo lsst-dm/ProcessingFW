@@ -108,6 +108,47 @@ class PFWDB (coreutils.DesDbi):
         curs.close()
         return result
     
+    def get_all_filetype_metadata(self):
+        """
+        Gets a dictionary of dictionaries or string=value pairs representing
+        data from the OPS_METADATA, OPS_FILETYPE, and OPS_FILETYPE_METADATA tables.
+        This is intended to provide a complete set of filetype metadata required
+        during a run.
+        Note that the returned dictionary is nested based on the order of the
+        columns in the select clause.  Values in columns contained in the
+        "collections" list will be turned into dictionaries keyed by the value,
+        while the remaining columns will become "column_name=value" elements
+        of the parent dictionary.  Thus the sql query and collections list can be
+        altered without changing the rest of the code.
+        """
+        sql = """select f.filetype,f.metadata_table,fm.status,m.derived,
+                    fm.file_header_name,m.position,m.column_name
+                from OPS_METADATA m, OPS_FILETYPE f, OPS_FILETYPE_METADATA fm 
+                where m.file_header_name=fm.file_header_name 
+                    and f.filetype=fm.filetype 
+                order by 1,2,3,4,5,6 """
+        collections = ['filetype','status','derived','file_header_name']
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+        result = OrderedDict()
+
+        for row in curs:
+            ptr = result
+            for col, value in enumerate(row):
+                normvalue = str(value).lower()
+                if normvalue not in ptr:
+                    if col > len(row)-3:
+                        ptr[normvalue]=str(row[col+1]).lower()
+                        break
+                    elif desc[col] in collections:
+                        ptr[normvalue] = OrderedDict()
+                    else:
+                        ptr[desc[col]] = normvalue
+                if desc[col] in collections:
+                    ptr = ptr[normvalue]
+        curs.close()
+        return result
 
     ##### request, unit, attempt #####
     def insert_run(self, wcl):

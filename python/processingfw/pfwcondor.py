@@ -187,7 +187,7 @@ def create_rsl(info):
 def create_condor_env(envvars):
     """Create string for environment line in condor description file"""
     # see rules in environment section of condor_submit manual page
-    envparts = []
+    envparts = ['SUBMIT_CONDORID=$(Cluster).$(Process)']
 
     if type(envvars) is dict:
         for (key, val) in envvars.items():

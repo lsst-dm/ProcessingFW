@@ -2,21 +2,43 @@ useqcf = False
 usedb = True
 tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
 <filename_patterns>
-    qoutput = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
-    config = ${unitname}_r${reqnum}p${attnum:2}_config.des
-    block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${filetype}.${suffix}
-    wcl = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}_${wcltype}.wcl
-    log = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}.log
-
-    job = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${endstr}.${suffix}
-    mngrdag = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
+    <qoutput>
+        name = qoutput
+        pattern = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
+    </qoutput>
+    <config>
+        name = config
+        pattern = ${unitname}_r${reqnum}p${attnum:2}_config.des
+    </config>
+    <block>
+        name = block
+        pattern = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${filetype}.${suffix}
+    </block>
+    <wcl>
+        name = wcl
+        pattern = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}_${wcltype}.wcl
+    </wcl>
+    <log>
+        name = log
+        pattern = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}.log
+    </log>
+    <job>
+        name = job
+        pattern = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${endstr}.${suffix}
+    </job>
+    <mngrdag>
+        name = mngrdag
+        pattern = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
+    </mngrdag>
 </filename_patterns>
 <directory_patterns>
     <wcl>
+        name = wcl
         ops = tbd 
         runtime = ${wcltype}wcl/${modulename}
     </wcl>
     <log> 
+        name = log
         ops = tbd 
         runtime = log/${modulename}
     </log>

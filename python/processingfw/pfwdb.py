@@ -15,7 +15,9 @@
 
 __version__ = "$Rev$"
 
+import os
 import sys
+import socket
 from collections import OrderedDict
 
 import coreutils
@@ -44,10 +46,8 @@ class PFWDB (coreutils.DesDbi):
         result['archive'] = self.get_database_table('OPS_ARCHIVE_NODES', 'NAME') 
         result['directory_patterns'] = self.get_database_table('OPS_DIRECTORY_PATTERNS', 'NAME')
         result['filename_patterns'] = self.get_database_table('OPS_FILENAME_PATTERNS', 'NAME')
-        result['filetype'] = self.get_database_table('OPS_FILETYPE', 'FILETYPE')
-        result['filetype_metadata'] = self.get_filetype_metadata()
-        result['metadata'] = self.get_metadata()
         result['site'] = self.get_database_table('OPS_SITES', 'NAME')
+        result['filetype_metadata'] = self.get_all_filetype_metadata()
 
         return result
 
@@ -323,7 +323,23 @@ class PFWDB (coreutils.DesDbi):
         row['jobnum'] = wcl['jobnum']
         row['starttime'] = 'CURRENT_TIMESTAMP'
         row['numexpwrap'] = wcl['numexpwrap']
+        row['exechost'] = socket.gethostname()
+        row['pipeprod'] = wcl['pipeprod']
+        row['pipever'] = wcl['pipever']
 
+        # batchid 
+        if "PBS_JOBID" in os.environ:
+            row['batchid'] = os.environ['PBS_JOBID'].split('.')[0]
+        elif 'LSB_JOBID' in os.environ:
+            row['batchid'] = os.environ['LSB_JOBID'] 
+        elif 'LOADL_STEP_ID' in os.environ:
+            row['batchid'] = os.environ['LOADL_STEP_ID'].split('.').pop()
+        elif 'SUBMIT_CONDORID' in os.environ:
+            row['batchid'] = os.environ['SUBMIT_CONDORID']
+
+        if 'SUBMIT_CONDORID' in os.environ:
+            row['condorid'] = os.environ['SUBMIT_CONDORID']
+        
         self.insert_pfw_row('PFW_JOB', row)
 
 

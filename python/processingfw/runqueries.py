@@ -113,8 +113,8 @@ def runqueries(config, modname, modules_prev_in_list):
                                    moddict, listname, list_dict)
     
     # process each "file" in each module
-    if 'file' in moddict:
-        for filename, file_dict in moddict['file'].items():
+    if 'filespecs' in moddict:
+        for filename, file_dict in moddict['filespecs'].items():
             if 'depends' not in file_dict or \
                 not file_dict['depends'] not in modules_prev_in_list:
                 print "\t%s-%s: creating master list\n" % \

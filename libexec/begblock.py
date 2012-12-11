@@ -41,6 +41,7 @@ def begblock(argv):
 
         runqueries(config, modname, modules_prev_in_list)
         pfwblock.read_master_lists(config, modname, modules_prev_in_list)
+        pfwblock.add_file_metadata(config, modname)
         loopvals = pfwblock.get_wrapper_loopvals(config, modname)
         pfwblock.create_sublists(config, modname)
         wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)

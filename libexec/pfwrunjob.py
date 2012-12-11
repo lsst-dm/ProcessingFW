@@ -25,7 +25,7 @@ def setupwrapper(inputwcl, logfilename, useDB=False):
         os.makedirs(logdir)
 
     # make directory for outputwcl
-    outputwclfile = inputwcl['wrapper']['outputfile']
+    outputwclfile = inputwcl['wrapper']['outputwcl']
     outputwcldir = os.path.dirname(outputwclfile)
     if not os.path.exists(outputwcldir):
         os.makedirs(outputwcldir)
@@ -46,7 +46,7 @@ def setupwrapper(inputwcl, logfilename, useDB=False):
             execnamesarr.append(inputwcl[sect]['execname'])
             if 'children' in inputwcl[sect]:
                 for child in pfwutils.pfwsplit(inputwcl[sect]['children']):
-                    childnames = pfwutils.get_wcl_value(child+'.filename', inputwcl)
+                    childnames = pfwutils.get_wcl_value(child+'.fullname', inputwcl)
                     outfile_names = pfwutils.pfwsplit(childnames)
                     for outfile in outfile_names:
                         outfile_dir = os.path.dirname(outfile)
@@ -58,7 +58,7 @@ def setupwrapper(inputwcl, logfilename, useDB=False):
             if 'parents' in inputwcl[sect]:
                 files2get = {}
                 for parent in pfwutils.pfwsplit(inputwcl[sect]['parents']):
-                    infile_names = pfwutils.get_wcl_value(parent+'.filename', inputwcl)
+                    infile_names = pfwutils.get_wcl_value(parent+'.fullname', inputwcl)
                     infile_names = pfwutils.pfwsplit(infile_names)
                     for inname in infile_names:
                         if not os.path.exists(inname):
@@ -87,7 +87,7 @@ def setupwrapper(inputwcl, logfilename, useDB=False):
 
 
 
-def runwrapper(wrappercmd, logfilename, useQCF=False, wrapperid, execnames):
+def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQCF=False):
     pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
     print "wrappercmd = ", wrappercmd
     print "logfilename = ", logfilename
@@ -131,7 +131,7 @@ def runwrapper(wrappercmd, logfilename, useQCF=False, wrapperid, execnames):
 def postwrapper(inputwcl, exitcode, useDB=False):
     pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
 
-    outputwclfile = inputwcl['wrapper']['outputfile']
+    outputwclfile = inputwcl['wrapper']['outputwcl']
     try:
         outwclfh = open(outputwclfile, 'r')
     except Exception as err:
@@ -181,9 +181,12 @@ def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
             inputwcl.update(jobwcl)
 
             if setupwrapper(inputwcl, logfile, useDB) == 0:
-                exitcode = runwrapper(wrappercmd, logfile, useQCF, 
+                exitcode = runwrapper(wrappercmd, 
+                                      logfile,
                                       inputwcl['wrapperid'], 
-                                      inputwcl['execnames'])
+                                      inputwcl['execnames'],
+                                      5000,
+                                      useQCF)
                 postwrapper(inputwcl, exitcode, useDB) 
                 if exitcode:
                     print "Aborting due to non-zero exit code"
@@ -236,4 +239,5 @@ def parseArgs(argv):
     return args
 
 if __name__ == '__main__':
+    print ' '.join(sys.argv)
     sys.exit(runjob(parseArgs(sys.argv)))

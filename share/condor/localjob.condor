@@ -9,6 +9,7 @@ universe=local
 executable= $(exec)
 arguments = $(args)
 getenv=true
+environment="submit_condorid=$(Cluster).$(Process)"
 notification=never
 output=$(run)_$(jobname).out
 error=$(run)_$(jobname).err

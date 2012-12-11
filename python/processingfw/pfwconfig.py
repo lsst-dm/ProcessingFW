@@ -15,6 +15,7 @@ import os
 import time
 
 import intgutils.wclutils as wclutils
+import processingfw.pfwdb as pfwdb
 
 from pfwutils import debug
 from pfwutils import pfwsplit
@@ -24,7 +25,7 @@ class PfwConfig:
     """ Contains configuration and state information for PFW """
 
     # order in which to search for values
-    DEFORDER = ['file', 'list', 'exec', 'job', 'module', 'block', 'archive', 'sites']
+    DEFORDER = ['filespecs', 'list', 'exec', 'job', 'module', 'block', 'archive', 'site']
 
     # misc constants 
     ATTRIB_PREFIX='des_'
@@ -44,35 +45,68 @@ class PfwConfig:
         else:
             self.config['debug'] = 0
 
-        if 'pfwconfig' in args and args['pfwconfig']:
-            debug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (args['wclfile']))
+        if 'pfwconfig' in args:
             pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
+            debug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
             fh = open(pfwconfig, "r")
+            wclutils.updateDict(self.config, wclutils.read_wcl(fh))
+            fh.close()
+
+        if 'querydb' in args and args['querydb']:
+            dbh = pfwdb.PFWDB()
+            wclutils.updateDict(self.config, dbh.get_database_defaults())
+
+        if 'wclfile' in args:
+            debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+            fh = open(args['wclfile'], "r")
             wclutils.updateDict(self.config, wclutils.read_wcl(fh))
             fh.close()
             if 'debug' not in self.config:  # recheck since reset config
                 self.config['debug'] = 0
 
-        if 'querydb' in args and args['querydb']:
-            import processingfw.pfwdb as pfwdb
-            dbh = pfwdb.PFWDB()
-            wclutils.updateDict(self.config, dbh.get_database_defaults())
-        with open('dbdump.des', 'w') as fh:
-            wclutils.write_wcl(self.config, fh, True, 4)
 
-        if 'wclfile' in args:
-            debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
-            fh = open(args['wclfile'], "r")
-            fromfile = wclutils.read_wcl(fh)
-            fh.close()
-            
-            wclutils.updateDict(self.config, fromfile)
-            self.set_names()
+#        runwcl = OrderedDict()
+#        if 'wclfile' in args:
+#            debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+#            fh = open(args['wclfile'], "r")
+#            runwcl = wclutils.read_wcl(fh)
+#            fh.close()
+#
+#        pfwwcl = OrderedDict()
+#        dbwcl = OrderedDict()
+#        opwcl = OrderedDict()
+#        if '_config' in runwcl:
+#            if 'pfwconfig' in runwcl['_config']:
+#                #pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
+#                pfwconfig = runwcl['_config']['pfwconfig']
+#                debug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+#                fh = open(pfwconfig, "r")
+#                pfwwcl = wclutils.read_wcl(fh)
+#                fh.close()
+#
+#            if 'dbconfig' in runwcl['_config']:
+#                dbconfig = runwcl['_config']['dbconfig']
+#                debug(3, 'PFWCONFIG_DEBUG', "Reading dbconfig: %s" % (dbconfig))
+#                fh = open(dbconfig, "r")
+#                dbwcl = wclutils.read_wcl(fh)
+#                fh.close()
+#
+#            if 'opconfig' in runwcl['_config']:
+#                opconfig = runwcl['_config']['opconfig']
+#                debug(3, 'PFWCONFIG_DEBUG', "Reading opconfig: %s" % (opconfig))
+#                fh = open(opconfig, "r")
+#                opwcl = wclutils.read_wcl(fh)
+#                fh.close()
+#
+#        # combine configs
+#        self.config = pfwwcl
+#        wclutils.updateDict(self.config, dbwcl)
+#        wclutils.updateDict(self.config, opwcl)
 
+        self.set_names()
 
         if 'notarget' in args:
             self.config['notarget'] = args['notarget']
-
 
         # during runtime save blocklist as array
         self.block_array = pfwsplit(self.config['blocklist'])
@@ -91,7 +125,7 @@ class PfwConfig:
             self.config['current'] = OrderedDict({'curr_block': '', 
                                                   'curr_archive': '', 
                                                   'curr_software': '', 
-                                                  'curr_site' : ''})
+                                                  'curr_site' : ''} )
             self.config['wrapnum'] = '0'
             self.config['blknum'] = '0'
             self.config['jobnum'] = '1'
@@ -103,6 +137,8 @@ class PfwConfig:
         """Saves configuration in WCL format"""
         fh = open(filename, "w")
         wclutils.write_wcl(self.config, fh, True, 4)  # save it sorted
+#        wclutils.write_wcl(self.config['_config'], fh, True, 4)  # save it sorted
+#        wclutils.write_wcl(self.config['current'], fh, True, 4)  # save it sorted
         fh.close()
 
     ###########################################################################
@@ -483,7 +519,7 @@ class PfwConfig:
 #depricated?        curdict['curr_software'] = self['software_node']
     
         (exists, sitename) = self.search('sitename')
-        if exists and sitename in self.config['sites']:
+        if exists and sitename in self.config['site']:
             self.config['runsite'] = sitename
             curdict['curr_site'] = sitename
         else:
@@ -710,6 +746,10 @@ class PfwConfig:
                 (exists, value) = self.search(newkey)
                 if exists:
                     vals[newkey] = value
+                else:
+                    print "Could not find value for %s(%s)" % (key, newkey)
+    
+        print "get_grid_info:  returning vals=", vals
         return vals
 
     ###########################################################################
@@ -745,8 +785,9 @@ class PfwConfig:
         
         print "filepat=", filepat
         if filepat in self.config['filename_patterns']:
-            filenamepat = self.config['filename_patterns'][filepat]
+            filenamepat = self.config['filename_patterns'][filepat]['pattern']
         else:
+            print self.config['filename_patterns'].keys()
             raise Exception("Could not find filename pattern for %s" % filepat)
                 
         print "calling interpolate on", filenamepat
@@ -794,8 +835,8 @@ class PfwConfig:
         else:
             print "\t\tNo lists"
         
-        if 'file' in moduledict and len(moduledict['file']) > 0:
-            for k,v in moduledict['file'].items():
+        if 'filespecs' in moduledict and len(moduledict['filespecs']) > 0:
+            for k,v in moduledict['filespecs'].items():
                 dataset.append((k,v))
         else:
             print "\t\tNo files"

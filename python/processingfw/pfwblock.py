@@ -71,11 +71,11 @@ def assign_data_wrapper_inst(config, modname, wrapperinst):
             currvals[key] = winst[key]
         pfwutils.debug(6, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
 
-        if 'file' in moddict:
-            winst['file'] = {}
-            for fname, fdict in moddict['file'].items(): 
+        if 'filespecs' in moddict:
+            winst['filespecs'] = {}
+            for fname, fdict in moddict['filespecs'].items(): 
                 pfwutils.debug(3, "PFWBLOCK_DEBUG", "Working on file "+fname)
-                winst['file'][fname] = {}
+                winst['filespecs'][fname] = {}
                 if 'sublists' in fdict:  # files came from query
                     if len(fdict['sublists'].keys()) > 1:
 #                        print fdict['sublists'].keys()
@@ -106,17 +106,17 @@ def assign_data_wrapper_inst(config, modname, wrapperinst):
 
                     # Add runtime path to filename
                     path = config.get_filepath('runtime', None, {'currentvals': currvals, 'searchobj': fdict})
-                    winst['file'][fname]['filename'] = "%s/%s" % (path, finfo['filename'])
-                    inputlist[winst['file'][fname]['filename']] = True
+                    winst['filespecs'][fname]['fullname'] = "%s/%s" % (path, finfo['filename'])
+                    inputlist[winst['filespecs'][fname]['fullname']] = True
 
-                    #winst['file'][fname]['filename'] = finfo['filename']
+                    #winst['filespecs'][fname]['filename'] = finfo['filename']
                     print "Assigned filename for fname %s (%s)" % (fname, finfo['filename'])
 #                else:
-#                    winst['file'][fname]['filename'] = config.get_filename(None, {'currentvals': currvals, 'searchobj': fdict}) 
-#                    if type(winst['file'][fname]['filename']) is list:
-#                        winst['file'][fname]['filename'] = ','.join(winst['file'][fname]['filename'])
+#                    winst['filespecs'][fname]['filename'] = config.get_filename(None, {'currentvals': currvals, 'searchobj': fdict}) 
+#                    if type(winst['filespecs'][fname]['filename']) is list:
+#                        winst['filespecs'][fname]['filename'] = ','.join(winst['filespecs'][fname]['filename'])
 #                if 'req_metadata' in fdict:
-#                    winst['file'][fname]['req_metadata'] = copy.deepcopy(fdict['req_metadata'])
+#                    winst['filespecs'][fname]['req_metadata'] = copy.deepcopy(fdict['req_metadata'])
 
         if 'list' in moddict:
             winst['list'] = {}
@@ -149,29 +149,42 @@ def finish_wrapper_inst(config, modname, wrapperinst):
             for key in loopkeys:
                 currvals[key] = winst[key]
 
-        if 'file' in moddict:
-            for fname, fdict in moddict['file'].items(): 
-                print "working on file:", fname
-                if fname not in winst['file']:
-                    winst['file'][fname] = {}
+        if 'filespecs' in moddict:
+            for fname, fdict in moddict['filespecs'].items(): 
+                print "finish_wrapper_inst: working on file:", fname
+                if fname not in winst['filespecs']:
+                    winst['filespecs'][fname] = {}
 
                 # if didn't get filename from query code, generate filename from pattern
-                if 'filename' not in winst['file'][fname]:
-                    winst['file'][fname]['filename'] = config.get_filename(None, {'currentvals': currvals, 
+                if 'fullname' not in winst['filespecs'][fname]:
+                    winst['filespecs'][fname]['fullname'] = config.get_filename(None, {'currentvals': currvals, 
                                                                            'searchobj': fdict,
                                                                            'expand': True}) 
                     path = config.get_filepath('runtime', None, {'currentvals': currvals, 'searchobj': fdict})
-                    if type(winst['file'][fname]['filename']) is list:
-                        for i in range(0, len(winst['file'][fname]['filename'])):
+                    if type(winst['filespecs'][fname]['fullname']) is list:
+                        for i in range(0, len(winst['filespecs'][fname]['fullname'])):
                             # Add runtime path to filename
-                            winst['file'][fname]['filename'][i] = "%s/%s" % (path, winst['file'][fname]['filename'][i])
+                            winst['filespecs'][fname]['fullname'][i] = "%s/%s" % (path, winst['filespecs'][fname]['fullname'][i])
 
-                        winst['file'][fname]['filename'] = ','.join(winst['file'][fname]['filename'])
+                        winst['filespecs'][fname]['fullname'] = ','.join(winst['filespecs'][fname]['fullname'])
                     else:
-                        winst['file'][fname]['filename'] = "%s/%s" % (path, winst['file'][fname]['filename'])
+                        winst['filespecs'][fname]['fullname'] = "%s/%s" % (path, winst['filespecs'][fname]['fullname'])
+                pfwutils.debug(3, "PFWBLOCK_DEBUG", "fullname = %s" % (winst['filespecs'][fname]['fullname']))
 
                 if 'req_metadata' in fdict:
-                    winst['file'][fname]['req_metadata'] = copy.deepcopy(fdict['req_metadata'])
+                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "copying req_metadata %s" % (fname))
+                    winst['filespecs'][fname]['req_metadata'] = copy.deepcopy(fdict['req_metadata'])
+                else:
+                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "no req_metadata %s" % (fname))
+
+                if 'opt_metadata' in fdict:
+                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "copying opt_metadata %s" % (fname))
+                    winst['filespecs'][fname]['opt_metadata'] = copy.deepcopy(fdict['opt_metadata'])
+                else:
+                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "no opt_metadata %s" % (fname))
+
+            print fdict
+            print winst['filespecs'] 
 
         if 'list' in moddict:
             winst['list'] = {}
@@ -183,6 +196,70 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                                                                               'interpolate':True})[1]
                 create_simple_list(config, lname, ldict, currvals)
     pfwutils.debug(1, "PFWBLOCK_DEBUG", "END")
+
+
+def add_file_metadata(config, modname):
+    """ add file metadata sections to a single file section from a module"""
+
+    moddict = config['module'][modname]
+    pfwutils.debug(3, "PFWBLOCK_DEBUG", "Working on module " + modname)
+    
+    if 'filespecs' in moddict:
+        for k in moddict:
+            if k.startswith('exec_') and 'children' in moddict[k]:
+                for child in pfwutils.pfwsplit(moddict[k]['children']):
+                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "Working on child " + child)
+                    m = re.match('filespecs.(\w+)', child)
+                    if m:
+                        fname = m.group(1)
+                        pfwutils.debug(3, "PFWBLOCK_DEBUG", "Working on file " + fname)
+                        fdict = moddict['filespecs'][fname]
+            
+                        filetype = fdict['filetype'].lower()
+                        fdict['req_metadata'] = OrderedDict()
+
+                        if filetype in config['filetype_metadata']:
+                            if 'r' in config['filetype_metadata'][filetype]:
+                                if 'h' in config['filetype_metadata'][filetype]['r']:
+                                    fdict['req_metadata']['headers'] = ','.join(config['filetype_metadata'][filetype]['r']['h'].keys())
+                                if 'c' in config['filetype_metadata'][filetype]['r']:
+                                    fdict['req_metadata']['compute'] = ','.join(config['filetype_metadata'][filetype]['r']['c'].keys())
+#                                if 'w' in config['filetype_metadata'][filetype]['r']:
+#                                    fdict['req_metadata']['wcl'] = ','.join(config['filetype_metadata'][filetype]['r']['w'].keys())
+
+                            if 'o' in config['filetype_metadata'][filetype]:
+                                fdict['opt_metadata'] = OrderedDict()
+                                if 'h' in config['filetype_metadata'][filetype]['o']:
+                                    fdict['opt_metadata']['headers'] = ','.join(config['filetype_metadata'][filetype]['o']['h'].keys())
+                                if 'c' in config['filetype_metadata'][filetype]['o']:
+                                    fdict['opt_metadata']['compute'] = ','.join(config['filetype_metadata'][filetype]['o']['c'].keys())
+#                                if 'w' in config['filetype_metadata'][filetype]['o']:
+#                                    fdict['opt_metadata']['wcl'] = ','.join(config['filetype_metadata'][filetype]['o']['w'].keys())
+                
+                        if 'wcl' not in fdict['req_metadata']:
+                            fdict['req_metadata']['wcl'] = ''
+                        else:
+                            fdict['req_metadata']['wcl'] += ','
+
+            
+                        fdict['req_metadata']['wcl'] += 'filespecs.%s.fullname,filespecs.%s.filename,filespecs.%s.filetype' % (fname, fname, fname)
+                    else:
+                        pfwutils.debug(3, "PFWBLOCK_DEBUG", "child doesn't have filespecs" % (k))
+
+                print fdict
+                
+            else:
+                pfwutils.debug(3, "PFWBLOCK_DEBUG", "No children for %s" % (k))
+
+    else:
+        pfwutils.debug(3, "PFWBLOCK_DEBUG", "No filespecs")
+        
+
+    #exit(0)
+    
+                
+
+
 
 
 def write_jobwcl(config, jobnum, numexpwrap):
@@ -203,6 +280,10 @@ def write_jobwcl(config, jobnum, numexpwrap):
               'usedb': config.search('usedb', { 'required': True,
                                     'interpolate': True})[1], 
               'useqcf': config.search('useqcf', {'required': True,
+                                    'interpolate': True})[1], 
+              'pipeprod': config.search('pipeprod', {'required': True,
+                                    'interpolate': True})[1], 
+              'pipever': config.search('pipever', {'required': True,
                                     'interpolate': True})[1], 
             }
 
@@ -559,9 +640,9 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     wrapperwcl = {}
 
     # file is optional
-    if 'file' in wrapinst:
-        wrapperwcl['file'] = copy.deepcopy(wrapinst['file'])
-        pfwutils.debug(3, "PFWBLOCK_DEBUG", "\tfile=%s" % wrapperwcl['file'])
+    if 'filespecs' in wrapinst:
+        wrapperwcl['filespecs'] = copy.deepcopy(wrapinst['filespecs'])
+        pfwutils.debug(3, "PFWBLOCK_DEBUG", "\tfile=%s" % wrapperwcl['filespecs'])
 
     # list is optional
     if 'list' in wrapinst:
@@ -594,7 +675,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                                  'required': True, 'interpolate': True})
     outputwcl_path = config.get_filepath('runtime', 'wcl', {'currentvals': currvals,
                                      'required': True, 'interpolate': True})
-    wrapperwcl['wrapper']['outputfile'] = "%s/%s" % (outputwcl_path, outputwcl_file)
+    wrapperwcl['wrapper']['outputwcl'] = "%s/%s" % (outputwcl_path, outputwcl_file)
 
 
     wrapperwcl['wrapper']['tmpfile_prefix'] =  config.search('tmpfile_prefix',
@@ -817,9 +898,16 @@ def create_runjob_condorfile(config):
                 'log': '%slog' % condorbase,
                 'getenv': 'true'
                  }
+
+    env = {}
+    if 'environment' in config:
+        env = config['environment']
+    jobattribs['environment'] = pfwcondor.create_condor_env(env)
+
 #    jobattribs.update(config.get_grid_info())
     userattribs = config.get_condor_attributes('$(jobnum)')
     gridinfo = config.get_grid_info()
+    print "gridinfo=",gridinfo
     if 'batchtype' not in gridinfo:
         raise Exception("Error:  Missing batchtype")
     if 'localcondor' in gridinfo['batchtype'].lower():

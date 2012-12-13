@@ -26,6 +26,9 @@ from processingfw.pfwutils import debug
 from errors import DuplicateDBFiletypeError
 from errors import DuplicateDBHeaderError
 from errors import IdMetadataHeaderError
+from errors import FileMetadataIngestError
+from errors import RequiredMetadataMissingError
+from errors import DBMetadataNotFoundError
 
 class PFWDB (coreutils.DesDbi):
     """
@@ -127,7 +130,7 @@ class PFWDB (coreutils.DesDbi):
                 where m.file_header_name=fm.file_header_name 
                     and f.filetype=fm.filetype 
                 order by 1,2,3,4,5,6 """
-        collections = ['filetype','status','derived','file_header_name']
+        collections = ['filetype','status','derived']
         curs = self.cursor()
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
@@ -137,11 +140,14 @@ class PFWDB (coreutils.DesDbi):
             ptr = result
             for col, value in enumerate(row):
                 normvalue = str(value).lower()
+                if col >= (len(row)-3):
+                    if normvalue not in ptr:
+                        ptr[normvalue] = str(row[col+2]).lower()
+                    else:
+                        ptr[normvalue] += "," + str(row[col+2]).lower()
+                    break
                 if normvalue not in ptr:
-                    if col > len(row)-3:
-                        ptr[normvalue]=str(row[col+1]).lower()
-                        break
-                    elif desc[col] in collections:
+                    if desc[col] in collections:
                         ptr[normvalue] = OrderedDict()
                     else:
                         ptr[desc[col]] = normvalue
@@ -774,3 +780,134 @@ class PFWDB (coreutils.DesDbi):
             self.insert_many (fmap ['table'], columns, rows)
 
         return retval
+
+
+    def get_required_headers(self, filetypeDict):
+        """
+        For use by ingest_file_metadata. Collects the list of required header values.
+        """
+        REQUIRED = "r"
+        allReqHeaders = set()
+        for category,catDict in filetypeDict[REQUIRED].iteritems():
+            allReqHeaders = allReqHeaders.union(catDict.keys())
+        return allReqHeaders
+
+
+    def get_column_map(self, filetypeDict):
+        """
+        For use by ingest_file_metadata. Creates a lookup from column to header.
+        """
+        columnMap = OrderedDict()
+        for statusDict in filetypeDict.values():
+            if type(statusDict) in (OrderedDict,dict):
+                for catDict in statusDict.values():
+                    for header, columns in catDict.iteritems():
+                        collist = columns.split(',')
+                        for position, column in enumerate(collist):
+                            if len(collist) > 1:
+                                columnMap[column] = header + ":" + str(position)
+                            else:
+                                columnMap[column] = header
+        return columnMap
+
+
+    def ingest_file_metadata(self, filemeta, dbdict):
+        """
+        Ingests the file metadata stored in <filemeta> into the database,
+        using <dbdict> to determine where each element belongs.
+        This wil throw an error and abort if any of the following are missing
+        for any file: the filename, filetype, or other required header value.
+        It will also throw an error if the filetype given in the input data
+        is not found in <dbdict>
+        Any exception will abort the entire upload.
+        """
+        FILETYPE  = "filetype"
+        FILENAME  = "filename"
+        METATABLE = "metadata_table"
+        COLMAP    = "column_map"
+        ROWS      = "rows"
+        metadataTables = OrderedDict()
+        foundError = 0
+        message = ""
+        
+        try:
+            for key, filedata in filemeta.iteritems():
+                foundError = 0
+                if FILETYPE not in filedata.keys():
+                    message = "ERROR: cannot upload file " + filedata[FILENAME] + ": no FILETYPE provided."
+                    raise RequiredMetadataMissingError(message)
+                    continue
+                if FILENAME not in filedata.keys():
+                    message = "ERROR: cannot upload file <" + key + ">, no FILENAME provided."
+                    raise RequiredMetadataMissingError(message)
+                    continue
+                if filedata[FILETYPE] not in dbdict:
+                    message = "ERROR: cannot upload " + filedata[FILENAME] + ": " + \
+                            filedata[FILETYPE] + " is not a known FILETYPE."
+                    raise DBMetadataNotFoundError(message)
+                    continue
+                # check that all required are present
+                allReqHeaders = self.get_required_headers(dbdict[filedata[FILETYPE]])
+                for dbkey in allReqHeaders:
+                    if dbkey not in filedata.keys() or filedata[dbkey] == "":
+                        print "ERROR: " + filedata[FILENAME] + " missing required data for " + dbkey
+                        foundError = 1
+                if foundError == 1:
+                    message = "ERROR: required metadata missing for " + filedata[FILENAME] + "."
+                    raise RequiredMetadataMissingError(message)
+                    continue
+            
+                # now load structures needed for upload
+                rowdata = OrderedDict()
+                mappedHeaders = set()
+                fileMetaTable = dbdict[filedata[FILETYPE]][METATABLE]
+
+                if fileMetaTable not in metadataTables.keys():
+                    metadataTables[fileMetaTable] = OrderedDict()
+                    metadataTables[fileMetaTable][COLMAP] = self.get_column_map(dbdict[filedata[FILETYPE]])
+                    metadataTables[fileMetaTable][ROWS] = []
+                
+                colmap = metadataTables[fileMetaTable][COLMAP]
+                for column, header in colmap.iteritems():
+                    compheader = header.split(':')
+                    if len(compheader) > 1:
+                        hdr = compheader[0]
+                        pos = int(compheader[1])
+                        if hdr in filedata:
+                            rowdata[column] = filedata[hdr].split(',')[pos]
+                            mappedHeaders.add(hdr)
+                    else:
+                        if header in filedata:
+                            rowdata[column] = filedata[header]
+                            mappedHeaders.add(header)
+                        else:
+                            rowdata[column] = ''
+                
+                # report elements that were in the file that do not map to a DB column
+                for notmapped in (set(filedata.keys()) - mappedHeaders):
+                    print "WARN: file " + filedata[FILENAME] + " header item " \
+                        + notmapped + " does not match column for filetype " \
+                        + filedata[FILETYPE]
+                
+                # add the new data to the table set of rows
+                metadataTables[fileMetaTable][ROWS].append(rowdata)
+            # end looping through files
+            
+            for metaTable, dict in metadataTables.iteritems():
+                self.insert_many(metaTable, dict[COLMAP].keys(), dict[ROWS])
+            self.commit()
+            
+        except FileMetadataIngestError as ex:
+            print ex
+            # For now, simply print these "known" error conditions to stdout
+            # so that a data error does not prevent further execution for testing.
+            # Once this is more stable, then these should be re-raised and
+            # perhaps not printed here
+            
+            # raise
+        except Exception as ex:
+            raise FileMetadataIngestError(ex)
+    # end ingest_file_metadata
+    
+    
+    

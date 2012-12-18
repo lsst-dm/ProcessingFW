@@ -12,7 +12,7 @@ import intgutils.wclutils as wclutils
 
 ###########################################################
 def gen_file_list(query, debug = 3):
-""" Return list of files retrieved from the database using given query dict """
+    """ Return list of files retrieved from the database using given query dict """
 
 #    query['location']['key_vals']['archivesites'] = '[^N]'
 #    query['location']['select_fields'] = 'all'

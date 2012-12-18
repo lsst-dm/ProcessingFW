@@ -3,6 +3,7 @@
 import sys
 import os
 import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 from processingfw.pfwemail import send_subblock_email
 from processingfw.pfwutils import debug
@@ -35,11 +36,14 @@ def logpost(argv = None):
     debug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
     debug(3, 'PFWPOST_DEBUG', "block = %s" % block)
     debug(3, 'PFWPOST_DEBUG', "subblock = %s" % subblock)
+    debug(3, 'PFWPOST_DEBUG', "retval = %s" % retval)
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     debug(3, 'PFWPOST_DEBUG', "done reading config file")
     
+    dbh = pfwdb.PFWDB()
+    dbh.update_blktask_end(config, "", subblock, retval)
 
     # now that have more information, rename output file
     debug(3, 'PFWPOST_DEBUG', "before get_filename")
@@ -58,16 +62,25 @@ def logpost(argv = None):
     log_pfw_event(config, block, subblock, subblocktype, ['posttask', retval])
     
     # In order to continue, make pipelines dagman jobs exit with success status
-    if 'pipelinesmngr' not in subblock:
-        retval = pfwconfig.PfwConfig.SUCCESS
+    #if 'pipelinesmngr' not in subblock:
+    #    retval = pfwconfig.PfwConfig.SUCCESS
     
-    # If error at non-manager level, send failure email
-    if retval != pfwconfig.PfwConfig.SUCCESS and \
-        'mngr' not in subblock:
-        send_subblock_email(config, block, subblock, retval)
+#    # If error at non-manager level, send failure email
+#    if retval != pfwconfig.PfwConfig.SUCCESS and \
+#        'mngr' not in subblock:
+#        send_subblock_email(config, block, subblock, retval)
     
+    
+    debug(3, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
+    print type(retval)
     debugfh.close()
-    return(retval)
+    return(int(retval))
 
 if __name__ == "__main__":
-    sys.exit(logpost(sys.argv))
+    realstdout = sys.stdout
+    realstderr = sys.stderr
+    exitcode = logpost(sys.argv)
+    sys.stdout = realstdout
+    sys.stderr = realstderr
+    debug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
+    sys.exit(exitcode)

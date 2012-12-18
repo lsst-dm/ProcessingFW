@@ -171,6 +171,10 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                         winst['filespecs'][fname]['fullname'] = "%s/%s" % (path, winst['filespecs'][fname]['fullname'])
                 pfwutils.debug(3, "PFWBLOCK_DEBUG", "fullname = %s" % (winst['filespecs'][fname]['fullname']))
 
+                
+                if 'filetype' in fdict:
+                    winst['filespecs'][fname]['filetype'] = fdict['filetype']
+
                 if 'req_metadata' in fdict:
                     pfwutils.debug(3, "PFWBLOCK_DEBUG", "copying req_metadata %s" % (fname))
                     winst['filespecs'][fname]['req_metadata'] = copy.deepcopy(fdict['req_metadata'])
@@ -289,6 +293,9 @@ def write_jobwcl(config, jobnum, numexpwrap):
 
     with open(jobwclfile, 'w') as wclfh:
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
+        ftmd = OrderedDict()
+        ftmd['filetype_metadata'] = config['filetype_metadata']
+        wclutils.write_wcl(ftmd, wclfh, True, 4)
 
     return jobwclfile
     
@@ -612,7 +619,7 @@ def get_value_from_line(line, key, nickname=None, numvals=None):
         if nickname is not None:
             print "\tnickname =", nickname
 
-        print "\tvalue to find:", value
+        print "\tvalue to find:", key
         print "\tline:", line
         print "\tvalarr:", valarr
         raise Exception("Aborting\n")

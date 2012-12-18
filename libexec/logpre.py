@@ -8,6 +8,7 @@ import sys
 import os
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwdb as pfwdb
 
 def logpre(argv = None):
     if argv is None:
@@ -33,6 +34,9 @@ def logpre(argv = None):
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     print config['reqnum']
 
+    dbh = pfwdb.PFWDB()
+    dbh.insert_blktask(config, "", subblock)
+
     # now that have more information, can rename output file
     new_log_name = config.get_filename('block', {'currentvals':
                                                     {'filetype': 'logpre_${subblock}',
@@ -49,7 +53,7 @@ def logpre(argv = None):
     log_pfw_event(config, block, subblock, subblocktype, ['pretask'])
     
     debugfh.close()
-    return(pfwconfig.PfwConfig.SUCCESS)
+    return(int(pfwconfig.PfwConfig.SUCCESS))
 
 if __name__ == "__main__":
     sys.exit(logpre(sys.argv))

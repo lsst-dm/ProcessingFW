@@ -1,0 +1,146 @@
+#!/usr/bin/env python
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedDate::                      $:  # Date of last commit.
+
+""" Program to ingest data files that were created external to framework """
+
+from collections import OrderedDict
+import tempfile
+import argparse
+import subprocess
+import os
+import re
+import shutil
+import sys
+import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwdb as pfwdb
+import processingfw.pfwutils as pfwutils
+import intgutils.wclutils as wclutils
+
+VERSION = '$Rev$'
+
+
+def get_list_filenames(ingestpath):
+    """ Return a list of fullpath filenames in given path """
+
+    filelist = [ingestpath+'/'+f for f in os.listdir(ingestpath) if os.path.isfile(ingestpath+'/'+f)]
+    return filelist
+
+def create_input_wcl(filelist, filetype, dbwcl):
+    """ Returns input wcl for call to generic.py to get metadata collection """ 
+
+    wcl = OrderedDict()
+    wcl['filespecs'] = OrderedDict()
+    wcl['filespecs'][filetype] = pfwutils.get_metadata_wcl(filetype, filetype, dbwcl)
+    wcl['filespecs'][filetype]['filetype'] = filetype
+    wcl['filespecs'][filetype]['fullname'] = ','.join(filelist)
+     
+    wcl['exec_1'] = OrderedDict()
+    wcl['exec_1']['execname'] = '/usr/bin/uptime'
+    wcl['exec_1']['children'] = 'filespecs.' + filetype
+    wcl['wrapper']  = OrderedDict()
+    wcl['wrapper']['outputwcl'] = '/tmp/mmg_outputwcl'
+    wcl['wrapper']['pipeline'] = 'file_metadata_ingest'
+    m = re.match('\$Rev: (\d+) \$', VERSION)
+    wcl['wrapper']['pipever'] = m.group(1)
+    return wcl
+
+def write_input_wcl(inwclfile, wcl):
+    """ Writes inputwcl to file """
+    with open(inwclfile, 'w') as fh:
+        wclutils.write_wcl(wcl, fh)
+
+def ingest_metadata(outwclfile, dbwcl, dbh):
+    """ Ingests metadata from outputwcl into database """
+
+    if os.path.isfile(outwclfile):
+        outwclfh = open(outwclfile, 'r')
+        outputwcl = wclutils.read_wcl(outwclfh)
+
+        if 'outputfiles' in outputwcl:
+            print "Calling ingest_file_metadata on %s files" % len(outputwcl['outputfiles'])
+            dbh.ingest_file_metadata(outputwcl['outputfiles'], dbwcl)
+    else:
+        print "Error: missing outputwcl file (%s)" % (outwclfile)
+
+def run_generic_wrapper(inwclfile):
+    """ Runs the generic wrapper using given input wcl file """
+
+    cmd = "generic.py --input %s" % (inwclfile)
+    print "Running cmd>", cmd
+    process = subprocess.Popen(cmd.split(), shell=False,
+                               stderr=subprocess.STDOUT)
+    process.wait()
+    return process.returncode
+
+
+def main(args):
+    parser = argparse.ArgumentParser(description='Ingest metadata for files generated outside DESDM framework')
+    parser.add_argument('--operator', action='store')
+    parser.add_argument('--inputwcl', action='store')
+    parser.add_argument('--outputwcl', action='store')
+    parser.add_argument('--version', action='store_true', default=False)
+    parser.add_argument('filetype', nargs=1, action='store')
+    parser.add_argument('ingestpath', nargs=1, action='store')
+
+    args = parser.parse_args()
+
+    print 'Using version %s of file_metadata_ingest\n' % VERSION
+
+    if args.version:
+        return 0
+
+    if ',' in args.filetype[0]:
+        print "Error: filetype must be single value"
+        parser.print_help()
+        return 1
+
+    if ',' in args.ingestpath[0]:
+        print "Error: ingestpath must be single value"
+        parser.print_help()
+        return 1
+
+    argsdict = vars(args)
+    print argsdict
+
+    dbh = pfwdb.PFWDB()
+    dbwcl = dbh.get_all_filetype_metadata()
+#    with open('/tmp/mmg_dbwcl', 'w') as fh:
+#        wclutils.write_wcl(dbwcl, fh)
+    filelist = get_list_filenames(argsdict['ingestpath'][0])
+
+    inputwcl = create_input_wcl(filelist,argsdict['filetype'][0],dbwcl)
+   
+    if args.inputwcl is not None:
+        inwclfile = args.inputwcl
+    else:
+        temp = tempfile.NamedTemporaryFile(prefix='ingest_metadata_', suffix='_input.wcl', dir='/tmp', delete=False)
+        inwclfile = temp.name 
+
+    print "inwclfile =", inwclfile
+
+    if args.outputwcl is not None:
+        outwclfile = args.outputwcl
+    else:
+        temp = tempfile.NamedTemporaryFile(prefix='ingest_metadata_', suffix='_output.wcl', dir='/tmp', delete=False)
+        outwclfile = temp.name 
+
+    print "outwclfile =", outwclfile
+    inputwcl['wrapper']['outputwcl'] = outwclfile
+    write_input_wcl(inwclfile, inputwcl)
+
+    if run_generic_wrapper(inwclfile):
+        print "Skipping ingestion because wrapper exited with error"
+        return(1)
+    
+    inputwcl['wrapper']['outputwcl'] = outwclfile
+    ingest_metadata(outwclfile, dbwcl, dbh)
+    dbh.commit()
+    
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
+
+

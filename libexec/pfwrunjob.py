@@ -14,7 +14,7 @@ import intgutils.wclutils as wclutils
 
 VERSION = '$Rev$'
 
-def setupwrapper(inputwcl, logfilename, useDB=False):
+def setupwrapper(inputwcl, iwfilename, logfilename, useDB=False):
     """ Create output directories, get files from cache, and other setup work """
 
     pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
@@ -33,7 +33,7 @@ def setupwrapper(inputwcl, logfilename, useDB=False):
     dbh = None
     if useDB:
         dbh = pfwdb.PFWDB()
-        inputwcl['wrapperid'] = dbh.insert_wrapper(inputwcl)
+        inputwcl['wrapperid'] = dbh.insert_wrapper(inputwcl, iwfilename)
         print "wrapperid =", inputwcl['wrapperid']
 
 
@@ -106,20 +106,39 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
                                       stdin=subprocess.PIPE,
                                       stderr=subprocess.STDOUT)
 
-    buf = os.read(processWrap.stdout.fileno(), bufsize)
-    while processWrap.poll() == None or len(buf) != 0:
-        logfh.write(buf)
-        if useQCF:
-            processQCF.stdin.write(buf)
+    try:
         buf = os.read(processWrap.stdout.fileno(), bufsize)
+        while processWrap.poll() == None or len(buf) != 0:
+            logfh.write(buf)
+            if useQCF:
+                processQCF.stdin.write(buf)
+            buf = os.read(processWrap.stdout.fileno(), bufsize)
 
-    logfh.close()
-    if useQCF:
-        processQCF.stdin.close()
-        while processQCF.poll() == None:
-            time.sleep(1)
-        if processQCF.returncode != 0:
-            print "QCF returned non-zero exit code"
+        logfh.close()
+        if useQCF:
+            processQCF.stdin.close()
+            while processQCF.poll() == None:
+                time.sleep(1)
+            if processQCF.returncode != 0:
+                print "QCF returned non-zero exit code"
+    except IOError as e:
+        print "I/O error({0}): {1}".format(e.errno, e.strerror)
+        if useQCF:
+            qcfpoll = processQCF.poll()
+            if qcfpoll != None and qcfpoll != 0:
+                if processWrap.poll() == None:
+                    buf = os.read(processWrap.stdout.fileno(), bufsize)
+                    while processWrap.poll() == None or len(buf) != 0:
+                        logfh.write(buf)
+                        buf = os.read(processWrap.stdout.fileno(), bufsize)
+
+                    logfh.close()
+            else:
+                print "Unexpected error:", sys.exc_info()[0]
+                raise
+    except:
+        print "Unexpected error:", sys.exc_info()[0]
+        raise
 
     if processWrap.returncode != 0:
         print "wrapper returned non-zero exit code"
@@ -128,34 +147,30 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
     return processWrap.returncode
 
 
-def postwrapper(inputwcl, exitcode, useDB=False):
+def postwrapper(inputwcl, jobwcl, logfile, exitcode, useDB=False):
     pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
 
-    outputwclfile = inputwcl['wrapper']['outputwcl']
-    try:
-        outwclfh = open(outputwclfile, 'r')
-    except Exception as err:
-        raise err
+    if not os.path.isfile(logfile):
+        logfile = None
 
-    outputwcl = wclutils.read_wcl(outwclfh)
+    outputwclfile = inputwcl['wrapper']['outputwcl']
+    outputwcl = None
+    if not os.path.isfile(outputwclfile):
+        outputwclfile = None
+    else:
+        outwclfh = open(outputwclfile, 'r')
+        outputwcl = wclutils.read_wcl(outwclfh)
 
     # make 
-    dbh = pfwdb.PFWDB()
-    for sect in outputwcl.keys():
-        if sect.startswith('exec_'):
-            if useDB:
-                dbh.update_exec_end(outputwcl[sect], inputwcl[sect]['execid'], exitcode)
-                
-#<exec_1>
-#    cmdlineargs = 'raw/DECam_t183_02000010.fits.fz' 'red/D61500250_z_r4p33_scix' -crosstalk 'xtalk/DECam.xtalk' -overscanfunction '10' -overscanorder '1' -overscansample '0' -overscantrim '5' -photflag '1' -satmask -verbose '3'
-#    parents = file.raw, file.xtalkcoeff
-#    children = file.xtalked
-#    execname = DECam_crosstalk
-#    walltime = 186.970224857
-#</exec_1>            
-
-    if useDB: 
-        dbh.update_wrapper_end(inputwcl, exitcode)
+    if useDB:
+        dbh = pfwdb.PFWDB()
+        dbh.update_wrapper_end(inputwcl, outputwclfile, logfile, exitcode)
+        if outputwcl is not None:
+            for sect in outputwcl.keys():
+                if sect.startswith('exec_'):
+                    dbh.update_exec_end(outputwcl[sect], inputwcl[sect]['execid'], exitcode)
+            if 'outputfiles' in outputwcl:
+                dbh.ingest_file_metadata(outputwcl['outputfiles'], jobwcl['filetype_metadata'])
 
     pfwutils.debug(3, "PFWRUNJOB_DEBUG", "END")
     
@@ -180,14 +195,16 @@ def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
                 inputwcl = wclutils.read_wcl(wclfh)
             inputwcl.update(jobwcl)
 
-            if setupwrapper(inputwcl, logfile, useDB) == 0:
+            if setupwrapper(inputwcl, wclfile, logfile, useDB) == 0:
                 exitcode = runwrapper(wrappercmd, 
                                       logfile,
                                       inputwcl['wrapperid'], 
                                       inputwcl['execnames'],
                                       5000,
                                       useQCF)
-                postwrapper(inputwcl, exitcode, useDB) 
+                postwrapper(inputwcl, jobwcl, logfile, exitcode, useDB) 
+                sys.stdout.flush()
+                sys.stderr.flush()
                 if exitcode:
                     print "Aborting due to non-zero exit code"
                     return(exitcode)

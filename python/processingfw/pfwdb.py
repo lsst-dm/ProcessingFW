@@ -157,7 +157,7 @@ class PFWDB (coreutils.DesDbi):
         return result
 
     ##### request, unit, attempt #####
-    def insert_run(self, wcl):
+    def insert_run(self, config):
         """ Insert entries into the pfw_request, pfw_unit, pfw_attempt tables for a single run submission """
         maxtries = 3
         from_dual = self.from_dual()
@@ -170,10 +170,10 @@ class PFWDB (coreutils.DesDbi):
 
             # pfw_request
             debug(3, 'PFWDB_DEBUG', "Inserting to pfw_request table\n")
-            reqnum = wcl.search('reqnum', {'interpolate': True})[1]
-            project = wcl.search('project', {'interpolate': True})[1]
-            jiraid = wcl.search('jira_id', {'interpolate': True})[1]
-            pipeline = wcl.search('pipeline', {'interpolate': True})[1]
+            reqnum = config.search('reqnum', {'interpolate': True})[1]
+            project = config.search('project', {'interpolate': True})[1]
+            jiraid = config.search('jira_id', {'interpolate': True})[1]
+            pipeline = config.search('pipeline', {'interpolate': True})[1]
         
             try:
                 sql = "insert into pfw_request (reqnum, project, jira_id, pipeline) select %s, '%s', '%s', '%s' %s where not exists (select null from pfw_request where reqnum=%s)" % (reqnum, project, jiraid, pipeline, from_dual, reqnum)
@@ -190,7 +190,7 @@ class PFWDB (coreutils.DesDbi):
 
             # pfw_unit
             debug(3, 'PFWDB_DEBUG', "Inserting to pfw_unit table\n")
-            unitname = wcl.search('unitname', {'interpolate': True})[1]
+            unitname = config.search('unitname', {'interpolate': True})[1]
             try:
                 curs = self.cursor()
                 sql = "insert into pfw_unit (reqnum, unitname) select %s, '%s' %s where not exists (select null from pfw_unit where reqnum=%s and unitname='%s')" % (reqnum, unitname, from_dual, reqnum, unitname)
@@ -207,7 +207,7 @@ class PFWDB (coreutils.DesDbi):
 
             # pfw_attempt
             debug(3, 'PFWDB_DEBUG', "Inserting to pfw_attempt table\n")
-            operator = wcl.search('operator', {'interpolate': True})[1]
+            operator = config.search('operator', {'interpolate': True})[1]
 
             ## get current max attnum and try next value
             sql = "select max(attnum) from pfw_attempt where reqnum='%s' and unitname = '%s'" % (reqnum, unitname)
@@ -222,7 +222,7 @@ class PFWDB (coreutils.DesDbi):
                 maxatt = int(maxarr[0][0])
 
             try:
-                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator) select %s, '%s', '%s', '%s' %s where not exists (select null from pfw_attempt where reqnum=%s and unitname='%s' and attnum=%s)" % (reqnum, unitname, maxatt+1, operator, from_dual, reqnum, unitname, maxatt+1)
+                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime) select %s, '%s', '%s', '%s', %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname='%s' and attnum=%s)" % (reqnum, unitname, maxatt+1, operator, self.get_current_timestamp_str(), from_dual, reqnum, unitname, maxatt+1)
                 debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
                 curs.execute(sql)
             except Exception as e:
@@ -234,86 +234,146 @@ class PFWDB (coreutils.DesDbi):
                 else:
                     raise e
 
-            wcl['attnum'] = maxatt+1
+            config['attnum'] = maxatt+1
             done = True
 
+        if not done:
+            raise Exception("Exceeded max tries for inserting into pfw_attempt table")
         curs.close()
         self.commit()
 
 
-    def update_attempt_cid (self, wcl, condorid):
+    def update_attempt_cid (self, config, condorid):
         """ update row in pfw_attempt with condorid """
 
         updatevals = {}
         updatevals['condorid'] = condorid
 
         wherevals = {}
-        wherevals['reqnum'] = wcl.search('reqnum', {'interpolate': True})[1]
-        wherevals['unitname'] = wcl.search('unitname', {'interpolate': True})[1]
-        wherevals['attnum'] = wcl.search('attnum', {'interpolate': False})[1]
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
 
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
 
-    def update_attempt_beg (self, wcl):
+    def update_attempt_beg (self, config):
         """ update row in pfw_attempt with end of attempt info """
 
         updatevals = {}
         updatevals['starttime'] = 'CURRENT_TIMESTAMP'
 
         wherevals = {}
-        wherevals['reqnum'] = wcl.search('reqnum', {'interpolate': True})[1]
-        wherevals['unitname'] = wcl.search('unitname', {'interpolate': True})[1]
-        wherevals['attnum'] = wcl.search('attnum', {'interpolate': False})[1]
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
         
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
 
-    def update_attempt_end (self, wcl, exitcode):
+    def update_attempt_end (self, reqnum, unitname, attnum, exitcode):
         """ update row in pfw_attempt with end of attempt info """
 
         updatevals = {}
         updatevals['endtime'] = 'CURRENT_TIMESTAMP'
-        updatevals['status'] = exitcode
+        updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
-        wherevals['reqnum'] = wcl.search('reqnum', {'interpolate': True})[1]
-        wherevals['unitname'] = wcl.search('unitname', {'interpolate': True})[1]
-        wherevals['attnum'] = wcl.search('attnum', {'interpolate': False})[1]
+        wherevals['reqnum'] = self.quote(reqnum)
+        wherevals['unitname'] = self.quote(unitname)
+        wherevals['attnum'] = self.quote(attnum)
         
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
 
     ##### BLOCK #####
-    def insert_block (self, wcl):
+    def insert_block (self, config):
         """ Insert an entry into the pfw_block table """
         debug(3, 'PFWDB_DEBUG', "Inserting to pfw_block table\n")
 
+        blknum = config.search('blknum', {'interpolate': False})[1]
+        if blknum == '1':  # attempt is starting
+            updatevals = {}
+            updatevals['starttime'] = self.get_current_timestamp_str()
+
+            wherevals = {}
+            wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+            wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+            wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+            self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
+            
+
 
         row = {}
-        row['reqnum'] = wcl.search('reqnum', {'interpolate': True})[1]
-        row['unitname'] = wcl.search('unitname', {'interpolate': True})[1]
-        row['attnum'] = wcl.search('attnum', {'interpolate': False})[1]
-        row['blknum'] = wcl.search('blknum', {'interpolate': False})[1]
-        row['name'] = wcl.search('blockname', {'interpolate': True})[1]
-        row['modulelist'] = wcl.search('modulelist', {'interpolate': True})[1]
-        row['starttime'] = 'CURRENT_TIMESTAMP'
+        row['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        row['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        row['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        row['blknum'] = self.quote(blknum)
+        row['name'] = self.quote(config.search('blockname', {'interpolate': True})[1])
+        row['modulelist'] = self.quote(config.search('modulelist', {'interpolate': True})[1])
+        row['starttime'] = self.get_current_timestamp_str()
         self.insert_pfw_row('PFW_BLOCK', row)
+
+    def update_block_numexpjobs (self, config, numexpjobs):
+        """ update numexpjobs in pfw_block """
+        updatevals = {}
+        updatevals['numexpjobs'] = self.quote(numexpjobs)
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config['blknum'])
+
+        self.update_PFW_row ('PFW_BLOCK', wherevals, updatevals)
+
         
-    def update_block_end (self, wcl, exitcode):
+    def update_block_end (self, config, exitcode):
         """ update row in pfw_block with end of block info"""
 
         updatevals = {}
-        updatevals['endtime'] = 'CURRENT_TIMESTAMP'
-        updatevals['status'] = exitcode
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
-        wherevals['reqnum'] = wcl.search('reqnum', {'interpolate': True})[1]
-        wherevals['unitname'] = wcl.search('unitname', {'interpolate': True})[1]
-        wherevals['attnum'] = wcl.search('attnum', {'interpolate': False})[1]
-        wherevals['blknum'] = wcl['blknum']
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config['blknum'])
 
         self.update_PFW_row ('PFW_BLOCK', wherevals, updatevals)
+
+    #### BLKTASK #####
+    def insert_blktask(self, config, modname, taskname):
+        """ Insert an entry into the pfw_blktask table """
+        debug(3, 'PFWDB_DEBUG', "Inserting to pfw_blktask table\n")
+        row = {}
+        row['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        row['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        row['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        row['blknum'] = self.quote(config.search('blknum', {'interpolate': False})[1])
+        tasknum = config.inc_tasknum(1)
+        row['tasknum'] = self.quote(tasknum)
+        row['name'] = self.quote("%s_%s" % (taskname, modname))
+        row['starttime'] = self.get_current_timestamp_str()
+        self.insert_pfw_row('PFW_BLKTASK', row)
+        
+    def update_blktask_end (self, config, modname, taskname, status):
+        """ update row in pfw_block with end of block info"""
+
+        updatevals = {}
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        updatevals['status'] = self.quote(status)
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config.search('blknum', {'interpolate': False})[1])
+        wherevals['name'] = self.quote("%s_%s" % (taskname, modname))
+
+        self.update_PFW_row ('PFW_BLKTASK', wherevals, updatevals)
+
 
 
     ##### JOB #####
@@ -322,29 +382,29 @@ class PFWDB (coreutils.DesDbi):
         debug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
 
         row = {}
-        row['reqnum'] = wcl['reqnum']
-        row['unitname'] = wcl['unitname']
-        row['attnum'] = wcl['attnum']
-        row['blknum'] = wcl['blknum']
-        row['jobnum'] = wcl['jobnum']
-        row['starttime'] = 'CURRENT_TIMESTAMP'
-        row['numexpwrap'] = wcl['numexpwrap']
-        row['exechost'] = socket.gethostname()
-        row['pipeprod'] = wcl['pipeprod']
-        row['pipever'] = wcl['pipever']
+        row['reqnum'] = self.quote(wcl['reqnum'])
+        row['unitname'] = self.quote(wcl['unitname'])
+        row['attnum'] = self.quote(wcl['attnum'])
+        row['blknum'] = self.quote(wcl['blknum'])
+        row['jobnum'] = self.quote(wcl['jobnum'])
+        row['starttime'] = self.get_current_timestamp_str()
+        row['numexpwrap'] = self.quote(wcl['numexpwrap'])
+        row['exechost'] = self.quote(socket.gethostname())
+        row['pipeprod'] = self.quote(wcl['pipeprod'])
+        row['pipever'] = self.quote(wcl['pipever'])
 
         # batchid 
         if "PBS_JOBID" in os.environ:
-            row['batchid'] = os.environ['PBS_JOBID'].split('.')[0]
+            row['batchid'] = self.quote(os.environ['PBS_JOBID'].split('.')[0])
         elif 'LSB_JOBID' in os.environ:
-            row['batchid'] = os.environ['LSB_JOBID'] 
+            row['batchid'] = self.quote(os.environ['LSB_JOBID']) 
         elif 'LOADL_STEP_ID' in os.environ:
-            row['batchid'] = os.environ['LOADL_STEP_ID'].split('.').pop()
+            row['batchid'] = self.quote(os.environ['LOADL_STEP_ID'].split('.').pop())
         elif 'SUBMIT_CONDORID' in os.environ:
-            row['batchid'] = os.environ['SUBMIT_CONDORID']
+            row['batchid'] = self.quote(os.environ['SUBMIT_CONDORID'])
 
         if 'SUBMIT_CONDORID' in os.environ:
-            row['condorid'] = os.environ['SUBMIT_CONDORID']
+            row['condorid'] = self.quote(os.environ['SUBMIT_CONDORID'])
         
         self.insert_pfw_row('PFW_JOB', row)
 
@@ -353,47 +413,54 @@ class PFWDB (coreutils.DesDbi):
         """ update row in pfw_job with end of job info"""
 
         updatevals = {}
-        updatevals['endtime'] = 'CURRENT_TIMESTAMP'
-        updatevals['status'] = exitcode
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
-        wherevals['reqnum'] = wcl['reqnum']
-        wherevals['unitname'] = wcl['unitname']
-        wherevals['attnum'] = wcl['attnum']
-        wherevals['jobnum'] = wcl['jobnum']
+        wherevals['reqnum'] = self.quote(wcl['reqnum'])
+        wherevals['unitname'] = self.quote(wcl['unitname'])
+        wherevals['attnum'] = self.quote(wcl['attnum'])
+        wherevals['jobnum'] = self.quote(wcl['jobnum'])
 
         self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
 
 
 
     ##### WRAPPER #####
-    def insert_wrapper (self, inputwcl):
+    def insert_wrapper (self, inputwcl, iwfilename):
         """ insert row into pfw_wrapper """
 
+        wrapid = self.get_seq_next_value('pfw_wrapper_seq')
+
         row = {}
-        row['reqnum'] = inputwcl['reqnum']
-        row['unitname'] = inputwcl['unitname']
-        row['attnum'] = inputwcl['attnum']
-        row['wrapnum'] = inputwcl['wrapnum']
-        row['name'] = inputwcl['wrapname']
-        row['id'] = self.get_seq_next_value('pfw_wrapper_seq')
-        row['blknum'] = inputwcl['blknum']
-        row['jobnum'] = inputwcl['jobnum']
-        row['starttime'] = 'CURRENT_TIMESTAMP'
+        row['reqnum'] = self.quote(inputwcl['reqnum'])
+        row['unitname'] = self.quote(inputwcl['unitname'])
+        row['attnum'] = self.quote(inputwcl['attnum'])
+        row['wrapnum'] = self.quote(inputwcl['wrapnum'])
+        row['name'] = self.quote(inputwcl['wrapname'])
+        row['id'] = self.quote(wrapid)
+        row['blknum'] = self.quote(inputwcl['blknum'])
+        row['jobnum'] = self.quote(inputwcl['jobnum'])
+        row['inputwcl'] = self.quote(os.path.split(iwfilename)[-1])
+        row['starttime'] = self.get_current_timestamp_str()
 
         self.insert_pfw_row('PFW_WRAPPER', row)
-        return row['id']
+        return wrapid
 
 
-    def update_wrapper_end (self, inputwcl, exitcode):
+    def update_wrapper_end (self, inputwcl, owclfile, logfile, exitcode):
         """ update row in pfw_wrapper with end of wrapper info """
 
         updatevals = {}
-        updatevals['endtime'] = 'CURRENT_TIMESTAMP'
-        updatevals['status'] = exitcode
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        if owclfile is not None:
+            updatevals['outputwcl'] = self.quote(os.path.split(owclfile)[-1])
+        if logfile is not None:
+            updatevals['log'] = self.quote(os.path.split(logfile)[-1])
+        updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
-        wherevals['id'] = inputwcl['wrapperid']
+        wherevals['id'] = self.quote(inputwcl['wrapperid'])
 
         self.update_PFW_row ('PFW_WRAPPER', wherevals, updatevals)
         
@@ -404,19 +471,21 @@ class PFWDB (coreutils.DesDbi):
         """ insert row into pfw_exec """
 
         debug(3, 'PFWDB_DEBUG', sect)
-        row = {}
-        row['reqnum'] = inputwcl['reqnum']
-        row['unitname'] = inputwcl['unitname']
-        row['attnum'] = inputwcl['attnum']
-        row['wrapnum'] = inputwcl['wrapnum']
 
-        row['id'] = self.get_seq_next_value('pfw_exec_seq')
-        row['execnum'] = inputwcl[sect]['execnum']
-        row['name'] = inputwcl[sect]['execname']
+        execid = self.get_seq_next_value('pfw_exec_seq')
+
+        row = {}
+        row['reqnum'] = self.quote(inputwcl['reqnum'])
+        row['unitname'] = self.quote(inputwcl['unitname'])
+        row['attnum'] = self.quote(inputwcl['attnum'])
+        row['wrapnum'] = self.quote(inputwcl['wrapnum'])
+        row['id'] = self.quote(execid)
+        row['execnum'] = self.quote(inputwcl[sect]['execnum'])
+        row['name'] = self.quote(inputwcl[sect]['execname'])
 
         self.insert_pfw_row('PFW_EXEC', row)
         debug(3, 'PFWDB_DEBUG', "end")
-        return row['id']
+        return execid
 
 
     def update_exec_end (self, execwcl, execid, exitcode):
@@ -424,12 +493,12 @@ class PFWDB (coreutils.DesDbi):
         debug(3, 'PFWDB_DEBUG', execid)
 
         updatevals = {}
-        updatevals['cmdargs'] = execwcl['cmdlineargs']
-        updatevals['walltime'] = execwcl['walltime']
-        updatevals['status'] = exitcode
+        updatevals['cmdargs'] = self.quote(execwcl['cmdlineargs'])
+        updatevals['walltime'] = self.quote(execwcl['walltime'])
+        updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
-        wherevals['id'] = execid
+        wherevals['id'] = self.quote(execid)
 
         self.update_PFW_row ('PFW_EXEC', wherevals, updatevals)
 
@@ -437,15 +506,9 @@ class PFWDB (coreutils.DesDbi):
     ##########
     def insert_pfw_row (self, pfwtable, row):
         """ Insert a row into a table and return any specified cols """ 
-        cols = [] 
-        vals = []
-        for c,v in row.items():
-            cols.append(c)
-            vals.append(self.quote(v))
-
         sql = "insert into %s (%s) values (%s)" % (pfwtable, 
-                                                   ','.join(cols), 
-                                                   ','.join(vals))
+                                                   ','.join(row.keys()), 
+                                                   ','.join(row.values()))
     
         debug(3, 'PFWDB_DEBUG', sql)
 
@@ -455,27 +518,17 @@ class PFWDB (coreutils.DesDbi):
         debug(3, 'PFWDB_DEBUG', "execute")
         self.commit()
         debug(3, 'PFWDB_DEBUG', "end")
-                                                   
-
-    def quote(self, val):
-        retval = ""
-        if str(val).upper() == 'CURRENT_TIMESTAMP':
-            retval = val
-        else:
-            retval = "'%s'" % str(val).replace("'", "''")
-        return retval
-            
             
     def update_PFW_row (self, pfwtable, wherevals, updatevals):
         """ update a row into pfw_wrapper """
 
         whclause = []
         for c,v in wherevals.items():
-            whclause.append("%s=%s" % (c,self.quote(v)))
+            whclause.append("%s=%s" % (c,v))
 
         upclause = []
         for c,v in updatevals.items():
-            upclause.append("%s=%s" % (c,self.quote(v)))
+            upclause.append("%s=%s" % (c,v))
 
     
         sql = "update %s set %s where %s" % (pfwtable, 
@@ -781,7 +834,6 @@ class PFWDB (coreutils.DesDbi):
 
         return retval
 
-
     def get_required_headers(self, filetypeDict):
         """
         For use by ingest_file_metadata. Collects the list of required header values.
@@ -885,9 +937,10 @@ class PFWDB (coreutils.DesDbi):
                 
                 # report elements that were in the file that do not map to a DB column
                 for notmapped in (set(filedata.keys()) - mappedHeaders):
-                    print "WARN: file " + filedata[FILENAME] + " header item " \
-                        + notmapped + " does not match column for filetype " \
-                        + filedata[FILETYPE]
+                    if notmapped != 'fullname':
+                        print "WARN: file " + filedata[FILENAME] + " header item " \
+                            + notmapped + " does not match column for filetype " \
+                            + filedata[FILETYPE]
                 
                 # add the new data to the table set of rows
                 metadataTables[fileMetaTable][ROWS].append(rowdata)
@@ -908,6 +961,3 @@ class PFWDB (coreutils.DesDbi):
         except Exception as ex:
             raise FileMetadataIngestError(ex)
     # end ingest_file_metadata
-    
-    
-    

@@ -8,6 +8,7 @@
 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwemail as pfwemail
+import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 import sys
 
@@ -77,6 +78,11 @@ def summary(argv = None):
     subject = ""
     pfwemail.send_email(config, "processing", status, subject, msg1, '')
     
+    reqnum = config.search('reqnum', {'interpolate': True})[1]
+    unitname = config.search('unitname', {'interpolate': True})[1]
+    attnum = config.search('attnum', {'interpolate': True})[1]
+    dbh = pfwdb.PFWDB()
+    dbh.update_attempt_end(reqnum, unitname, attnum, status)
     print "summary: status = '%s'" % status
     print "summary:", msg1
     print "summary: End"

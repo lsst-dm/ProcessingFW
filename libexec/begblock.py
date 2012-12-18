@@ -39,7 +39,9 @@ def begblock(argv):
         if modname not in config['module']:
             raise Exception("Error: Could not find module description for module %s\n" % (modname))
 
+        dbh.insert_blktask(config, modname, "runqueries")
         runqueries(config, modname, modules_prev_in_list)
+        dbh.update_blktask_end(config, modname, "runqueries", 1)
         pfwblock.read_master_lists(config, modname, modules_prev_in_list)
         pfwblock.add_file_metadata(config, modname)
         loopvals = pfwblock.get_wrapper_loopvals(config, modname)
@@ -56,7 +58,11 @@ def begblock(argv):
     jobwclfile = pfwblock.write_jobwcl(config, '1', len(tasks))
 
     dagfile = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'jobmngr'}})
+    numjobs = 1
+    dbh.update_block_numexpjobs(config, numjobs)
     pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfile)
+    
+    
 
     os.mkdir('../%s_tjobs' % config['blockname'])
     os.rename(tarfile, "../%s_tjobs/%s" % (config['blockname'], tarfile))

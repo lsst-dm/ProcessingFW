@@ -32,6 +32,7 @@ class PfwConfig:
     SUCCESS = 0
     REPEAT = 100
     FAILURE = 10
+    OPDELETE = 5
     NOTARGET = 2
     WARNINGS = 3
 
@@ -63,7 +64,7 @@ class PfwConfig:
             fh.close()
             if 'debug' not in self.config:  # recheck since reset config
                 self.config['debug'] = 0
-
+            self.config['wclfile'] = args['wclfile']
 
 #        runwcl = OrderedDict()
 #        if 'wclfile' in args:
@@ -127,7 +128,8 @@ class PfwConfig:
                                                   'curr_software': '', 
                                                   'curr_site' : ''} )
             self.config['wrapnum'] = '0'
-            self.config['blknum'] = '0'
+            self.config['blknum'] = '1'
+            self.config['tasknum'] = '0'
             self.config['jobnum'] = '1'
 
         self.set_block_info()
@@ -469,7 +471,8 @@ class PfwConfig:
     
         self.config['submit_epoch'] = submit_epoch
         self.config['jobnum'] = '1'
-        self.config['blknum'] = '0'
+        self.config['blknum'] = '1'
+        self.config['tasknum'] = '0'
         self.config['wrapnum'] = '0'
         self.set_block_info()
     
@@ -532,17 +535,27 @@ class PfwConfig:
         """ increment the block number """
         # note config stores numbers as strings
         self.config['blknum'] = str(int(self.config['blknum']) + 1)
+        self.config['tasknum'] = '0'
     
     ###########################################################################
     def reset_blknum(self):
-        """ reset block number to 0 """
-        self.config['blknum'] = '0'
+        """ reset block number to 1 """
+        self.config['blknum'] = '1'
+        self.config['tasknum'] = '0'
     
     ###########################################################################
     def inc_jobnum(self, inc):
         """ Increment running job number """
         self.config['jobnum'] = str(int(self.config['jobnum']) + inc)
     
+
+    ###########################################################################
+    def inc_tasknum(self, inc=1):
+        """ Increment blktask number """
+        self.config['tasknum'] = str(int(self.config['tasknum']) + inc)
+        return self.config['tasknum']
+        
+
     ###########################################################################
     def inc_wrapnum(self):
         """ Increment running wrapper number """
@@ -596,10 +609,10 @@ class PfwConfig:
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
                 (haskey, newval) = self.search(newvar, opts)
-                newval = str(newval)
                 debug(6, 'PFWCONFIG_DEBUG', 
                       "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
                 if haskey:
+                    newval = str(newval)
                     if '(' in newval or ',' in newval:
                         if 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
@@ -615,7 +628,7 @@ class PfwConfig:
                     value = re.sub("(?i)\${%s}" % var, newval, value)
                     done = False
                 else:
-                    raise Exception("Could not find value for %s" % var)
+                    raise Exception("Could not find value for %s" % newvar)
                 m = re.search("(?i)\$\{([^}]+)\}", value)
 
 
@@ -694,8 +707,8 @@ class PfwConfig:
 
         blockname = ''
         blockarray = re.sub(r"\s+", '', self.config['blocklist']).split(',')
-        if (0 <= blknum) and (blknum < len(blockarray)):
-            blockname = blockarray[blknum]
+        if (1 <= blknum) and (blknum <= len(blockarray)):
+            blockname = blockarray[blknum-1]
         return blockname
 
     
@@ -768,7 +781,6 @@ class PfwConfig:
     ###########################################################################
     def get_filename(self, filepat=None, searchopts=None):
         """ Return filename based upon given file pattern name """
-        print "Given filepat=", filepat
         filename = ""
 
         if not filepat:
@@ -783,14 +795,12 @@ class PfwConfig:
                     raise Exception("Could not find filepat")
 
         
-        print "filepat=", filepat
         if filepat in self.config['filename_patterns']:
             filenamepat = self.config['filename_patterns'][filepat]['pattern']
         else:
             print self.config['filename_patterns'].keys()
             raise Exception("Could not find filename pattern for %s" % filepat)
                 
-        print "calling interpolate on", filenamepat
         filename = self.interpolate(filenamepat, searchopts)
         return filename
 

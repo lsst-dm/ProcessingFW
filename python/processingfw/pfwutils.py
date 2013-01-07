@@ -5,6 +5,7 @@ import os
 import inspect
 import tarfile
 from collections import OrderedDict
+from collections import Mapping
 
 """ Miscellaneous support functions for processing framework """
 
@@ -47,6 +48,8 @@ def traverse_wcl(wcl):
         else:
             viter = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
             for vstr in viter:
+                if ':' in vstr:
+                    vstr = vstr.split(':')[0]
                 usedvars[vstr] = True
     debug(9, "PFWUTILS_DEBUG", "END")
     return usedvars
@@ -94,3 +97,31 @@ def untar_dir(filename, outputdir):
         mode = 'r'
     with tarfile.open(filename, mode) as tar:
        tar.extractall(outputdir)
+
+
+def get_metadata_wcl(filetype, fsectname, dbwcl):
+    fdict = OrderedDict()
+    fdict['req_metadata'] = OrderedDict()
+    print 'filetype =', filetype
+    print 'fsetname =', fsectname
+    if filetype in dbwcl:
+        print "Found filetype in dbwcl"
+        if 'r' in dbwcl[filetype]:
+            if 'h' in dbwcl[filetype]['r']:
+                fdict['req_metadata']['headers'] = ','.join(dbwcl[filetype]['r']['h'].keys())
+            if 'c' in dbwcl[filetype]['r']:
+                fdict['req_metadata']['compute'] = ','.join(dbwcl[filetype]['r']['c'].keys())
+
+        if 'o' in dbwcl[filetype]:
+            fdict['opt_metadata'] = OrderedDict()
+            if 'h' in dbwcl[filetype]['o']:
+                fdict['opt_metadata']['headers'] = ','.join(dbwcl[filetype]['o']['h'].keys())
+            if 'c' in dbwcl[filetype]['o']:
+                fdict['opt_metadata']['compute'] = ','.join(dbwcl[filetype]['o']['c'].keys())
+    else:
+        print "Could not find filetype in dbwcl"
+        print dbwcl
+        exit(1)
+
+    fdict['req_metadata']['wcl'] = 'filespecs.%(name)s.fullname,filespecs.%(name)s.filename,filespecs.%(name)s.filetype' % ({'name': fsectname})
+    return fdict

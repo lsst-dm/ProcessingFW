@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -15,57 +15,103 @@ import os
 import time
 
 import intgutils.wclutils as wclutils
+import processingfw.pfwdb as pfwdb
+
 from pfwutils import debug
 from pfwutils import pfwsplit
+import pfwutils
 
 class PfwConfig:
     """ Contains configuration and state information for PFW """
 
     # order in which to search for values
-    DEFORDER = ['file', 'list', 'exec', 'job', 'module', 'block', 'archive', 'site']
+    DEFORDER = ['filespecs', 'list', 'exec', 'job', 'module', 'block', 'archive', 'site']
 
     # misc constants 
     ATTRIB_PREFIX='des_'
     SUCCESS = 0
     REPEAT = 100
     FAILURE = 10
+    OPDELETE = 5
     NOTARGET = 2
     WARNINGS = 3
 
     ###########################################################################
     def __init__(self, args):
         """ Initialize configuration object, typically reading from wclfile """
-        self.config = {}
+        self.config = OrderedDict()
 
         if 'debug' in args:
             self.config['debug'] = args['debug']
         else:
             self.config['debug'] = 0
 
+        if 'pfwconfig' in args:
+            pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
+            debug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+            fh = open(pfwconfig, "r")
+            wclutils.updateDict(self.config, wclutils.read_wcl(fh))
+            fh.close()
+
+        if 'querydb' in args and args['querydb']:
+            dbh = pfwdb.PFWDB()
+            wclutils.updateDict(self.config, dbh.get_database_defaults())
+
         if 'wclfile' in args:
             debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
             fh = open(args['wclfile'], "r")
-            self.config = wclutils.read_wcl(fh) 
+            wclutils.updateDict(self.config, wclutils.read_wcl(fh))
             fh.close()
             if 'debug' not in self.config:  # recheck since reset config
                 self.config['debug'] = 0
+            self.config['wclfile'] = args['wclfile']
+
+#        runwcl = OrderedDict()
+#        if 'wclfile' in args:
+#            debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+#            fh = open(args['wclfile'], "r")
+#            runwcl = wclutils.read_wcl(fh)
+#            fh.close()
+#
+#        pfwwcl = OrderedDict()
+#        dbwcl = OrderedDict()
+#        opwcl = OrderedDict()
+#        if '_config' in runwcl:
+#            if 'pfwconfig' in runwcl['_config']:
+#                #pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
+#                pfwconfig = runwcl['_config']['pfwconfig']
+#                debug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+#                fh = open(pfwconfig, "r")
+#                pfwwcl = wclutils.read_wcl(fh)
+#                fh.close()
+#
+#            if 'dbconfig' in runwcl['_config']:
+#                dbconfig = runwcl['_config']['dbconfig']
+#                debug(3, 'PFWCONFIG_DEBUG', "Reading dbconfig: %s" % (dbconfig))
+#                fh = open(dbconfig, "r")
+#                dbwcl = wclutils.read_wcl(fh)
+#                fh.close()
+#
+#            if 'opconfig' in runwcl['_config']:
+#                opconfig = runwcl['_config']['opconfig']
+#                debug(3, 'PFWCONFIG_DEBUG', "Reading opconfig: %s" % (opconfig))
+#                fh = open(opconfig, "r")
+#                opwcl = wclutils.read_wcl(fh)
+#                fh.close()
+#
+#        # combine configs
+#        self.config = pfwwcl
+#        wclutils.updateDict(self.config, dbwcl)
+#        wclutils.updateDict(self.config, opwcl)
+
+        self.set_names()
 
         if 'notarget' in args:
             self.config['notarget'] = args['notarget']
 
-
-        # during runtime save block_list as array
-        self.block_array = pfwsplit(self.config['block_list'])
+        # during runtime save blocklist as array
+        self.block_array = pfwsplit(self.config['blocklist'])
         self.config['num_blocks'] = len(self.block_array)
-    
-        # create a lookup by site id to get the site name
-        # needed because config's keys are site name
-        siteid2name = {}
-        if 'site' in self.config:
-            for sitename, site in self.config['site'].items():
-                if 'site_id' in site:
-                    siteid2name[site['site_id']] = sitename
-        self.siteid2name = siteid2name
     
         # store the file name of the top-level submitwcl in dict:
         if 'submitwcl' not in self.config and \
@@ -80,9 +126,10 @@ class PfwConfig:
             self.config['current'] = OrderedDict({'curr_block': '', 
                                                   'curr_archive': '', 
                                                   'curr_software': '', 
-                                                  'curr_site' : ''})
+                                                  'curr_site' : ''} )
             self.config['wrapnum'] = '0'
-            self.config['blocknum'] = '0'
+            self.config['blknum'] = '1'
+            self.config['tasknum'] = '0'
             self.config['jobnum'] = '1'
 
         self.set_block_info()
@@ -92,6 +139,8 @@ class PfwConfig:
         """Saves configuration in WCL format"""
         fh = open(filename, "w")
         wclutils.write_wcl(self.config, fh, True, 4)  # save it sorted
+#        wclutils.write_wcl(self.config['_config'], fh, True, 4)  # save it sorted
+#        wclutils.write_wcl(self.config['current'], fh, True, 4)  # save it sorted
         fh.close()
 
     ###########################################################################
@@ -124,6 +173,17 @@ class PfwConfig:
     #    return val
 
 
+    def set(self, key, val):
+        """ store a value in wcl """
+        subkeys = key.split('.')
+        valkey = subkeys.pop()
+        wcldict = self.config
+        for k in subkeys:
+            wcldict = wcldict[k]
+
+        wcldict[valkey] = val
+
+
     ###########################################################################
     def search(self, key, opt=None):
         """ Searches for key using given opt following hierarchy rules """ 
@@ -136,43 +196,56 @@ class PfwConfig:
         found = False
         value = ''
         key = key.lower()
-    
-        # start with stored current values
-        curvals = copy.deepcopy(self.config['current'])
 
-        # override with current values passed into function if given
-        if opt is not None and 'currentvals' in opt:
-            for k,v in opt["currentvals"].items():
-                #print "using specified curval %s = %s" % (k,v)
-                curvals[k] = v
-    
-        #print "curvals = ", curvals
-        if key in curvals:
-            #print "found %s in curvals" % (key)
+        # if key contains period, use it exactly instead of scoping rules
+        if '.' in key:
+            val = self.config
             found = True
-            value = curvals[key]
-        elif opt and 'searchobj' in opt and key in opt['searchobj']:
-            found = True
-            value = opt['searchobj'][key]
+            for k in key.split('.'):
+                #print "get_wcl_value: k=", k
+                if k in val:
+                    val = val[k]
+                else:
+                    found = False
+                    break
         else:
-            for sect in self.DEFORDER:
-                #print "Searching section %s for key %s" % (sect, key)
-                if "curr_" + sect in curvals:
-                    currkey = curvals["curr_"+sect]
-                    #print "\tcurrkey for section %s = %s" % (sect, currkey)
-                    if sect in self.config:
-                        if currkey in self.config[sect]:
-                            if key in self.config[sect][currkey]:
-                                found = True
-                                value = self.config[sect][currkey][key]
-                                break
+            # start with stored current values
+            curvals = copy.deepcopy(self.config['current'])
+
+            # override with current values passed into function if given
+            if opt is not None and 'currentvals' in opt:
+                for k,v in opt["currentvals"].items():
+                    #print "using specified curval %s = %s" % (k,v)
+                    curvals[k] = v
     
-        # lastly check global values
-        if not found:
-            #print "\t%s not found, checking global values" % (key)
-            if key in self.config:
+            #print "curvals = ", curvals
+            if key in curvals:
+                #print "found %s in curvals" % (key)
                 found = True
-                value = self.config[key]
+                value = curvals[key]
+            elif opt and 'searchobj' in opt and key in opt['searchobj']:
+                found = True
+                value = opt['searchobj'][key]
+            else:
+                for sect in self.DEFORDER:
+                    #print "Searching section %s for key %s" % (sect, key)
+                    if "curr_" + sect in curvals:
+                        currkey = curvals["curr_"+sect]
+                        #print "\tcurrkey for section %s = %s" % (sect, currkey)
+                        if sect in self.config:
+                            if currkey in self.config[sect]:
+                                if key in self.config[sect][currkey]:
+                                    found = True
+                                    value = self.config[sect][currkey][key]
+                                    break
+    
+            # lastly check global values
+            if not found:
+                #print "\t%s not found, checking global values" % (key)
+                if key in self.config:
+                    found = True
+                    value = self.config[key]
+
 
         if not found and opt and 'required' in opt and opt['required']:
             print "\n\nError: search for %s failed" % (key)
@@ -180,7 +253,7 @@ class PfwConfig:
             print "\topt = ", opt
             print "\tcurvals = ", curvals
             print "\n\n"
-            raise Exception("Search failed")
+            raise Exception("Search failed (%s)" % key)
     
         if found and opt and 'interpolate' in opt and opt['interpolate']:
             opt['interpolate'] = False
@@ -242,14 +315,14 @@ class PfwConfig:
             print "Error: missing attnum"
             errcnt += 1
 
-        if 'procunit' not in self.config:
-            print "Error: missing procunit"
+        if 'unitname' not in self.config:
+            print "Error: missing unitname"
             errcnt += 1
 
-        # target_node replaces depricated archive_node
+        # targetnode replaces depricated archive_node
         if 'archive_node' in self.config:
-            if 'target_node' in self.config:
-                print "\tWarning: have both target_node and depricated archive_node defined in global section."
+            if 'targetnode' in self.config:
+                print "\tWarning: have both targetnode and depricated archive_node defined in global section."
                 warncnt += 1
                 if cleanup:
                     print "\tDeleting depricated archive_node"
@@ -259,84 +332,84 @@ class PfwConfig:
                 print "\tWarning: depricated use of archive_node in global section."
                 warncnt += 1
                 if cleanup:
-                    print "\tSetting global target_node = global archive_node"
-                    self.config['target_node'] = self.config['archive_node']
+                    print "\tSetting global targetnode = global archive_node"
+                    self.config['targetnode'] = self.config['archive_node']
                     print "\tDeleting depricated archive_node"
                     del self.config['archive_node']
                     cleancnt += 1
                 
-        # submit_node must be set globally
-        submit_node = None
-        if 'submit_node' not in self.config:
-            print 'Error: submit_node is not specified.'
+        # submitnode must be set globally
+        submitnode = None
+        if 'submitnode' not in self.config:
+            print 'Error: submitnode is not specified.'
             errcnt += 1
-#        elif self.config['submit_node'] not in self.config['archive']:
-#            print 'Error:  Could not find archive information for submit node %s' % self.config['submit_node']
+#        elif self.config['submitnode'] not in self.config['archive']:
+#            print 'Error:  Could not find archive information for submit node %s' % self.config['submitnode']
 #            errcnt += 1
-#        elif 'archive_root' not in self.config['archive'][self.config['submit_node']]:
-#            print 'Error:  archive_root not specified for submit node %s' % self.config['submit_node']
+#        elif 'archive_root' not in self.config['archive'][self.config['submitnode']]:
+#            print 'Error:  archive_root not specified for submit node %s' % self.config['submitnode']
 #            errcnt += 1
-#        elif 'site_id' not in self.config['archive'][self.config['submit_node']]:
-#            print 'Error: site_id not specified for submit node %s' % self.config['submit_node']
+#        elif 'site_id' not in self.config['archive'][self.config['submitnode']]:
+#            print 'Error: site_id not specified for submit node %s' % self.config['submitnode']
 #            errcnt += 1
 #        else:
-#            submit_node = self.config['submit_node']
-#            archiveroot = self.config['archive'][submit_node]['archive_root']
+#            submitnode = self.config['submitnode']
+#            archiveroot = self.config['archive'][submitnode]['archive_root']
 #            if not os.path.exists(archiveroot):
-#                print 'Warning: archive_root (%s) from submit_node does not exist on disk' % archiveroot
+#                print 'Warning: archive_root (%s) from submitnode does not exist on disk' % archiveroot
 #                warncnt += 1
 #    
-#            submit_siteid = self.config['archive'][submit_node]['site_id']
+#            submit_siteid = self.config['archive'][submitnode]['site_id']
 #            if submit_siteid not in self.siteid2name:
 #                print 'Error: Could not find site information for site %s from submit node info.' % submit_siteid
 #                errcnt += 1
 #                submit_siteid = None
-#            elif 'login_host' not in self.config['site'][self.siteid2name[submit_siteid]]:
-#                print 'Error:  login_host is not defined for submit site %s (%s).\n' % (self.siteid2name[submit_siteid], submit_siteid)
+#            elif 'loginhost' not in self.config['site'][self.siteid2name[submit_siteid]]:
+#                print 'Error:  loginhost is not defined for submit site %s (%s).\n' % (self.siteid2name[submit_siteid], submit_siteid)
 #                errcnt += 1
-#            elif os.uname()[1] != self.config['site'][self.siteid2name[submit_siteid]]['login_host']:
-#                print 'Error:  submit node %s (%s) does not match submit host (%s).' % (submit_node, self.config['site'][self.siteid2name[submit_siteid]]['login_host'], os.uname()[1])
+#            elif os.uname()[1] != self.config['site'][self.siteid2name[submit_siteid]]['loginhost']:
+#                print 'Error:  submit node %s (%s) does not match submit host (%s).' % (submitnode, self.config['site'][self.siteid2name[submit_siteid]]['loginhost'], os.uname()[1])
 #                print 'Debugging tips: '
-#                print '\tCheck submit_node value, '
-#                print '                Check correct site_id defined for submit_node,'
-#                print '\tcheck login_host defined for site linked to submit_node'
+#                print '\tCheck submitnode value, '
+#                print '                Check correct site_id defined for submitnode,'
+#                print '\tcheck loginhost defined for site linked to submitnode'
 #                   errcnt += 1
     
     
         # Check block definitions for simple single module blocks.
-        # Also check all blocks in block_list have definitions as well as all modules in their module_lists
-        if 'block_list' not in self.config:
-            print "Error: missing block_list" 
+        # Also check all blocks in blocklist have definitions as well as all modules in their modulelists
+        if 'blocklist' not in self.config:
+            print "Error: missing blocklist" 
         else:
-            self.config['block_list'] = re.sub(r"\s+", '', self.config['block_list'].lower())
-            blocklist = self.config['block_list'].split(',')
+            self.config['blocklist'] = re.sub(r"\s+", '', self.config['blocklist'].lower())
+            blocklist = self.config['blocklist'].split(',')
     
             for blockname in blocklist:
                 print "\tChecking block:", blockname
                 if blockname in self.config['block']:
                     block = self.config['block'][blockname]
-                    if 'module_list' in block:
-                        block['module_list'] = re.sub(r"\s+", '', block['module_list'].lower())
-                        module_list = block['module_list'].split(',')
+                    if 'modulelist' in block:
+                        block['modulelist'] = re.sub(r"\s+", '', block['modulelist'].lower())
+                        modulelist = block['modulelist'].split(',')
 
-                        for modulename in module_list:
+                        for modulename in modulelist:
                             if modulename not in self.config['module']:
                                 print "\tError: missing definition for module %s from block %s" % (modulename, blockname)
                                 errcnt += 1
                     elif blockname in self.config['module']:
-                        print "\tWarning: Missing module_list definition for block %s" % (blockname)
+                        print "\tWarning: Missing modulelist definition for block %s" % (blockname)
                         if cleanup:
-                            print "\t         Defaulting to module_list=%s" % (blockname)
-                        block['module_list'] = blockname
+                            print "\t         Defaulting to modulelist=%s" % (blockname)
+                        block['modulelist'] = blockname
                     else:
-                        print "\tError: missing module_list definition for block %s" % (blockname)
+                        print "\tError: missing modulelist definition for block %s" % (blockname)
                         errcnt += 1
                 else:
                     if blockname in self.config['module']:
                         print "\tWarning: Missing block definition for %s" % blockname
                         if cleanup:
-                            print "\t         Creating new block definition with module_list=%s" % (blockname)
-                            self.config['block'][blockname] = { 'module_list': blockname }
+                            print "\t         Creating new block definition with modulelist=%s" % (blockname)
+                            self.config['block'][blockname] = { 'modulelist': blockname }
                             block = self.config['block'][blockname]
                     else:
                         print "\tError: missing definition for block %s" % (blockname)
@@ -344,8 +417,8 @@ class PfwConfig:
     
                 if block: 
                     if 'archive_node' in block:
-                        if 'target_node' in block:
-                            print "\tWarning:  Have both archive_node and target_node defined in block %s" % (blockname)
+                        if 'targetnode' in block:
+                            print "\tWarning:  Have both archive_node and targetnode defined in block %s" % (blockname)
                             warncnt += 1
                             if cleanup:
                                 print "\t\tDeleting depricated archive_node"
@@ -355,29 +428,27 @@ class PfwConfig:
                             print "\tWarning:  deprecated archive_node defined in block %s" % (blockname)
                             warncnt += 1
                             if cleanup:
-                                print "\t\tSetting target_node = archive_node"
-                                block['target_node'] = block['archive_node']
+                                print "\t\tSetting targetnode = archive_node"
+                                block['targetnode'] = block['archive_node']
                                 print "\t\tDeleting depricated archive_node"
                                 del block['archive_node']
                                 cleancnt += 1
     
-                    if 'target_node' in block:
-                        target_node = block['target_node']
-                    elif 'target_node' in self.config:
-                        target_node = self.config['target_node']
+                    if 'targetnode' in block:
+                        targetnode = block['targetnode']
+                    elif 'targetnode' in self.config:
+                        targetnode = self.config['targetnode']
                     else:
-                        print "\tError: Could not determine target_node for block %s" % (blockname)
+                        print "\tError: Could not determine targetnode for block %s" % (blockname)
                         errcnt += 1
     
-                    target_siteid = None
-                    if target_node not in self.config['archive']:
-                        print "\tError: missing definition for target node %s from block %s" % (target_node, blockname)
+                    target_sitename = None
+                    if targetnode not in self.config['archive']:
+                        print "\tError: missing definition for target node %s from block %s" % (targetnode, blockname)
                         errcnt += 1
-                    elif 'site_id' not in self.config['archive'][target_node]:
-                        print "\tError: missing site_id for target node %s from block %s" % (target_node, blockname)
+                    elif 'sitename' not in self.config['archive'][targetnode]:
+                        print "\tError: missing sitename for target node %s from block %s" % (targetnode, blockname)
                         errcnt += 1
-                    else:
-                        target_siteid = self.config['archive'][target_node]['site_id']
     
             return (errcnt, warncnt, cleancnt)
     
@@ -400,11 +471,12 @@ class PfwConfig:
     
         self.config['submit_epoch'] = submit_epoch
         self.config['jobnum'] = '1'
-        self.config['blocknum'] = '0'
+        self.config['blknum'] = '1'
+        self.config['tasknum'] = '0'
         self.config['wrapnum'] = '0'
         self.set_block_info()
     
-        self.config['submit_run'] = self.interpolate("r${reqnum}p${attnum:2}_${procunit}")
+        self.config['submit_run'] = self.interpolate("${unitname}_r${reqnum}p${attnum:2}")
         self.config['run'] = self.config['submit_run']
     
         work_dir = self.config['submit_dir'] + '/' + \
@@ -422,19 +494,21 @@ class PfwConfig:
         curdict = self.config['current']
         debug(4, 'PFWCONFIG_DEBUG', "\tcurdict = %s" % (curdict))
 
-        blocknum = self.config['blocknum']
+        blknum = self.config['blknum']
 
-        blockname = self.get_block_name(blocknum) 
+        blockname = self.get_block_name(blknum) 
         if not blockname:
-            raise Exception("Error: set_block_info cannot determine block name value for blocknum=%s" % blocknum)
+            raise Exception("Error: set_block_info cannot determine block name value for blknum=%s" % blknum)
         curdict['curr_block'] = blockname
     
-        (exists, targetnode) = self.search('target_node')
+        (exists, targetnode) = self.search('targetnode')
         if not exists:
-            raise Exception("Error: set_block_info cannot determine target_node value")
+            raise Exception("Error: set_block_info cannot determine targetnode value")
     
         if targetnode not in self.config['archive']:
-            raise Exception("Error: invalid target_node value (%s)" % targetnode)
+            print "Error: invalid targetnode value (%s)" % targetnode
+            print "\tArchive contains: ", self.config['archive']
+            raise Exception("Error: invalid targetnode value (%s)" % targetnode)
     
         curdict['curr_archive'] = targetnode
     
@@ -447,32 +521,41 @@ class PfwConfig:
         
 #depricated?        curdict['curr_software'] = self['software_node']
     
-        (exists, siteid) = self.search('site_id')
-        if exists and self.siteid2name:
-            runsite = self.siteid2name[siteid]
-            self.config['runsite'] = runsite
-            curdict['curr_site'] = runsite
+        (exists, sitename) = self.search('sitename')
+        if exists and sitename in self.config['site']:
+            self.config['runsite'] = sitename
+            curdict['curr_site'] = sitename
         else:
             raise Exception('Error: set_block_info cannot determine run_site value')
         debug(1, 'PFWCONFIG_DEBUG', "END") 
 
     
     ###########################################################################
-    def inc_block_num(self):
+    def inc_blknum(self):
         """ increment the block number """
         # note config stores numbers as strings
-        self.config['blocknum'] = str(int(self.config['blocknum']) + 1)
+        self.config['blknum'] = str(int(self.config['blknum']) + 1)
+        self.config['tasknum'] = '0'
     
     ###########################################################################
-    def reset_block_num(self):
-        """ reset block number to 0 """
-        self.config['blocknum'] = '0'
+    def reset_blknum(self):
+        """ reset block number to 1 """
+        self.config['blknum'] = '1'
+        self.config['tasknum'] = '0'
     
     ###########################################################################
     def inc_jobnum(self, inc):
         """ Increment running job number """
         self.config['jobnum'] = str(int(self.config['jobnum']) + inc)
     
+
+    ###########################################################################
+    def inc_tasknum(self, inc=1):
+        """ Increment blktask number """
+        self.config['tasknum'] = str(int(self.config['tasknum']) + inc)
+        return self.config['tasknum']
+        
+
     ###########################################################################
     def inc_wrapnum(self):
         """ Increment running wrapper number """
@@ -522,12 +605,14 @@ class PfwConfig:
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
+                debug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
                 (haskey, newval) = self.search(newvar, opts)
                 debug(6, 'PFWCONFIG_DEBUG', 
-                      "\twhy req: newvar, newval, type(newval): %s %s %s" % (newvar, newval, type(newval)))
+                      "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
                 if haskey:
+                    newval = str(newval)
                     if '(' in newval or ',' in newval:
                         if 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
@@ -543,7 +628,7 @@ class PfwConfig:
                     value = re.sub("(?i)\${%s}" % var, newval, value)
                     done = False
                 else:
-                    raise Exception("Could not find value for %s" % var)
+                    raise Exception("Could not find value for %s" % newvar)
                 m = re.search("(?i)\$\{([^}]+)\}", value)
 
 
@@ -616,14 +701,14 @@ class PfwConfig:
             return value
     
     ###########################################################################
-    def get_block_name(self, blocknum):
+    def get_block_name(self, blknum):
         """ Return block name based upon given block num """
-        blocknum = int(blocknum)   # read in from file as string
+        blknum = int(blknum)   # read in from file as string
 
         blockname = ''
-        blockarray = re.sub(r"\s+", '', self.config['block_list']).split(',')
-        if (0 <= blocknum) and (blocknum < len(blockarray)):
-            blockname = blockarray[blocknum]
+        blockarray = re.sub(r"\s+", '', self.config['blocklist']).split(',')
+        if (1 <= blknum) and (blknum <= len(blockarray)):
+            blockname = blockarray[blknum-1]
         return blockname
 
     
@@ -674,6 +759,10 @@ class PfwConfig:
                 (exists, value) = self.search(newkey)
                 if exists:
                     vals[newkey] = value
+                else:
+                    print "Could not find value for %s(%s)" % (key, newkey)
+    
+        print "get_grid_info:  returning vals=", vals
         return vals
 
     ###########################################################################
@@ -705,9 +794,11 @@ class PfwConfig:
                 if not found:
                     raise Exception("Could not find filepat")
 
+        
         if filepat in self.config['filename_patterns']:
-            filenamepat = self.config['filename_patterns'][filepat]
+            filenamepat = self.config['filename_patterns'][filepat]['pattern']
         else:
+            print self.config['filename_patterns'].keys()
             raise Exception("Could not find filename pattern for %s" % filepat)
                 
         filename = self.interpolate(filenamepat, searchopts)
@@ -726,10 +817,10 @@ class PfwConfig:
             if not found:
                 raise Exception("Could not find dirpat")
 
-        if dirpat in self.config['dir_patterns']:
-            filepathpat = self.config['dir_patterns'][dirpat][pathtype]
+        if dirpat in self.config['directory_patterns']:
+            filepathpat = self.config['directory_patterns'][dirpat][pathtype]
         else:
-            raise Exception("Could not find pattern %s in dir_patterns" % dirpat)
+            raise Exception("Could not find pattern %s in directory_patterns" % dirpat)
                 
         filepath = self.interpolate(filepathpat, searchopts)
         return filepath
@@ -754,25 +845,36 @@ class PfwConfig:
         else:
             print "\t\tNo lists"
         
-        if 'file' in moduledict and len(moduledict['file']) > 0:
-            for k,v in moduledict['file'].items():
+        if 'filespecs' in moduledict and len(moduledict['filespecs']) > 0:
+            for k,v in moduledict['filespecs'].items():
                 dataset.append((k,v))
         else:
             print "\t\tNo files"
 
         return dataset 
 
+    def set_names(self):
+        """ set names for use in patterns (i.e., blockname, modulename) """
+
+        for blk, blkdict in self.config['block'].items():
+            if 'blockname' not in blkdict:
+                blkdict['blockname'] = blk 
+    
+        for mod, moddict in self.config['module'].items():
+            if 'modulename' not in moddict:
+                moddict['modulename'] = mod 
+
 
 if __name__ ==  '__main__' :
     if len(sys.argv) == 2:
         pfw = PfwConfig({'wclfile': sys.argv[1]})
         #pfw.save_file(sys.argv[2])
-        print 'block_list' in pfw
+        print 'blocklist' in pfw
         print 'not_there' in pfw
         pfw.set_block_info()
-        print pfw['blocknum']
-        pfw.inc_block_num()
-        print pfw['blocknum']
-        pfw.reset_block_num()
+        print pfw['blknum']
+        pfw.inc_blknum()
+        print pfw['blknum']
+        pfw.reset_blknum()
         pfw.set_block_info()
-        print pfw['blocknum']
+        print pfw['blknum']

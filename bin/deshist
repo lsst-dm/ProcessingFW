@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedDate::                      $:  # Date of last commit.
+
+
+import argparse
+import sys
+import processingfw.pfwdb as pfwdb
+import processingfw.pfwutils as pfwutils
+from time import strftime
+
+
+def printInfo(curs, tabletype='text'):
+    """ print information retrieved from pfw_attempt in a table """
+    desc = [d[0].lower() for d in curs.description]
+    
+    if tabletype is None:
+        tabletype = 'text'
+
+    if tabletype.lower() == 'text':
+        fmtstr = "%8s %20s %2s %8s %20s %20s %20s %4s" 
+    elif tabletype.lower() == 'csv':
+        fmtstr = "%s,%s,%s,%s,%s,%s,%s,%s"
+    else:
+        print "Warning:  unknown tabletype.   Defaulting to text."
+        fmtstr = "%8s %20s %2s %8s %20s %20s %20s %4s" 
+
+    print fmtstr % ('REQNUM', 'UNITNAME', 'P', 'OPER', 'SUBMITTIME', 'STARTTIME', 'ENDTIME', 'STAT')
+
+    if tabletype.lower() == 'text':
+        print '-'*120
+
+    for line in curs:
+        d = dict(zip(desc, line))
+
+        # convert format of dates to not show decimal seconds
+        # replace None with empty string
+        for col in d:
+            if d[col] is None:
+                d[col] = ''
+            elif 'time' in col:
+                d[col] = d[col].strftime("%02m/%02d/%Y %02H:%02M:%02S")
+
+        print fmtstr % (d['reqnum'], d['unitname'], d['attnum'], d['operator'], 
+                       d['submittime'], d['starttime'], d['endtime'], d['status'])
+    
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='desstat')
+
+    dbh = pfwdb.PFWDB()
+
+    # get column names from pfw_attempt table to create command-line arguments
+    curs = dbh.cursor()
+    curs.execute("SELECT * FROM pfw_attempt where 0=1")
+    colnames = [d[0].lower() for d in curs.description]
+
+    # for time columns, going with date granularity so modify argument to match
+    for col in colnames:
+        col = col.replace('time', 'date')
+        parser.add_argument('--%s'%col, action='store', default=None)
+
+    parser.add_argument('--tabletype', action='store', default=None)
+
+    args = parser.parse_args(argv)
+    argsdict = vars(args)     # convert args Namespace to dict
+
+    tabletype = 'text'
+    if 'tabletype' in argsdict:
+        tabletype = argsdict['tabletype']
+        del argsdict['tabletype']
+        
+    whereclauses = []
+    for col in colnames:
+        argkey = col.replace('time', 'date')
+        if argkey in argsdict and argsdict[argkey] is not None:
+            val = argsdict[argkey]
+            if 'time' in col:
+                if ',' in val:    # times can have date range
+                    (begdate,enddate) = pfwutils.pfwsplit(val)
+                else:
+                    begdate = val
+                    enddate = val
+                whereclauses.append("%s >= to_date('%s', 'MM/DD/YYYY')" % (col, begdate))
+                whereclauses.append("%s < to_date('%s', 'MM/DD/YYYY') + 1" % (col, enddate))
+            else:
+                whereclauses.append("%s=%s" % (col, dbh.quote(str(val))))
+    
+    if len(whereclauses) == 0:
+        print "Must specify at least 1 option to restrict query"
+        parser.print_help()
+        return(1)
+        
+    sql = "select * from pfw_attempt where %s" % (' AND '.join(whereclauses))
+    curs.execute(sql)
+    printInfo(curs, tabletype)
+
+    return(0)
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

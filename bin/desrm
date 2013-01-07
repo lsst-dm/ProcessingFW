@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedDate::                      $:  # Date of last commit.
+
+
+import argparse
+import sys
+import re
+import processingfw.pfwcondor as pfwcondor
+import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwdb as pfwdb
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='desrm')
+    parser.add_argument('run', nargs=1, action='store', default=None)
+    args = parser.parse_args(argv)
+
+    dbh = pfwdb.PFWDB()
+
+    condorid = None
+    givcondorid = None
+    #print "run = ", args.run
+    run = args.run[0]
+    if '_' not in run:
+        m = re.match("(\d+)[.\d+]?", run)
+        if not m:
+            print "Given argument doesn't look like a condor id.   Not deleting run"
+            return(1)
+
+        givcondorid = m.group(1)
+        masterjob = pfwcondor.condor_q(givcondorid)
+        if givcondorid not in masterjob:
+            print "Error: run is not in current condor queue.   Not deleting run."
+            return(1)
+
+        if 'des_run' not in masterjob[givcondorid]:
+            print "Given argument doesn't look like a desdm job (missing des_run).    Not deleting run"
+            print masterjob
+            return(1)
+
+        run = masterjob[givcondorid]['des_run']
+        #print "Converted condor id to run", run
+            
+    m = re.match("([^_]+)_r(\d)p(\d+)", run)
+    if not m:
+        print "Error: run is not correct format (<unitname>_r<reqnum>p<attnum>).  Not deleting run"
+        return(1)
+
+    reqnum = m.group(2)
+    unitname = m.group(1)
+    attnum = str(int(m.group(3)))
+    
+    sql = "select condorid from pfw_attempt where reqnum='%s' and unitname='%s' and attnum='%s'" % (reqnum, unitname, attnum)
+    #print sql
+    curs = dbh.cursor()
+    curs.execute(sql)
+    rows = curs.fetchall()
+    if len(rows) > 1:
+        print "Error:   Found more than 1 row in pfw_attempt for the run"
+        print rows 
+        return(1)
+    elif len(rows) == 0:
+        print "Error:  Found 0 rows in pfw_attempt for the given run"
+        return(1)
+
+    condorid = str(rows[0][0])
+    if givcondorid is not None and givcondorid != condorid:
+        print "Error:  Condor id from DB doesn't match given condor id.  Not deleting run"
+        print "(%s, %s)" % (givcondorid, condorid)
+        return(1)
+
+    #print "Condor id = ", condorid
+
+    if condorid is not None:
+        masterjob = pfwcondor.condor_q(str(condorid))
+        if len(masterjob) == 0:
+            print "Error: run is not in current condor queue.   Not deleting run."
+            return(1)
+
+    print "Deleting run: reqnum=%s, unitname=%s, attnum=%s, condorid=%s" % (reqnum, unitname, attnum, condorid)
+
+    pfwcondor.condor_rm(condorid)
+    dbh = pfwdb.PFWDB()
+    dbh.update_attempt_end(reqnum, unitname, attnum, pfwconfig.PfwConfig.OPDELETE)
+    return(0)
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

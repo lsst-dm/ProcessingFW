@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
 
 import os
-from wclutils import write_wcl
+from intgutils.wclutils import write_wcl
 import errno
 import stat
 
@@ -28,7 +28,7 @@ def write_workflow_taskfile(config, tasks):
     taskfile = config.get_filename('block', {'currentvals': {'filetype': 'tasks', 'suffix':'list'}, 'required': True, 'interpolate': True})
     with open(taskfile, 'w', 0) as tasksfh:
         for task in sorted(tasks, key=lambda singletask: int(singletask[0])):
-            tasksfh.write("%s, %s, %s\n" % (task[1], task[2], task[3]))
+            tasksfh.write("%s, %s, %s, %s\n" % (task[0], task[1], task[2], task[3]))
     return taskfile
 
 

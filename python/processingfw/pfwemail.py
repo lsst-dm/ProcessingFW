@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -44,15 +44,15 @@ def send_email(config, block, status, subject, msg1, msg2):
 
     mailfh.write("Submit:\n")
     mailfh.write("\tmachine = %s\n" % localmachine)
-    mailfh.write("\tnode = %s\n" % config['submit_node'])
+    mailfh.write("\tnode = %s\n" % config['submitnode'])
     mailfh.write("\tDES_HOME = %s\n" % config['des_home'])
     mailfh.write("\tconfig = %s/%s\n" % \
             (config['submit_dir'], config['config_filename']))
     mailfh.write("\tdirectory = %s\n\n" % config['work_dir'])
 
     mailfh.write("Target:\n")
-    mailfh.write("\tmachine = %s\n" % config['login_host'])
-    mailfh.write("\tnode = %s\n" % config['target_node'])
+    mailfh.write("\tmachine = %s\n" % config['loginhost'])
+    mailfh.write("\tnode = %s\n" % config['targetnode'])
     mailfh.write("\tdirectory = %s/%s\n" % \
             (config['archive_root'], config['run_dir']))
     mailfh.write("\n\n")

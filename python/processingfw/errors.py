@@ -44,3 +44,27 @@ class IdMetadataHeaderError (MetadataConfigError):
         if not msg:
             msg = 'Id header found in metadata table.'
         MetadataConfigError.__init__ (self, msg)
+
+class FileMetadataIngestError (Exception):
+    "Represent an error in the file metadata ingest routines."
+
+    def __init__ (self, msg):
+        Exception.__init__ (self, msg)
+
+class RequiredMetadataMissingError (FileMetadataIngestError):
+    "A required file metadata element was not found in the dataset to ingest."
+
+    def __init__ (self, msg = None):
+        if not msg:
+            msg = 'Required metadata element was not found.'
+        FileMetadataIngestError.__init__ (self, msg)
+
+class DBMetadataNotFoundError (FileMetadataIngestError):
+    "There is an unknown filetype in the file submitted for ingest."
+
+    def __init__ (self, msg = None):
+        if not msg:
+            msg = 'The file\'s filetype was not found in the database.'
+        FileMetadataIngestError.__init__ (self, msg)
+
+

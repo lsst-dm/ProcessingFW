@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -187,7 +187,7 @@ def create_rsl(info):
 def create_condor_env(envvars):
     """Create string for environment line in condor description file"""
     # see rules in environment section of condor_submit manual page
-    envparts = []
+    envparts = ['SUBMIT_CONDORID=$(Cluster).$(Process)']
 
     if type(envvars) is dict:
         for (key, val) in envvars.items():
@@ -369,6 +369,7 @@ def condor_q(args_str=''):
     job = {}
     condorid = -9999
 
+    args_str = str(args_str)
     condorq_cmd = ['condor_q', '-l']
     condorq_cmd.extend(args_str.split())
     
@@ -574,9 +575,9 @@ def check_condor(minver):
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
     process.wait()
-    if process.returncode:
-        raise CondorException('Condor is not running on this machine' + \
-                              'Contact your condor administrator')
+#    if process.returncode:
+#        raise CondorException('Condor is not running on this machine' + \
+#                              'Contact your condor administrator')
 
     # check have new enough version of condor
     if compare_condor_version(minver) < 0:
@@ -628,6 +629,33 @@ def get_job_status_str(jobnum, qjobs):
                     statusstr = gridstatus[qjobs[jobnum]['globusstatus']]
 
     return(statusstr)
+
+def condor_rm(args_str=''):
+    """Given condor_rm args, calls condor_rm [args]"""
+
+    args_str = str(args_str)    # make sure string
+
+    condorrm_cmd = ['condor_rm']
+    condorrm_cmd.extend(args_str.split())
+
+    try:
+        process = subprocess.Popen(condorrm_cmd, 
+                                   shell=False, 
+                                   stdout=subprocess.PIPE, 
+                                   stderr=subprocess.PIPE)
+        out = ""
+        buf = os.read(process.stdout.fileno(), 5000)
+        while process.poll() == None or len(buf) != 0:
+            out += buf
+            buf = os.read(process.stdout.fileno(), 5000)
+
+        if process.returncode != 0:
+            print "Cmd = ", condorrm_cmd
+            raise CondorException('Problem running condor_rm - non-zero exit code'+process.communicate()[0])
+    except Exception as err:
+        raise CondorException('Error: Could not run condor_rm. Check PATH.\n'+str(err))
+        
+    
 
 
 if __name__ ==  '__main__' :

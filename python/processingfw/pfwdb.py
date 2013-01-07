@@ -15,11 +15,20 @@
 
 __version__ = "$Rev$"
 
+import os
+import sys
+import socket
+from collections import OrderedDict
+
 import coreutils
+from processingfw.pfwutils import debug
 
 from errors import DuplicateDBFiletypeError
 from errors import DuplicateDBHeaderError
 from errors import IdMetadataHeaderError
+from errors import FileMetadataIngestError
+from errors import RequiredMetadataMissingError
+from errors import DBMetadataNotFoundError
 
 class PFWDB (coreutils.DesDbi):
     """
@@ -31,6 +40,507 @@ class PFWDB (coreutils.DesDbi):
 
     def __init__ (self, *args, **kwargs):
         coreutils.DesDbi.__init__ (self, *args, **kwargs)
+
+    def get_database_defaults(self):
+        """ Grab default configuration information stored in database """
+
+        result = OrderedDict()
+        
+        result['archive'] = self.get_database_table('OPS_ARCHIVE_NODES', 'NAME') 
+        result['directory_patterns'] = self.get_database_table('OPS_DIRECTORY_PATTERNS', 'NAME')
+        result['filename_patterns'] = self.get_database_table('OPS_FILENAME_PATTERNS', 'NAME')
+        result['site'] = self.get_database_table('OPS_SITES', 'NAME')
+        result['filetype_metadata'] = self.get_all_filetype_metadata()
+
+        return result
+
+    def get_database_table(self, tname, tkey):
+        sql = "select * from %s" % tname
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        result = OrderedDict()
+        for line in curs:
+            d = dict(zip(desc, line))
+            result[d[tkey.lower()].lower()] = d
+
+        curs.close()
+        return result
+
+    def get_filetype_metadata(self):
+        sql = "select * from ops_filetype_metadata"
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        result = OrderedDict()
+        for line in curs:
+            d = dict(zip(desc, line))
+            filetype = d['filetype'].lower()
+            headername = d['file_header_name'].lower()
+            if filetype not in result:
+                result[filetype] = OrderedDict()
+            if headername not in result[filetype]:
+                result[filetype][headername] = d
+            else:
+                raise Exception("Found duplicate row in filetype_metadata (%s, %s)" % (filetype, headername))
+
+        curs.close()
+        return result
+    
+        
+    def get_metadata(self):
+        sql = "select * from ops_metadata"
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        result = OrderedDict()
+        for line in curs:
+            d = dict(zip(desc, line))
+            headername = d['file_header_name'].lower()
+            columnname = d['column_name'].lower()
+            if headername not in result:
+                result[headername] = OrderedDict()
+            if columnname not in result[headername]:
+                result[headername][columnname] = d
+            else:
+                raise Exception("Found duplicate row in metadata (%s, %s)" % (headername, columnname))
+
+        curs.close()
+        return result
+    
+    def get_all_filetype_metadata(self):
+        """
+        Gets a dictionary of dictionaries or string=value pairs representing
+        data from the OPS_METADATA, OPS_FILETYPE, and OPS_FILETYPE_METADATA tables.
+        This is intended to provide a complete set of filetype metadata required
+        during a run.
+        Note that the returned dictionary is nested based on the order of the
+        columns in the select clause.  Values in columns contained in the
+        "collections" list will be turned into dictionaries keyed by the value,
+        while the remaining columns will become "column_name=value" elements
+        of the parent dictionary.  Thus the sql query and collections list can be
+        altered without changing the rest of the code.
+        """
+        sql = """select f.filetype,f.metadata_table,fm.status,m.derived,
+                    fm.file_header_name,m.position,m.column_name
+                from OPS_METADATA m, OPS_FILETYPE f, OPS_FILETYPE_METADATA fm 
+                where m.file_header_name=fm.file_header_name 
+                    and f.filetype=fm.filetype 
+                order by 1,2,3,4,5,6 """
+        collections = ['filetype','status','derived']
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+        result = OrderedDict()
+
+        for row in curs:
+            ptr = result
+            for col, value in enumerate(row):
+                normvalue = str(value).lower()
+                if col >= (len(row)-3):
+                    if normvalue not in ptr:
+                        ptr[normvalue] = str(row[col+2]).lower()
+                    else:
+                        ptr[normvalue] += "," + str(row[col+2]).lower()
+                    break
+                if normvalue not in ptr:
+                    if desc[col] in collections:
+                        ptr[normvalue] = OrderedDict()
+                    else:
+                        ptr[desc[col]] = normvalue
+                if desc[col] in collections:
+                    ptr = ptr[normvalue]
+        curs.close()
+        return result
+
+    ##### request, unit, attempt #####
+    def insert_run(self, config):
+        """ Insert entries into the pfw_request, pfw_unit, pfw_attempt tables for a single run submission """
+        maxtries = 3
+        from_dual = self.from_dual()
+
+        # loop to try again, esp. for race conditions
+        loopcnt = 1
+        done = False
+        while not done and loopcnt <= maxtries:
+            curs = self.cursor()
+
+            # pfw_request
+            debug(3, 'PFWDB_DEBUG', "Inserting to pfw_request table\n")
+            reqnum = config.search('reqnum', {'interpolate': True})[1]
+            project = config.search('project', {'interpolate': True})[1]
+            jiraid = config.search('jira_id', {'interpolate': True})[1]
+            pipeline = config.search('pipeline', {'interpolate': True})[1]
+        
+            try:
+                sql = "insert into pfw_request (reqnum, project, jira_id, pipeline) select %s, '%s', '%s', '%s' %s where not exists (select null from pfw_request where reqnum=%s)" % (reqnum, project, jiraid, pipeline, from_dual, reqnum)
+                debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                curs.execute(sql)
+            except Exception as e:
+                if loopcnt <= maxtries:
+                    debug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
+                    loopcnt = loopcnt + 1
+                    self.rollback()
+                    continue
+                else:
+                    raise e
+
+            # pfw_unit
+            debug(3, 'PFWDB_DEBUG', "Inserting to pfw_unit table\n")
+            unitname = config.search('unitname', {'interpolate': True})[1]
+            try:
+                curs = self.cursor()
+                sql = "insert into pfw_unit (reqnum, unitname) select %s, '%s' %s where not exists (select null from pfw_unit where reqnum=%s and unitname='%s')" % (reqnum, unitname, from_dual, reqnum, unitname)
+                debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                curs.execute(sql)
+            except Exception as e:
+                if loopcnt <= maxtries:
+                    debug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
+                    loopcnt = loopcnt + 1
+                    self.rollback()
+                    continue
+                else:
+                    raise e
+
+            # pfw_attempt
+            debug(3, 'PFWDB_DEBUG', "Inserting to pfw_attempt table\n")
+            operator = config.search('operator', {'interpolate': True})[1]
+
+            ## get current max attnum and try next value
+            sql = "select max(attnum) from pfw_attempt where reqnum='%s' and unitname = '%s'" % (reqnum, unitname)
+            debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+            curs.execute(sql)
+            maxarr = curs.fetchall()
+            if len(maxarr) == 0:
+                maxatt = 0
+            elif maxarr[0][0] == None:
+                maxatt = 0
+            else:
+                maxatt = int(maxarr[0][0])
+
+            try:
+                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime) select %s, '%s', '%s', '%s', %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname='%s' and attnum=%s)" % (reqnum, unitname, maxatt+1, operator, self.get_current_timestamp_str(), from_dual, reqnum, unitname, maxatt+1)
+                debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                curs.execute(sql)
+            except Exception as e:
+                if loopcnt <= maxtries:
+                    debug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
+                    loopcnt = loopcnt + 1
+                    self.rollback()
+                    continue
+                else:
+                    raise e
+
+            config['attnum'] = maxatt+1
+            done = True
+
+        if not done:
+            raise Exception("Exceeded max tries for inserting into pfw_attempt table")
+        curs.close()
+        self.commit()
+
+
+    def update_attempt_cid (self, config, condorid):
+        """ update row in pfw_attempt with condorid """
+
+        updatevals = {}
+        updatevals['condorid'] = condorid
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+
+        self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
+
+
+    def update_attempt_beg (self, config):
+        """ update row in pfw_attempt with end of attempt info """
+
+        updatevals = {}
+        updatevals['starttime'] = 'CURRENT_TIMESTAMP'
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        
+        self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
+
+
+    def update_attempt_end (self, reqnum, unitname, attnum, exitcode):
+        """ update row in pfw_attempt with end of attempt info """
+
+        updatevals = {}
+        updatevals['endtime'] = 'CURRENT_TIMESTAMP'
+        updatevals['status'] = self.quote(exitcode)
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(reqnum)
+        wherevals['unitname'] = self.quote(unitname)
+        wherevals['attnum'] = self.quote(attnum)
+        
+        self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
+
+
+    ##### BLOCK #####
+    def insert_block (self, config):
+        """ Insert an entry into the pfw_block table """
+        debug(3, 'PFWDB_DEBUG', "Inserting to pfw_block table\n")
+
+        blknum = config.search('blknum', {'interpolate': False})[1]
+        if blknum == '1':  # attempt is starting
+            updatevals = {}
+            updatevals['starttime'] = self.get_current_timestamp_str()
+
+            wherevals = {}
+            wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+            wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+            wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+            self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
+            
+
+
+        row = {}
+        row['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        row['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        row['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        row['blknum'] = self.quote(blknum)
+        row['name'] = self.quote(config.search('blockname', {'interpolate': True})[1])
+        row['modulelist'] = self.quote(config.search('modulelist', {'interpolate': True})[1])
+        row['starttime'] = self.get_current_timestamp_str()
+        self.insert_pfw_row('PFW_BLOCK', row)
+
+    def update_block_numexpjobs (self, config, numexpjobs):
+        """ update numexpjobs in pfw_block """
+        updatevals = {}
+        updatevals['numexpjobs'] = self.quote(numexpjobs)
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config['blknum'])
+
+        self.update_PFW_row ('PFW_BLOCK', wherevals, updatevals)
+
+        
+    def update_block_end (self, config, exitcode):
+        """ update row in pfw_block with end of block info"""
+
+        updatevals = {}
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        updatevals['status'] = self.quote(exitcode)
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config['blknum'])
+
+        self.update_PFW_row ('PFW_BLOCK', wherevals, updatevals)
+
+    #### BLKTASK #####
+    def insert_blktask(self, config, modname, taskname):
+        """ Insert an entry into the pfw_blktask table """
+        debug(3, 'PFWDB_DEBUG', "Inserting to pfw_blktask table\n")
+        row = {}
+        row['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        row['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        row['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        row['blknum'] = self.quote(config.search('blknum', {'interpolate': False})[1])
+        tasknum = config.inc_tasknum(1)
+        row['tasknum'] = self.quote(tasknum)
+        row['name'] = self.quote("%s_%s" % (taskname, modname))
+        row['starttime'] = self.get_current_timestamp_str()
+        self.insert_pfw_row('PFW_BLKTASK', row)
+        
+    def update_blktask_end (self, config, modname, taskname, status):
+        """ update row in pfw_block with end of block info"""
+
+        updatevals = {}
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        updatevals['status'] = self.quote(status)
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config.search('blknum', {'interpolate': False})[1])
+        wherevals['name'] = self.quote("%s_%s" % (taskname, modname))
+
+        self.update_PFW_row ('PFW_BLKTASK', wherevals, updatevals)
+
+
+
+    ##### JOB #####
+    def insert_job (self, wcl):
+        """ Insert an entry into the pfw_job table """
+        debug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
+
+        row = {}
+        row['reqnum'] = self.quote(wcl['reqnum'])
+        row['unitname'] = self.quote(wcl['unitname'])
+        row['attnum'] = self.quote(wcl['attnum'])
+        row['blknum'] = self.quote(wcl['blknum'])
+        row['jobnum'] = self.quote(wcl['jobnum'])
+        row['starttime'] = self.get_current_timestamp_str()
+        row['numexpwrap'] = self.quote(wcl['numexpwrap'])
+        row['exechost'] = self.quote(socket.gethostname())
+        row['pipeprod'] = self.quote(wcl['pipeprod'])
+        row['pipever'] = self.quote(wcl['pipever'])
+
+        # batchid 
+        if "PBS_JOBID" in os.environ:
+            row['batchid'] = self.quote(os.environ['PBS_JOBID'].split('.')[0])
+        elif 'LSB_JOBID' in os.environ:
+            row['batchid'] = self.quote(os.environ['LSB_JOBID']) 
+        elif 'LOADL_STEP_ID' in os.environ:
+            row['batchid'] = self.quote(os.environ['LOADL_STEP_ID'].split('.').pop())
+        elif 'SUBMIT_CONDORID' in os.environ:
+            row['batchid'] = self.quote(os.environ['SUBMIT_CONDORID'])
+
+        if 'SUBMIT_CONDORID' in os.environ:
+            row['condorid'] = self.quote(os.environ['SUBMIT_CONDORID'])
+        
+        self.insert_pfw_row('PFW_JOB', row)
+
+
+    def update_job_end (self, wcl, exitcode):
+        """ update row in pfw_job with end of job info"""
+
+        updatevals = {}
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        updatevals['status'] = self.quote(exitcode)
+
+        wherevals = {}
+        wherevals['reqnum'] = self.quote(wcl['reqnum'])
+        wherevals['unitname'] = self.quote(wcl['unitname'])
+        wherevals['attnum'] = self.quote(wcl['attnum'])
+        wherevals['jobnum'] = self.quote(wcl['jobnum'])
+
+        self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
+
+
+
+    ##### WRAPPER #####
+    def insert_wrapper (self, inputwcl, iwfilename):
+        """ insert row into pfw_wrapper """
+
+        wrapid = self.get_seq_next_value('pfw_wrapper_seq')
+
+        row = {}
+        row['reqnum'] = self.quote(inputwcl['reqnum'])
+        row['unitname'] = self.quote(inputwcl['unitname'])
+        row['attnum'] = self.quote(inputwcl['attnum'])
+        row['wrapnum'] = self.quote(inputwcl['wrapnum'])
+        row['name'] = self.quote(inputwcl['wrapname'])
+        row['id'] = self.quote(wrapid)
+        row['blknum'] = self.quote(inputwcl['blknum'])
+        row['jobnum'] = self.quote(inputwcl['jobnum'])
+        row['inputwcl'] = self.quote(os.path.split(iwfilename)[-1])
+        row['starttime'] = self.get_current_timestamp_str()
+
+        self.insert_pfw_row('PFW_WRAPPER', row)
+        return wrapid
+
+
+    def update_wrapper_end (self, inputwcl, owclfile, logfile, exitcode):
+        """ update row in pfw_wrapper with end of wrapper info """
+
+        updatevals = {}
+        updatevals['endtime'] = self.get_current_timestamp_str()
+        if owclfile is not None:
+            updatevals['outputwcl'] = self.quote(os.path.split(owclfile)[-1])
+        if logfile is not None:
+            updatevals['log'] = self.quote(os.path.split(logfile)[-1])
+        updatevals['status'] = self.quote(exitcode)
+
+        wherevals = {}
+        wherevals['id'] = self.quote(inputwcl['wrapperid'])
+
+        self.update_PFW_row ('PFW_WRAPPER', wherevals, updatevals)
+        
+
+
+    ##### PFW_EXEC
+    def insert_exec (self, inputwcl, sect):
+        """ insert row into pfw_exec """
+
+        debug(3, 'PFWDB_DEBUG', sect)
+
+        execid = self.get_seq_next_value('pfw_exec_seq')
+
+        row = {}
+        row['reqnum'] = self.quote(inputwcl['reqnum'])
+        row['unitname'] = self.quote(inputwcl['unitname'])
+        row['attnum'] = self.quote(inputwcl['attnum'])
+        row['wrapnum'] = self.quote(inputwcl['wrapnum'])
+        row['id'] = self.quote(execid)
+        row['execnum'] = self.quote(inputwcl[sect]['execnum'])
+        row['name'] = self.quote(inputwcl[sect]['execname'])
+
+        self.insert_pfw_row('PFW_EXEC', row)
+        debug(3, 'PFWDB_DEBUG', "end")
+        return execid
+
+
+    def update_exec_end (self, execwcl, execid, exitcode):
+        """ update row in pfw_exec with end of exec info """
+        debug(3, 'PFWDB_DEBUG', execid)
+
+        updatevals = {}
+        updatevals['cmdargs'] = self.quote(execwcl['cmdlineargs'])
+        updatevals['walltime'] = self.quote(execwcl['walltime'])
+        updatevals['status'] = self.quote(exitcode)
+
+        wherevals = {}
+        wherevals['id'] = self.quote(execid)
+
+        self.update_PFW_row ('PFW_EXEC', wherevals, updatevals)
+
+
+    ##########
+    def insert_pfw_row (self, pfwtable, row):
+        """ Insert a row into a table and return any specified cols """ 
+        sql = "insert into %s (%s) values (%s)" % (pfwtable, 
+                                                   ','.join(row.keys()), 
+                                                   ','.join(row.values()))
+    
+        debug(3, 'PFWDB_DEBUG', sql)
+
+        curs = self.cursor()
+        debug(3, 'PFWDB_DEBUG', "cursor")
+        curs.execute(sql)
+        debug(3, 'PFWDB_DEBUG', "execute")
+        self.commit()
+        debug(3, 'PFWDB_DEBUG', "end")
+            
+    def update_PFW_row (self, pfwtable, wherevals, updatevals):
+        """ update a row into pfw_wrapper """
+
+        whclause = []
+        for c,v in wherevals.items():
+            whclause.append("%s=%s" % (c,v))
+
+        upclause = []
+        for c,v in updatevals.items():
+            upclause.append("%s=%s" % (c,v))
+
+    
+        sql = "update %s set %s where %s" % (pfwtable, 
+                                             ','.join(upclause),
+                                             ' and '.join(whclause))
+
+        debug(3, 'PFWDB_DEBUG', sql)
+        curs = self.cursor()
+        curs.execute(sql)
+        curs.close()
+        self.commit()
+
 
     def get_required_metadata_headers (self, filetypes = None):
         """
@@ -80,7 +590,7 @@ class PFWDB (coreutils.DesDbi):
 
         cursor.execute (stmt, args)
 
-        retval = {}
+        retval = OrderedDict()
         for row in cursor.fetchall ():
             ftype = row [0]
             if ftype not in retval:
@@ -323,3 +833,131 @@ class PFWDB (coreutils.DesDbi):
             self.insert_many (fmap ['table'], columns, rows)
 
         return retval
+
+    def get_required_headers(self, filetypeDict):
+        """
+        For use by ingest_file_metadata. Collects the list of required header values.
+        """
+        REQUIRED = "r"
+        allReqHeaders = set()
+        for category,catDict in filetypeDict[REQUIRED].iteritems():
+            allReqHeaders = allReqHeaders.union(catDict.keys())
+        return allReqHeaders
+
+
+    def get_column_map(self, filetypeDict):
+        """
+        For use by ingest_file_metadata. Creates a lookup from column to header.
+        """
+        columnMap = OrderedDict()
+        for statusDict in filetypeDict.values():
+            if type(statusDict) in (OrderedDict,dict):
+                for catDict in statusDict.values():
+                    for header, columns in catDict.iteritems():
+                        collist = columns.split(',')
+                        for position, column in enumerate(collist):
+                            if len(collist) > 1:
+                                columnMap[column] = header + ":" + str(position)
+                            else:
+                                columnMap[column] = header
+        return columnMap
+
+
+    def ingest_file_metadata(self, filemeta, dbdict):
+        """
+        Ingests the file metadata stored in <filemeta> into the database,
+        using <dbdict> to determine where each element belongs.
+        This wil throw an error and abort if any of the following are missing
+        for any file: the filename, filetype, or other required header value.
+        It will also throw an error if the filetype given in the input data
+        is not found in <dbdict>
+        Any exception will abort the entire upload.
+        """
+        FILETYPE  = "filetype"
+        FILENAME  = "filename"
+        METATABLE = "metadata_table"
+        COLMAP    = "column_map"
+        ROWS      = "rows"
+        metadataTables = OrderedDict()
+        foundError = 0
+        message = ""
+        
+        try:
+            for key, filedata in filemeta.iteritems():
+                foundError = 0
+                if FILETYPE not in filedata.keys():
+                    message = "ERROR: cannot upload file " + filedata[FILENAME] + ": no FILETYPE provided."
+                    raise RequiredMetadataMissingError(message)
+                    continue
+                if FILENAME not in filedata.keys():
+                    message = "ERROR: cannot upload file <" + key + ">, no FILENAME provided."
+                    raise RequiredMetadataMissingError(message)
+                    continue
+                if filedata[FILETYPE] not in dbdict:
+                    message = "ERROR: cannot upload " + filedata[FILENAME] + ": " + \
+                            filedata[FILETYPE] + " is not a known FILETYPE."
+                    raise DBMetadataNotFoundError(message)
+                    continue
+                # check that all required are present
+                allReqHeaders = self.get_required_headers(dbdict[filedata[FILETYPE]])
+                for dbkey in allReqHeaders:
+                    if dbkey not in filedata.keys() or filedata[dbkey] == "":
+                        print "ERROR: " + filedata[FILENAME] + " missing required data for " + dbkey
+                        foundError = 1
+                if foundError == 1:
+                    message = "ERROR: required metadata missing for " + filedata[FILENAME] + "."
+                    raise RequiredMetadataMissingError(message)
+                    continue
+            
+                # now load structures needed for upload
+                rowdata = OrderedDict()
+                mappedHeaders = set()
+                fileMetaTable = dbdict[filedata[FILETYPE]][METATABLE]
+
+                if fileMetaTable not in metadataTables.keys():
+                    metadataTables[fileMetaTable] = OrderedDict()
+                    metadataTables[fileMetaTable][COLMAP] = self.get_column_map(dbdict[filedata[FILETYPE]])
+                    metadataTables[fileMetaTable][ROWS] = []
+                
+                colmap = metadataTables[fileMetaTable][COLMAP]
+                for column, header in colmap.iteritems():
+                    compheader = header.split(':')
+                    if len(compheader) > 1:
+                        hdr = compheader[0]
+                        pos = int(compheader[1])
+                        if hdr in filedata:
+                            rowdata[column] = filedata[hdr].split(',')[pos]
+                            mappedHeaders.add(hdr)
+                    else:
+                        if header in filedata:
+                            rowdata[column] = filedata[header]
+                            mappedHeaders.add(header)
+                        else:
+                            rowdata[column] = ''
+                
+                # report elements that were in the file that do not map to a DB column
+                for notmapped in (set(filedata.keys()) - mappedHeaders):
+                    if notmapped != 'fullname':
+                        print "WARN: file " + filedata[FILENAME] + " header item " \
+                            + notmapped + " does not match column for filetype " \
+                            + filedata[FILETYPE]
+                
+                # add the new data to the table set of rows
+                metadataTables[fileMetaTable][ROWS].append(rowdata)
+            # end looping through files
+            
+            for metaTable, dict in metadataTables.iteritems():
+                self.insert_many(metaTable, dict[COLMAP].keys(), dict[ROWS])
+            self.commit()
+            
+        except FileMetadataIngestError as ex:
+            print ex
+            # For now, simply print these "known" error conditions to stdout
+            # so that a data error does not prevent further execution for testing.
+            # Once this is more stable, then these should be re-raised and
+            # perhaps not printed here
+            
+            # raise
+        except Exception as ex:
+            raise FileMetadataIngestError(ex)
+    # end ingest_file_metadata

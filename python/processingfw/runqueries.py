@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id:$
+# $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
@@ -14,33 +14,29 @@ import processingfw.pfwblock as pfwblock
 import processingfw.pfwutils as pfwutils
 
 
+
 ###########################################################
 def create_master_list(config, modname, moddict, 
         search_name, search_dict):
     print "\tcreate_master_list: BEG"
 
-    if 'outputtype' in search_dict:
-        suffix = search_dict['outputtype']
+
+    if 'qouttype' in search_dict:
+        qouttype = search_dict['qouttype']
     else:
-        suffix = 'wcl'  
+        qouttype = 'wcl'  
 
     qoutfile = config.get_filename('qoutput', {'currentvals': 
         {'modulename': modname, 
          'searchname': search_name, 
-         'suffix': suffix}})
+         'suffix': qouttype}})
     qlog = config.get_filename('qoutput', {'currentvals': 
         {'modulename': modname, 
          'searchname': search_name, 
          'suffix': 'out'}})
 
     prog = None
-    if 'query_fields' in search_dict:
-        prog = "%s/libexec/genquerydb.py" %  \
-               (os.path.abspath(os.path.dirname(__file__)))
-        args = "-outputfile %s -config %s -query_fields \"%s\" -module %s -search %s" % \
-                (qoutfile, "config.des", search_dict['queryfields'], 
-                 modname, search_name)
-    elif 'exec' in search_dict:
+    if 'exec' in search_dict:
         prog = search_dict['exec']
         if 'args' not in search_dict:
             print "\t\tWarning:  %s in module %s does not have args defined\n" % \
@@ -48,6 +44,17 @@ def create_master_list(config, modname, moddict,
             args = ""
         else:
             args = search_dict['args']
+    elif 'query_fields' in search_dict:
+        if 'processingfw_dir' in config:
+            dirgenquery = config['processingfw_dir']
+        elif 'PROCESSINGFW_DIR' in os.environ:
+            dirgenquery = os.environ['PROCESSINGFW_DIR']
+        else:
+            raise Exception("Could not determine base path for genquerydb.py")
+
+        prog = "%s/libexec/genquerydb.py" % (dirgenquery)
+        args = "--qoutfile %s --qouttype %s --config %s --module %s --search %s" % \
+               (qoutfile, qouttype, config['wclfile'], modname, search_name)
 
     if not prog:
         print "\tWarning: %s in module %s does not have exec or query_fields defined" % (search_name, modname)
@@ -81,7 +88,7 @@ def create_master_list(config, modname, moddict,
                                stdout=outfh, stderr=subprocess.STDOUT)
     process.wait()
     outfh.close()
-    print process.communicate()
+#    print process.communicate()
     print "\t\texit=", process.returncode
     print "\t\tCreating master list - end ", time.time()
 
@@ -113,8 +120,8 @@ def runqueries(config, modname, modules_prev_in_list):
                                    moddict, listname, list_dict)
     
     # process each "file" in each module
-    if 'file' in moddict:
-        for filename, file_dict in moddict['file'].items():
+    if 'filespecs' in moddict:
+        for filename, file_dict in moddict['filespecs'].items():
             if 'depends' not in file_dict or \
                 not file_dict['depends'] not in modules_prev_in_list:
                 print "\t%s-%s: creating master list\n" % \
@@ -136,15 +143,15 @@ def main(argv = None):
     # log condor jobid
     log_pfw_event(config, config['curr_block'], 'runqueries', 'j', ['cid', condorid])
 
-    if 'module_list' not in config:
+    if 'modulelist' not in config:
         raise Exception("Error:  No modules to run.")
     
     ### Get master lists and files calling external codes when needed
     
-    module_list = pfwutils.pfwsplit(config['module_list'].lower())
+    modulelist = pfwutils.pfwsplit(config['modulelist'].lower())
     
     modules_prev_in_list = {}
-    for modname in module_list:
+    for modname in modulelist:
         if modname not in config['module']:
             raise Exception("Error: Could not find module description for module %s\n" % (modname))
         runqueries(config, modname, modules_prev_in_list)

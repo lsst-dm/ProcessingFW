@@ -961,3 +961,105 @@ class PFWDB (coreutils.DesDbi):
         except Exception as ex:
             raise FileMetadataIngestError(ex)
     # end ingest_file_metadata
+
+
+    def getFilenameIdMap(self, prov):
+        DELIM = ","
+        USED  = "used"
+        WGB   = "was_generated_by"
+        WDF   = "was_derived_from"
+        FILENAME = "FILENAME"
+        TABLENAME = "FILENAME_TMP"
+        SQLSTR = "SELECT f.filename, a.ID FROM OPM_ARTIFACT a, FILENAME_TMP f WHERE a.name=f.filename"
+        colmap = [FILENAME]
+        allfiles = set()
+        result = []
+        rows = []
+        for filenames in prov[USED].values():
+            for file in filenames.split(DELIM):
+                allfiles.add(file.strip())
+        for filenames in prov[WGB].values():
+            for file in filenames.split(DELIM):
+                allfiles.add(file.strip())
+        for tuples in prov[WDF].values():
+            for filenames in tuples.values():
+                for file in filenames.split(DELIM):
+                    allfiles.add(file.strip())
+        for file in allfiles:
+            rows.append(dict({FILENAME:file}))
+        if len(allfiles) > 0:
+            self.insert_many(TABLENAME,colmap,rows)
+            cursor = self.cursor()
+            cursor.execute(SQLSTR)
+            result = cursor.fetchall()
+            cursor.close()
+            self.commit()
+            return dict(result)
+        else:
+            return result
+        # end getFilenameIdMap
+
+
+    def ingest_provenance(self, prov, execids):
+        DELIM = ","
+        USED  = "used"
+        WGB   = "was_generated_by"
+        WDF   = "was_derived_from"
+        OPM_PROCESS_ID = "OPM_PROCESS_ID"
+        OPM_ARTIFACT_ID = "OPM_ARTIFACT_ID"
+        PARENT_OPM_ARTIFACT_ID = "PARENT_OPM_ARTIFACT_ID"
+        CHILD_OPM_ARTIFACT_ID  = "CHILD_OPM_ARTIFACT_ID"
+        USED_TABLE = "OPM_USED"
+        WGB_TABLE  = "OPM_WAS_GENERATED_BY"
+        WDF_TABLE  = "OPM_WAS_DERIVED_FROM"
+        COLMAP_USED_WGB = [OPM_PROCESS_ID,OPM_ARTIFACT_ID]
+        COLMAP_WDF = [PARENT_OPM_ARTIFACT_ID,CHILD_OPM_ARTIFACT_ID]
+        PARENTS = "parents"
+        CHILDREN = "children"
+
+        insertSQL = """insert into %s d (%s) select %s,%s %s where not exists(
+                    select * from %s n where n.%s=%s and n.%s=%s)"""
+
+        data = []
+        bindStr = self.get_positional_bind_string()
+        cursor = self.cursor()
+        filemap = self.getFilenameIdMap(prov)
+
+        for execname, filenames in prov[USED].iteritems():
+            for file in filenames.split(DELIM):
+                rowdata = []
+                rowdata.append(execids[execname])
+                rowdata.append(filemap[file.strip()])
+                rowdata.append(execids[execname])
+                rowdata.append(filemap[file.strip()])
+                data.append(rowdata)
+        execSQL = insertSQL % (USED_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), USED_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
+        cursor.executemany(execSQL, data)
+        data = []
+
+        for execname, filenames in prov[WGB].iteritems():
+            for file in filenames.split(DELIM):
+                rowdata = []
+                rowdata.append(execids[execname])
+                rowdata.append(filemap[file.strip()])
+                rowdata.append(execids[execname])
+                rowdata.append(filemap[file.strip()])
+                data.append(rowdata)
+        execSQL = insertSQL % (WGB_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WGB_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
+        cursor.executemany(execSQL, data)
+        data = []
+
+        for tuples in prov[WDF].values():
+            for parentfile in tuples[PARENTS].split(DELIM):
+                for childfile in tuples[CHILDREN].split(DELIM):
+                    rowdata = []
+                    rowdata.append(filemap[parentfile.strip()])
+                    rowdata.append(filemap[childfile.strip()])
+                    rowdata.append(filemap[parentfile.strip()])
+                    rowdata.append(filemap[childfile.strip()])
+                    data.append(rowdata)
+        execSQL = insertSQL % (WDF_TABLE,PARENT_OPM_ARTIFACT_ID + "," + CHILD_OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WDF_TABLE, PARENT_OPM_ARTIFACT_ID,bindStr,CHILD_OPM_ARTIFACT_ID,bindStr)
+        cursor.executemany(execSQL, data)
+        self.commit()
+    #end_ingest_provenance
+

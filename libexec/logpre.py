@@ -6,6 +6,7 @@
 
 import sys
 import os
+from processingfw.pfwdefs import *
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -23,7 +24,7 @@ def logpre(argv = None):
     if len(argv) < 5:
         print 'Usage: logpre configfile block subblocktype subblock'
         debugfh.close()
-        return(pfwconfig.PfwConfig.FAILURE)
+        return(PF_FAILURE)
 
     configfile = sys.argv[1]
     block = sys.argv[2]
@@ -32,16 +33,15 @@ def logpre(argv = None):
     
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    print config['reqnum']
 
     dbh = pfwdb.PFWDB()
     dbh.insert_blktask(config, "", subblock)
 
     # now that have more information, can rename output file
-    new_log_name = config.get_filename('block', {'currentvals':
-                                                    {'filetype': 'logpre_${subblock}',
+    new_log_name = config.get_filename('block', {PF_CURRVALS:
+                                                    {'flabel': 'logpre_${subblock}',
                                                      'subblock': subblock,
-                                                     'suffix':'out'}})
+                                                     'fsuffix':'out'}})
     print "new_log_name=",new_log_name
     debugfh.close()
     os.rename('logpre.out', new_log_name)
@@ -53,7 +53,7 @@ def logpre(argv = None):
     log_pfw_event(config, block, subblock, subblocktype, ['pretask'])
     
     debugfh.close()
-    return(int(pfwconfig.PfwConfig.SUCCESS))
+    return(PF_SUCCESS)
 
 if __name__ == "__main__":
     sys.exit(logpre(sys.argv))

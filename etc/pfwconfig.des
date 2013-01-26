@@ -1,7 +1,7 @@
 useqcf = False
 usedb = True
 tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
-<filename_patterns>
+<filename_pattern>
     <qoutput>
         name = qoutput
         pattern = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
@@ -12,7 +12,7 @@ tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulenam
     </config>
     <block>
         name = block
-        pattern = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${filetype}.${suffix}
+        pattern = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
     </block>
     <wcl>
         name = wcl
@@ -24,14 +24,14 @@ tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulenam
     </log>
     <job>
         name = job
-        pattern = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${endstr}.${suffix}
+        pattern = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${flabel}.${fsuffix}
     </job>
     <mngrdag>
         name = mngrdag
         pattern = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
     </mngrdag>
-</filename_patterns>
-<directory_patterns>
+</filename_pattern>
+<directory_pattern>
     <wcl>
         name = wcl
         ops = tbd 
@@ -42,4 +42,4 @@ tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulenam
         ops = tbd 
         runtime = log/${modulename}
     </log>
-</directory_patterns>
+</directory_pattern>

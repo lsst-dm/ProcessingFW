@@ -10,6 +10,8 @@ import os
 import glob
 import subprocess
 from cStringIO import StringIO
+
+from processingfw.pfwdefs import *
 import processingfw.pfwconfig as pfwconfig
 
 NUMLINES = 50
@@ -66,7 +68,7 @@ def send_email(config, block, status, subject, msg1, msg2):
     subject = "DESDM: %s %s %s %s" % (project, run, block, subject)
     if int(status) == pfwconfig.PfwConfig.NOTARGET:
         subject += " [NOTARGET]"
-    elif int(status) != pfwconfig.PfwConfig.SUCCESS:
+    elif int(status) != PF_SUCCESS:
         subject += " [FAILED]"
 
     if 'email' in config:

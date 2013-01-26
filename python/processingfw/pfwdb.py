@@ -21,6 +21,7 @@ import socket
 from collections import OrderedDict
 
 import coreutils
+from processingfw.pfwdefs import *
 from processingfw.pfwutils import debug
 
 from errors import DuplicateDBFiletypeError
@@ -46,10 +47,10 @@ class PFWDB (coreutils.DesDbi):
 
         result = OrderedDict()
         
-        result['archive'] = self.get_database_table('OPS_ARCHIVE_NODES', 'NAME') 
-        result['directory_patterns'] = self.get_database_table('OPS_DIRECTORY_PATTERNS', 'NAME')
-        result['filename_patterns'] = self.get_database_table('OPS_FILENAME_PATTERNS', 'NAME')
-        result['site'] = self.get_database_table('OPS_SITES', 'NAME')
+        result['archive'] = self.get_database_table('OPS_ARCHIVE_NODE', 'NAME') 
+        result[SW_DIRPATSECT] = self.get_database_table('OPS_DIRECTORY_PATTERN', 'NAME')
+        result[SW_FILEPATSECT] = self.get_database_table('OPS_FILENAME_PATTERN', 'NAME')
+        result['site'] = self.get_database_table('OPS_SITE', 'NAME')
         result['filetype_metadata'] = self.get_all_filetype_metadata()
 
         return result
@@ -170,7 +171,7 @@ class PFWDB (coreutils.DesDbi):
 
             # pfw_request
             debug(3, 'PFWDB_DEBUG', "Inserting to pfw_request table\n")
-            reqnum = config.search('reqnum', {'interpolate': True})[1]
+            reqnum = config.search(REQNUM, {'interpolate': True})[1]
             project = config.search('project', {'interpolate': True})[1]
             jiraid = config.search('jira_id', {'interpolate': True})[1]
             pipeline = config.search('pipeline', {'interpolate': True})[1]
@@ -190,7 +191,7 @@ class PFWDB (coreutils.DesDbi):
 
             # pfw_unit
             debug(3, 'PFWDB_DEBUG', "Inserting to pfw_unit table\n")
-            unitname = config.search('unitname', {'interpolate': True})[1]
+            unitname = config.search(UNITNAME, {'interpolate': True})[1]
             try:
                 curs = self.cursor()
                 sql = "insert into pfw_unit (reqnum, unitname) select %s, '%s' %s where not exists (select null from pfw_unit where reqnum=%s and unitname='%s')" % (reqnum, unitname, from_dual, reqnum, unitname)
@@ -234,7 +235,7 @@ class PFWDB (coreutils.DesDbi):
                 else:
                     raise e
 
-            config['attnum'] = maxatt+1
+            config[ATTNUM] = maxatt+1
             done = True
 
         if not done:
@@ -250,9 +251,9 @@ class PFWDB (coreutils.DesDbi):
         updatevals['condorid'] = condorid
 
         wherevals = {}
-        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
 
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
@@ -264,9 +265,9 @@ class PFWDB (coreutils.DesDbi):
         updatevals['starttime'] = 'CURRENT_TIMESTAMP'
 
         wherevals = {}
-        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
         
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
@@ -291,26 +292,26 @@ class PFWDB (coreutils.DesDbi):
         """ Insert an entry into the pfw_block table """
         debug(3, 'PFWDB_DEBUG', "Inserting to pfw_block table\n")
 
-        blknum = config.search('blknum', {'interpolate': False})[1]
+        blknum = config.search(PF_BLKNUM, {'interpolate': False})[1]
         if blknum == '1':  # attempt is starting
             updatevals = {}
             updatevals['starttime'] = self.get_current_timestamp_str()
 
             wherevals = {}
-            wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-            wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-            wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+            wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+            wherevals['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+            wherevals['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
             self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
             
 
 
         row = {}
-        row['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-        row['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-        row['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
+        row['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+        row['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+        row['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
         row['blknum'] = self.quote(blknum)
         row['name'] = self.quote(config.search('blockname', {'interpolate': True})[1])
-        row['modulelist'] = self.quote(config.search('modulelist', {'interpolate': True})[1])
+        row['modulelist'] = self.quote(config.search(SW_MODULELIST, {'interpolate': True})[1])
         row['starttime'] = self.get_current_timestamp_str()
         self.insert_pfw_row('PFW_BLOCK', row)
 
@@ -320,10 +321,10 @@ class PFWDB (coreutils.DesDbi):
         updatevals['numexpjobs'] = self.quote(numexpjobs)
 
         wherevals = {}
-        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
-        wherevals['blknum'] = self.quote(config['blknum'])
+        wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config.search(PF_BLKNUM, {'interpolate': False})[1])
 
         self.update_PFW_row ('PFW_BLOCK', wherevals, updatevals)
 
@@ -336,10 +337,10 @@ class PFWDB (coreutils.DesDbi):
         updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
-        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
-        wherevals['blknum'] = self.quote(config['blknum'])
+        wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config.search(PF_BLKNUM, {'interpolate': False})[1])
 
         self.update_PFW_row ('PFW_BLOCK', wherevals, updatevals)
 
@@ -348,10 +349,10 @@ class PFWDB (coreutils.DesDbi):
         """ Insert an entry into the pfw_blktask table """
         debug(3, 'PFWDB_DEBUG', "Inserting to pfw_blktask table\n")
         row = {}
-        row['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-        row['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-        row['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
-        row['blknum'] = self.quote(config.search('blknum', {'interpolate': False})[1])
+        row['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+        row['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+        row['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
+        row['blknum'] = self.quote(config.search(PF_BLKNUM, {'interpolate': False})[1])
         tasknum = config.inc_tasknum(1)
         row['tasknum'] = self.quote(tasknum)
         row['name'] = self.quote("%s_%s" % (taskname, modname))
@@ -366,10 +367,10 @@ class PFWDB (coreutils.DesDbi):
         updatevals['status'] = self.quote(status)
 
         wherevals = {}
-        wherevals['reqnum'] = self.quote(config.search('reqnum', {'interpolate': True})[1])
-        wherevals['unitname'] = self.quote(config.search('unitname', {'interpolate': True})[1])
-        wherevals['attnum'] = self.quote(config.search('attnum', {'interpolate': False})[1])
-        wherevals['blknum'] = self.quote(config.search('blknum', {'interpolate': False})[1])
+        wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
+        wherevals['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
+        wherevals['attnum'] = self.quote(config.search(ATTNUM, {'interpolate': False})[1])
+        wherevals['blknum'] = self.quote(config.search(PF_BLKNUM, {'interpolate': False})[1])
         wherevals['name'] = self.quote("%s_%s" % (taskname, modname))
 
         self.update_PFW_row ('PFW_BLKTASK', wherevals, updatevals)
@@ -382,11 +383,11 @@ class PFWDB (coreutils.DesDbi):
         debug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
 
         row = {}
-        row['reqnum'] = self.quote(wcl['reqnum'])
-        row['unitname'] = self.quote(wcl['unitname'])
-        row['attnum'] = self.quote(wcl['attnum'])
-        row['blknum'] = self.quote(wcl['blknum'])
-        row['jobnum'] = self.quote(wcl['jobnum'])
+        row['reqnum'] = self.quote(wcl[REQNUM])
+        row['unitname'] = self.quote(wcl[UNITNAME])
+        row['attnum'] = self.quote(wcl[ATTNUM])
+        row['blknum'] = self.quote(wcl[PF_BLKNUM])
+        row['jobnum'] = self.quote(wcl[JOBNUM])
         row['starttime'] = self.get_current_timestamp_str()
         row['numexpwrap'] = self.quote(wcl['numexpwrap'])
         row['exechost'] = self.quote(socket.gethostname())
@@ -417,10 +418,10 @@ class PFWDB (coreutils.DesDbi):
         updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
-        wherevals['reqnum'] = self.quote(wcl['reqnum'])
-        wherevals['unitname'] = self.quote(wcl['unitname'])
-        wherevals['attnum'] = self.quote(wcl['attnum'])
-        wherevals['jobnum'] = self.quote(wcl['jobnum'])
+        wherevals['reqnum'] = self.quote(wcl[REQNUM])
+        wherevals['unitname'] = self.quote(wcl[UNITNAME])
+        wherevals['attnum'] = self.quote(wcl[ATTNUM])
+        wherevals['jobnum'] = self.quote(wcl[JOBNUM])
 
         self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
 
@@ -433,14 +434,14 @@ class PFWDB (coreutils.DesDbi):
         wrapid = self.get_seq_next_value('pfw_wrapper_seq')
 
         row = {}
-        row['reqnum'] = self.quote(inputwcl['reqnum'])
-        row['unitname'] = self.quote(inputwcl['unitname'])
-        row['attnum'] = self.quote(inputwcl['attnum'])
-        row['wrapnum'] = self.quote(inputwcl['wrapnum'])
+        row['reqnum'] = self.quote(inputwcl[REQNUM])
+        row['unitname'] = self.quote(inputwcl[UNITNAME])
+        row['attnum'] = self.quote(inputwcl[ATTNUM])
+        row['wrapnum'] = self.quote(inputwcl[WRAPNUM])
         row['name'] = self.quote(inputwcl['wrapname'])
         row['id'] = self.quote(wrapid)
-        row['blknum'] = self.quote(inputwcl['blknum'])
-        row['jobnum'] = self.quote(inputwcl['jobnum'])
+        row['blknum'] = self.quote(inputwcl[PF_BLKNUM])
+        row['jobnum'] = self.quote(inputwcl[JOBNUM])
         row['inputwcl'] = self.quote(os.path.split(iwfilename)[-1])
         row['starttime'] = self.get_current_timestamp_str()
 
@@ -475,10 +476,10 @@ class PFWDB (coreutils.DesDbi):
         execid = self.get_seq_next_value('pfw_exec_seq')
 
         row = {}
-        row['reqnum'] = self.quote(inputwcl['reqnum'])
-        row['unitname'] = self.quote(inputwcl['unitname'])
-        row['attnum'] = self.quote(inputwcl['attnum'])
-        row['wrapnum'] = self.quote(inputwcl['wrapnum'])
+        row['reqnum'] = self.quote(inputwcl[REQNUM])
+        row['unitname'] = self.quote(inputwcl[UNITNAME])
+        row['attnum'] = self.quote(inputwcl[ATTNUM])
+        row['wrapnum'] = self.quote(inputwcl[WRAPNUM])
         row['id'] = self.quote(execid)
         row['execnum'] = self.quote(inputwcl[sect]['execnum'])
         row['name'] = self.quote(inputwcl[sect]['execname'])

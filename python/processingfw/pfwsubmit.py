@@ -12,6 +12,7 @@ import os
 import stat
 import subprocess
 
+from processingfw.pfwdefs import *
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb
@@ -36,7 +37,7 @@ def write_block_dag(config, block, debugfh=None):
 
 
     jobmngr = write_stub_jobmngr_dag(config, block, debugfh)
-    dag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'block'}})
+    dag = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'block'}})
 
     run = config['submit_run']
     dagfh = open(dag, 'w')
@@ -72,7 +73,7 @@ def write_stub_jobmngr_dag(config, block, debugfh=None):
     debugfh.write('write_stub_jobmngr pwd: %s\n' % os.getcwd())
 
     pfwdir = config['processingfw_dir']
-    dag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'jobmngr'}})
+    dag = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'jobmngr'}})
 
     dagfh = open(dag, 'w')
     dagfh.write('DOT jobmngr.dot\n')

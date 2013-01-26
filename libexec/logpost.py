@@ -4,6 +4,7 @@ import sys
 import os
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
+from processingfw.pfwdefs import *
 from processingfw.pfwlog import log_pfw_event
 from processingfw.pfwemail import send_subblock_email
 from processingfw.pfwutils import debug
@@ -23,7 +24,7 @@ def logpost(argv = None):
     if len(argv) < 5:
         print 'Usage: logpost configfile block subblocktype subblock retval'
         debugfh.close()
-        return(pfwconfig.PfwConfig.FAILURE)
+        return(PF_FAILURE)
 
     configfile = argv[1]
     block = argv[2]
@@ -47,10 +48,10 @@ def logpost(argv = None):
 
     # now that have more information, rename output file
     debug(3, 'PFWPOST_DEBUG', "before get_filename")
-    new_log_name = config.get_filename('block', {'currentvals': 
-                                                  {'filetype': 'logpost_${subblock}', 
+    new_log_name = config.get_filename('block', {PF_CURRVALS: 
+                                                  {'flabel': 'logpost_${subblock}', 
                                                    'subblock': subblock,
-                                                   'suffix':'out'}})
+                                                   'fsuffix':'out'}})
     debug(3, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
     debugfh.close()
     os.rename('logpost.out', new_log_name)
@@ -63,10 +64,10 @@ def logpost(argv = None):
     
     # In order to continue, make pipelines dagman jobs exit with success status
     #if 'pipelinesmngr' not in subblock:
-    #    retval = pfwconfig.PfwConfig.SUCCESS
+    #    retval = PF_SUCCESS
     
 #    # If error at non-manager level, send failure email
-#    if retval != pfwconfig.PfwConfig.SUCCESS and \
+#    if retval != PF_SUCCESS and \
 #        'mngr' not in subblock:
 #        send_subblock_email(config, block, subblock, retval)
     

@@ -45,12 +45,15 @@ def traverse_wcl(wcl):
             uvars = traverse_wcl(val)
             if uvars is not None:
                 usedvars.update(uvars)
-        else:
+        elif type(val) is str:
             viter = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
             for vstr in viter:
                 if ':' in vstr:
                     vstr = vstr.split(':')[0]
                 usedvars[vstr] = True
+        else:
+            print "Error: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val)
+    
     debug(9, "PFWUTILS_DEBUG", "END")
     return usedvars
 

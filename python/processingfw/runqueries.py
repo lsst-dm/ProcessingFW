@@ -8,6 +8,8 @@ import sys
 import os
 import subprocess
 import time
+
+from processingfw.pfwdefs import *
 import processingfw.pfwconfig as pfwconfig
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwblock as pfwblock
@@ -26,11 +28,11 @@ def create_master_list(config, modname, moddict,
     else:
         qouttype = 'wcl'  
 
-    qoutfile = config.get_filename('qoutput', {'currentvals': 
+    qoutfile = config.get_filename('qoutput', {PF_CURRVALS: 
         {'modulename': modname, 
          'searchname': search_name, 
          'suffix': qouttype}})
-    qlog = config.get_filename('qoutput', {'currentvals': 
+    qlog = config.get_filename('qoutput', {PF_CURRVALS: 
         {'modulename': modname, 
          'searchname': search_name, 
          'suffix': 'out'}})
@@ -57,17 +59,17 @@ def create_master_list(config, modname, moddict,
                (qoutfile, qouttype, config['wclfile'], modname, search_name)
 
     if not prog:
-        print "\tWarning: %s in module %s does not have exec or query_fields defined" % (search_name, modname)
+        print "\tWarning: %s in module %s does not have exec or %s defined" % (search_name, modname, SW_QUERYFIELDS)
         return
 
     search_dict['qoutfile'] = qoutfile
     search_dict['qlog'] = qlog
 
-    prog = config.interpolate(prog, {'currentvals':{'module':modname}, 
+    prog = config.interpolate(prog, {PF_CURRVALS:{SW_MODULESECT:modname}, 
                               'searchobj':search_dict})
 
     # handle both outputxml and outputfile args
-    args = config.interpolate(args, {'currentvals':{'module':modname, 
+    args = config.interpolate(args, {PF_CURRVALS:{SW_MODULESECT:modname, 
                               'outputxml':qoutfile, 'outputfile':qoutfile, 
                               'qoutfile':qoutfile}, 
                               'searchobj':search_dict})
@@ -100,11 +102,11 @@ def create_master_list(config, modname, moddict,
 
 
 def runqueries(config, modname, modules_prev_in_list):
-    moddict = config['module'][modname]
+    moddict = config[SW_MODULESECT][modname]
     
     # process each "list" in each module
-    if 'list' in moddict:
-        uber_list_dict = moddict['list']
+    if SW_LISTSECT in moddict:
+        uber_list_dict = moddict[SW_LISTSECT]
         if 'list_order' in moddict:
             listorder = pfwutils.pfwsplit(moddict['list_order'].lower())
         else:
@@ -120,8 +122,8 @@ def runqueries(config, modname, modules_prev_in_list):
                                    moddict, listname, list_dict)
     
     # process each "file" in each module
-    if 'filespecs' in moddict:
-        for filename, file_dict in moddict['filespecs'].items():
+    if SW_FILESECT in moddict:
+        for filename, file_dict in moddict[SW_FILESECT].items():
             if 'depends' not in file_dict or \
                 not file_dict['depends'] not in modules_prev_in_list:
                 print "\t%s-%s: creating master list\n" % \
@@ -143,16 +145,16 @@ def main(argv = None):
     # log condor jobid
     log_pfw_event(config, config['curr_block'], 'runqueries', 'j', ['cid', condorid])
 
-    if 'modulelist' not in config:
+    if SW_MODULELIST not in config:
         raise Exception("Error:  No modules to run.")
     
     ### Get master lists and files calling external codes when needed
     
-    modulelist = pfwutils.pfwsplit(config['modulelist'].lower())
+    modulelist = pfwutils.pfwsplit(config[SW_MODULELIST].lower())
     
     modules_prev_in_list = {}
     for modname in modulelist:
-        if modname not in config['module']:
+        if modname not in config[SW_MODULESECT]:
             raise Exception("Error: Could not find module description for module %s\n" % (modname))
         runqueries(config, modname, modules_prev_in_list)
         modules_prev_in_list[modname] = True

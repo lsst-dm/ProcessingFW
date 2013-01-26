@@ -8,6 +8,8 @@
 import argparse
 import sys
 import re
+
+from processingfw.pfwdefs import *
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -36,12 +38,13 @@ def main(argv=None):
             print "Error: run is not in current condor queue.   Not deleting run."
             return(1)
 
-        if 'des_run' not in masterjob[givcondorid]:
-            print "Given argument doesn't look like a desdm job (missing des_run).    Not deleting run"
+        runkey = ATTRIB_PREFIX + 'run'
+        if runkey not in masterjob[givcondorid]:
+            print "Given argument doesn't look like a desdm job (missing %s).    Not deleting run" % runkey
             print masterjob
             return(1)
 
-        run = masterjob[givcondorid]['des_run']
+        run = masterjob[givcondorid][runkey]
         #print "Converted condor id to run", run
             
     m = re.match("([^_]+)_r(\d)p(\d+)", run)
@@ -84,7 +87,7 @@ def main(argv=None):
 
     pfwcondor.condor_rm(condorid)
     dbh = pfwdb.PFWDB()
-    dbh.update_attempt_end(reqnum, unitname, attnum, pfwconfig.PfwConfig.OPDELETE)
+    dbh.update_attempt_end(reqnum, unitname, attnum, PF_OPDELETE)
     return(0)
 
 if __name__ == "__main__":

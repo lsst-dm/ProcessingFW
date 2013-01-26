@@ -5,6 +5,7 @@ import sys
 #import re
 #import os
 import processingfw.pfwcondor as pfwcondor
+from processingfw.pfwdefs import *
 #import pfwcondor
 
 
@@ -13,15 +14,16 @@ def main(argv=None):
     parser.add_argument('--user', action='store', default=None)
     args = parser.parse_args(argv)
 
-    constraint_str = "-constraint des_isdesjob "
+    constraint_str = "-constraint %sisjob " % ATTRIB_PREFIX
     if args.user:
         constraint_str += args.user
+    print constraint_str
     (qjobs, top_jobs, orphan_jobs) = pfwcondor.condorq_dag(constraint_str)
 #    print qjobs
 
     jobcnt = len(qjobs)
     if jobcnt == 0:
-        print "No DES jobs\n" 
+        print "No framework jobs\n" 
         return(1)
 
     # Output jobs
@@ -30,8 +32,8 @@ def main(argv=None):
         print_single(job, " ", qjobs)
 
     for job in sorted(orphan_jobs):
-        if 'des_block' in qjobs[job] and \
-            qjobs[job]['des_block'] == 'saveruntime':
+        if '%sblock' % ATTRIB_PREFIX in qjobs[job] and \
+            qjobs[job]['%sblock' % ATTRIB_PREFIX] == 'saveruntime':
             print_single(job, " ", qjobs)
         else:
             print_single(job, "X", qjobs)
@@ -49,8 +51,8 @@ def print_header():
 
 def status_target_jobs(job, qjobs):
     numtjobs = 'UNK'
-    if 'des_numjobs' in qjobs[job]:
-        numtjobs = qjobs[job]['des_numjobs']
+    if '%snumjobs' % ATTRIB_PREFIX in qjobs[job]:
+        numtjobs = qjobs[job]['%snumjobs' % ATTRIB_PREFIX]
 
     chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'ERR': 0}
     for childjob in qjobs[job]['children']:
@@ -65,11 +67,11 @@ def status_target_jobs(job, qjobs):
 def print_single(topjobid, jobtype, qjobs):
     """ Print info for single job """
 
-    if 'des_operator' not in qjobs[topjobid]:
+    if '%soperator' % ATTRIB_PREFIX not in qjobs[topjobid]:
         if 'owner' in qjobs[topjobid]:
-            qjobs[topjobid]['des_operator'] = qjobs[topjobid]['owner'].replace('"', '')
+            qjobs[topjobid]['%soperator' % ATTRIB_PREFIX] = qjobs[topjobid]['owner'].replace('"', '')
         else:
-            qjobs[topjobid]['des_operator'] = "UNK"
+            qjobs[topjobid]['%soperator' % ATTRIB_PREFIX] = "UNK"
 
     # find innermost dag job
     jobid = topjobid
@@ -80,8 +82,8 @@ def print_single(topjobid, jobtype, qjobs):
     info = {}
     for key in ['project', 'run', 'runsite', 'block', 'subblock', 'operator']:
         info[key] = ""
-        if "des_"+key in qjobs[jobid]:
-            info[key] = qjobs[jobid]["des_"+key]
+        if ATTRIB_PREFIX + key in qjobs[jobid]:
+            info[key] = qjobs[jobid][ATTRIB_PREFIX + key]
 
     info['status'] = pfwcondor.get_job_status_str(jobid, qjobs)
 
@@ -89,7 +91,7 @@ def print_single(topjobid, jobtype, qjobs):
     if len(qjobs[jobid]['children']) > 0:
         info['status'] = status_target_jobs(jobid, qjobs)
         info['subblock'] = "pipelines"
-        info['block'] = qjobs[qjobs[jobid]['children'][0]]['des_block']
+        info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % ATTRIB_PREFIX]
 
     print "%7s %1s %3s %-27s %-30s %-15s %-17s %-8s %-15s" % ( 
           topjobid, jobtype, info['project'][:3], info['run'][:27], 

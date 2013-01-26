@@ -10,6 +10,7 @@ import os
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwutils as pfwutils
 from processingfw.runqueries import runqueries
+from processingfw.pfwdefs import *
 import processingfw.pfwwrappers as pfwwrappers
 import processingfw.pfwblock as pfwblock
 import processingfw.pfwdb as pfwdb
@@ -27,16 +28,16 @@ def begblock(argv):
     dbh = pfwdb.PFWDB()
     dbh.insert_block(config)
 
-    pfwutils.debug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config['blknum']))
-    if config['blknum'] == '0':
+    pfwutils.debug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[PF_BLKNUM]))
+    if config[PF_BLKNUM] == '0':
         pfwutils.debug(3, 'PFWBLOCK_DEBUG', "Calling update_attempt_beg")
         dbh.update_attempt_beg(config)
 
-    modulelist = pfwutils.pfwsplit(config['modulelist'].lower())
+    modulelist = pfwutils.pfwsplit(config[SW_MODULELIST].lower())
     modules_prev_in_list = {}
     tasks = []
     for modname in modulelist:
-        if modname not in config['module']:
+        if modname not in config[SW_MODULESECT]:
             raise Exception("Error: Could not find module description for module %s\n" % (modname))
 
         dbh.insert_blktask(config, modname, "runqueries")
@@ -57,25 +58,27 @@ def begblock(argv):
     scriptfile = pfwblock.write_runjob_script(config)
     jobwclfile = pfwblock.write_jobwcl(config, '1', len(tasks))
 
-    dagfile = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'jobmngr'}})
+    dagfile = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'jobmngr'}})
     numjobs = 1
     dbh.update_block_numexpjobs(config, numjobs)
     pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfile)
     
     
 
-    os.mkdir('../%s_tjobs' % config['blockname'])
-    os.rename(tarfile, "../%s_tjobs/%s" % (config['blockname'], tarfile))
-    os.rename(tasksfile, "../%s_tjobs/%s" % (config['blockname'], tasksfile))
-    os.rename(jobwclfile, "../%s_tjobs/%s" % (config['blockname'], jobwclfile))
-#    os.rename(scriptfile, "../%s_tjobs/%s" % (config['blockname'], scriptfile))
+    jobsdir = '../%s_tjobs' % config['blockname']
+    if not os.path.exists(jobsdir):
+        os.mkdir(jobsdir)
+    os.rename(tarfile, "%s/%s" % (jobsdir, tarfile))
+    os.rename(tasksfile, "%s/%s" % (jobsdir, tasksfile))
+    os.rename(jobwclfile, "%s/%s" % (jobsdir, jobwclfile))
+#    os.rename(scriptfile, "%s/%s" % (jobsdir, scriptfile))
     
-    return(pfwconfig.PfwConfig.SUCCESS)
+    return(PF_SUCCESS)
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print "Usage: begblock.py configfile"
-        sys.exit(pfwconfig.PfwConfig.FAILURE)
+        sys.exit(PF_FAILURE)
 
     print ' '.join(sys.argv)
     sys.exit(begblock(sys.argv[1:]))

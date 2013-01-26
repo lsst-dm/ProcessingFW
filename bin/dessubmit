@@ -10,6 +10,7 @@ import argparse
 import os
 import shutil
 import sys
+from processingfw.pfwdefs import *
 import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwlog as pfwlog
@@ -26,8 +27,8 @@ def create_dags(config, logfh):
     sys.stdout = logfh
     sys.stderr = logfh
 
-    maindag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'mainmngr'}})
-    processdag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'processmngr'}})
+    maindag = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'mainmngr'}})
+    processdag = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'processmngr'}})
 
     try:
         pfwsubmit.write_process_dag(config, processdag)

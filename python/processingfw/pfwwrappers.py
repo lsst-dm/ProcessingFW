@@ -5,9 +5,11 @@
 # $LastChangedDate::                      $:  # Date of last commit.
 
 import os
-from intgutils.wclutils import write_wcl
 import errno
 import stat
+
+from intgutils.wclutils import write_wcl
+from processingfw.pfwdefs import *
 
 def write_wrapper_wcl(config, filename, wrapperwcl):
     wcldir = os.path.dirname(filename)
@@ -25,7 +27,7 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
 
 
 def write_workflow_taskfile(config, tasks):
-    taskfile = config.get_filename('block', {'currentvals': {'filetype': 'tasks', 'suffix':'list'}, 'required': True, 'interpolate': True})
+    taskfile = config.get_filename('block', {PF_CURRVALS: {'flabel': 'tasks', 'fsuffix':'list'}, 'required': True, 'interpolate': True})
     with open(taskfile, 'w', 0) as tasksfh:
         for task in sorted(tasks, key=lambda singletask: int(singletask[0])):
             tasksfh.write("%s, %s, %s, %s\n" % (task[0], task[1], task[2], task[3]))

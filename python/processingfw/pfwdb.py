@@ -976,16 +976,19 @@ class PFWDB (coreutils.DesDbi):
         allfiles = set()
         result = []
         rows = []
-        for filenames in prov[USED].values():
-            for file in filenames.split(DELIM):
-                allfiles.add(file.strip())
-        for filenames in prov[WGB].values():
-            for file in filenames.split(DELIM):
-                allfiles.add(file.strip())
-        for tuples in prov[WDF].values():
-            for filenames in tuples.values():
+        if USED in prov:
+            for filenames in prov[USED].values():
                 for file in filenames.split(DELIM):
                     allfiles.add(file.strip())
+        if WGB in prov:
+            for filenames in prov[WGB].values():
+                for file in filenames.split(DELIM):
+                    allfiles.add(file.strip())
+        if WDF in prov:
+            for tuples in prov[WDF].values():
+                for filenames in tuples.values():
+                    for file in filenames.split(DELIM):
+                        allfiles.add(file.strip())
         for file in allfiles:
             rows.append(dict({FILENAME:file}))
         if len(allfiles) > 0:
@@ -1025,42 +1028,45 @@ class PFWDB (coreutils.DesDbi):
         bindStr = self.get_positional_bind_string()
         cursor = self.cursor()
         filemap = self.getFilenameIdMap(prov)
-
-        for execname, filenames in prov[USED].iteritems():
-            for file in filenames.split(DELIM):
-                rowdata = []
-                rowdata.append(execids[execname])
-                rowdata.append(filemap[file.strip()])
-                rowdata.append(execids[execname])
-                rowdata.append(filemap[file.strip()])
-                data.append(rowdata)
-        execSQL = insertSQL % (USED_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), USED_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
-        cursor.executemany(execSQL, data)
-        data = []
-
-        for execname, filenames in prov[WGB].iteritems():
-            for file in filenames.split(DELIM):
-                rowdata = []
-                rowdata.append(execids[execname])
-                rowdata.append(filemap[file.strip()])
-                rowdata.append(execids[execname])
-                rowdata.append(filemap[file.strip()])
-                data.append(rowdata)
-        execSQL = insertSQL % (WGB_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WGB_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
-        cursor.executemany(execSQL, data)
-        data = []
-
-        for tuples in prov[WDF].values():
-            for parentfile in tuples[PARENTS].split(DELIM):
-                for childfile in tuples[CHILDREN].split(DELIM):
+        
+        if USED in prov:
+            for execname, filenames in prov[USED].iteritems():
+                for file in filenames.split(DELIM):
                     rowdata = []
-                    rowdata.append(filemap[parentfile.strip()])
-                    rowdata.append(filemap[childfile.strip()])
-                    rowdata.append(filemap[parentfile.strip()])
-                    rowdata.append(filemap[childfile.strip()])
+                    rowdata.append(execids[execname])
+                    rowdata.append(filemap[file.strip()])
+                    rowdata.append(execids[execname])
+                    rowdata.append(filemap[file.strip()])
                     data.append(rowdata)
-        execSQL = insertSQL % (WDF_TABLE,PARENT_OPM_ARTIFACT_ID + "," + CHILD_OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WDF_TABLE, PARENT_OPM_ARTIFACT_ID,bindStr,CHILD_OPM_ARTIFACT_ID,bindStr)
-        cursor.executemany(execSQL, data)
-        self.commit()
+            execSQL = insertSQL % (USED_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), USED_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
+            cursor.executemany(execSQL, data)
+            data = []
+        
+        if WGB in prov:
+            for execname, filenames in prov[WGB].iteritems():
+                for file in filenames.split(DELIM):
+                    rowdata = []
+                    rowdata.append(execids[execname])
+                    rowdata.append(filemap[file.strip()])
+                    rowdata.append(execids[execname])
+                    rowdata.append(filemap[file.strip()])
+                    data.append(rowdata)
+            execSQL = insertSQL % (WGB_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WGB_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
+            cursor.executemany(execSQL, data)
+            data = []
+        
+        if WDF in prov:
+            for tuples in prov[WDF].values():
+                for parentfile in tuples[PARENTS].split(DELIM):
+                    for childfile in tuples[CHILDREN].split(DELIM):
+                        rowdata = []
+                        rowdata.append(filemap[parentfile.strip()])
+                        rowdata.append(filemap[childfile.strip()])
+                        rowdata.append(filemap[parentfile.strip()])
+                        rowdata.append(filemap[childfile.strip()])
+                        data.append(rowdata)
+            execSQL = insertSQL % (WDF_TABLE,PARENT_OPM_ARTIFACT_ID + "," + CHILD_OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WDF_TABLE, PARENT_OPM_ARTIFACT_ID,bindStr,CHILD_OPM_ARTIFACT_ID,bindStr)
+            cursor.executemany(execSQL, data)
+            self.commit()
     #end_ingest_provenance
 

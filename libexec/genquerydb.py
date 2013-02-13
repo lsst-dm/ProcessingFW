@@ -7,6 +7,7 @@
 import argparse
 import sys
 import re
+from processingfw.pfwdefs import *
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwfilelist as pfwfilelist
 import processingfw.pfwutils as pfwutils
@@ -27,23 +28,23 @@ def main(argv):
     print args.configfile
     config = pfwconfig.PfwConfig({'wclfile':args.configfile})
     
-    if args.modulename not in config['module']:
+    if args.modulename not in config[SW_MODULESECT]:
         raise Exception("Error: module '%s' does not exist.\n" % (args.modulename))
     
-    module_dict = config['module'][args.modulename]
+    module_dict = config[SW_MODULESECT][args.modulename]
     
     if args.searchname is not None:
-        if 'list' in module_dict and args.searchname in module_dict['list']:
-            search_dict = module_dict['list'][args.searchname]
-        elif 'filespecs' in module_dict and args.searchname in module_dict['filespecs']:
-            search_dict = module_dict['filespecs'][args.searchname]
+        if SW_LISTSECT in module_dict and args.searchname in module_dict[SW_LISTSECT]:
+            search_dict = module_dict[SW_LISTSECT][args.searchname]
+        elif SW_FILESECT in module_dict and args.searchname in module_dict[SW_FILESECT]:
+            search_dict = module_dict[SW_FILESECT][args.searchname]
         else:
             raise Exception("Error: Could not find either list or file by name %s in module %s\n" % (args.searchname, args.modulename))
         nickname = args.searchname
     else:
         raise Exception("Error: need to define either list or file or search\n")
     
-    fields = pfwutils.pfwsplit(search_dict['query_fields'].lower())
+    fields = pfwutils.pfwsplit(search_dict[SW_QUERYFIELDS].lower())
     
     if ('query_run' in config and 'fileclass' in search_dict and 
         'fileclass' in config and search_dict['fileclass'] == config['fileclass']):

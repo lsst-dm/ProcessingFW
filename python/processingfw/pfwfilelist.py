@@ -5,10 +5,12 @@
 # $LastChangedDate::                      $:  # Date of last commit.
 
 import coreutils.desdbi as desdbi
+import intgutils.wclutils as wclutils
+
+from processingfw.pfwdefs import *
 import processingfw.pfwlog as pfwlog
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
-import intgutils.wclutils as wclutils
 
 ###########################################################
 def gen_file_list(query, debug = 3):
@@ -43,11 +45,11 @@ def convert_single_files_to_lines(filelist):
     elif type(filelist) is dict:  # single file
         filelist = [filelist]
 
-    linedict = {'list': {'line': {}}}
+    linedict = {'list': {PF_LISTENTRY: {}}}
     for onefile in filelist:
         fname = "file%05d" % (count)
         lname = "line%05d" % (count)
-        linedict['list']['line'][lname] = {'file': {fname: onefile}}
+        linedict['list'][PF_LISTENTRY][lname] = {'file': {fname: onefile}}
         count += 1
     return linedict
 

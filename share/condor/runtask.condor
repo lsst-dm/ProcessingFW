@@ -13,12 +13,11 @@ environment="submit_condorid=$(Cluster).$(Process)"
 notification=never
 output=$(run)_$(jobname).out
 error=$(run)_$(jobname).err
-log=../uberctrl/localjob.log
+log=runtask.log
 +des_isjob=TRUE
 +des_project="$(project)"
 +des_run="$(run)"
 +des_runsite="$(runsite)"
-+des_block="$(block)"
++des_block="uberctrl"
 +des_subblock="$(jobname)"
-initialdir = ../$(block)
 queue

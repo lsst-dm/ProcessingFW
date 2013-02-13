@@ -150,6 +150,7 @@ def create_rsl(info):
     """Create RSL for grid job"""
     rslparts = []
 
+    print "info=", info
     for key in ['stdout', 'stderr']:
         if key in info:
             rslparts.append('(%s=%s)' % (key, info[key]))
@@ -181,6 +182,7 @@ def create_rsl(info):
             env = infoenv
         rslparts.append('(environment=%s)' % env)
 
+    print "rslparts=", rslparts
     return ''.join(rslparts)
 
 

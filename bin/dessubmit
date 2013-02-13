@@ -7,10 +7,14 @@
 """ TODO docstring """
 
 import argparse
+import time
 import os
 import shutil
 import sys
+
+from processingfw.pfwdefs import *
 import processingfw.pfwsubmit as pfwsubmit
+import processingfw.pfwutils as pfwutils
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb
@@ -26,12 +30,11 @@ def create_dags(config, logfh):
     sys.stdout = logfh
     sys.stderr = logfh
 
-    maindag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'mainmngr'}})
-    processdag = config.get_filename('mngrdag', {'currentvals': {'dagtype': 'processmngr'}})
+    maindag = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'mainmngr'}})
 
     try:
-        pfwsubmit.write_process_dag(config, processdag)
-        pfwsubmit.write_main_dag(config, maindag, processdag)
+        blockdag = pfwsubmit.write_block_dag(config)
+        pfwsubmit.write_main_dag(config, maindag, blockdag)
     except:
         sys.stdout = realstdout
         sys.stderr = realstderr
@@ -42,42 +45,71 @@ def create_dags(config, logfh):
 
     return maindag
 
+# useDBin:   get default config, files already in cache, files already tracked, existing file metadata, provenance
+# use_db_out:  framework can write to database, unclear how can control pipeline application codes
+# useQCF: only used if useDBout is true, controls whether to use QCF or not
+# usePFWconfig:  whether to include $PROCESSINGFW_DIR/etc/pfwconfig.des
+
+# des_services and des_db_section override wcl and environ
+#     wcl overrides environ
 
 def main(args):
     try:
         parser = argparse.ArgumentParser(description='dessubmit')
-        parser.add_argument('--notarget', action='store_true', default=False)
+        boolargs = ['notarget', PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF, 'usePFWconfig', 'version']
+
+        for barg in boolargs:
+            parser.add_argument('--%s' % barg, action='store', type=str)
         parser.add_argument('--gensubmit', action='store')
-        parser.add_argument('--querydb', action='store_true', default=True)
-        parser.add_argument('--pfwconfig', action='store_true', default=True)
-        parser.add_argument('--version', action='store_true', default=False)
+        parser.add_argument('--des_services', action='store')
+        parser.add_argument('--des_db_section', action='store')
         parser.add_argument('submitwcl', nargs=1, action='store')
 
-        args = parser.parse_args()
+        args = vars(parser.parse_args())   # convert dict
+
+        for barg in boolargs:
+            if args[barg] is not None:
+                args[barg] = pfwutils.convertBool(args[barg])
 
         print 'Using version %s of dessubmit\n' % VERSION
 
-        if args.version:
-            return 0
+        if args['version']:
+            return 0   # already printed version
 
-        if args.notarget:
-            print "RUNNING WITH NOTARGET\n"
-            args.notarget = 1
+        if args['notarget']:
+            print "Note:  notarget is depricated.   Instead use --%s" % PF_DRYRUN 
+            args[PF_DRYRUN] = True
         else:
-            args.notarget = 0
+            args[PF_DRYRUN] = False
 
-        config = pfwconfig.PfwConfig({'wclfile':args.submitwcl[0], 
-                                      'querydb':args.querydb,
-                                      'pfwconfig':args.pfwconfig,
-                                      'notarget':args.notarget})
+        if args[PF_DRYRUN]:
+            print "RUNNING WITH %s\n" % PF_DRYRUN.upper()
 
-        if args.gensubmit:
-            config.save_file(args.gensubmit)
+        args['wclfile'] = args['submitwcl'][0]
+        args['get_db_config'] = True
+
+        if args[PF_USE_QCF] and not args[PF_USE_DB_OUT]:
+            print "Note: cannot use QCF if %s is False" % PF_USE_DB_OUT
+            print "      setting useQCF to False"
+            args[PF_USE_QCF] = False
+    
+        print "Reading config...",
+        starttime = time.time()
+        config = pfwconfig.PfwConfig(args) 
+        print "Done (%s)" % (time.time()-starttime)
+
+        if args['gensubmit']:
+            config.save_file(args['gensubmit'])
         else:
-            print 'Inserting run into PFW tables...',
-            dbh = pfwdb.PFWDB()
-            dbh.insert_run(config)
-            print 'DONE'
+            if pfwutils.convertBool(config[PF_USE_DB_OUT]):
+                print 'Inserting run into PFW tables...',
+                dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+                dbh.insert_run(config)
+                print 'DONE'
+            elif ATTNUM not in config:
+                print 'No DB.  Defaulting %s to 0' % ATTNUM
+                config[ATTNUM] = 0 
+               
 
             print 'Checking system:'
             pfwsubmit.run_sys_checks()
@@ -97,7 +129,7 @@ def main(args):
 
             # save original submit file as is
             print 'Saving submit file...',
-            shutil.copy2(args.submitwcl[0], "%s/orig_submit.des" % uberctrl)
+            shutil.copy2(args['wclfile'], "%s/orig_submit.des" % uberctrl)
             print 'DONE'
 
             # save config
@@ -121,7 +153,13 @@ def main(args):
             config.save_file('%s/config.des' % uberctrl)
             print 'DONE'
 
-            pfwsubmit.submit_main_dag(config, maindag, logfh)
+            condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
+            if (pfwutils.convertBool(config[PF_USE_DB_OUT]) and 
+                condorid is not None):
+                print "Saving run's condorid into PFW tables...",
+                dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+                dbh.update_attempt_cid(config, condorid)
+                print 'DONE'
     except Exception:
         # error handling code here
         print 'ERROR\nABORTING SUBMISSION' 

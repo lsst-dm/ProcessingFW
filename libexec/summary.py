@@ -9,6 +9,7 @@
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwemail as pfwemail
 import processingfw.pfwdb as pfwdb
+from processingfw.pfwdefs import *
 from processingfw.pfwlog import log_pfw_event
 import sys
 
@@ -27,13 +28,13 @@ def summary(argv = None):
     if len(argv) < 2:
         print 'Usage: summary configfile status'
         debugfh.close()
-        return(pfwconfig.PfwConfig.FAILURE)
+        return(PF_EXIT_FAILURE)
     
     if len(argv) == 3:
         status = argv[2]
         # dagman always exits with 0 or 1
         if status == 1:
-            status = pfwconfig.PfwConfig.FAILURE
+            status = PF_EXIT_FAILURE
     else:
         print "summary: Missing status value"
         status = None
@@ -51,25 +52,23 @@ def summary(argv = None):
     if not status:
         msg1 = "Processing finished with unknown results.\n%s" % msgstr
         subject = "[Unknown]"
-#MMG        status = orch.dbutils.update_run_status(config, orch.orchconfig.FAILURE)
-    elif 'notarget' in config and config['notarget'] == '1':
-        print "notarget =", config['notarget'], int(config['notarget'])
-
-        msg1 = "Processing ended after notarget\n%s" % msgstr
-#        subject = "[NOTARGET]"
-#MMG        status = orch.dbutils.update_run_status(config, orch.orchconfig.NOTARGET)
+#MMG        status = orch.dbutils.update_run_status(config, PF_EXIT_FAILURE)
+    elif SW_DRYRUN in config and pfwutils.convertBool(config[SW_DRYRUN]):
+        msg1 = "Processing ended after DRYRUN\n%s" % msgstr
+#        subject = "[DRYRUN]"
+#MMG        status = orch.dbutils.update_run_status(config, PF_DRYRUN)
     else:
 #MMG        status = orch.dbutils.update_run_status(config, status)
     
-        if int(status) == pfwconfig.PfwConfig.SUCCESS:
+        if int(status) == PF_EXIT_SUCCESS:
 #            msg1 = "Processing is complete.\nEnd of run tasks (replicating data, ingesting submit runtime, etc) are starting."
             msg1 = "Processing has successfully completed.\n"
 #            subject = ""
         else:
             print "status = '%s'" % status
             print "type(status) =", type(status)
-            print "SUCCESS = '%s'" % pfwconfig.PfwConfig.SUCCESS
-            print "type(SUCCESS) =", type(pfwconfig.PfwConfig.SUCCESS)
+            print "SUCCESS = '%s'" % PF_EXIT_SUCCESS
+            print "type(SUCCESS) =", type(PF_EXIT_SUCCESS)
             msg1 = "Processing aborted with status %s.\n" % (status) 
 #            subject = "[FAILED]"
     
@@ -78,11 +77,12 @@ def summary(argv = None):
     subject = ""
     pfwemail.send_email(config, "processing", status, subject, msg1, '')
     
-    reqnum = config.search('reqnum', {'interpolate': True})[1]
-    unitname = config.search('unitname', {'interpolate': True})[1]
-    attnum = config.search('attnum', {'interpolate': True})[1]
-    dbh = pfwdb.PFWDB()
-    dbh.update_attempt_end(reqnum, unitname, attnum, status)
+    reqnum = config.search(REQNUM, {'interpolate': True})[1]
+    unitname = config.search(UNITNAME, {'interpolate': True})[1]
+    attnum = config.search(ATTNUM, {'interpolate': True})[1]
+    if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+        dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+        dbh.update_attempt_end(reqnum, unitname, attnum, status)
     print "summary: status = '%s'" % status
     print "summary:", msg1
     print "summary: End"

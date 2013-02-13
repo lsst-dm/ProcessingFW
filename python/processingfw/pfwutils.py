@@ -6,6 +6,7 @@ import inspect
 import tarfile
 from collections import OrderedDict
 from collections import Mapping
+from processingfw.pfwdefs import *
 
 """ Miscellaneous support functions for processing framework """
 
@@ -21,6 +22,12 @@ def debug(msglvl, envdbgvar, msgstr):
 
     if int(dbglvl) >= int(msglvl): 
         print "%s: %s" % (inspect.stack()[1][3], msgstr)
+
+def die(msg, exitcode=PF_EXIT_FAILURE):
+    frame = inspect.stack()[1]
+    print "%s:%s:%s: %s" % (frame[1], frame[3], frame[2], msg) 
+    
+    sys.exit(exitcode)
 
 #######################################################################
 def pfwsplit(fullstr, delim=','):
@@ -45,12 +52,15 @@ def traverse_wcl(wcl):
             uvars = traverse_wcl(val)
             if uvars is not None:
                 usedvars.update(uvars)
-        else:
+        elif type(val) is str:
             viter = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
             for vstr in viter:
                 if ':' in vstr:
                     vstr = vstr.split(':')[0]
                 usedvars[vstr] = True
+        else:
+            print "Error: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val)
+    
     debug(9, "PFWUTILS_DEBUG", "END")
     return usedvars
 
@@ -98,6 +108,30 @@ def untar_dir(filename, outputdir):
     with tarfile.open(filename, mode) as tar:
        tar.extractall(outputdir)
 
+def convertBool(var):
+    #print "Before:", var, type(var)
+    newvar = None
+    if var is not None:
+        tvar = type(var)
+        if tvar == int:
+            newvar = bool(var)
+        elif tvar == str:
+            try:
+                newvar = bool(int(var))
+            except ValueError:
+                if var.lower() in ['y','yes','true']:
+                    newvar = True
+                elif var.lower() in ['n','no','false']:
+                    newvar = False
+        elif tvar == bool:
+            newvar = var
+        else:
+            raise Exception("Type not handled (var, type): %s, %s" % (var, type(var)))
+    else:
+        newvar = False
+    #print "After:", newvar, type(newvar)
+    #print "\n\n"
+    return newvar
 
 def get_metadata_wcl(filetype, fsectname, dbwcl):
     fdict = OrderedDict()

@@ -10,10 +10,10 @@ import subprocess
 import time
 
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
 import processingfw.pfwconfig as pfwconfig
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwblock as pfwblock
-import processingfw.pfwutils as pfwutils
 
 
 
@@ -52,7 +52,7 @@ def create_master_list(config, modname, moddict,
         elif 'PROCESSINGFW_DIR' in os.environ:
             dirgenquery = os.environ['PROCESSINGFW_DIR']
         else:
-            raise Exception("Could not determine base path for genquerydb.py")
+            fwdie("Could not determine base path for genquerydb.py")
 
         prog = "%s/libexec/genquerydb.py" % (dirgenquery)
         args = "--qoutfile %s --qouttype %s --config %s --module %s --search %s" % \
@@ -95,7 +95,7 @@ def create_master_list(config, modname, moddict,
     print "\t\tCreating master list - end ", time.time()
 
     if process.returncode != 0:
-        raise Exception("Error: problem creating master list\n%s" % (cmd))
+        fwdie("Error: problem creating master list\n%s" % (cmd))
 
     print "\tcreate_master_list: END\n"
 
@@ -108,7 +108,7 @@ def runqueries(config, modname, modules_prev_in_list):
     if SW_LISTSECT in moddict:
         uber_list_dict = moddict[SW_LISTSECT]
         if 'list_order' in moddict:
-            listorder = pfwutils.pfwsplit(moddict['list_order'].lower())
+            listorder = fwsplit(moddict['list_order'].lower())
         else:
             listorder = uber_list_dict.keys()
     
@@ -136,7 +136,7 @@ def main(argv = None):
         argv = sys.argv
 
     if len(argv) != 3:
-        raise Exception("Usage: runqueries.pl configfile condorjobid\n")
+        fwdie("Usage: runqueries.pl configfile condorjobid\n")
 
     configfile = argv[1]
     condorid = argv[2]
@@ -146,16 +146,16 @@ def main(argv = None):
     log_pfw_event(config, config['curr_block'], 'runqueries', 'j', ['cid', condorid])
 
     if SW_MODULELIST not in config:
-        raise Exception("Error:  No modules to run.")
+        fwdie("Error:  No modules to run.")
     
     ### Get master lists and files calling external codes when needed
     
-    modulelist = pfwutils.pfwsplit(config[SW_MODULELIST].lower())
+    modulelist = fwsplit(config[SW_MODULELIST].lower())
     
     modules_prev_in_list = {}
     for modname in modulelist:
         if modname not in config[SW_MODULESECT]:
-            raise Exception("Error: Could not find module description for module %s\n" % (modname))
+            fwdie("Error: Could not find module description for module %s\n" % (modname))
         runqueries(config, modname, modules_prev_in_list)
         modules_prev_in_list[modname] = True
         

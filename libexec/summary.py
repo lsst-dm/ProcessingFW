@@ -6,6 +6,7 @@
 
 """ Send summary email when run ends (successfully or not) """
 
+from processingfw.fwutils import *
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwemail as pfwemail
 import processingfw.pfwdb as pfwdb
@@ -53,7 +54,7 @@ def summary(argv = None):
         msg1 = "Processing finished with unknown results.\n%s" % msgstr
         subject = "[Unknown]"
 #MMG        status = orch.dbutils.update_run_status(config, PF_EXIT_FAILURE)
-    elif SW_DRYRUN in config and pfwutils.convertBool(config[SW_DRYRUN]):
+    elif SW_DRYRUN in config and convertBool(config[SW_DRYRUN]):
         msg1 = "Processing ended after DRYRUN\n%s" % msgstr
 #        subject = "[DRYRUN]"
 #MMG        status = orch.dbutils.update_run_status(config, PF_DRYRUN)
@@ -80,7 +81,7 @@ def summary(argv = None):
     reqnum = config.search(REQNUM, {'interpolate': True})[1]
     unitname = config.search(UNITNAME, {'interpolate': True})[1]
     attnum = config.search(ATTNUM, {'interpolate': True})[1]
-    if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+    if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
         dbh.update_attempt_end(reqnum, unitname, attnum, status)
     print "summary: status = '%s'" % status

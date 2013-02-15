@@ -6,9 +6,12 @@ import argparse
 import sys
 import os
 import time
+
+from processingfw.fwutils import *
+from processingfw.pfwdefs import *
+
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
-from processingfw.pfwdefs import *
 import filemgmt.cache as cache
 import intgutils.wclutils as wclutils
 
@@ -47,10 +50,9 @@ def getVersion(execname, verflag, verpat):
             else:
                 print "Didn't find version"
         except Exception as err:
-            print "Exception from re.match. Didn't find version"
-            print type(err)
+            #print type(err)
             ver = None 
-            raise(err)
+            fwdie("Exception from re.match.  Didn't find version: %s" % err)
 
     return ver
 
@@ -58,7 +60,7 @@ def getVersion(execname, verflag, verpat):
 def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
     """ Create output directories, get files from cache, and other setup work """
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
 
     # make directory for log file
     logdir = os.path.dirname(logfilename)
@@ -90,11 +92,11 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
 
 
     # make directories for output files, cache input files
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "section loop beg")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "section loop beg")
     execnamesarr = [inwcl['wrapname']]
     outfiles = {}
     for sect in sorted(inwcl.keys()):
-        pfwutils.debug(3, "PFWRUNJOB_DEBUG", "section %s" % sect)
+        fwdebug(3, "PFWRUNJOB_DEBUG", "section %s" % sect)
         if re.search("^%s\d+$" % IW_EXECPREFIX, sect):
             if 'execname' not in inwcl[sect]:
                 print "Missing execname in input wcl.  sect =", sect
@@ -104,7 +106,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
             execname = inwcl[sect]['execname']
             execnamesarr.append(execname)
             if IW_OUTPUTS in inwcl[sect]:
-                for outfile in pfwutils.pfwsplit(inwcl[sect][IW_OUTPUTS]):
+                for outfile in fwsplit(inwcl[sect][IW_OUTPUTS]):
                     outfiles[outfile] = True
                     fullnames = pfwutils.get_wcl_value(outfile+'.fullname', inwcl)
                     print "fullnames = ", fullnames
@@ -116,7 +118,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                         pattern = pfwutils.get_wcl_value(m.group(1), inwcl)
                         print pattern
                     else:
-                        outfile_names = pfwutils.pfwsplit(fullnames)
+                        outfile_names = fwsplit(fullnames)
                         for outfile in outfile_names:
                             outfile_dir = os.path.dirname(outfile)
                             if len(outfile_dir) > 0:
@@ -129,9 +131,9 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
 
             if IW_INPUTS in inwcl[sect]:
                 files2get = {}
-                for infile in pfwutils.pfwsplit(inwcl[sect][IW_INPUTS]):
+                for infile in fwsplit(inwcl[sect][IW_INPUTS]):
                     infile_names = pfwutils.get_wcl_value(infile+'.fullname', inwcl)
-                    infile_names = pfwutils.pfwsplit(infile_names)
+                    infile_names = fwsplit(infile_names)
                     for inname in infile_names:
                         if not os.path.exists(inname) and not infile in outfiles:
                             files2get[inname] = True
@@ -161,16 +163,16 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                 inwcl['dbids'][sect] = dbh.insert_exec(inwcl, sect) 
 
     inwcl['execnames'] = ','.join(execnamesarr)
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "section loop end")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "section loop end")
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "END")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "END")
 
     return(0)
 
 
 
 def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQCF=False):
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     print "wrappercmd = ", wrappercmd
     print "logfilename = ", logfilename
     print "useQCF = ", useQCF
@@ -216,21 +218,20 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
 
                     logfh.close()
             else:
-                print "Unexpected error:", sys.exc_info()[0]
-                raise
+                fwdie("Unexpected error: %s" % sys.exc_info()[0], FW_EXIT_FAILURE)
+                
     except:
-        print "Unexpected error:", sys.exc_info()[0]
-        raise
+        fwdie("Unexpected error: %s" % sys.exc_info()[0], FW_EXIT_FAILURE)
 
     if processWrap.returncode != 0:
         print "wrapper returned non-zero exit code"
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "END")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     return processWrap.returncode
 
 
 def postwrapper(inwcl, logfile, exitcode, useDB=False):
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
 
     if not os.path.isfile(logfile):
         logfile = None
@@ -263,7 +264,7 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
             if OW_PROVSECT in outputwcl and len(outputwcl[OW_PROVSECT].keys()) > 0:
                 dbh.ingest_provenance(outputwcl[OW_PROVSECT], inwcl['dbids'])
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "END")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     
 
 
@@ -274,7 +275,7 @@ def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
         # for each task
         line = tasksfh.readline()
         while line:
-            (wrapnum, wrapname, wclfile, logfile) = pfwutils.pfwsplit(line.strip())
+            (wrapnum, wrapname, wclfile, logfile) = fwsplit(line.strip())
             wrappercmd = "%s --input=%s" % (wrapname, wclfile)
             print "%04d: wrappercmd: %s" % (int(wrapnum), wrappercmd)
 
@@ -325,10 +326,10 @@ def runjob(args):
         with open(args.config, 'r') as wclfh:
             wcl = wclutils.read_wcl(wclfh) 
         if 'usedb' in wcl:
-            useDB = pfwutils.convertBool(wcl['usedb'])
+            useDB = convertBool(wcl['usedb'])
 
         if 'useqcf' in wcl:
-            useQCF = pfwutils.convertBool(wcl['useqcf'])
+            useQCF = convertBool(wcl['useqcf'])
 
     if useDB:
         if 'des_services' in wcl:

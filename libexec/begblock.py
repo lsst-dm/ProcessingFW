@@ -7,10 +7,10 @@
 import sys
 import os
 
-import processingfw.pfwconfig as pfwconfig
-import processingfw.pfwutils as pfwutils
-from processingfw.runqueries import runqueries
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
+import processingfw.pfwconfig as pfwconfig
+from processingfw.runqueries import runqueries
 import processingfw.pfwwrappers as pfwwrappers
 import processingfw.pfwblock as pfwblock
 import processingfw.pfwdb as pfwdb
@@ -30,26 +30,26 @@ def begblock(argv):
     if 'des_db_section' in config:
         os.environ['DES_DB_SECTION'] = config['des_db_section']
 
-    pfwutils.debug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[PF_BLKNUM]))
-    if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+    fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[PF_BLKNUM]))
+    if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
         dbh.insert_block(config)
 
         if config[PF_BLKNUM] == '0':
-            pfwutils.debug(3, 'PFWBLOCK_DEBUG', "Calling update_attempt_beg")
+            fwdebug(3, 'PFWBLOCK_DEBUG', "Calling update_attempt_beg")
             dbh.update_attempt_beg(config)
 
-    modulelist = pfwutils.pfwsplit(config[SW_MODULELIST].lower())
+    modulelist = fwsplit(config[SW_MODULELIST].lower())
     modules_prev_in_list = {}
     tasks = []
     for modname in modulelist:
         if modname not in config[SW_MODULESECT]:
-            raise Exception("Error: Could not find module description for module %s\n" % (modname))
+            fwdie("Error: Could not find module description for module %s\n" % (modname), PF_EXIT_FAILURE)
 
-        if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+        if convertBool(config[PF_USE_DB_OUT]): 
             dbh.insert_blktask(config, modname, "runqueries")
         runqueries(config, modname, modules_prev_in_list)
-        if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+        if convertBool(config[PF_USE_DB_OUT]): 
             dbh.update_blktask_end(config, modname, "runqueries", 1)
         pfwblock.read_master_lists(config, modname, modules_prev_in_list)
         pfwblock.add_file_metadata(config, modname)
@@ -68,7 +68,7 @@ def begblock(argv):
 
     dagfile = config.get_filename('jobdag')
     numjobs = 1
-    if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+    if convertBool(config[PF_USE_DB_OUT]): 
         dbh.update_block_numexpjobs(config, numjobs)
 #    jobsdir = '../%s_tjobs' % config['blockname']
 #    if not os.path.exists(jobsdir):
@@ -84,7 +84,7 @@ def begblock(argv):
 #    os.rename(scriptfile, "%s/%s" % (jobsdir, scriptfile))
     
     print "begblock done"
-    if PF_DRYRUN in config and pfwutils.convertBool(config[PF_DRYRUN]):
+    if PF_DRYRUN in config and convertBool(config[PF_DRYRUN]):
         retval = PF_EXIT_DRYRUN
     else:
         retval = PF_EXIT_SUCCESS

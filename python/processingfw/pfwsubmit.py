@@ -13,10 +13,10 @@ import stat
 import subprocess
 
 from processingfw.pfwdefs import *
+from processingfw.pfwutils import *
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb
-from processingfw.pfwutils import debug
 
 
 ######################################################################
@@ -241,7 +241,7 @@ def create_submitside_dirs(config):
     """ Create directories for storage of pfw files on submit side """
     # make local working dir
     workdir = config['work_dir']
-    debug(3, 'PFWSUBMIT_DEBUG', "workdir = %s" % workdir)
+    fwdebug(3, 'PFWSUBMIT_DEBUG', "workdir = %s" % workdir)
 
     if os.path.exists(workdir):
         raise Exception('%s subdirectory already exists.\nAborting submission' % (workdir))
@@ -251,7 +251,7 @@ def create_submitside_dirs(config):
     print 'DONE'
 
     uberdir = config['uberctrl_dir']
-    debug(3, 'PFWSUBMIT_DEBUG', "uberdir = %s" % uberdir)
+    fwdebug(3, 'PFWSUBMIT_DEBUG', "uberdir = %s" % uberdir)
     print '\tMaking submit uberctrl directory...',
     os.makedirs(uberdir)
     print 'DONE'

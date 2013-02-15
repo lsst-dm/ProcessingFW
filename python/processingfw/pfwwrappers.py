@@ -20,7 +20,8 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
         except OSError as exc:      # go ahead and check for race condition
             if exc.errno == errno.EEXIST:
                 pass
-            else: raise
+            else: 
+                fwdie("Error making directory wcldir: %s" % exc, PFW_EXIT_FAILURE)
 
     with open(filename, 'w', 0) as wclfh:
         write_wcl(wrapperwcl, wclfh, True, 4)

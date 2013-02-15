@@ -4,12 +4,12 @@ import sys
 import os
 
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
+
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 from processingfw.pfwemail import send_email
-import processingfw.pfwutils as pfwutils
-    
     
 def blockpost(argv = None):
     if argv is None:
@@ -30,22 +30,22 @@ def blockpost(argv = None):
     configfile = argv[1]
     retval = int(argv[2])
 
-    pfwutils.debug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
-    pfwutils.debug(3, 'PFWPOST_DEBUG', "retval = %s" % retval)
+    fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
+    fwdebug(3, 'PFWPOST_DEBUG', "retval = %s" % retval)
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    pfwutils.debug(3, 'PFWPOST_DEBUG', "done reading config file")
+    fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
     blockname = config['blockname']
     
 
     # now that have more information, can rename output file
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
     new_log_name = config.get_filename('block', {PF_CURRVALS:
                                                   {'flabel': 'blockpost',
                                                    'fsuffix':'out'}})
 #    new_log_name = "../%s/%s" % (blockname, new_log_name)
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.rename('blockpost.out', new_log_name)
@@ -62,7 +62,7 @@ def blockpost(argv = None):
 
     if retval:
         print "Block failed\nAlready sent email"
-    elif pfwutils.convertBool(dryrun):
+    elif convertBool(dryrun):
         print "dryrun = ", dryrun
         print "Sending dryrun email"
         msg1 = "%s:  In dryrun mode, block %s has finished successfully." % (run, blockname)
@@ -103,7 +103,7 @@ def blockpost(argv = None):
             print "%s exists, so email should have already been sent" % (failedfile)
 
     # Store values in DB and hist file 
-    if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+    if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
         dbh.update_block_end(config, retval)
     #logEvent(config, blockname, 'mngr', 'j', 'posttask', retval)
@@ -121,7 +121,7 @@ def blockpost(argv = None):
     else:
         retval = PF_EXIT_FAILURE
     
-    pfwutils.debug(3, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
+    fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
     print "type(retval) =",type(retval)
     print "blockpost done" 
     debugfh.close()
@@ -133,6 +133,6 @@ if __name__ == "__main__":
     exitcode = blockpost(sys.argv)
     sys.stdout = realstdout
     sys.stderr = realstderr
-    pfwutils.debug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
-    pfwutils.debug(3, 'PFWPOST_DEBUG', "type of exitcode = %s" % type(exitcode))
+    fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
+    fwdebug(3, 'PFWPOST_DEBUG', "type of exitcode = %s" % type(exitcode))
     sys.exit(exitcode)

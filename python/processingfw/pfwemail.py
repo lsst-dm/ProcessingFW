@@ -46,7 +46,7 @@ def send_email(config, block, status, subject, msg1, msg2):
 
     mailfh.write("Submit:\n")
     mailfh.write("\tmachine = %s\n" % localmachine)
-    mailfh.write("\tnode = %s\n" % config['submitnode'])
+#    mailfh.write("\tnode = %s\n" % config['submitnode'])
     mailfh.write("\tDES_HOME = %s\n" % config['des_home'])
     mailfh.write("\tconfig = %s/%s\n" % \
             (config['submit_dir'], config['config_filename']))

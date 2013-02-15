@@ -13,6 +13,7 @@ import shutil
 import sys
 
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
 import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwconfig as pfwconfig
@@ -55,12 +56,14 @@ def create_dags(config, logfh):
 
 def main(args):
     try:
-        parser = argparse.ArgumentParser(description='dessubmit')
-        boolargs = ['notarget', PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF, 'usePFWconfig', 'version']
+        parser = argparse.ArgumentParser(description='Submit a run to the processing framework')
+        #boolargs = [PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF, 'usePFWconfig', 'version']
+        boolargs = [PF_DRYRUN, 'version']
 
         for barg in boolargs:
             parser.add_argument('--%s' % barg, action='store', type=str)
-        parser.add_argument('--gensubmit', action='store')
+        parser.add_argument('--notarget', action='store', type=str, help='Depricated. use --%s=True' % PF_DRYRUN)
+        #parser.add_argument('--gensubmit', action='store')
         parser.add_argument('--des_services', action='store')
         parser.add_argument('--des_db_section', action='store')
         parser.add_argument('submitwcl', nargs=1, action='store')
@@ -69,7 +72,7 @@ def main(args):
 
         for barg in boolargs:
             if args[barg] is not None:
-                args[barg] = pfwutils.convertBool(args[barg])
+                args[barg] = convertBool(args[barg])
 
         print 'Using version %s of dessubmit\n' % VERSION
 
@@ -94,15 +97,17 @@ def main(args):
             args[PF_USE_QCF] = False
     
         print "Reading config...",
+        sys.stdout.flush()
         starttime = time.time()
         config = pfwconfig.PfwConfig(args) 
-        print "Done (%s)" % (time.time()-starttime)
+        print "Done (%0.2f secs)" % (time.time()-starttime)
 
         if args['gensubmit']:
             config.save_file(args['gensubmit'])
         else:
-            if pfwutils.convertBool(config[PF_USE_DB_OUT]):
+            if convertBool(config[PF_USE_DB_OUT]):
                 print 'Inserting run into PFW tables...',
+                sys.stdout.flush()
                 dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
                 dbh.insert_run(config)
                 print 'DONE'
@@ -139,7 +144,7 @@ def main(args):
             print 'Checking submit file:'
             (errcnt, warncnt, cleancnt) = config.check()
             if errcnt > 0:
-                raise Exception("Errors in submit file")
+                fwdie("Errors in submit file", PF_EXIT_FAILURE)
             elif warncnt > 0:
                 print "\t(Note: %d warning(s) in config)" % warncnt
             elif cleancnt > 0:
@@ -154,7 +159,7 @@ def main(args):
             print 'DONE'
 
             condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
-            if (pfwutils.convertBool(config[PF_USE_DB_OUT]) and 
+            if (convertBool(config[PF_USE_DB_OUT]) and 
                 condorid is not None):
                 print "Saving run's condorid into PFW tables...",
                 dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
@@ -165,9 +170,9 @@ def main(args):
         print 'ERROR\nABORTING SUBMISSION' 
         raise
 
-        return 1  # exit on error
+        return PF_EXIT_FAILURE  # exit on error
     else:
-        return 0  # exit errorlessly
+        return PF_EXIT_SUCCESS  # exit errorlessly
  
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

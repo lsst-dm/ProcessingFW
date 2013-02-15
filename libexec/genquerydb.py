@@ -7,11 +7,11 @@
 import argparse
 import sys
 import re
+import coreutils.desdbi as desdbi
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwfilelist as pfwfilelist
-import processingfw.pfwutils as pfwutils
-import coreutils.desdbi as desdbi
     
 def main(argv):    
     parser = argparse.ArgumentParser(description='genquery.py')
@@ -44,7 +44,7 @@ def main(argv):
     else:
         raise Exception("Error: need to define either list or file or search\n")
     
-    fields = pfwutils.pfwsplit(search_dict[SW_QUERYFIELDS].lower())
+    fields = fwsplit(search_dict[SW_QUERYFIELDS].lower())
     
     if ('query_run' in config and 'fileclass' in search_dict and 
         'fileclass' in config and search_dict['fileclass'] == config['fileclass']):
@@ -75,10 +75,10 @@ def main(argv):
     
         value = config.interpolate(value)
         if ',' in value:
-            value = pfwutils.pfwsplit(value)
+            value = fwsplit(value)
 
         if ':' in value:
-            value = pfwutils.pfwsplit(value)
+            value = fwsplit(value)
     
         table = qtable
         if '.' in f:
@@ -95,7 +95,7 @@ def main(argv):
     
     # if specified, insert join into query hash
     if 'join' in search_dict:
-        joins = pfwutils.pfwsplit(search_dict['join'].lower())
+        joins = fwsplit(search_dict['join'].lower())
         for j in joins:
             m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
             if m:
@@ -106,7 +106,7 @@ def main(argv):
 
     # check output fields for fields from other tables.
     if 'output_fields' in search_dict:
-        output_fields = pfwutils.pfwsplit(search_dict['output_fields'].lower())
+        output_fields = fwsplit(search_dict['output_fields'].lower())
 
         for ofield in output_fields:
             m = re.search("(\S+)\.(\S+)", ofield)

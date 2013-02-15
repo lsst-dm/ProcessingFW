@@ -6,54 +6,99 @@
 
 """ Program to ingest data files that were created external to framework """
 
-from collections import OrderedDict
 import tempfile
 import argparse
 import subprocess
 import os
 import re
-import shutil
 import sys
-import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
 import processingfw.pfwutils as pfwutils
 import intgutils.wclutils as wclutils
 
 VERSION = '$Rev$'
 
+def parse_provided_list(listname):
+    """ create dictionary of files from list in file """
 
-def get_list_filenames(ingestpath):
-    """ Return a list of fullpath filenames in given path """
-
-    filelist = [ingestpath+'/'+f for f in os.listdir(ingestpath) if os.path.isfile(ingestpath+'/'+f)]
+    filelist = {}
+    try:
+        with open(listname, "r") as fh:
+            for line in fh:
+                (fullname, filetype) = fwsplit(line, ',')
+                (path, fname) = os.path.split(fullname)
+                filelist[fname] = {'path': path, 'filetype': filetype}
+    except Exception as err:
+        fwdie("Problems reading file '%s': %s" % (filename, err), 1)
+        
     return filelist
 
-def create_input_wcl(filelist, filetype, dbwcl):
+def get_list_filenames(ingestpath, filetype):
+    """ create a dictionary of files in given path """
+
+    filelist = {}
+    for f in os.listdir(ingestpath):
+        if os.path.isfile(ingestpath+'/'+f):
+            filelist[f]  = {'path': ingestpath, 'filetype': filetype}
+    return filelist
+
+
+def list_not_in_db(filenames):
+    """ Return list of files from given set which are not in database """
+
+    dbh = pfwdb.PFWDB()
+
+    dbq = "select filename from genfile where filename in ('%s')" % "','".join(filenames)
+    curs = dbh.cursor()
+    curs.execute(dbq)
+    dblist = []
+    for row in curs:
+        dblist.append(row[0])
+
+    filenames = set(filenames) - set(dblist)
+    return filenames
+
+
+def create_input_wcl(filelist, dbwcl):
     """ Returns input wcl for call to generic.py to get metadata collection """ 
 
-    wcl = OrderedDict()
-    wcl[IW_FILESECT] = OrderedDict()
-    wcl[IW_FILESECT][filetype] = pfwutils.get_metadata_wcl(filetype, filetype, dbwcl)
-    wcl[IW_FILESECT][filetype]['filetype'] = filetype
-    wcl[IW_FILESECT][filetype]['fullname'] = ','.join(filelist)
-     
-    wcl['%s1' % (IW_EXECPREFIX)] = OrderedDict()
+
+    # group by filetype
+    byfiletype = {}
+    for f in filelist:
+        if filelist[f]['filetype'] not in byfiletype:
+            byfiletype[filelist[f]['filetype']] = []
+        byfiletype[filelist[f]['filetype']].append(filelist[f]['path'] + '/' + f)
+
+    wcl = {}
+    wcl['%s1' % (IW_EXECPREFIX)] = {}
     wcl['%s1' % (IW_EXECPREFIX)]['execname'] = '/usr/bin/uptime'
-    wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS] = IW_FILESECT +'.' + filetype
-    wcl[IW_WRAPSECT]  = OrderedDict()
+    wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS] = []
+    wcl[IW_FILESECT] = {}
+    for ftype in byfiletype:
+        wcl[IW_FILESECT][ftype] = pfwutils.get_metadata_wcl(ftype, ftype, dbwcl)
+        wcl[IW_FILESECT][ftype]['filetype'] = ftype
+        wcl[IW_FILESECT][ftype]['fullname'] = ','.join(byfiletype[ftype])
+        wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS].append(IW_FILESECT +'.' + ftype)
+     
+    wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS] = ','.join(wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS])
+    wcl[IW_WRAPSECT]  = {}
     wcl[IW_WRAPSECT]['pipeline'] = 'file_metadata_ingest'
     m = re.match('\$Rev: (\d+) \$', VERSION)
     wcl[IW_WRAPSECT]['pipever'] = m.group(1)
     return wcl
 
+
 def write_input_wcl(inwclfile, wcl):
-    """ Writes inputwcl to file """
+    """ Writes input wcl to file """
     with open(inwclfile, 'w') as fh:
         wclutils.write_wcl(wcl, fh)
 
+
 def ingest_metadata(outwclfile, dbwcl, dbh):
-    """ Ingests metadata from outputwcl into database """
+    """ Ingests metadata from output wcl into database """
 
     if os.path.isfile(outwclfile):
         outwclfh = open(outwclfile, 'r')
@@ -64,6 +109,7 @@ def ingest_metadata(outwclfile, dbwcl, dbh):
             dbh.ingest_file_metadata(outputwcl['file_metadata'], dbwcl)
     else:
         print "Error: missing outputwcl file (%s)" % (outwclfile)
+
 
 def run_generic_wrapper(inwclfile):
     """ Runs the generic wrapper using given input wcl file """
@@ -84,55 +130,73 @@ def main(args):
     parser.add_argument('--outputwcl', action='store')
     parser.add_argument('--noingest', action='store_true', default=False)
     parser.add_argument('--version', action='store_true', default=False)
-    parser.add_argument('filetype', nargs=1, action='store')
-    parser.add_argument('ingestpath', nargs=1, action='store')
+    parser.add_argument('--list', action='store', help='format:  fullname, filetype')
+    parser.add_argument('--filetype', action='store')
+    parser.add_argument('--path', action='store')
 
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
 
     print 'Using version %s of file_metadata_ingest\n' % VERSION
 
-    if args.version:
+    if args['version']:
         return 0
 
-    if ',' in args.filetype[0]:
+    if args['filetype'] and ',' in args['filetype']: 
         print "Error: filetype must be single value"
         parser.print_help()
         return 1
 
-    if ',' in args.ingestpath[0]:
-        print "Error: ingestpath must be single value"
+    if args['path'] and ',' in args['path']:
+        print "Error: path must be single value"
         parser.print_help()
         return 1
 
-    argsdict = vars(args)
-    print argsdict
+    if args['filetype'] and args['path'] is None:
+        print "Error: must specify path if using filetype" 
+        parser.print_help()
+        return 1
+
+    if args['filetype'] is None and args['path']:
+        print "Error: must specify filetype if using path" 
+        parser.print_help()
+        return 1
 
     dbh = pfwdb.PFWDB()
     dbwcl = dbh.get_all_filetype_metadata()
 
-    if args.dbwcl is not None:
-        with open(args.dbwcl, 'w') as fh:
+    if args['dbwcl'] is not None:
+        with open(args['dbwcl'], 'w') as fh:
             wclutils.write_wcl(dbwcl, fh, True, 4)
 
-    filelist = get_list_filenames(argsdict['ingestpath'][0])
+    if args['path'] is not None:
+        filelist = get_list_filenames(args['path'], args['filetype'])
+    elif args['list'] is not None:
+        filelist = parse_provided_list(args['list'])
 
-    inputwcl = create_input_wcl(filelist, argsdict['filetype'][0], dbwcl)
+    filenames = list_not_in_db(filelist.keys())
+
+    if len(filenames) == 0:
+        print "All files already in database"
+        return(0)
+
+    insfilelist = {}
+    for f in filenames:
+        insfilelist[f] = filelist[f]
+ 
+    inputwcl = create_input_wcl(insfilelist, dbwcl)
    
-    if args.inputwcl is not None:
-        inwclfile = args.inputwcl
+    if args['inputwcl'] is not None:
+        inwclfile = args['inputwcl']
     else:
         temp = tempfile.NamedTemporaryFile(prefix='ingest_metadata_', suffix='_input.wcl', dir='/tmp', delete=False)
         inwclfile = temp.name 
 
-    print "inwclfile =", inwclfile
-
-    if args.outputwcl is not None:
-        outwclfile = args.outputwcl
+    if args['outputwcl'] is not None:
+        outwclfile = args['outputwcl']
     else:
         temp = tempfile.NamedTemporaryFile(prefix='ingest_metadata_', suffix='_output.wcl', dir='/tmp', delete=False)
         outwclfile = temp.name 
 
-    print "outwclfile =", outwclfile
     inputwcl[IW_WRAPSECT]['outputwcl'] = outwclfile
     write_input_wcl(inwclfile, inputwcl)
 
@@ -142,12 +206,11 @@ def main(args):
     
     inputwcl[IW_WRAPSECT]['outputwcl'] = outwclfile
 
-    if not args.noingest:
+    if not args['noingest']:
         ingest_metadata(outwclfile, dbwcl, dbh)
         dbh.commit()
     
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
-
 

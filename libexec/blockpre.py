@@ -8,7 +8,7 @@ import sys
 import os
 
 from processingfw.pfwdefs import *
-import processingfw.pfwutils as pfwutils
+from processingfw.fwutils import *
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -58,7 +58,7 @@ def blockpre(argv = None):
     retry = 0
     if len(argv) == 3:
         retry = sys.argv[2]
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
+    fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
     
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
@@ -67,11 +67,11 @@ def blockpre(argv = None):
     config.set_block_info()
     config.save_file(configfile)
 
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[PF_BLKNUM])
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
+    fwdebug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[PF_BLKNUM])
+    fwdebug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])
+    fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
     if int(retry) != int(config[PF_BLKNUM]):
-        pfwutils.debug(0, 'PFWPOST_DEBUG', "WARNING: blknum != retry")
+        fwdebug(0, 'PFWPOST_DEBUG', "WARNING: blknum != retry")
 
     with open("/tmp/mmgpredebug_%s" % os.getpid(), 'w') as fh:
         fh.write("blknum = %s\n" % config[PF_BLKNUM])
@@ -85,12 +85,12 @@ def blockpre(argv = None):
 
 
     # now that have more information, can rename output file
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
     new_log_name = config.get_filename('block', {PF_CURRVALS:
                                                   {'flabel': 'blockpre',
                                                    'fsuffix':'out'}})
 #    new_log_name = "../%s/%s" % (blockname, new_log_name)
-    pfwutils.debug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.rename(DEFAULT_LOG, new_log_name)
@@ -100,7 +100,7 @@ def blockpre(argv = None):
 
     write_block_condor(config)
     
-    if pfwutils.convertBool(config[PF_USE_DB_OUT]): 
+    if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
         dbh.insert_blktask(config, "", 'blockpre')
     

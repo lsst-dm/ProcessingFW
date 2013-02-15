@@ -15,16 +15,17 @@ import copy
 import re
 import time
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
 #import processingfw.pfwxml as pfwxml
 import intgutils.wclutils as wclutils
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwcondor as pfwcondor
 from processingfw.pfwwrappers import write_wrapper_wcl
 
-
+#######################################################################
 def create_simple_list(config, lname, ldict, currvals):
     """ Create simple filename list file based upon patterns """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
     listname = config.search('listname', 
                             {PF_CURRVALS: currvals, 
                              'searchobj': ldict, 
@@ -48,19 +49,20 @@ def create_simple_list(config, lname, ldict, currvals):
 
     with open(listname, 'w', 0) as listfh:
         listfh.write(listcontents+"\n")
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
                         
+#######################################################################
 def assign_data_wrapper_inst(config, modname, wrapperinst):
     """ Assign data like files and lists to wrapper instances """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     moddict = config[SW_MODULESECT][modname] 
     currvals = { 'curr_module': modname}
     (found, loopkeys) = config.search('wrapperloop', 
                        {PF_CURRVALS: currvals,
                         'required': False, 'interpolate': True})
     if found:
-        loopkeys = pfwutils.pfwsplit(loopkeys.lower())
+        loopkeys = fwsplit(loopkeys.lower())
     else:
         loopkeys = []
 
@@ -70,24 +72,24 @@ def assign_data_wrapper_inst(config, modname, wrapperinst):
         currvals = { 'curr_module': modname, PF_WRAPNUM: winst[PF_WRAPNUM]}
         for key in loopkeys:
             currvals[key] = winst[key]
-        pfwutils.debug(6, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
+        fwdebug(6, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
 
         if SW_FILESECT in moddict:
             winst[IW_FILESECT] = {}
             for fname, fdict in moddict[SW_FILESECT].items(): 
-                pfwutils.debug(3, "PFWBLOCK_DEBUG", "Working on file "+fname)
+                fwdebug(3, "PFWBLOCK_DEBUG", "Working on file "+fname)
                 winst[IW_FILESECT][fname] = {}
                 if 'sublists' in fdict:  # files came from query
                     if len(fdict['sublists'].keys()) > 1:
 #                        print fdict['sublists'].keys()
-                        matchkeys = pfwutils.pfwsplit(fdict['match'])
+                        matchkeys = fwsplit(fdict['match'])
                         matchkeys.sort()
                         index = ""
                         for mkey in matchkeys:
                             if mkey not in winst:
                                 raise Exception("Cannot find match key %s in winst %s" % (mkey, winst))
                             index += winst[mkey] + '_'
-                        pfwutils.debug(3, "PFWBLOCK_DEBUG", "sublist index = "+index)
+                        fwdebug(3, "PFWBLOCK_DEBUG", "sublist index = "+index)
                         if index not in fdict['sublists']:
                             raise Exception("Cannot find sublist matching "+index)
                         sublist = fdict['sublists'][index]
@@ -164,15 +166,16 @@ def assign_data_wrapper_inst(config, modname, wrapperinst):
                                                                               'required': True, 
                                                                               'interpolate':True})[1]
                 create_simple_list(config, lname, ldict, currvals)
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return inputlist
 
 
 
+#######################################################################
 def finish_wrapper_inst(config, modname, wrapperinst):
     """ Finish creating wrapper instances with tasks like making input and output filenames """
     
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     moddict = config[SW_MODULESECT][modname] 
     for winst in wrapperinst.values():
         # create currvals
@@ -182,13 +185,13 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                            {PF_CURRVALS: {'curr_module': modname},
                             'required': False, 'interpolate': True})
         if found:
-            loopkeys = pfwutils.pfwsplit(loopkeys.lower())
+            loopkeys = fwsplit(loopkeys.lower())
             for key in loopkeys:
                 currvals[key] = winst[key]
 
         if SW_FILESECT in moddict:
             for fname, fdict in moddict[SW_FILESECT].items(): 
-                pfwutils.debug(0, 'PFWBLOCK_DEBUG', '%s: working on file: %s' % (winst[PF_WRAPNUM], fname))
+                fwdebug(0, 'PFWBLOCK_DEBUG', '%s: working on file: %s' % (winst[PF_WRAPNUM], fname))
 #                if fname not in winst[IW_FILESECT]:
 #                    winst[IW_FILESECT][fname] = {}
 
@@ -222,26 +225,26 @@ def finish_wrapper_inst(config, modname, wrapperinst):
 #                        print "Adding path to filename for", fname
 #                        winst[IW_FILESECT][fname]['fullname'] = "%s/%s" % (path, winst[IW_FILESECT][fname]['filename'])
 
-                pfwutils.debug(3, "PFWBLOCK_DEBUG", "fullname = %s" % (winst[IW_FILESECT][fname]['fullname']))
+                fwdebug(3, "PFWBLOCK_DEBUG", "fullname = %s" % (winst[IW_FILESECT][fname]['fullname']))
 
                 
                 if 'filetype' in fdict:
                     winst[IW_FILESECT][fname]['filetype'] = fdict['filetype']
 
                 if 'req_metadata' in fdict:
-                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "copying req_metadata %s" % (fname))
+                    fwdebug(3, "PFWBLOCK_DEBUG", "copying req_metadata %s" % (fname))
                     winst[IW_FILESECT][fname]['req_metadata'] = copy.deepcopy(fdict['req_metadata'])
                 else:
-                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "no req_metadata %s" % (fname))
+                    fwdebug(3, "PFWBLOCK_DEBUG", "no req_metadata %s" % (fname))
 
                 if 'opt_metadata' in fdict:
-                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "copying opt_metadata %s" % (fname))
+                    fwdebug(3, "PFWBLOCK_DEBUG", "copying opt_metadata %s" % (fname))
                     winst[IW_FILESECT][fname]['opt_metadata'] = copy.deepcopy(fdict['opt_metadata'])
                 else:
-                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "no opt_metadata %s" % (fname))
+                    fwdebug(3, "PFWBLOCK_DEBUG", "no opt_metadata %s" % (fname))
 
-            pfwutils.debug(4, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
-            pfwutils.debug(4, "PFWBLOCK_DEBUG", "winst[%s] = %s" % (IW_FILESECT,  winst[IW_FILESECT]))
+            fwdebug(4, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
+            fwdebug(4, "PFWBLOCK_DEBUG", "winst[%s] = %s" % (IW_FILESECT,  winst[IW_FILESECT]))
 
         if SW_LISTSECT in moddict:
             winst[IW_LISTSECT] = {}
@@ -252,25 +255,26 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                                                                               'required': True, 
                                                                               'interpolate':True})[1]
                 create_simple_list(config, lname, ldict, currvals)
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
+#######################################################################
 def add_file_metadata(config, modname):
     """ add file metadata sections to a single file section from a module"""
 
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG")
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "Working on module " + modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "Working on module " + modname)
     moddict = config[SW_MODULESECT][modname]
     
     if SW_FILESECT in moddict:
         for k in moddict:
             if re.search("^%s\d+$" % SW_EXECPREFIX, k) and SW_OUTPUTS in moddict[k]:
-                for outfile in pfwutils.pfwsplit(moddict[k][SW_OUTPUTS]):
-                    pfwutils.debug(3, "PFWBLOCK_DEBUG", "Working on output file " + outfile)
+                for outfile in fwsplit(moddict[k][SW_OUTPUTS]):
+                    fwdebug(3, "PFWBLOCK_DEBUG", "Working on output file " + outfile)
                     m = re.match('%s.(\w+)' % SW_FILESECT, outfile)
                     if m:
                         fname = m.group(1)
-                        pfwutils.debug(3, "PFWBLOCK_DEBUG", "Working on file " + fname)
+                        fwdebug(3, "PFWBLOCK_DEBUG", "Working on file " + fname)
                         fdict = moddict[SW_FILESECT][fname]
             
                         filetype = fdict['filetype'].lower()
@@ -303,17 +307,17 @@ def add_file_metadata(config, modname):
                         wclsect = "%s.%s" % (IW_FILESECT, fname)
                         fdict['req_metadata']['wcl'] += '%(sect)s.fullname,%(sect)s.filename,%(sect)s.filetype' % ({'sect':wclsect})
                     else:
-                        pfwutils.debug(3, "PFWBLOCK_DEBUG", "output file %s doesn't have definition (%s) " % (k, SW_FILESECT))
+                        fwdebug(3, "PFWBLOCK_DEBUG", "output file %s doesn't have definition (%s) " % (k, SW_FILESECT))
 
-                pfwutils.debug(3, "PFWBLOCK_DEBUG", "output file dictionary for %s = %s" % (outfile, fdict))
+                fwdebug(3, "PFWBLOCK_DEBUG", "output file dictionary for %s = %s" % (outfile, fdict))
                 
             else:
-                pfwutils.debug(3, "PFWBLOCK_DEBUG", "No was_generated_by for %s" % (k))
+                fwdebug(3, "PFWBLOCK_DEBUG", "No was_generated_by for %s" % (k))
 
     else:
-        pfwutils.debug(3, "PFWBLOCK_DEBUG", "No file section (%s)" % SW_FILESECT)
+        fwdebug(3, "PFWBLOCK_DEBUG", "No file section (%s)" % SW_FILESECT)
         
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
     #exit(0)
     
@@ -322,9 +326,10 @@ def add_file_metadata(config, modname):
 
 
 
+#######################################################################
 def write_jobwcl(config, jobnum, numexpwrap):
     """ write a little config file containing variables needed at the job level """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
 
     jobwclfile = config.get_filename('jobwcl', {PF_CURRVALS: {PF_JOBNUM: jobnum}, 'required': True, 'interpolate': True})
 
@@ -347,7 +352,7 @@ def write_jobwcl(config, jobnum, numexpwrap):
               'pipever': config.search('pipever', {'required': True,
                                     'interpolate': True})[1], 
             }
-    if pfwutils.convertBool(config[PF_USE_DB_OUT]):
+    if convertBool(config[PF_USE_DB_OUT]):
         if 'des_services' in config and config['des_services'] is not None: 
             jobwcl['des_services'] = config['des_services']
         jobwcl['des_db_section'] = config['des_db_section']
@@ -358,13 +363,14 @@ def write_jobwcl(config, jobnum, numexpwrap):
     with open(jobwclfile, 'w') as wclfh:
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
 
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return jobwclfile
     
 
+#######################################################################
 def add_needed_values(config, modname, wrapinst, wrapwcl):
     """ Make sure all variables in the wrapper instance have values in the wcl """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     
     # start with those needed by framework
     neededvals = {REQNUM: config.search(REQNUM,
@@ -406,7 +412,7 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
 
     # start with specified
     if 'req_vals' in config[SW_MODULESECT][modname]: 
-        for rv in pfwutils.pfwsplit(config[SW_MODULESECT][modname]['req_vals']):
+        for rv in fwsplit(config[SW_MODULESECT][modname]['req_vals']):
             neededvals[rv] = True
 
     # go through all values in wcl
@@ -420,7 +426,7 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
         done = True
         count += 1
         for nval in neededvals.keys():
-            pfwutils.debug(4, "PFWBLOCK_DEBUG", "nval = %s" % nval)
+            fwdebug(4, "PFWBLOCK_DEBUG", "nval = %s" % nval)
             if type(neededvals[nval]) is bool:
                 if ':' in nval:
                     nval = nval.split(':')[0]
@@ -442,7 +448,7 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
                         raise(err)
                         
 
-                pfwutils.debug(4, "PFWBLOCK_DEBUG", "val = %s" % val)
+                fwdebug(4, "PFWBLOCK_DEBUG", "val = %s" % val)
 
                 neededvals[nval] = val
                 viter = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
@@ -466,12 +472,13 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
     # add needed values to wrapper wcl
     for key, val in neededvals.items():
         pfwutils.set_wcl_value(key, val, wrapwcl)
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
+#######################################################################
 def create_wrapper_inst(config, modname, loopvals):
     """ Create set of empty wrapper instances """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     wrapperinst = {}
     (found, loopkeys) = config.search('wrapperloop', 
                    {PF_CURRVALS: {'curr_module': modname},
@@ -479,7 +486,7 @@ def create_wrapper_inst(config, modname, loopvals):
     wrapperinst = {}
     if found:
         print "\tloopkeys = ", loopkeys
-        loopkeys = pfwutils.pfwsplit(loopkeys.lower())
+        loopkeys = fwsplit(loopkeys.lower())
         loopkeys.sort()  # sort so can make same key easily
 
         valproduct = itertools.product(*loopvals)
@@ -505,14 +512,14 @@ def create_wrapper_inst(config, modname, loopvals):
                                 }
 
     print "\tNumber wrapper inst: ", len(wrapperinst)
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return wrapperinst
 
 
 #####################################################################
 def read_master_lists(config, modname, modules_prev_in_list):
     """ Read master lists and files from files created earlier """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     print "\tModule %s" % (modname)
 
     # create python list of files and lists for this module
@@ -555,15 +562,16 @@ def read_master_lists(config, modname, modules_prev_in_list):
 #        else:
 #            sdict['depends'] = 1
 
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
 
 
 
+#######################################################################
 def create_sublists(config, modname):
     """ break master lists into sublists based upon match or divide_by """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     print "\tModule %s" % (modname)
     dataset = config.combine_lists_files(modname)
 
@@ -578,10 +586,10 @@ def create_sublists(config, modname):
             sublists = {}
             keys = ()
             if 'loopkey' in sdict:
-                keys = pfwutils.pfwsplit(sdict['loopkey'].lower())
+                keys = fwsplit(sdict['loopkey'].lower())
                 keys.sort()
             elif 'match' in sdict:
-                keys = pfwutils.pfwsplit(sdict['match'].lower())
+                keys = fwsplit(sdict['match'].lower())
                 keys.sort()
 
             if len(keys) > 0: 
@@ -611,12 +619,13 @@ def create_sublists(config, modname):
         else:
             print "\t%s-%s: no masterlist...skipping" % (modname, sname)
 
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
+#######################################################################
 def get_wrapper_loopvals(config, modname):
     """ get the values for the wrapper loop keys """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
 
     loopvals = []
 
@@ -626,7 +635,7 @@ def get_wrapper_loopvals(config, modname):
                     'required': False, 'interpolate': True})
     if found:
         print "\tloopkeys = ", loopkeys
-        loopkeys = pfwutils.pfwsplit(loopkeys.lower())
+        loopkeys = fwsplit(loopkeys.lower())
         loopkeys.sort()  # sort so can make same key easily
 
         if 'loopobj' in moddict:
@@ -643,17 +652,17 @@ def get_wrapper_loopvals(config, modname):
                             {PF_CURRVALS: {'curr_module': modname},
                             'required': True, 
                             'interpolate': True})
-                val = pfwutils.pfwsplit(val)
+                val = fwsplit(val)
                 loopvals.append(val)
 
     return loopvals
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
 #############################################################
 def get_value_from_line(line, key, nickname=None, numvals=None):
     """ Return value from a line in master list """
-    pfwutils.debug(1, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(1, "PFWBLOCK_DEBUG", "BEG")
     # returns None if 0 matches
     #         scalar value if 1 match
     #         array if > 1 match
@@ -699,15 +708,16 @@ def get_value_from_line(line, key, nickname=None, numvals=None):
     else:
         retval = valarr
 
-    pfwutils.debug(1, "PFWBLOCK_DEBUG", "END")
+    fwdebug(1, "PFWBLOCK_DEBUG", "END")
     return retval
 
 
+#######################################################################
 # Assumes currvals includes specific values (e.g., band, ccd)
 def create_single_wrapper_wcl(config, modname, wrapinst):
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
 
-    pfwutils.debug(3, "PFWBLOCK_DEBUG", "\twrapinst=%s" % wrapinst)
+    fwdebug(3, "PFWBLOCK_DEBUG", "\twrapinst=%s" % wrapinst)
 
     currvals = {'curr_module': modname, PF_WRAPNUM: wrapinst[PF_WRAPNUM]}
 
@@ -717,23 +727,23 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     # file is optional
     if IW_FILESECT in wrapinst:
         wrapperwcl[IW_FILESECT] = copy.deepcopy(wrapinst[IW_FILESECT])
-        pfwutils.debug(3, "PFWBLOCK_DEBUG", "\tfile=%s" % wrapperwcl[IW_FILESECT])
+        fwdebug(3, "PFWBLOCK_DEBUG", "\tfile=%s" % wrapperwcl[IW_FILESECT])
 
     # list is optional
     if IW_LISTSECT in wrapinst:
         wrapperwcl[IW_LISTSECT] = copy.deepcopy(wrapinst[IW_LISTSECT])
-        pfwutils.debug(3, "PFWBLOCK_DEBUG", "\tlist=%s" % wrapperwcl[IW_LISTSECT])
+        fwdebug(3, "PFWBLOCK_DEBUG", "\tlist=%s" % wrapperwcl[IW_LISTSECT])
 
 
     # do we want exec_list variable?
-    pfwutils.debug(3, "PFWBLOCK_DEBUG", "\tSW_EXECPREFIX=%s" % SW_EXECPREFIX)
+    fwdebug(3, "PFWBLOCK_DEBUG", "\tSW_EXECPREFIX=%s" % SW_EXECPREFIX)
     numexec = 0
     modname = currvals['curr_module']
     for mkey, mval in config[SW_MODULESECT][modname].items():
-        pfwutils.debug(3, "PFWBLOCK_DEBUG", "\tsearching for exec prefix in %s" % mkey)
+        fwdebug(3, "PFWBLOCK_DEBUG", "\tsearching for exec prefix in %s" % mkey)
         
         if re.search("^%s\d+$" % SW_EXECPREFIX, mkey):
-            pfwutils.debug(4, "PFWBLOCK_DEBUG", "\tFound exec prefex %s" % mkey)
+            fwdebug(4, "PFWBLOCK_DEBUG", "\tFound exec prefex %s" % mkey)
 
             numexec += 1
             iwkey = mkey.replace(SW_EXECPREFIX, IW_EXECPREFIX)
@@ -756,11 +766,11 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                 wrapperwcl[iwkey]['cmdline'] = copy.deepcopy(mval['cmdline'])
 
     if SW_WRAPSECT in config[SW_MODULESECT][modname]:
-        pfwutils.debug(0, 'PFWBLOCK_DEBUG', "Copying wrapper section (%s)"% SW_WRAPSECT)
+        fwdebug(0, 'PFWBLOCK_DEBUG', "Copying wrapper section (%s)"% SW_WRAPSECT)
         wrapperwcl[IW_WRAPSECT] = copy.deepcopy(config[SW_MODULESECT][modname][SW_WRAPSECT])
 
     if IW_WRAPSECT not in wrapperwcl:
-        pfwutils.debug(1, 'PFWBLOCK_DEBUG', "%s (%s): Initializing wrapper section (%s)"% (modname, wrapinst[PF_WRAPNUM], IW_WRAPSECT))
+        fwdebug(1, 'PFWBLOCK_DEBUG', "%s (%s): Initializing wrapper section (%s)"% (modname, wrapinst[PF_WRAPNUM], IW_WRAPSECT))
         wrapperwcl[IW_WRAPSECT] = {}
     wrapperwcl[IW_WRAPSECT]['pipeline'] = config['pipeline']
     wrapperwcl[IW_WRAPSECT]['pipever'] = config['pipever']
@@ -783,7 +793,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
         raise Exception("Error:  Could not find an exec section for module %s" % modname)
         
 
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
     return wrapperwcl
@@ -793,7 +803,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
 #   So the following code changed all global variables to 
 #       variables in the wrapper section
 #def fix_globalvars(config, wrapperwcl, modname, winst):
-#    pfwutils.debug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+#    fwdebug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
 #
 #    wrappervars = {}
 #    wcltodo = [wrapperwcl]
@@ -823,13 +833,13 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
 #                                 'searchobj': winst,
 #                                 'required': True, 
 #                                 'interpolate': True})[1]
-#    pfwutils.debug(1, "PFWBLOCK_DEBUG", "END")
+#    fwdebug(1, "PFWBLOCK_DEBUG", "END")
 #               
 
 
 # translate sw terms to iw terms in values if needed
 def translate_sw_iw(config, wrapperwcl, modname, winst):
-    pfwutils.debug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
 
 
     if ( (SW_FILESECT == IW_FILESECT) and 
@@ -843,24 +853,25 @@ def translate_sw_iw(config, wrapperwcl, modname, winst):
         while len(wcltodo) > 0:
             wcl = wcltodo.pop()
             for key,val in wcl.items():
-                pfwutils.debug(4, 'PFWBLOCK_DEBUG', "key = %s" % (key))
+                fwdebug(4, 'PFWBLOCK_DEBUG', "key = %s" % (key))
                 if type(val) is dict or type(val) is OrderedDict:
                     wcltodo.append(val)
                 else:
-                    pfwutils.debug(4, 'PFWBLOCK_DEBUG', "val = %s, %s" % (val, type(val)))
+                    fwdebug(4, 'PFWBLOCK_DEBUG', "val = %s, %s" % (val, type(val)))
                     for (sw, iw) in translation:
                         val = val.replace(sw+'.', iw+'.')
-                    pfwutils.debug(4, 'PFWBLOCK_DEBUG', "final value = %s" % (val))
+                    fwdebug(4, 'PFWBLOCK_DEBUG', "final value = %s" % (val))
                     wcl[key] = val
 
     #print "new wcl = ", wclutils.write_wcl(wrapperwcl, sys.stdout, True, 4)
-    pfwutils.debug(1, "PFWBLOCK_DEBUG", "END")
+    fwdebug(1, "PFWBLOCK_DEBUG", "END")
                
 
 
+#######################################################################
 def create_module_wrapper_wcl(config, modname, wrapinst):
     """ Create wcl for wrapper instances for a module """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     tasks = []
 
     if modname not in config[SW_MODULESECT]:
@@ -905,15 +916,16 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
 
         # Add this wrapper execution to list
         tasks.append([inst[PF_WRAPNUM], wrappername, inputwcl, logfile])
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
     return tasks
 
+#######################################################################
 def create_wrapper_wcl(config, wrapinst):
     """ Create wcl for single wrapper instance """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
     print "wrapinst.keys = ", wrapinst.keys()
-    modulelist = pfwutils.pfwsplit(config[SW_MODULELIST].lower())
+    modulelist = fwsplit(config[SW_MODULELIST].lower())
     tasks = []
 
     os.mkdir('wcl')
@@ -947,12 +959,12 @@ def create_wrapper_wcl(config, wrapinst):
 
             # Add this wrapper execution to list
             tasks.append((wrappername, inputwcl, logfile))
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return tasks
 
 
 def write_runjob_script(config):
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
 
     jobnum = config[PF_JOBNUM]
     print "PF_JOBNUM = ", PF_JOBNUM
@@ -1023,15 +1035,16 @@ ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $2 $3
         scriptfh.write(scriptstr)
 
     os.chmod(scriptfile, stat.S_IRWXU | stat.S_IRWXG)
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return scriptfile
 
 
 
+#######################################################################
 def create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfile):
     """ Write job manager DAG file """
 
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
     condorfile = create_runjob_condorfile(config)
     pfwdir = config['processingfw_dir']
     tjpad = "%04d" % (int(config[PF_JOBNUM]))
@@ -1048,9 +1061,10 @@ def create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfi
         dagfh.write('SCRIPT post %s %s/libexec/logpost.py config.des %s j $JOB $RETURN\n' % (tjpad, pfwdir, blockname)) 
 
 #    pfwcondor.add2dag(dagfile, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), None, sys.stdout)
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
+#######################################################################
 def tar_inputwcl(config):
     """ Tar the input wcl directory """
     inputwcltar = config.get_filename('inputwcltar')
@@ -1060,9 +1074,10 @@ def tar_inputwcl(config):
     return inputwcltar
 
 
+#######################################################################
 def create_runjob_condorfile(config):
     """ Write runjob condor description file for target job """
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
 
     blockbase = config.get_filename('block', {PF_CURRVALS: {'flabel': 'runjob', 'fsuffix':''}})
 #    initialdir = "../%s_tjobs" % config['blockname']
@@ -1095,7 +1110,7 @@ def create_runjob_condorfile(config):
     targetinfo = config.get_grid_info()
     print "targetinfo=",targetinfo
     if 'gridtype' not in targetinfo:
-        pfwutils.die("Error:  Missing gridtype")
+        fwdie("Error:  Missing gridtype")
     else:
         targetinfo['gridtype'] = targetinfo['gridtype'].lower()
         print 'GRIDTYPE =', targetinfo['gridtype']
@@ -1108,13 +1123,13 @@ def create_runjob_condorfile(config):
             jobattribs['concurrency_limits'] = config['concurrency_limits']
 
         if 'batchtype' not in targetinfo:
-            pfwutils.die("Error: Missing batchtype")
+            fwdie("Error: Missing batchtype")
         else:
             targetinfo['batchtype'] = targetinfo['batchtype'].lower()
 
         if targetinfo['batchtype'] == 'glidein':
             if 'uiddomain' not in config:
-                pfwutils.die("Error: Cannot determine uiddomain for matching to a glidein")
+                fwdie("Error: Cannot determine uiddomain for matching to a glidein")
             reqs.append('(UidDomain == "%s")' % config['uiddomain'])
             if 'glidein_name' in config and config['glidein_name'].lower() != 'none':
                 reqs.append('(GLIDEIN_NAME == "%s")' % config.interpolate(config['glidein_name']))
@@ -1125,7 +1140,7 @@ def create_runjob_condorfile(config):
             reqs.append('(Disk != -1)')
             reqs.append('(Memory != -1)')
     
-            if 'glidein_use_wall' in config and pfwutils.convertBool(config['glidein_use_wall']):
+            if 'glidein_use_wall' in config and convertBool(config['glidein_use_wall']):
                 reqs.append("(TimeToLive > \$(wall)*60)")   # wall is in mins, TimeToLive is in secs
 
         elif targetinfo['batchtype'] == 'local':
@@ -1135,7 +1150,7 @@ def create_runjob_condorfile(config):
             elif 'gridhost' in config:
                 machine = config['gridhost']
             else:
-                pfwutils.die("Error:  Cannot determine machine name (missing loginhost and gridhost)")
+                fwdie("Error:  Cannot determine machine name (missing loginhost and gridhost)")
 
             reqs.append('(machine == "%s")' % machine)
         elif 'dynslots' in targetinfo['batchtype'].lower():
@@ -1159,7 +1174,7 @@ def create_runjob_condorfile(config):
     print "jobattribs=", jobattribs
     pfwcondor.write_condor_descfile('runjob', condorfile, jobattribs, userattribs)
 
-    pfwutils.debug(0, "PFWBLOCK_DEBUG", "END")
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return condorfile
 
 

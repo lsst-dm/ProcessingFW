@@ -8,8 +8,8 @@ import coreutils.desdbi as desdbi
 import intgutils.wclutils as wclutils
 
 from processingfw.pfwdefs import *
+from processingfw.fwutils import *
 import processingfw.pfwlog as pfwlog
-import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
 
 ###########################################################
@@ -26,9 +26,9 @@ def gen_file_list(query, debug = 3):
     dbh = pfwdb.PFWDB()
     results = dbh.gen_file_query(query)
 
-    pfwutils.debug(1, 'PFWFILELIST_DEBUG', "number of files in list from query = %s" % len(results))
+    fwdebug(1, 'PFWFILELIST_DEBUG', "number of files in list from query = %s" % len(results))
 
-    pfwutils.debug(3, 'PFWFILELIST_DEBUG', "list from query = %s" % results)
+    fwdebug(3, 'PFWFILELIST_DEBUG', "list from query = %s" % results)
 
     return results
 

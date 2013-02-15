@@ -16,6 +16,7 @@ def get_timestamp():
     tstamp = time.strftime("%m/%d/%Y %H:%M:%S", time.localtime())
     return tstamp
 
+
 #######################################################################
 def log_pfw_event(config, block=None, subblock=None, 
                   subblocktype=None, info=None):

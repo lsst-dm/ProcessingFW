@@ -914,8 +914,14 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
 
         write_wrapper_wcl(config, inputwcl, wrapperwcl) 
 
+        (exists, val) = config.search(SW_WRAPPER_DEBUG, {PF_CURRVALS: {'curr_module': modname}})
+        if exists:
+            wrapdebug = val
+        else:
+            wrapdebug = 0
+
         # Add this wrapper execution to list
-        tasks.append([inst[PF_WRAPNUM], wrappername, inputwcl, logfile])
+        tasks.append([inst[PF_WRAPNUM], wrappername, inputwcl, wrapdebug, logfile])
     fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
     return tasks
@@ -1110,7 +1116,7 @@ def create_runjob_condorfile(config):
     targetinfo = config.get_grid_info()
     print "targetinfo=",targetinfo
     if 'gridtype' not in targetinfo:
-        fwdie("Error:  Missing gridtype")
+        fwdie("Error:  Missing gridtype", PF_EXIT_FAILURE)
     else:
         targetinfo['gridtype'] = targetinfo['gridtype'].lower()
         print 'GRIDTYPE =', targetinfo['gridtype']
@@ -1123,13 +1129,13 @@ def create_runjob_condorfile(config):
             jobattribs['concurrency_limits'] = config['concurrency_limits']
 
         if 'batchtype' not in targetinfo:
-            fwdie("Error: Missing batchtype")
+            fwdie("Error: Missing batchtype", PF_EXIT_FAILURE)
         else:
             targetinfo['batchtype'] = targetinfo['batchtype'].lower()
 
         if targetinfo['batchtype'] == 'glidein':
             if 'uiddomain' not in config:
-                fwdie("Error: Cannot determine uiddomain for matching to a glidein")
+                fwdie("Error: Cannot determine uiddomain for matching to a glidein", PF_EXIT_FAILURE)
             reqs.append('(UidDomain == "%s")' % config['uiddomain'])
             if 'glidein_name' in config and config['glidein_name'].lower() != 'none':
                 reqs.append('(GLIDEIN_NAME == "%s")' % config.interpolate(config['glidein_name']))
@@ -1150,7 +1156,7 @@ def create_runjob_condorfile(config):
             elif 'gridhost' in config:
                 machine = config['gridhost']
             else:
-                fwdie("Error:  Cannot determine machine name (missing loginhost and gridhost)")
+                fwdie("Error:  Cannot determine machine name (missing loginhost and gridhost)", PF_EXIT_FAILURE)
 
             reqs.append('(machine == "%s")' % machine)
         elif 'dynslots' in targetinfo['batchtype'].lower():

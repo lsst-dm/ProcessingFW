@@ -52,7 +52,7 @@ def getVersion(execname, verflag, verpat):
         except Exception as err:
             #print type(err)
             ver = None 
-            fwdie("Exception from re.match.  Didn't find version: %s" % err)
+            fwdie("Exception from re.match.  Didn't find version: %s" % err, PF_EXIT_FAILURE)
 
     return ver
 
@@ -218,10 +218,10 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
 
                     logfh.close()
             else:
-                fwdie("Unexpected error: %s" % sys.exc_info()[0], FW_EXIT_FAILURE)
+                fwdie("Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
                 
     except:
-        fwdie("Unexpected error: %s" % sys.exc_info()[0], FW_EXIT_FAILURE)
+        fwdie("Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
 
     if processWrap.returncode != 0:
         print "wrapper returned non-zero exit code"
@@ -271,12 +271,24 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
 
 def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
     # run each wrapper execution sequentially
+    linecnt = 0
     with open(taskfile, 'r') as tasksfh:
         # for each task
         line = tasksfh.readline()
+        linecnt++
         while line:
-            (wrapnum, wrapname, wclfile, logfile) = fwsplit(line.strip())
-            wrappercmd = "%s --input=%s" % (wrapname, wclfile)
+            lineparts = fwsplit(line.strip())
+            if len(lineparts) == 5:
+                (wrapnum, wrapname, wclfile, wrapdebug, logfile) = lineparts
+            elif len(lineparts) == 4:
+                (wrapnum, wrapname, wclfile, logfile) = lineparts
+                wrapdebug = 0
+            else:
+                print "Error: incorrect number of items in line #%s" % linecnt
+                print "\tline: %s" % line
+                return(1)
+
+            wrappercmd = "%s --input=%s --debug=%s" % (wrapname, wclfile, wrapdebug)
             print "%04d: wrappercmd: %s" % (int(wrapnum), wrappercmd)
 
             if not os.path.exists(wclfile):

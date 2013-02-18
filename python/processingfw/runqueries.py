@@ -52,7 +52,7 @@ def create_master_list(config, modname, moddict,
         elif 'PROCESSINGFW_DIR' in os.environ:
             dirgenquery = os.environ['PROCESSINGFW_DIR']
         else:
-            fwdie("Could not determine base path for genquerydb.py")
+            fwdie("Could not determine base path for genquerydb.py", PF_EXIT_FAILURE)
 
         prog = "%s/libexec/genquerydb.py" % (dirgenquery)
         args = "--qoutfile %s --qouttype %s --config %s --module %s --search %s" % \
@@ -95,7 +95,7 @@ def create_master_list(config, modname, moddict,
     print "\t\tCreating master list - end ", time.time()
 
     if process.returncode != 0:
-        fwdie("Error: problem creating master list\n%s" % (cmd))
+        fwdie("Error: problem creating master list\n%s" % (cmd), PF_EXIT_FAILURE)
 
     print "\tcreate_master_list: END\n"
 
@@ -136,7 +136,7 @@ def main(argv = None):
         argv = sys.argv
 
     if len(argv) != 3:
-        fwdie("Usage: runqueries.pl configfile condorjobid\n")
+        fwdie("Usage: runqueries.pl configfile condorjobid\n", PF_EXIT_FAILURE)
 
     configfile = argv[1]
     condorid = argv[2]
@@ -146,7 +146,7 @@ def main(argv = None):
     log_pfw_event(config, config['curr_block'], 'runqueries', 'j', ['cid', condorid])
 
     if SW_MODULELIST not in config:
-        fwdie("Error:  No modules to run.")
+        fwdie("Error:  No modules to run.", PF_EXIT_FAILURE)
     
     ### Get master lists and files calling external codes when needed
     
@@ -155,7 +155,7 @@ def main(argv = None):
     modules_prev_in_list = {}
     for modname in modulelist:
         if modname not in config[SW_MODULESECT]:
-            fwdie("Error: Could not find module description for module %s\n" % (modname))
+            fwdie("Error: Could not find module description for module %s\n" % (modname), PF_EXIT_FAILURE)
         runqueries(config, modname, modules_prev_in_list)
         modules_prev_in_list[modname] = True
         

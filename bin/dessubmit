@@ -57,13 +57,12 @@ def create_dags(config, logfh):
 def main(args):
     try:
         parser = argparse.ArgumentParser(description='Submit a run to the processing framework')
-        #boolargs = [PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF, 'usePFWconfig', 'version']
-        boolargs = [PF_DRYRUN, 'version']
+        boolargs = [PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF, 'usePFWconfig', 'version']
 
         for barg in boolargs:
             parser.add_argument('--%s' % barg, action='store', type=str)
         parser.add_argument('--notarget', action='store', type=str, help='Depricated. use --%s=True' % PF_DRYRUN)
-        #parser.add_argument('--gensubmit', action='store')
+        parser.add_argument('--gensubmit', action='store')
         parser.add_argument('--des_services', action='store')
         parser.add_argument('--des_db_section', action='store')
         parser.add_argument('submitwcl', nargs=1, action='store')
@@ -95,7 +94,7 @@ def main(args):
             print "Note: cannot use QCF if %s is False" % PF_USE_DB_OUT
             print "      setting useQCF to False"
             args[PF_USE_QCF] = False
-    
+
         print "Reading config...",
         sys.stdout.flush()
         starttime = time.time()

@@ -31,7 +31,7 @@ def parse_provided_list(listname):
                 (path, fname) = os.path.split(fullname)
                 filelist[fname] = {'path': path, 'filetype': filetype}
     except Exception as err:
-        fwdie("Problems reading file '%s': %s" % (filename, err), 1)
+        fwdie("Problems reading file '%s': %s" % (filename, err), PF_EXIT_FAILURE)
         
     return filelist
 

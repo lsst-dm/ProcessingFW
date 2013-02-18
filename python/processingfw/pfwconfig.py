@@ -42,7 +42,7 @@ class PfwConfig:
                     wcldict = wclutils.read_wcl(fh)
                 wcldict['wclfile'] = args['wclfile']
             except Exception as err:
-                fwdie("Error: problem reading wcl file '%s' : %s" % (args['wclfile'], err), 1)
+                fwdie("Error: problem reading wcl file '%s' : %s" % (args['wclfile'], err), PF_EXIT_FAILURE)
 
         if 'des_services' in args and args['des_services'] is not None:
             wcldict['des_services'] = args['des_services']
@@ -277,7 +277,7 @@ class PfwConfig:
             print "\topt = ", opt
             print "\tcurvals = ", curvals
             print "\n\n"
-            fwdie("Search failed (%s)" % key)
+            fwdie("Search failed (%s)" % key, PF_EXIT_FAILURE)
     
         if found and opt and 'interpolate' in opt and opt['interpolate']:
             opt['interpolate'] = False
@@ -299,11 +299,11 @@ class PfwConfig:
         
         # just abort the check if do not have major sections of config
         if 'archive' not in self.config:
-            fwdie('Error: Could not find archive section')
+            fwdie('Error: Could not find archive section', PF_EXIT_FAILURE)
         if SW_BLOCKSECT not in self.config:
-            fwdie('Error: Could not find block section')
+            fwdie('Error: Could not find block section', PF_EXIT_FAILURE)
         if SW_MODULESECT not in self.config:
-            fwdie('Error: Could not find module section')
+            fwdie('Error: Could not find module section', PF_EXIT_FAILURE)
     
         # make sure project is all uppercase
         # self.config['project'] = self['project'].upper()
@@ -522,17 +522,17 @@ class PfwConfig:
 
         blockname = self.get_block_name(blknum) 
         if not blockname:
-            fwdie("Error: set_block_info cannot determine block name value for blknum=%s" % blknum)
+            fwdie("Error: set_block_info cannot determine block name value for blknum=%s" % blknum, PF_EXIT_FAILURE)
         curdict['curr_block'] = blockname
     
         (exists, targetnode) = self.search('targetnode')
         if not exists:
-            fwdie("Error: set_block_info cannot determine targetnode value")
+            fwdie("Error: set_block_info cannot determine targetnode value", PF_EXIT_FAILURE)
     
         if targetnode not in self.config['archive']:
             print "Error: invalid targetnode value (%s)" % targetnode
             print "\tArchive contains: ", self.config['archive']
-            fwdie("Error: invalid targetnode value (%s)" % targetnode)
+            fwdie("Error: invalid targetnode value (%s)" % targetnode, PF_EXIT_FAILURE)
     
         curdict['curr_archive'] = targetnode
     
@@ -550,7 +550,7 @@ class PfwConfig:
             self.config['runsite'] = sitename
             curdict['curr_site'] = sitename
         else:
-            fwdie('Error: set_block_info cannot determine run_site value')
+            fwdie('Error: set_block_info cannot determine run_site value', PF_EXIT_FAILURE)
         fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
 
     
@@ -652,7 +652,7 @@ class PfwConfig:
                     value = re.sub("(?i)\${%s}" % var, newval, value)
                     done = False
                 else:
-                    fwdie("Could not find value for %s" % newvar)
+                    fwdie("Could not find value for %s" % newvar, PF_EXIT_FAILURE)
                 m = re.search("(?i)\$\{([^}]+)\}", value)
 
 
@@ -711,7 +711,7 @@ class PfwConfig:
             fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
     
         if count >= maxtries:
-            fwdie("Interpolate function aborting from infinite loop\n. Current string: '%s'" % value)
+            fwdie("Interpolate function aborting from infinite loop\n. Current string: '%s'" % value, PF_EXIT_FAILURE)
     
         fwdebug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
         fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
@@ -816,17 +816,17 @@ class PfwConfig:
                 (found, filepat) = self.search(SW_FILEPAT, searchopts)
 
                 if not found:
-                    fwdie("Could not find file pattern %s" % SW_FILEPAT)
+                    fwdie("Could not find file pattern %s" % SW_FILEPAT, PF_EXIT_FAILURE)
 
         
         if SW_FILEPATSECT not in self.config:
             wclutils.write_wcl(self.config)
-            fwdie("Could not find filename pattern section (%s)" % SW_FILEPATSECT)
+            fwdie("Could not find filename pattern section (%s)" % SW_FILEPATSECT, PF_EXIT_FAILURE)
         elif filepat in self.config[SW_FILEPATSECT]:
             filenamepat = self.config[SW_FILEPATSECT][filepat]
         else:
             print SW_FILEPATSECT, " keys: ", self.config[SW_FILEPATSECT].keys()
-            fwdie("Could not find filename pattern for %s" % filepat)
+            fwdie("Could not find filename pattern for %s" % filepat, PF_EXIT_FAILURE)
                 
         filename = self.interpolate(filenamepat, searchopts)
         return filename
@@ -842,12 +842,12 @@ class PfwConfig:
             (found, dirpat) = self.search(SW_DIRPAT, searchopts)
 
             if not found:
-                fwdie("Could not find dirpat")
+                fwdie("Could not find dirpat", PF_EXIT_FAILURE)
 
         if dirpat in self.config[SW_DIRPATSECT]:
             filepathpat = self.config[SW_DIRPATSECT][dirpat][pathtype]
         else:
-            fwdie("Could not find pattern %s in directory patterns" % dirpat)
+            fwdie("Could not find pattern %s in directory patterns" % dirpat, PF_EXIT_FAILURE)
                 
         filepath = self.interpolate(filepathpat, searchopts)
         return filepath

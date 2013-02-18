@@ -44,6 +44,7 @@ SW_QUERYFIELDS = 'query_fields'
 SW_EXECPREFIX = 'exec_'
 SW_STAGEFILES = 'stagefiles'
 SW_WRAPSECT = 'wrapper'
+SW_WRAPPER_DEBUG = 'wrapper_debug'
 
 IW_EXEC_DEF = 'exec_def'
 IW_LISTSECT = 'list'

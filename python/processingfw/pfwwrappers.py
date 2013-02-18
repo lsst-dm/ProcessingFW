@@ -21,7 +21,7 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
             if exc.errno == errno.EEXIST:
                 pass
             else: 
-                fwdie("Error making directory wcldir: %s" % exc, PFW_EXIT_FAILURE)
+                fwdie("Error making directory wcldir: %s" % exc, PF_EXIT_FAILURE)
 
     with open(filename, 'w', 0) as wclfh:
         write_wcl(wrapperwcl, wclfh, True, 4)
@@ -31,7 +31,7 @@ def write_workflow_taskfile(config, tasks):
     taskfile = config.get_filename('jobtasklist', {'required': True, 'interpolate': True})
     with open(taskfile, 'w', 0) as tasksfh:
         for task in sorted(tasks, key=lambda singletask: int(singletask[0])):
-            tasksfh.write("%s, %s, %s, %s\n" % (task[0], task[1], task[2], task[3]))
+            tasksfh.write("%s, %s, %s, %s\n" % (task[0], task[1], task[2], task[3], task[4]))
     return taskfile
 
 

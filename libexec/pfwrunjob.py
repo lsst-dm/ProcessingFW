@@ -41,14 +41,11 @@ def getVersion(execname, verflag, verpat):
     else:
         # parse output with verpat
         try:
-            print "before match verpat=",verpat
-            print "before match out=",out
             m = re.search(verpat, out)
             if m:
                 ver = m.group(1)
-                print "Found version: ", ver
-            else:
-                print "Didn't find version"
+            #else:
+            #    print "Didn't find version"
         except Exception as err:
             #print type(err)
             ver = None 
@@ -275,7 +272,7 @@ def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
     with open(taskfile, 'r') as tasksfh:
         # for each task
         line = tasksfh.readline()
-        linecnt++
+        linecnt += 1
         while line:
             lineparts = fwsplit(line.strip())
             if len(lineparts) == 5:

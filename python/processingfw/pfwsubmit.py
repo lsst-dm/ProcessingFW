@@ -199,10 +199,10 @@ def run_sys_checks():
     try:
         pfwcondor.check_condor('7.4.0')
     except Exception as excpt:
-        print "Error"
+        print "ERROR"
         raise excpt 
               
-    print "Done"
+    print "DONE"
 
 
 ######################################################################

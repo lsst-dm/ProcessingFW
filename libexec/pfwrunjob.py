@@ -306,11 +306,6 @@ def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
                                       useQCF)
                 postwrapper(inwcl, logfile, exitcode, useDB) 
  
-                # to give me full wcl (input + job + values created
-                # at runtime to run against dummy output wcl
-                with open(wclfile+'.mmg', 'w') as wclfh:
-                    wclutils.write_wcl(inwcl, wclfh, True, 4)
-
                 sys.stdout.flush()
                 sys.stderr.flush()
                 if exitcode:

@@ -898,9 +898,14 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
                 'required': True, 'interpolate': True})
 
 
-        logfilename = config.get_filename('log', {PF_CURRVALS: 
+        (exists, logfilename) = config.search('logname', {PF_CURRVALS: 
                 {'curr_module': modname}, 
-                 'searchobj': inst})
+                 'searchobj': inst,
+                 'interpolate': True})
+        if not exists:
+            logfilename = config.get_filename('log', {PF_CURRVALS: 
+                    {'curr_module': modname}, 
+                     'searchobj': inst})
         logfilepath = config.get_filepath('runtime', 'log', {PF_CURRVALS: 
                 {'curr_module': modname}, 
                  'searchobj': inst})

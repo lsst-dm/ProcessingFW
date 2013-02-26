@@ -95,11 +95,9 @@ def main(args):
             print "      setting useQCF to False"
             args[PF_USE_QCF] = False
 
-        print "Reading config...",
+        print "Reading framework configuration and submit wcl:"
         sys.stdout.flush()
-        starttime = time.time()
         config = pfwconfig.PfwConfig(args) 
-        print "Done (%0.2f secs)" % (time.time()-starttime)
 
         if args['gensubmit']:
             config.save_file(args['gensubmit'])
@@ -111,7 +109,7 @@ def main(args):
                 dbh.insert_run(config)
                 print 'DONE'
             elif ATTNUM not in config:
-                print 'No DB.  Defaulting %s to 0' % ATTNUM
+                print '\tNo DB.  Defaulting %s to 0' % ATTNUM
                 config[ATTNUM] = 0 
                
 

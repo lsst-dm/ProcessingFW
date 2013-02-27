@@ -16,6 +16,7 @@ error=$(run)_$(jobname).err
 log=../uberctrl/localjob.log
 +des_isjob=TRUE
 +des_project="$(project)"
++des_pipeline="$(pipeline)"
 +des_run="$(run)"
 +des_runsite="$(runsite)"
 +des_block="$(block)"

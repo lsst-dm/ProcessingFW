@@ -772,14 +772,16 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     if IW_WRAPSECT not in wrapperwcl:
         fwdebug(1, 'PFWBLOCK_DEBUG', "%s (%s): Initializing wrapper section (%s)"% (modname, wrapinst[PF_WRAPNUM], IW_WRAPSECT))
         wrapperwcl[IW_WRAPSECT] = {}
-    wrapperwcl[IW_WRAPSECT]['pipeline'] = config['pipeline']
+    wrapperwcl[IW_WRAPSECT]['pipeline'] = config['pipeprod']
     wrapperwcl[IW_WRAPSECT]['pipever'] = config['pipever']
+
 
     outputwcl_file = config.get_filename('outputwcl', 
                                 {PF_CURRVALS: currvals,
-                                 'required': True, 'interpolate': True})
+                                 'required': True, 'interpolate': True, 'searchobj': wrapinst})
     outputwcl_path = config.get_filepath('runtime', 'outputwcl', {PF_CURRVALS: currvals,
-                                     'required': True, 'interpolate': True})
+                                     'required': True, 'interpolate': True,
+                                     'searchobj': wrapinst})
     wrapperwcl[IW_WRAPSECT]['outputwcl'] = "%s/%s" % (outputwcl_path, outputwcl_file)
 
 
@@ -888,8 +890,9 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
         wrapperwcl = create_single_wrapper_wcl(config, modname, inst)
 
         inputwclfilename = config.get_filename('inputwcl', {PF_CURRVALS: 
-                {'curr_module': modname}, 
-                 'searchobj': inst})
+                    {'curr_module': modname}, 
+                    'searchobj': inst,
+                    'interpolate': True})
         inputwcl = inputwclfilepath + '/' + inputwclfilename
 
 
@@ -898,12 +901,7 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
                 'required': True, 'interpolate': True})
 
 
-        (exists, logfilename) = config.search('logname', {PF_CURRVALS: 
-                {'curr_module': modname}, 
-                 'searchobj': inst,
-                 'interpolate': True})
-        if not exists:
-            logfilename = config.get_filename('log', {PF_CURRVALS: 
+        logfilename = config.get_filename('log', {PF_CURRVALS: 
                     {'curr_module': modname}, 
                      'searchobj': inst})
         logfilepath = config.get_filepath('runtime', 'log', {PF_CURRVALS: 
@@ -1007,7 +1005,7 @@ echo "Initial condor job directory = " $initdir
 echo "Files copied over by condor:"
 ls -l
 """ % ({'eups': config['setupeups'], 
-        'pipe':config['pipeline'],
+        'pipe':config['pipeprod'],
         'ver':config['pipever']})
    
     if 'runroot' in config and config['runroot'] is not None:

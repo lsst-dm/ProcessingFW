@@ -19,6 +19,19 @@ import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb
 
 
+def create_common_vars(config, jobname):
+    attribs = config.get_condor_attributes(jobname)
+    varstr = ""
+    if len(attribs) > 0:
+        varstr = "VARS %s" % jobname
+        for (key,val) in attribs.items():
+            varstr += ' %s="%s"' % (key[len(ATTRIB_PREFIX):], val)
+    varstr += ' jobname="%s"' % jobname
+    varstr += ' pfwdir="%s"' % config['processingfw_dir']
+
+    return varstr
+    
+
 ######################################################################
 def write_block_dag(config, debugfh=None):
     """  writes block dag file """
@@ -40,19 +53,15 @@ def write_block_dag(config, debugfh=None):
     jobmngr = write_stub_jobmngr_dag(config, block, debugfh)
     dag = config.get_filename('blockdag')
 
-    run = config['submit_run']
-    project = config['project']
-    runsite = config['runsite']
 
     dagfh = open(dag, 'w')
-    dagfh.write('DOT %s_block.dot\n' % run)
+    dagfh.write('DOT %s_block.dot\n' % config['submit_run'])
 
     dagfh.write('JOB begblock blocktask.condor\n')
     dagfh.write('VARS begblock exec="$(pfwdir)/libexec/begblock.py"\n')
     dagfh.write('VARS begblock args="config.des"\n')
-    dagfh.write('VARS begblock pfwdir="%s"\n' % pfwdir)
-    dagfh.write('VARS begblock project="%s" run="%s" runsite="%s"\n' % (project, run, runsite))
-    dagfh.write('VARS begblock block="%s" jobname="begblock"\n' % (block))
+    varstr = create_common_vars(config, 'begblock')
+    dagfh.write('%s\n' % varstr)
     dagfh.write('SCRIPT pre begblock %s/libexec/logpre.py config.des %s j $JOB\n' % (pfwdir, block))
     dagfh.write('SCRIPT post begblock %s/libexec/logpost.py config.des %s j $JOB $RETURN\n' % (pfwdir, block))  
 
@@ -65,8 +74,8 @@ def write_block_dag(config, debugfh=None):
     dagfh.write('JOB endblock blocktask.condor\n')
     dagfh.write('VARS endblock exec="%s/libexec/endblock.py"\n' % pfwdir)
     dagfh.write('VARS endblock args="config.des"\n')
-    dagfh.write('VARS endblock jobname="endblock"\n')
-    dagfh.write('VARS endblock run="%s"\n' % run)
+    varstr = create_common_vars(config, 'endblock')
+    dagfh.write('%s\n' % varstr)
     dagfh.write('SCRIPT pre endblock %s/libexec/logpre.py config.des %s j $JOB\n' % (pfwdir, block))
     dagfh.write('SCRIPT post endblock %s/libexec/logpost.py config.des %s j $JOB $RETURN\n' % (pfwdir, block))  
 
@@ -145,9 +154,6 @@ def write_stub_jobmngr_dag(config, block, debugfh=None):
 def write_main_dag(config, maindag, blockdag):
     """ Writes main manager dag input file """
     pfwdir = config['processingfw_dir']
-    project = config['project']
-    run = config['submit_run']
-    runsite = config['submit_node']
 
     dagfh = open(maindag, 'w')
     dagfh.write("DOT main.dot\n")
@@ -156,29 +162,26 @@ def write_main_dag(config, maindag, blockdag):
 JOB begrun %s/share/condor/runtask.condor
 VARS begrun exec="$(pfwdir)/libexec/begrun.py"
 VARS begrun arguments="config.des"
-VARS begrun pfwdir="%s"
-VARS begrun project="%s" run="%s" runsite="%s"
-VARS begrun block="uberctrl" jobname="begrun"
-""" % (pfwdir, pfwdir, project, run, runsite))
+""" % (pfwdir))
+    varstr = create_common_vars(config, 'begrun')
+    dagfh.write('%s\n' % varstr)
 
     dagfh.write("""
 JOB blockmngr %s.condor.sub
-VARS blockmngr pfwdir="%s"
-VARS blockmngr project="%s" run="%s" runsite="%s"
-VARS blockmngr block="uberctrl" jobname="blockmngr"
 SCRIPT pre blockmngr %s/libexec/blockpre.py config.des 
 SCRIPT post blockmngr %s/libexec/blockpost.py config.des $RETURN
 RETRY blockmngr 5 UNLESS-EXIT %s
-""" % (blockdag, pfwdir, project, run, runsite, pfwdir, pfwdir, PF_EXIT_FAILURE))
+""" % (blockdag, pfwdir, pfwdir, PF_EXIT_FAILURE))
+    varstr = create_common_vars(config, 'blockmngr')
+    dagfh.write('%s\n' % varstr)
 
     dagfh.write("""
 JOB endrun %s/share/condor/runtask.condor
 VARS endrun exec="$(pfwdir)/libexec/endrun.py"
 VARS endrun arguments="config.des"
-VARS endrun pfwdir="%s"
-VARS endrun project="%s" run="%s" runsite="%s"
-VARS endrun block="uberctrl" jobname="endrun"
-""" % (pfwdir, pfwdir, project, run, runsite))
+""" % (pfwdir))
+    varstr = create_common_vars(config, 'endrun')
+    dagfh.write('%s\n' % varstr)
 
     dagfh.write("""
 PARENT begrun CHILD blockmngr

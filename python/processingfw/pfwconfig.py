@@ -38,8 +38,11 @@ class PfwConfig:
         if 'wclfile' in args:
             fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
             try:
+                starttime = time.time()
+                print "\tReading submit wcl...",
                 with open(args['wclfile'], "r") as fh:
                     wcldict = wclutils.read_wcl(fh)
+                print "DONE (%0.2f secs)" % (time.time()-starttime)
                 wcldict['wclfile'] = args['wclfile']
             except Exception as err:
                 fwdie("Error: problem reading wcl file '%s' : %s" % (args['wclfile'], err), PF_EXIT_FAILURE)
@@ -72,18 +75,21 @@ class PfwConfig:
         if 'usePFWconfig' in args:
             pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
             fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+            starttime = time.time()
+            print "\tReading config from software install...",
             fh = open(pfwconfig, "r")
             wclutils.updateDict(self.config, wclutils.read_wcl(fh))
             fh.close()
+            print "DONE (%0.2f secs)" % (time.time()-starttime)
 
         if (PF_USE_DB_IN in wcldict and 
             convertBool(wcldict[PF_USE_DB_IN]) and 
             'get_db_config' in args and args['get_db_config']):
-            print "Getting defaults from DB...",
+            print "\tGetting defaults from DB...",
             sys.stdout.flush()
             starttime = time.time()
             dbh = pfwdb.PFWDB(wcldict['des_services'], wcldict['des_db_section'])
-            print "Done (%0.2f secs)" % (time.time()-starttime)
+            print "DONE (%0.2f secs)" % (time.time()-starttime)
             wclutils.updateDict(self.config, dbh.get_database_defaults())
 
         # wclfile overrides all, so must be added last
@@ -742,6 +748,7 @@ class PfwConfig:
         attribs = {} 
         attribs[ATTRIB_PREFIX + 'isjob'] = 'TRUE'
         attribs[ATTRIB_PREFIX + 'project'] = self.config['project']
+        attribs[ATTRIB_PREFIX + 'pipeline'] = self.config['pipeline']
         attribs[ATTRIB_PREFIX + 'run'] = self.config['submit_run']
         attribs[ATTRIB_PREFIX + 'block'] = self.config['current']['curr_block']
         attribs[ATTRIB_PREFIX + 'operator'] = self.config['operator']

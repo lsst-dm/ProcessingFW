@@ -34,39 +34,3 @@ def write_workflow_taskfile(config, tasks):
             tasksfh.write("%s, %s, %s, %s, %s\n" % (task[0], task[1], task[2], task[3], task[4]))
     return taskfile
 
-
-#def write_workflow_script(config, tasks):
-#    (found, scriptfilename) = config.search('runscript', {'required': True, 'interpolate': True})
-#    pipeline = config['pipeline']
-#    pipever = config['pipever']
-#
-#    scriptstr = """#!/usr/bin/env python
-#
-#import sys
-#from processingfw.pfwrunwrapper import runwrapper
-#from processingfw.pfwutils import pfwsplit
-##import eups.setupcmd
-#
-#
-#def runTasks(taskfile, useQCF=False):
-#    with open(taskfile, 'r', 0) as tasksfh
-#    tasks = %s
-#    for task in tasks:
-#        wrappercmd = task[0] + " --input=" + task[1]
-#        exitcode = pfwrunwrapper.runwrapper(wrappercmd, task[2])
-#        if exitcode:
-#            print "Aborting due to non-zero exit code"
-#            sys.exit(exitcode)
-#
-#if __name__ == '__main__':
-#    #setup = eups.setupcmd.EupsSetup(['%s', '%s', '-q'], 'setup')
-#    #status = setup.run()
-#    #if status:
-#    #    print "Aborting due to non-zero eups setup exit code"
-#    #    sys.exit(status)
-#    runTasks()
-#""" % (str(tasks), pipeline, pipever)
-#    with open(scriptfilename, 'w', 0) as scriptfh:
-#        scriptfh.write(scriptstr)
-#    os.chmod(scriptfilename, stat.S_IRWXU | stat.S_IRWXG)
-

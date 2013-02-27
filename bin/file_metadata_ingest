@@ -12,11 +12,15 @@ import subprocess
 import os
 import re
 import sys
+from collections import OrderedDict
+import wrappers.WrapperUtils as wraputils
+import wrappers.WrapperFuncs
+import intgutils.wclutils as wclutils
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwdefs import *
 from processingfw.fwutils import *
 import processingfw.pfwutils as pfwutils
-import intgutils.wclutils as wclutils
+import processingfw.errors
 
 VERSION = '$Rev$'
 
@@ -35,6 +39,7 @@ def parse_provided_list(listname):
         
     return filelist
 
+
 def get_list_filenames(ingestpath, filetype):
     """ create a dictionary of files in given path """
 
@@ -45,11 +50,12 @@ def get_list_filenames(ingestpath, filetype):
     return filelist
 
 
-def list_not_in_db(filenames):
+def list_not_in_db(filenames, dbh):
     """ Return list of files from given set which are not in database """
 
-    dbh = pfwdb.PFWDB()
+    origcount = len(filenames)
 
+    print "Checking if files are already in database"
     dbq = "select filename from genfile where filename in ('%s')" % "','".join(filenames)
     curs = dbh.cursor()
     curs.execute(dbq)
@@ -58,12 +64,29 @@ def list_not_in_db(filenames):
         dblist.append(row[0])
 
     filenames = set(filenames) - set(dblist)
+    print "\t%0d files already in database" % len(dblist)
+
+    if len(filenames) > 0:
+        print "\t%0d files still to be ingested" % len(filenames)
+
     return filenames
 
 
-def create_input_wcl(filelist, dbwcl):
-    """ Returns input wcl for call to generic.py to get metadata collection """ 
+def get_metadata_specs(ftype, dbwcl):
+    metaspecs = pfwutils.get_metadata_wcl(ftype, ftype, dbwcl)
+    for key in metaspecs:
+        if type(metaspecs[key]) == dict or type(metaspecs[key]) == OrderedDict:
+            if 'wcl' in metaspecs[key]:
+                del metaspecs[key]['wcl']    # remove wcl requirements for manual file ingestion
+            if len(metaspecs[key]) == 0:
+                del metaspecs[key]
+    return metaspecs
 
+
+def ingest_file_metadata(filelist, dbwcl, dbh, noingest=False):
+    """ Ingests file metadata for all files in filelist """ 
+
+    print "\nIngesting data for %0d files" % (len(filelist))
 
     # group by filetype
     byfiletype = {}
@@ -72,67 +95,42 @@ def create_input_wcl(filelist, dbwcl):
             byfiletype[filelist[f]['filetype']] = []
         byfiletype[filelist[f]['filetype']].append(filelist[f]['path'] + '/' + f)
 
-    wcl = {}
-    wcl['%s1' % (IW_EXECPREFIX)] = {}
-    wcl['%s1' % (IW_EXECPREFIX)]['execname'] = '/usr/bin/uptime'
-    wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS] = []
-    wcl[IW_FILESECT] = {}
+    filedata = {}
     for ftype in byfiletype:
-        wcl[IW_FILESECT][ftype] = pfwutils.get_metadata_wcl(ftype, ftype, dbwcl)
-        wcl[IW_FILESECT][ftype]['filetype'] = ftype
-        wcl[IW_FILESECT][ftype]['fullname'] = ','.join(byfiletype[ftype])
-        wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS].append(IW_FILESECT +'.' + ftype)
+        print "%s:" % ftype
+        metaspecs = get_metadata_specs(ftype, dbwcl)
+        metaspecs['filetype'] = ftype
+        metaspecs['fullname'] = ','.join(byfiletype[ftype])
+        print "\tGathering file metadata on %0d files...." % len(byfiletype[ftype]), 
+        #wclutils.write_wcl(metaspecs)
+        filemeta = wraputils.get_file_metadata(metaspecs)
+        #wclutils.write_wcl(filemeta)
+    
+        # add filenames and filetypes to metadata
+        for fdict in filemeta.values():
+            fdict['filename'] = wclutils.getFilename(fdict['fullname'])
+            fdict['filetype'] = ftype
+
+        print "DONE"
+
+        if not noingest:
+            print "\tCalling ingest_file_metadata on %s files..." % len(filemeta), 
+            try:
+                dbh.ingest_file_metadata(filemeta, dbwcl)
+            except processingfw.errors.FileMetadataIngestError as err:
+                print "\nERROR:", err
+
+            print "DONE"
+
      
-    wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS] = ','.join(wcl['%s1' % (IW_EXECPREFIX)][IW_OUTPUTS])
-    wcl[IW_WRAPSECT]  = {}
-    wcl[IW_WRAPSECT]['pipeline'] = 'file_metadata_ingest'
-    m = re.match('\$Rev: (\d+) \$', VERSION)
-    wcl[IW_WRAPSECT]['pipever'] = m.group(1)
-    return wcl
-
-
-def write_input_wcl(inwclfile, wcl):
-    """ Writes input wcl to file """
-    with open(inwclfile, 'w') as fh:
-        wclutils.write_wcl(wcl, fh)
-
-
-def ingest_metadata(outwclfile, dbwcl, dbh):
-    """ Ingests metadata from output wcl into database """
-
-    if os.path.isfile(outwclfile):
-        outwclfh = open(outwclfile, 'r')
-        outputwcl = wclutils.read_wcl(outwclfh)
-
-        if 'file_metadata' in outputwcl:
-            print "Calling ingest_file_metadata on %s files" % len(outputwcl['file_metadata'])
-            dbh.ingest_file_metadata(outputwcl['file_metadata'], dbwcl)
-    else:
-        print "Error: missing outputwcl file (%s)" % (outwclfile)
-
-
-def run_generic_wrapper(inwclfile):
-    """ Runs the generic wrapper using given input wcl file """
-
-    cmd = "generic.py --input %s" % (inwclfile)
-    print "Running cmd>", cmd
-    process = subprocess.Popen(cmd.split(), shell=False,
-                               stderr=subprocess.STDOUT)
-    process.wait()
-    return process.returncode
-
-
 def main(args):
     parser = argparse.ArgumentParser(description='Ingest metadata for files generated outside DESDM framework')
-    parser.add_argument('--operator', action='store')
     parser.add_argument('--dbwcl', action='store')
-    parser.add_argument('--inputwcl', action='store')
-    parser.add_argument('--outputwcl', action='store')
     parser.add_argument('--noingest', action='store_true', default=False)
-    parser.add_argument('--version', action='store_true', default=False)
     parser.add_argument('--list', action='store', help='format:  fullname, filetype')
-    parser.add_argument('--filetype', action='store')
-    parser.add_argument('--path', action='store')
+    parser.add_argument('--filetype', action='store', help='single value, must also specify path')
+    parser.add_argument('--path', action='store', help='single value, must also specify filetype')
+    parser.add_argument('--version', action='store_true', default=False)
 
     args = vars(parser.parse_args())
 
@@ -142,24 +140,30 @@ def main(args):
         return 0
 
     if args['filetype'] and ',' in args['filetype']: 
-        print "Error: filetype must be single value"
+        print "Error: filetype must be single value\n"
         parser.print_help()
         return 1
 
     if args['path'] and ',' in args['path']:
-        print "Error: path must be single value"
+        print "Error: path must be single value\n"
         parser.print_help()
         return 1
 
     if args['filetype'] and args['path'] is None:
-        print "Error: must specify path if using filetype" 
+        print "Error: must specify path if using filetype\n" 
         parser.print_help()
         return 1
 
     if args['filetype'] is None and args['path']:
-        print "Error: must specify filetype if using path" 
+        print "Error: must specify filetype if using path\n" 
         parser.print_help()
         return 1
+
+    if not args['filetype'] and not args['list']:
+        print "Error: must specify either list or filetype+path\n"
+        parser.print_help()
+        return 1
+
 
     dbh = pfwdb.PFWDB()
     dbwcl = dbh.get_all_filetype_metadata()
@@ -173,44 +177,20 @@ def main(args):
     elif args['list'] is not None:
         filelist = parse_provided_list(args['list'])
 
-    filenames = list_not_in_db(filelist.keys())
+    print "Asked to ingest %0d files\n" % (len(filelist))
+    filenames = list_not_in_db(filelist.keys(), dbh)
 
     if len(filenames) == 0:
-        print "All files already in database"
-        return(0)
-
-    insfilelist = {}
-    for f in filenames:
-        insfilelist[f] = filelist[f]
- 
-    inputwcl = create_input_wcl(insfilelist, dbwcl)
-   
-    if args['inputwcl'] is not None:
-        inwclfile = args['inputwcl']
+        print "\nAll files already in database"
     else:
-        temp = tempfile.NamedTemporaryFile(prefix='ingest_metadata_', suffix='_input.wcl', dir='/tmp', delete=False)
-        inwclfile = temp.name 
+        # create input list of files not already in db
+        insfilelist = {}
+        for f in filenames:
+            insfilelist[f] = filelist[f]
 
-    if args['outputwcl'] is not None:
-        outwclfile = args['outputwcl']
-    else:
-        temp = tempfile.NamedTemporaryFile(prefix='ingest_metadata_', suffix='_output.wcl', dir='/tmp', delete=False)
-        outwclfile = temp.name 
-
-    inputwcl[IW_WRAPSECT]['outputwcl'] = outwclfile
-    write_input_wcl(inwclfile, inputwcl)
-
-    if run_generic_wrapper(inwclfile):
-        print "Skipping ingestion because wrapper exited with error"
-        return(1)
-    
-    inputwcl[IW_WRAPSECT]['outputwcl'] = outwclfile
-
-    if not args['noingest']:
-        ingest_metadata(outwclfile, dbwcl, dbh)
+        ingest_file_metadata(filelist, dbwcl, dbh, args['noingest'])
         dbh.commit()
     
-
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
 

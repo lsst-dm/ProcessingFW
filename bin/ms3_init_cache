@@ -106,7 +106,7 @@ def process_files(filelist, dbwcl, dbh, cachename, noingest=False):
         byfiletype[filetype]['cachefinfo'][fullname] = filelist[f]['cachepath']
 
     filedata = {}
-    for ftype in byfiletype:
+    for ftype in sorted(byfiletype):
         print "%s:" % ftype
         metaspecs = get_metadata_specs(ftype, dbwcl['filetype_metadata'])
         metaspecs['filetype'] = ftype
@@ -116,13 +116,21 @@ def process_files(filelist, dbwcl, dbh, cachename, noingest=False):
         filemeta = wraputils.get_file_metadata(metaspecs)
         #wclutils.write_wcl(filemeta)
     
-        # add filenames and filetypes to metadata
-        for fdict in filemeta.values():
-            fdict['filename'] = wclutils.getFilename(fdict['fullname'])
-            fdict['filetype'] = ftype
+        if filemeta is not None:
+            # add filenames and filetypes to metadata
+            for fdict in filemeta.values():
+                fdict['filename'] = wclutils.getFilename(fdict['fullname'])
+                fdict['filetype'] = ftype
+        else:
+            filemeta = {}
+            fcnt = 0
+            for f in byfiletype[ftype]['fullname']:
+                filemeta['file_%s' % fcnt] = {'filename': wclutils.getFilename(f), 
+                                              'filetype': ftype}
+                fcnt += 1
 
         print "DONE"
-
+         
         if not noingest:
             print "\tCalling ingest_file_metadata on %s files..." % len(filemeta), 
             try:

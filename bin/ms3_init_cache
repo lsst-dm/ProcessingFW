@@ -20,6 +20,7 @@ from processingfw.pfwdefs import *
 from processingfw.fwutils import *
 import processingfw.pfwutils as pfwutils
 import processingfw.errors
+import filemgmt.cache as cache
 
 VERSION = '$Rev$'
 
@@ -30,11 +31,11 @@ def parse_provided_list(listname):
     try:
         with open(listname, "r") as fh:
             for line in fh:
-                (fullname, filetype) = fwsplit(line, ',')
+                (fullname, filetype, cachepath) = fwsplit(line, ',')
                 (path, fname) = os.path.split(fullname)
-                filelist[fname] = {'path': path, 'filetype': filetype}
+                filelist[fname] = {'path': path, 'filetype': filetype, 'fullname':fullname, 'cachepath':cachepath}
     except Exception as err:
-        fwdie("Problems reading file '%s': %s" % (filename, err), PF_EXIT_FAILURE)
+        fwdie("Problems reading file '%s': %s" % (listname, err), PF_EXIT_FAILURE)
         
     return filelist
 
@@ -82,25 +83,35 @@ def get_metadata_specs(ftype, dbwcl):
     return metaspecs
 
 
-def ingest_file_metadata(filelist, dbwcl, dbh, noingest=False):
+def process_files(filelist, dbwcl, dbh, cachename, noingest=False):
     """ Ingests file metadata for all files in filelist """ 
 
-    print "\nIngesting data for %0d files" % (len(filelist))
+    print "\nProcessing %0d files" % (len(filelist))
+    if DATA_DEF not in dbwcl:
+        fwdie("Error: %s not in database wcl" % DATA_DEF, PF_EXIT_FAILURE)
+
+    if cachename not in dbwcl[DATA_DEF]:
+        fwdie("Error: %s not in OPS_DATA_DEF" % cachename, PF_EXIT_FAILURE)
+
+    cachedict = dbwcl[DATA_DEF][cachename]
 
     # group by filetype
     byfiletype = {}
     for f in filelist:
-        if filelist[f]['filetype'] not in byfiletype:
-            byfiletype[filelist[f]['filetype']] = []
-        byfiletype[filelist[f]['filetype']].append(filelist[f]['path'] + '/' + f)
+        filetype = filelist[f]['filetype']
+        if filetype not in byfiletype:
+            byfiletype[filetype] = {'fullname': [], 'cachefinfo': {}}
+        fullname = filelist[f]['fullname']
+        byfiletype[filetype]['fullname'].append(fullname)
+        byfiletype[filetype]['cachefinfo'][fullname] = filelist[f]['cachepath']
 
     filedata = {}
     for ftype in byfiletype:
         print "%s:" % ftype
-        metaspecs = get_metadata_specs(ftype, dbwcl)
+        metaspecs = get_metadata_specs(ftype, dbwcl['filetype_metadata'])
         metaspecs['filetype'] = ftype
-        metaspecs['fullname'] = ','.join(byfiletype[ftype])
-        print "\tGathering file metadata on %0d files...." % len(byfiletype[ftype]), 
+        metaspecs['fullname'] = ','.join(sorted(byfiletype[ftype]['fullname']))
+        print "\tGathering file metadata on %0d files...." % len(byfiletype[ftype]['fullname']), 
         #wclutils.write_wcl(metaspecs)
         filemeta = wraputils.get_file_metadata(metaspecs)
         #wclutils.write_wcl(filemeta)
@@ -115,28 +126,53 @@ def ingest_file_metadata(filelist, dbwcl, dbh, noingest=False):
         if not noingest:
             print "\tCalling ingest_file_metadata on %s files..." % len(filemeta), 
             try:
-                dbh.ingest_file_metadata(filemeta, dbwcl)
+                dbh.ingest_file_metadata(filemeta, dbwcl['filetype_metadata'])
             except processingfw.errors.FileMetadataIngestError as err:
-                print "\nERROR:", err
+                fwdie("\nERROR: %s" % err, PF_EXIT_FAILURE)
 
             print "DONE"
+
+        #wclutils.write_wcl(cachedict)
+        #wclutils.write_wcl(cachefileinfo)
+        print "\tCalling filecache.put_within_job on %s files..." % len(byfiletype[ftype]['cachefinfo']),
+        try:
+            filecache = cache.Cache()
+            problemfiles = filecache.put_within_job(byfiletype[ftype]['cachefinfo'], cachedict)
+    
+            if len(problemfiles) > 0:
+                print "ERROR\nProblems putting %0d files into cache" % len(problemfiles)
+                for file in problemfiles:
+                    print file, "\n"
+                sys.exit(PF_EXIT_FAILURE)
+        except Exception as err:
+            fwdie("ERROR\n%s" % err, PF_EXIT_FAILURE)
+
+        print "DONE"
 
      
 def main(args):
     parser = argparse.ArgumentParser(description='Ingest metadata for files generated outside DESDM framework')
     parser.add_argument('--dbwcl', action='store')
     parser.add_argument('--noingest', action='store_true', default=False)
-    parser.add_argument('--list', action='store', help='format:  fullname, filetype')
-    parser.add_argument('--filetype', action='store', help='single value, must also specify path')
-    parser.add_argument('--path', action='store', help='single value, must also specify filetype')
+    parser.add_argument('--list', action='store', help='format:  fullname, filetype, cachepath')
+    parser.add_argument('--cachename', action='store', help='single value')
+    parser.add_argument('--cachepath', action='store', help='single value, must also specify path and filetype')
+    parser.add_argument('--filetype', action='store', help='single value, must also specify path and cachepath')
+    parser.add_argument('--path', action='store', help='single value, must also specify filetype and cachepath')
     parser.add_argument('--version', action='store_true', default=False)
 
     args = vars(parser.parse_args())
 
-    print 'Using version %s of file_metadata_ingest\n' % VERSION
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
+    #print 'Using version %s of file_metadata_ingest\n' % VERSION
+    #
+    #if args['version']:
+        # return 0
 
-    if args['version']:
-        return 0
+    if not args['cachename']:
+        print "Error: must specify cachename\n"
+        parser.print_help()
+        return 1
 
     if args['filetype'] and ',' in args['filetype']: 
         print "Error: filetype must be single value\n"
@@ -165,7 +201,7 @@ def main(args):
 
 
     dbh = pfwdb.PFWDB()
-    dbwcl = dbh.get_all_filetype_metadata()
+    dbwcl = dbh.get_database_defaults()
 
     if args['dbwcl'] is not None:
         with open(args['dbwcl'], 'w') as fh:
@@ -187,7 +223,7 @@ def main(args):
         for f in filenames:
             insfilelist[f] = filelist[f]
 
-        ingest_file_metadata(filelist, dbwcl, dbh, args['noingest'])
+        process_files(insfilelist, dbwcl, dbh, args['cachename'], args['noingest'])
         dbh.commit()
     
 if __name__ == '__main__':

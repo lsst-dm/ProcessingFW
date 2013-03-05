@@ -67,6 +67,21 @@ def tar_dir(filename, indir):
         tar.add(indir)
 
 #######################################################################
+def tar_list(tarfilename, filelist):
+    """ Tars a directory """
+
+    if tarfilename.endswith('.gz'):
+        mode = 'w:gz'
+    else:
+        mode = 'w'
+
+    with tarfile.open(tarfilename, mode) as tar:
+        for f in filelist:
+            tar.add(f)
+
+
+
+#######################################################################
 def untar_dir(filename, outputdir):
     """ Untars a directory """
     if filename.endswith('.gz'):
@@ -97,7 +112,7 @@ def get_metadata_wcl(filetype, fsectname, dbwcl):
             if 'c' in dbwcl[filetype]['o']:
                 fdict['opt_metadata']['compute'] = ','.join(dbwcl[filetype]['o']['c'].keys())
     else:
-        print "Could not find filetype in dbwcl"
+        print "Could not find filetype (%s) in dbwcl" % filetype
         print dbwcl
         exit(1)
 

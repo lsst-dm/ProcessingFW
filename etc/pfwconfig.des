@@ -9,15 +9,19 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
     inputwcl = ${modnamepat}_input.wcl
     outputwcl = ${modnamepat}_output.wcl
     log = ${modnamepat}.log
-    inputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_inputwcl.tar.gz
-    outputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_outputwcl.tar.gz
-    jobwcl = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_job.wcl
-    runjob = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_runjob.sh
-    jobtasklist = ${unitname}_r${reqnum}p${attnum:2}_task.list
+    inputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_inputwcl.tar.gz
+    outputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_outputwcl.tar.gz
+    runjob = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_runjob.sh
+    jobwcl = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_job.wcl
+    jobtasklist = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_task.list
+
+    envfile = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum}_env.txt
+
     block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
     blockbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}
-    job = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${flabel}.${fsuffix}
-    jobbase = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${flabel}
+    job = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}.${fsuffix}
+    jobbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}
+
     mngrdag = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
     blockdag = ${unitname}_r${reqnum}p${attnum:2}_block.dag
     jobdag = ${unitname}_r${reqnum}p${attnum:2}_job.dag
@@ -38,4 +42,9 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
         ops = tbd 
         runtime = log/${modulename}
     </log>
+    <jobdir> 
+        name = jobdir
+        ops = tbd 
+        runtime = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum}
+    </jobdir>
 </directory_pattern>

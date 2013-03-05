@@ -55,8 +55,7 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("Target:\n")
     mailfh.write("\tmachine = %s\n" % config['loginhost'])
     mailfh.write("\tnode = %s\n" % config['targetnode'])
-    mailfh.write("\tdirectory = %s/%s\n" % \
-            (config['archive_root'], config['run_dir']))
+    mailfh.write("\troot dir = %s\n" % (config['runroot']))
     mailfh.write("\n\n")
     mailfh.write("------------------------------\n")
 

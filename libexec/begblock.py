@@ -23,7 +23,19 @@ def begblock(argv):
     config = pfwconfig.PfwConfig({'wclfile': configfile}) 
     config.set_block_info()
 
-#    os.chdir('../%s' % config['blockname'])
+    os.chdir('../%s' % config['blockname'])
+
+    # now that have more information, can rename output file
+    fwdebug(0, 'PFWBLOCK_DEBUG', "getting new_log_name")
+    new_log_name = config.get_filename('block', {PF_CURRVALS:
+                                                    {'flabel': 'begblock',
+                                                     'fsuffix':'out'}})
+    new_log_name = "../%s/%s" % (config['blockname'], new_log_name)
+    fwdebug(0, 'PFWBLOCK_DEBUG', "new_log_name = %s" % new_log_name)
+
+    debugfh = open(new_log_name, 'a+')
+    sys.stdout = debugfh
+    sys.stderr = debugfh
 
     if 'des_services' in config and config['des_services'] is not None:
         os.environ['DES_SERVICES'] = config['des_services']
@@ -42,6 +54,8 @@ def begblock(argv):
     modulelist = fwsplit(config[SW_MODULELIST].lower())
     modules_prev_in_list = {}
     tasks = []
+
+    joblist = {} 
     for modname in modulelist:
         if modname not in config[SW_MODULESECT]:
             fwdie("Error: Could not find module description for module %s\n" % (modname), PF_EXIT_FAILURE)
@@ -58,31 +72,27 @@ def begblock(argv):
         wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
         pfwblock.assign_data_wrapper_inst(config, modname, wrapinst)
         pfwblock.finish_wrapper_inst(config, modname, wrapinst)
-        tasks = tasks + pfwblock.create_module_wrapper_wcl(config, modname, wrapinst)
+        pfwblock.create_module_wrapper_wcl(config, modname, wrapinst)
+        pfwblock.divide_into_jobs(config, modname, wrapinst, joblist)
         modules_prev_in_list[modname] = True
 
-    tasksfile = pfwwrappers.write_workflow_taskfile(config, tasks)
-    tarfile = pfwblock.tar_inputwcl(config)
     scriptfile = pfwblock.write_runjob_script(config)
-    jobwclfile = pfwblock.write_jobwcl(config, '1', len(tasks))
 
-    dagfile = config.get_filename('jobdag')
-    numjobs = 1
+    for jobkey,jobdict in joblist.items():
+        jobdict['jobnum'] = config.inc_jobnum()
+        jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])
+        jobdict['tarfile'] = pfwblock.tar_inputwcl(config, jobdict['jobnum'], jobdict['inwcllist'])
+        jobdict['jobwclfile'] = pfwblock.write_jobwcl(config, jobdict['jobnum'], len(jobdict['tasks']))
+
+    numjobs = len(joblist)
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh.update_block_numexpjobs(config, numjobs)
-#    jobsdir = '../%s_tjobs' % config['blockname']
-#    if not os.path.exists(jobsdir):
-#        os.mkdir(jobsdir)
 
-    pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfile)
+    dagfile = config.get_filename('jobdag')
+    pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, joblist)
 
     config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
 
-#    os.rename(tarfile, "%s/%s" % (jobsdir, tarfile))
-#    os.rename(tasksfile, "%s/%s" % (jobsdir, tasksfile))
-#    os.rename(jobwclfile, "%s/%s" % (jobsdir, jobwclfile))
-#    os.rename(scriptfile, "%s/%s" % (jobsdir, scriptfile))
-    
     print "begblock done"
     if PF_DRYRUN in config and convertBool(config[PF_DRYRUN]):
         retval = PF_EXIT_DRYRUN
@@ -96,4 +106,5 @@ if __name__ == "__main__":
         sys.exit(PF_EXIT_FAILURE)
 
     print ' '.join(sys.argv)
+    sys.stdout.flush()
     sys.exit(begblock(sys.argv[1:]))

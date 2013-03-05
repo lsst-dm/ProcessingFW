@@ -41,7 +41,11 @@ class PFWDB (coreutils.DesDbi):
 
     def __init__ (self, *args, **kwargs):
         fwdebug(3, 'PFWDB_DEBUG', args)
-        coreutils.DesDbi.__init__ (self, *args, **kwargs)
+        try:
+            coreutils.DesDbi.__init__ (self, *args, **kwargs)
+        except Exception as err:
+            fwdie("Error: problem connecting to database: %s\n\tCheck desservices file and environment variables" % err, PF_EXIT_FAILURE)
+            
 
     def get_database_defaults(self):
         """ Grab default configuration information stored in database """
@@ -49,11 +53,12 @@ class PFWDB (coreutils.DesDbi):
         result = OrderedDict()
         
         result['archive'] = self.get_database_table('OPS_ARCHIVE_NODE', 'NAME') 
-        result[SW_DIRPATSECT] = self.get_database_table('OPS_DIRECTORY_PATTERN', 'NAME')
+        result[DIRPATSECT] = self.get_database_table('OPS_DIRECTORY_PATTERN', 'NAME')
         result[SW_FILEPATSECT] = self.get_filename_pattern()
         result['site'] = self.get_database_table('OPS_SITE', 'NAME')
         result['filetype_metadata'] = self.get_all_filetype_metadata()
         result[SW_EXEC_DEF] = self.get_database_table('OPS_EXEC_DEF', 'NAME')
+        result[DATA_DEF] = self.get_database_table('OPS_DATA_DEFS', 'NAME')
 
         return result
 
@@ -278,7 +283,8 @@ class PFWDB (coreutils.DesDbi):
         """ update row in pfw_attempt with end of attempt info """
 
         updatevals = {}
-        updatevals['starttime'] = 'CURRENT_TIMESTAMP'
+        #updatevals['starttime'] = 'CURRENT_TIMESTAMP'
+        updatevals['starttime'] = self.get_current_timestamp_str()
 
         wherevals = {}
         wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
@@ -292,7 +298,7 @@ class PFWDB (coreutils.DesDbi):
         """ update row in pfw_attempt with end of attempt info """
 
         updatevals = {}
-        updatevals['endtime'] = 'CURRENT_TIMESTAMP'
+        updatevals['endtime'] = self.get_current_timestamp_str()
         updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
@@ -300,6 +306,7 @@ class PFWDB (coreutils.DesDbi):
         wherevals['unitname'] = self.quote(unitname)
         wherevals['attnum'] = self.quote(attnum)
         
+        fwdebug(0, 'PFWDB_DEBUG', "%s %s" % (wherevals, updatevals))
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
 
@@ -534,7 +541,11 @@ class PFWDB (coreutils.DesDbi):
 
         curs = self.cursor()
         fwdebug(3, 'PFWDB_DEBUG', "cursor")
-        curs.execute(sql)
+        try:
+            curs.execute(sql)
+        except Exception as err:
+            fwdie("Error: %s\nsql> %s\n" % (err,sql), PF_EXIT_FAILURE)
+
         fwdebug(3, 'PFWDB_DEBUG', "execute")
         self.commit()
         fwdebug(3, 'PFWDB_DEBUG', "end")

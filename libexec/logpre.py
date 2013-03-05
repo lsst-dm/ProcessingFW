@@ -45,7 +45,7 @@ def logpre(argv = None):
                                                     {'flabel': '${subblock}_logpre',
                                                      'subblock': subblock,
                                                      'fsuffix':'out'}})
-#    new_log_name = "../%s/%s" % (blockname, new_log_name)
+    new_log_name = "../%s/%s" % (blockname, new_log_name)
     fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
     debugfh.close()
 

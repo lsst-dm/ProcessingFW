@@ -19,18 +19,19 @@ def write_block_condor(config):
     run = config['submit_run']
     filename = 'blocktask.condor'
 
-    with open(filename, 'w') as fh:
+    with open("../%s/%s" % (blockname,filename), 'w') as fh:
         fh.write("""universe=local
 executable= $(exec)
 arguments = $(args)
 getenv=true
 environment="submit_condorid=$(Cluster).$(Process)"
 notification=never
-output=$(run)_$(jobname).out
-error=$(run)_$(jobname).err
+initialdir = ../%(block)s
+output=../%(block)s/$(run)_$(jobname).out
+error=../%(block)s/$(run)_$(jobname).err
 log=blocktask.log
 queue
-        """)
+        """ % {'block':blockname})
     return filename
 
 
@@ -73,15 +74,15 @@ def blockpre(argv = None):
     if int(retry) != int(config[PF_BLKNUM]):
         fwdebug(0, 'PFWPOST_DEBUG', "WARNING: blknum != retry")
 
-    with open("/tmp/mmgpredebug_%s" % os.getpid(), 'w') as fh:
-        fh.write("blknum = %s\n" % config[PF_BLKNUM])
-        fh.write("blockname = %s\n" % config['blockname'])
-        fh.write("retry = %s\n" % retry)
+#    with open("/tmp/mmgpredebug_%s" % os.getpid(), 'w') as fh:
+#        fh.write("blknum = %s\n" % config[PF_BLKNUM])
+#        fh.write("blockname = %s\n" % config['blockname'])
+#        fh.write("retry = %s\n" % retry)
         
 
     blockname = config['blockname']
-#    if not os.path.exists('../%s' % blockname):
-#        os.mkdir('../%s' % blockname)
+    if not os.path.exists('../%s' % blockname):
+        os.mkdir('../%s' % blockname)
 
 
     # now that have more information, can rename output file
@@ -89,7 +90,7 @@ def blockpre(argv = None):
     new_log_name = config.get_filename('block', {PF_CURRVALS:
                                                   {'flabel': 'blockpre',
                                                    'fsuffix':'out'}})
-#    new_log_name = "../%s/%s" % (blockname, new_log_name)
+    new_log_name = "../%s/%s" % (blockname, new_log_name)
     fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
@@ -98,7 +99,11 @@ def blockpre(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    write_block_condor(config)
+    blocktaskfile = write_block_condor(config)
+    uberblocktask = "../uberctrl/%s" % blocktaskfile
+    if os.path.exists(uberblocktask):
+        os.unlink(uberblocktask)
+    os.symlink("../%s/%s" % (blockname, blocktaskfile), "../uberctrl/%s" % blocktaskfile)
     
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])

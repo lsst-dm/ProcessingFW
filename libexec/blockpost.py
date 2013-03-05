@@ -44,7 +44,7 @@ def blockpost(argv = None):
     new_log_name = config.get_filename('block', {PF_CURRVALS:
                                                   {'flabel': 'blockpost',
                                                    'fsuffix':'out'}})
-#    new_log_name = "../%s/%s" % (blockname, new_log_name)
+    new_log_name = "../%s/%s" % (blockname, new_log_name)
     fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
@@ -52,6 +52,8 @@ def blockpost(argv = None):
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
+
+    os.chdir("../%s" % blockname)
     
     log_pfw_event(config, blockname, 'blockpost', 'j', ['posttask', retval])
 
@@ -103,6 +105,7 @@ def blockpost(argv = None):
             print "%s exists, so email should have already been sent" % (failedfile)
 
     # Store values in DB and hist file 
+    dbh = None
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
         dbh.update_block_end(config, retval)
@@ -111,15 +114,27 @@ def blockpost(argv = None):
     if retval == PF_EXIT_SUCCESS:
         # Get ready for next block
         config.inc_blknum()
-        config.inc_jobnum()
         config.save_file(configfile)
         print "new blknum = ", config[PF_BLKNUM]
         print "number of blocks = ", len(config.block_array)
         if int(config[PF_BLKNUM]) <= len(config.block_array):   # blknum is 1-based
-            retval = PF_NEXTBLOCK
+            retval = PF_EXIT_NEXTBLOCK
             print "modified retval to %s" % retval
     else:
         retval = PF_EXIT_FAILURE
+
+    if convertBool(config[PF_USE_DB_OUT]): 
+        if retval != PF_EXIT_NEXTBLOCK:
+            fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
+            reqnum = config.search(REQNUM, {'interpolate': True})[1]
+            unitname = config.search(UNITNAME, {'interpolate': True})[1]
+            attnum = config.search(ATTNUM, {'interpolate': True})[1]
+            dbh.update_attempt_end(reqnum, unitname, attnum, retval)
+        else:
+            fwdebug(0, 'PFWPOST_DEBUG', "Not calling update_attempt_end: use_db_out = %s, retval = %s" % (config[PF_USE_DB_OUT], retval))
+
+        dbh.commit()
+        dbh.close()
     
     fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
     print "type(retval) =",type(retval)

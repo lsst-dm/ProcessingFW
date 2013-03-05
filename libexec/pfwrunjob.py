@@ -23,18 +23,16 @@ def getVersion(execname, verflag, verpat):
     """run command with version flag and parse output for version"""
 
     ver = None
-    print "getVersion", execname, verflag, verpat
     cmd = "%s %s" % (execname, verflag)
-    print "cmd> ", cmd
     process = subprocess.Popen(cmd.split(),
                                shell=False,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
     process.wait()
     out = process.communicate()[0]
-    print "output = ", out
     if process.returncode != 0:
         print "Warning:  problem when trying to get version"
+        print "getVersion", execname, verflag, verpat
         print "\tcmd> ",cmd
         print out
         ver = None
@@ -106,7 +104,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                 for outfile in fwsplit(inwcl[sect][IW_OUTPUTS]):
                     outfiles[outfile] = True
                     fullnames = pfwutils.get_wcl_value(outfile+'.fullname', inwcl)
-                    print "fullnames = ", fullnames
+                    #print "fullnames = ", fullnames
                     if '$RNMLST{' in fullnames:
                         m = re.search("\$RNMLST{\${(.+)},(.+)}", fullnames)
                         if m:
@@ -134,11 +132,31 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                     for inname in infile_names:
                         if not os.path.exists(inname) and not infile in outfiles:
                             files2get[inname] = True
-                problemfiles = cache.get_from_cache(files2get.keys())
-                if len(problemfiles) != 0:
-                    print "Error: had problems getting input files from cache"
-                    print "\t", problemfiles
-                    return(len(problemfiles))
+                            infile_dir = os.path.dirname(inname)
+                            if len(infile_dir) > 0:
+                                if not os.path.exists(infile_dir):
+                                    os.makedirs(infile_dir)
+                            else:
+                                print "0 length directory for input file:", inname
+                            
+
+                if len(files2get) > 0:
+                    if 'cachename' in inwcl and IW_DATA_DEF in inwcl:
+                        filecache = cache.Cache()
+                        print "execname =", execname
+                        print "Calling get_within_job_wrapper with: "
+                        print "First arg: ", files2get.keys()
+                        print "Second arg: ", inwcl['cachename']
+
+                        problemfiles = filecache.get_within_job_wrapper(files2get.keys(), inwcl['cachename'])
+                    else:  # depricated
+                        problemfiles = cache.get_from_cache(files2get.keys())
+
+                    if len(problemfiles) != 0:
+                        print "Error: had problems getting input files from cache"
+                        print "\t", problemfiles
+                        return(len(problemfiles))
+        
             else:
                 print "Note: 0 inputs (%s) in exec section %s" % (IW_INPUTS, sect)
 
@@ -150,7 +168,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                         verpat = inwcl[IW_EXEC_DEF][execname.lower()]['version_pattern']
 
                         inwcl[sect]['version'] = getVersion(execname, verflag, verpat)
-                        print "inwcl[sect]['version']", sect, inwcl[sect]['version']
+                        #print "inwcl[sect]['version']", sect, inwcl[sect]['version']
 
             if useDB: 
                 if 'execnum' not in inwcl[sect]:
@@ -227,6 +245,100 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
     return processWrap.returncode
 
 
+
+######################################################################
+def compose_path(dirpat, inwcl, infdict, fdict):
+    maxtries = 1000    # avoid infinite loop
+    count = 0
+    m = re.search("(?i)\$\{([^}]+)\}", dirpat)
+    while m and count < maxtries:
+        count += 1
+        var = m.group(1)
+        parts = var.split(':')
+        newvar = parts[0]
+        fwdebug(6, 'PFWRUNJOB_DEBUG', "\twhy req: newvar: %s " % (newvar))
+
+        # search for replacement value
+        if newvar in inwcl:
+            newval = inwcl[newvar]
+        elif newvar in infdict:
+            newval = inwcl[newvar]
+        else:
+            fwdie("Could not find value for %s" % newvar, PF_EXIT_FAILURE)
+
+        fwdebug(6, 'PFWRUNJOB_DEBUG',
+              "\twhy req: newvar, newval, type(newval): %s %s %s" % (newvar, newval, type(newval)))
+        newval = str(newval)
+        if len(parts) > 1:
+            prpat = "%%0%dd" % int(parts[1])
+            try:
+                newval = prpat % int(newval)
+            except ValueError as err:
+                fwdie("Error padding value (%s, %s, %s): %s" % (var, newval, prpat, err))
+        dirpat = re.sub("(?i)\${%s}" % var, newval, dirpat)
+        m = re.search("(?i)\$\{([^}]+)\}", dirpat)
+
+    if count >= maxtries:
+        fwdie("Aborting from infinite loop\n. Current string: '%s'" % dirpat, PF_EXIT_FAILURE)
+    return dirpat
+
+
+
+
+
+######################################################################
+def copy_output_to_cache(inwcl, fileinfo, exitcode):
+    """ If requested, copy output file(s) to cache """
+
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
+
+    if USE_CACHE not in inwcl:    # default to never
+        inwcl[USE_CACHE] = 'never';
+
+    inwcl[USE_CACHE] = inwcl[USE_CACHE].lower()
+
+    usecache = False
+    if inwcl[USE_CACHE] == 'never':
+        usecache = False
+    elif inwcl[USE_CACHE] == 'filespecs':
+        usecache = True
+    elif inwcl[USE_CACHE] == 'filesuccess':
+        usecache = (exitcode == 0)
+    elif inwcl[USE_CACHE] == 'filetransfer':
+        usecache = True
+    else:
+        print "Warning: unknown value for %s (%s).  Defaulting it to 'never'" %  (USE_CACHE, inwcl[USE_CACHE])
+
+    fwdebug(0, "PFWRUNJOB_DEBUG", "usecache = %s" % usecache)
+
+
+    if usecache:
+        if DATA_DEF not in inwcl:
+            fwdie("Error: %s not specified" % DATA_DEF, PF_EXIT_FAILURE)
+        if 'cachename' not in inwcl:
+            fwdie('Error: cachename not specified', PF_EXIT_FAILURE)
+        cachedict = inwcl[DATA_DEF][inwcl['cachename']]
+
+        putinfo = {}
+        for (filename, fdict) in fileinfo.items():
+            fwdebug(0, "PFWRUNJOB_DEBUG", "file %s" % fdict['fullname'])
+            fwdebug(0, "PFWRUNJOB_DEBUG", "\tsection %s" % fdict['sectname'])
+            infdict = inwcl[IW_FILESECT][fdict['sectname']]
+            if COPY_CACHE in infdict and convertBool(infdict[COPY_CACHE]):
+                putinfo[fdict['fullname']] = infdict['cachepath']
+            else:
+                print "\tcopycache is false or missing"
+
+        # call cache put function
+        fwdebug(0, "PFWRUNJOB_DEBUG", "Calling put_within_job for %s files" % len(putinfo))
+        wclutils.write_wcl(putinfo)
+        filecache = cache.Cache()
+        problemfiles = filecache.put_within_job(putinfo, cachedict)
+    else:
+        print "usecache is false"
+                   
+
+######################################################################
 def postwrapper(inwcl, logfile, exitcode, useDB=False):
     fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
 
@@ -241,7 +353,19 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
         outwclfh = open(outputwclfile, 'r')
         outputwcl = wclutils.read_wcl(outwclfh)
 
-    # make 
+    # handle copying output files to cache
+    if OW_METASECT in outputwcl and len(outputwcl[OW_METASECT]) > 0:
+        # separate metadata needed for PFW from DB metadata tables
+        finfo = {}
+        for fdict in outputwcl[OW_METASECT].values():
+            finfo[fdict['filename']] = { 'sectname': fdict['sectname'],
+                                         'fullname': fdict['fullname'],
+                                         'filename': fdict['filename'] }
+            del fdict['sectname']
+            del fdict['fullname']
+        #wclutils.write_wcl(finfo)
+        copy_output_to_cache(inwcl, finfo, exitcode)
+
     if useDB:
         dbh = pfwdb.PFWDB()
         dbh.update_wrapper_end(inwcl, outputwclfile, logfile, exitcode)
@@ -251,6 +375,7 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
                     dbh.update_exec_end(outputwcl[sect], inwcl['dbids'][sect], exitcode)
             if OW_METASECT in outputwcl:
                 dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
+
             pfw_file_metadata = {}
             pfw_file_metadata['file_1'] = {'filename' : outputwclfile, 
                                            'filetype' : 'wcl'}
@@ -366,4 +491,5 @@ def parseArgs(argv):
 
 if __name__ == '__main__':
     print ' '.join(sys.argv)
+    print cache.__file__
     sys.exit(runjob(parseArgs(sys.argv)))

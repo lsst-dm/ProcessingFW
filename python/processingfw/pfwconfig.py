@@ -158,7 +158,7 @@ class PfwConfig:
             self.config[PF_WRAPNUM] = '0'
             self.config[PF_BLKNUM] = '1'
             self.config[PF_TASKNUM] = '0'
-            self.config[PF_JOBNUM] = '1'
+            self.config[PF_JOBNUM] = '0'
 
         self.set_block_info()
 
@@ -196,13 +196,14 @@ class PfwConfig:
         self.config[key] = val
 
     ###########################################################################
-    #def get(self, key, default = None, opt = None):
-    #    (found, val) = self.search(key, opt)
-    #    if not found:
-    #        val = default
-    #    return val
+    def get(self, key, default = None, opt = None):
+        (found, val) = self.search(key, opt)
+        if not found:
+            val = default
+        return val
 
 
+    ###########################################################################
     def set(self, key, val):
         """ store a value in wcl """
         subkeys = key.split('.')
@@ -500,7 +501,7 @@ class PfwConfig:
         self.config['submit_time'] = submit_time
     
         self.config['submit_epoch'] = submit_epoch
-        self.config[PF_JOBNUM] = '1'
+        self.config[PF_JOBNUM] = '0'
         self.config[PF_BLKNUM] = '1'
         self.config[PF_TASKNUM] = '0'
         self.config[PF_WRAPNUM] = '0'
@@ -577,6 +578,7 @@ class PfwConfig:
     def inc_jobnum(self, inc=1):
         """ Increment running job number """
         self.config[PF_JOBNUM] = str(int(self.config[PF_JOBNUM]) + inc)
+        return self.config[PF_JOBNUM]
     
 
     ###########################################################################
@@ -846,13 +848,13 @@ class PfwConfig:
        
         # get filename pattern from global settings:
         if not dirpat:
-            (found, dirpat) = self.search(SW_DIRPAT, searchopts)
+            (found, dirpat) = self.search(DIRPAT, searchopts)
 
             if not found:
                 fwdie("Could not find dirpat", PF_EXIT_FAILURE)
 
-        if dirpat in self.config[SW_DIRPATSECT]:
-            filepathpat = self.config[SW_DIRPATSECT][dirpat][pathtype]
+        if dirpat in self.config[DIRPATSECT]:
+            filepathpat = self.config[DIRPATSECT][dirpat][pathtype]
         else:
             fwdie("Could not find pattern %s in directory patterns" % dirpat, PF_EXIT_FAILURE)
                 

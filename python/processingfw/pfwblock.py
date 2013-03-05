@@ -228,20 +228,23 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                 fwdebug(3, "PFWBLOCK_DEBUG", "fullname = %s" % (winst[IW_FILESECT][fname]['fullname']))
 
                 
-                if 'filetype' in fdict:
-                    winst[IW_FILESECT][fname]['filetype'] = fdict['filetype']
+                for k in ['filetype', 'req_metadata', 'opt_metadata', COPY_CACHE, DIRPAT]:
+                    if k in fdict:
+                        fwdebug(3, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, k))
+                        winst[IW_FILESECT][fname][k] = copy.deepcopy(fdict[k])
+                    else:
+                        fwdebug(3, "PFWBLOCK_DEBUG", "%s: no %s" % (fname, k))
 
-                if 'req_metadata' in fdict:
-                    fwdebug(3, "PFWBLOCK_DEBUG", "copying req_metadata %s" % (fname))
-                    winst[IW_FILESECT][fname]['req_metadata'] = copy.deepcopy(fdict['req_metadata'])
-                else:
-                    fwdebug(3, "PFWBLOCK_DEBUG", "no req_metadata %s" % (fname))
-
-                if 'opt_metadata' in fdict:
-                    fwdebug(3, "PFWBLOCK_DEBUG", "copying opt_metadata %s" % (fname))
-                    winst[IW_FILESECT][fname]['opt_metadata'] = copy.deepcopy(fdict['opt_metadata'])
-                else:
-                    fwdebug(3, "PFWBLOCK_DEBUG", "no opt_metadata %s" % (fname))
+                # save OPS path for cache
+                if USE_CACHE in config:
+                    if (config[USE_CACHE].lower() == 'filetransfer' or
+                        (config[USE_CACHE].lower() != 'never' and COPY_CACHE in fdict and fdict[COPY_CACHE])): 
+                        if DIRPAT not in fdict:
+                            print "Warning: Could not find %s in %s's section" % (DIRPAT,fname)
+                        else:
+                            winst[IW_FILESECT][fname]['cachepath'] = config.get_filepath('ops', fdict[DIRPAT], 
+                                {PF_CURRVALS: {'curr_module': modname}, 'searchobj': fdict, 'required': False, 'interpolate': True})
+                
 
             fwdebug(4, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
             fwdebug(4, "PFWBLOCK_DEBUG", "winst[%s] = %s" % (IW_FILESECT,  winst[IW_FILESECT]))
@@ -280,14 +283,18 @@ def add_file_metadata(config, modname):
                         filetype = fdict['filetype'].lower()
                         fdict['req_metadata'] = OrderedDict()
 
+                        wclsect = "%s.%s" % (IW_FILESECT, fname)
                         if filetype in config['filetype_metadata']:
                             if 'r' in config['filetype_metadata'][filetype]:
                                 if 'h' in config['filetype_metadata'][filetype]['r']:
                                     fdict['req_metadata']['headers'] = ','.join(config['filetype_metadata'][filetype]['r']['h'].keys())
                                 if 'c' in config['filetype_metadata'][filetype]['r']:
                                     fdict['req_metadata']['compute'] = ','.join(config['filetype_metadata'][filetype]['r']['c'].keys())
-#                                if 'w' in config['filetype_metadata'][filetype]['r']:
-#                                    fdict['req_metadata']['wcl'] = ','.join(config['filetype_metadata'][filetype]['r']['w'].keys())
+                                if 'w' in config['filetype_metadata'][filetype]['r']:
+                                    wclkeys = []
+                                    for k in config['filetype_metadata'][filetype]['r']['w'].keys():
+                                        wclkeys.append('%s.%s' % (wclsect, k))
+                                    fdict['req_metadata']['wcl'] = ','.join(wclkeys)
 
                             if 'o' in config['filetype_metadata'][filetype]:
                                 fdict['opt_metadata'] = OrderedDict()
@@ -295,17 +302,18 @@ def add_file_metadata(config, modname):
                                     fdict['opt_metadata']['headers'] = ','.join(config['filetype_metadata'][filetype]['o']['h'].keys())
                                 if 'c' in config['filetype_metadata'][filetype]['o']:
                                     fdict['opt_metadata']['compute'] = ','.join(config['filetype_metadata'][filetype]['o']['c'].keys())
-#                                if 'w' in config['filetype_metadata'][filetype]['o']:
-#                                    fdict['opt_metadata']['wcl'] = ','.join(config['filetype_metadata'][filetype]['o']['w'].keys())
+                                if 'w' in config['filetype_metadata'][filetype]['o']:
+                                    wclkeys = []
+                                    for k in config['filetype_metadata'][filetype]['o']['w'].keys():
+                                        wclkeys.append('%s.%s' % (wclsect, k))
+                                    fdict['opt_metadata']['wcl'] = ','.join(wclkeys)
                 
                         if 'wcl' not in fdict['req_metadata']:
                             fdict['req_metadata']['wcl'] = ''
                         else:
                             fdict['req_metadata']['wcl'] += ','
 
-            
-                        wclsect = "%s.%s" % (IW_FILESECT, fname)
-                        fdict['req_metadata']['wcl'] += '%(sect)s.fullname,%(sect)s.filename,%(sect)s.filetype' % ({'sect':wclsect})
+                        fdict['req_metadata']['wcl'] += '%(sect)s.fullname,%(sect)s.sectname' % ({'sect':wclsect})
                     else:
                         fwdebug(3, "PFWBLOCK_DEBUG", "output file %s doesn't have definition (%s) " % (k, SW_FILESECT))
 
@@ -351,14 +359,22 @@ def write_jobwcl(config, jobnum, numexpwrap):
                                     'interpolate': True})[1], 
               'pipever': config.search('pipever', {'required': True,
                                     'interpolate': True})[1], 
+              'cachename': config.search('cachename', {'required': True,
+                                    'interpolate': True})[1]
             }
     if convertBool(config[PF_USE_DB_OUT]):
         if 'des_services' in config and config['des_services'] is not None: 
             jobwcl['des_services'] = config['des_services']
         jobwcl['des_db_section'] = config['des_db_section']
 
+    (exists, value) =  config.search(USE_CACHE, {'interpolate': True})
+    if exists:
+        jobwcl[USE_CACHE]=value
+
     jobwcl['filetype_metadata'] = config['filetype_metadata']
     jobwcl[IW_EXEC_DEF] = config[SW_EXEC_DEF]
+    jobwcl[DATA_DEF] = config[DATA_DEF]
+    #jobwcl[DIRPATSECT] = config[DIRPATSECT]
 
     with open(jobwclfile, 'w') as wclfh:
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
@@ -728,6 +744,8 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     if IW_FILESECT in wrapinst:
         wrapperwcl[IW_FILESECT] = copy.deepcopy(wrapinst[IW_FILESECT])
         fwdebug(3, "PFWBLOCK_DEBUG", "\tfile=%s" % wrapperwcl[IW_FILESECT])
+        for (sectname, sectdict) in wrapperwcl[IW_FILESECT].items():
+            sectdict['sectname'] = sectname
 
     # list is optional
     if IW_LISTSECT in wrapinst:
@@ -887,18 +905,16 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
 
 
     for inst in wrapinst.values():
-        wrapperwcl = create_single_wrapper_wcl(config, modname, inst)
+        (found, wrappername) = config.search('wrappername',
+                {PF_CURRVALS: {'curr_module': modname}, 'searchobj': inst,
+                'required': True, 'interpolate': True})
+        inst['wrappername'] = wrappername
 
         inputwclfilename = config.get_filename('inputwcl', {PF_CURRVALS: 
                     {'curr_module': modname}, 
                     'searchobj': inst,
                     'interpolate': True})
-        inputwcl = inputwclfilepath + '/' + inputwclfilename
-
-
-        (found, wrappername) = config.search('wrappername',
-                {PF_CURRVALS: {'curr_module': modname}, 'searchobj': inst,
-                'required': True, 'interpolate': True})
+        inst['inputwcl'] = inputwclfilepath + '/' + inputwclfilename
 
 
         logfilename = config.get_filename('log', {PF_CURRVALS: 
@@ -907,27 +923,53 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
         logfilepath = config.get_filepath('runtime', 'log', {PF_CURRVALS: 
                 {'curr_module': modname}, 
                  'searchobj': inst})
-        logfile = logfilepath + '/' + logfilename
+        inst['logfile'] = logfilepath + '/' + logfilename
 
 
+        wrapperwcl = create_single_wrapper_wcl(config, modname, inst)
         #fix_globalvars(config, wrapperwcl, modname, inst)
         
         translate_sw_iw(config, wrapperwcl, modname, inst)
         add_needed_values(config, modname, inst, wrapperwcl)
 
-        write_wrapper_wcl(config, inputwcl, wrapperwcl) 
+        write_wrapper_wcl(config, inst['inputwcl'], wrapperwcl) 
 
         (exists, val) = config.search(SW_WRAPPER_DEBUG, {PF_CURRVALS: {'curr_module': modname}})
         if exists:
-            wrapdebug = val
+            inst['wrapdebug'] = val
         else:
-            wrapdebug = 0
+            inst['wrapdebug'] = 0
 
-        # Add this wrapper execution to list
-        tasks.append([inst[PF_WRAPNUM], wrappername, inputwcl, wrapdebug, logfile])
+        ####tasks.append([inst[PF_WRAPNUM], wrappername, inputwcl, wrapdebug, logfile])
     fwdebug(0, "PFWBLOCK_DEBUG", "END")
+    ####return tasks
 
-    return tasks
+
+
+#######################################################################
+def divide_into_jobs(config, modname, wrapinst, joblist):
+    if SW_DIVIDE_JOBS_BY not in config and len(joblist) > 1:
+        fwdie("Error: no %s in config, but already > 1 job" % SW_DIVIDE_JOBS_BY)
+
+    for inst in wrapinst.values():
+        wclutils.write_wcl(inst, sys.stdout, True, 4)
+        print "inputwcl =", inst['inputwcl']
+        print "logfile =", inst['logfile']
+        key = 'single'
+        if SW_DIVIDE_JOBS_BY in config:
+            print "divide_jobs_by:", config[SW_DIVIDE_JOBS_BY]
+            key = ""
+            for divb in fwsplit(config[SW_DIVIDE_JOBS_BY], ','):
+                key += "_"+config.get(divb, None, {PF_CURRVALS: {'curr_module':modname}, 'searchobj': inst, 'interpolate': True, 'required':True})
+                
+        print "inst key =", key
+        if key not in joblist:
+            joblist[key] = {'tasks':[], 'inwcllist':[]}
+        joblist[key]['tasks'].append([inst[PF_WRAPNUM], inst['wrappername'], inst['inputwcl'], inst['wrapdebug'], inst['logfile']])
+        joblist[key]['inwcllist'].append(inst['inputwcl'])
+            
+
+
 
 #######################################################################
 def create_wrapper_wcl(config, wrapinst):
@@ -975,14 +1017,25 @@ def create_wrapper_wcl(config, wrapinst):
 def write_runjob_script(config):
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
 
-    jobnum = config[PF_JOBNUM]
-    print "PF_JOBNUM = ", PF_JOBNUM
-    print "jobnum = ", jobnum
-    print "jobnum = ", int(jobnum)
-    jobdir = '%s_j%04d' % (config['submit_run'], int(jobnum))
+    jobdir = config.get_filepath('runtime', 'jobdir', {PF_CURRVALS: {PF_JOBNUM:"$padjnum"}})
     print "The jobdir =", jobdir
 
     scriptstr = """#!/bin/sh
+echo "Current args: \$@";
+if [ $# -ne 4 ]; then
+    echo "Usage: <jobnum> <inwcl tar> <job wcl> <tasklist> ";
+    exit 1;
+fi
+jobnum=$1
+padjnum=`/usr/bin/printf %04d $jobnum`
+inwcltar=$2
+jobwcl=$3
+tasklist=$4
+initdir=`/bin/pwd`
+"""
+
+    # setup job environment
+    scriptstr += """
 export SHELL=/bin/bash    # needed for setup to work in Condor environment
 source %(eups)s 
 echo "Using eups to setup up %(pipe)s %(ver)s"
@@ -995,18 +1048,26 @@ if [ $mystat != 0 ]; then
     echo "eups setup had non-zero exit code ($mystat)"
     exit $mystat 
 fi
-echo "PATH = " $PATH
-echo "PYTHONPATH = " $PYTHONPATH
+""" % ({'eups': config['setupeups'], 
+        'pipe':config['pipeprod'],
+        'ver':config['pipever']})
 
 
-initdir=`/bin/pwd`
+    # print start of job information 
+    #      Since wcl's variable syntax matches shell variable syntax and 
+    #      underscores are used to separate name parts, have to use place 
+    #      holder for jobnum and replace later with shell variable
+    #      Otherwise, get_filename fails to substitute for padjnum
+    envfile = config.get_filename('envfile', {PF_CURRVALS: {PF_JOBNUM:"XXXXXXXX"}})
+    envfile = envfile.replace("XXXXXXXX", "${padjnum}")
+
+    scriptstr +="""
+env > %s
 echo ""
 echo "Initial condor job directory = " $initdir
 echo "Files copied over by condor:"
 ls -l
-""" % ({'eups': config['setupeups'], 
-        'pipe':config['pipeprod'],
-        'ver':config['pipever']})
+""" % (envfile)
    
     if 'runroot' in config and config['runroot'] is not None:
         rdir = config['runroot'] + '/' + jobdir
@@ -1020,86 +1081,101 @@ fi
 cd %(rdir)s
         """ % ({'rdir': rdir})
 
+    # untar file containing input wcl files
     scriptstr += """
-
 echo ""
-echo "Untaring input wcl file: $1"
+echo "Untaring input wcl file: $inwcltar"
 d1=`/bin/date "+%s"` 
-tar -xzf $initdir/$1
+tar -xzf $initdir/$inwcltar
 d2=`/bin/date "+%s"` 
 echo "\t$((d2-d1)) secs"
+"""
 
-# copy file so I can test by hand after job
-cp $initdir/$2 $2
-cp $initdir/$3 $3
+    # copy files so can test by hand after job
+    scriptstr += """
+cp $initdir/$jobwcl $jobwcl
+cp $initdir/$tasklist $tasklist
+"""
 
+    # call the job workflow program
+    scriptstr += """
 echo ""
 echo "Calling pfwrunjob.py"
-echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $2 $3"
-${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $2 $3
+echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist"
+${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist
 """ 
 
+    # write shell script to file
     scriptfile = config.get_filename('runjob') 
     with open(scriptfile, 'w') as scriptfh:
         scriptfh.write(scriptstr)
 
     os.chmod(scriptfile, stat.S_IRWXU | stat.S_IRWXG)
+
     fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return scriptfile
 
 
 
 #######################################################################
-def create_jobmngr_dag(config, dagfile, scriptfile, tarfile, tasksfile, jobwclfile):
+def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
     """ Write job manager DAG file """
 
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
-    condorfile = create_runjob_condorfile(config)
+    condorfile = create_runjob_condorfile(config, scriptfile)
+
     pfwdir = config['processingfw_dir']
-    tjpad = "%04d" % (int(config[PF_JOBNUM]))
     blockname = config['curr_block']
-    args = "%s %s %s" % (tarfile, jobwclfile, tasksfile)
-    transinput = "%s,%s,%s" % (tarfile, tasksfile, jobwclfile)
-    with open(dagfile, 'w') as dagfh:
-        dagfh.write('JOB %s %s\n' % (tjpad, condorfile))
-        dagfh.write('VARS %s jobnum="%s"\n' % (tjpad, tjpad))
-        dagfh.write('VARS %s exec="%s"\n' % (tjpad, scriptfile))
-        dagfh.write('VARS %s args="%s"\n' % (tjpad, args))
-        dagfh.write('VARS %s transinput="%s"\n' % (tjpad, transinput))
-        dagfh.write('SCRIPT pre %s %s/libexec/logpre.py config.des %s j $JOB\n' % (tjpad, pfwdir, blockname))
-        dagfh.write('SCRIPT post %s %s/libexec/logpost.py config.des %s j $JOB $RETURN\n' % (tjpad, pfwdir, blockname)) 
+
+    with open("../%s/%s" % (blockname, dagfile), 'w') as dagfh:
+        for jobkey,jobdict in joblist.items(): 
+            jobnum = jobdict['jobnum']
+            tjpad = "%04d" % (int(jobnum))
+
+            dagfh.write('JOB %s %s\n' % (tjpad, condorfile))
+            dagfh.write('VARS %s jobnum="%s"\n' % (tjpad, tjpad))
+            dagfh.write('VARS %s exec="%s"\n' % (tjpad, scriptfile))
+            dagfh.write('VARS %s args="%s %s %s %s"\n' % (tjpad, jobnum, jobdict['tarfile'], jobdict['jobwclfile'], jobdict['tasksfile']))
+            dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['tarfile'], jobdict['jobwclfile'], jobdict['tasksfile']))
+            # no pre script for job.   Job inserted into DB at beginning of job running
+            #TODO dagfh.write('SCRIPT post %s %s/libexec/logpost.py config.des %s j $JOB $RETURN\n' % (tjpad, pfwdir, blockname)) 
+
+    uberdagfile = "../uberctrl/%s" % (dagfile)
+    if os.path.exists(uberdagfile):
+        os.unlink(uberdagfile)
+    os.symlink("../%s/%s" % (blockname, dagfile), uberdagfile)
 
 #    pfwcondor.add2dag(dagfile, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), None, sys.stdout)
     fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
 
 #######################################################################
-def tar_inputwcl(config):
-    """ Tar the input wcl directory """
-    inputwcltar = config.get_filename('inputwcltar')
-    inputwcldir = config.get_filepath('runtime', 'inputwcl', 
-                      {PF_CURRVALS: {'modulename': ''}})
-    pfwutils.tar_dir(inputwcltar, inputwcldir)
+def tar_inputwcl(config, jobnum, inwcllist):
+    """ Tar the input wcl files for a single job """
+    inputwcltar = config.get_filename('inputwcltar', {PF_CURRVALS:{'jobnum': jobnum}})
+    pfwutils.tar_list(inputwcltar, inwcllist)
     return inputwcltar
 
 
 #######################################################################
-def create_runjob_condorfile(config):
+def create_runjob_condorfile(config, scriptfile):
     """ Write runjob condor description file for target job """
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
 
     blockbase = config.get_filename('block', {PF_CURRVALS: {'flabel': 'runjob', 'fsuffix':''}})
 #    initialdir = "../%s_tjobs" % config['blockname']
+    initialdir = "../%s" % config['blockname']
 #    condorfile = '%s/%scondor' % (initialdir, condorbase)
 
-    condorfile = '%scondor' % (blockbase)
+    #condorfile = '%scondor' % (blockbase)
+    condorfile = '../%s/%scondor' % (config['blockname'], blockbase)
     
     jobbase = config.get_filename('job', {PF_CURRVALS: {PF_JOBNUM:'$(jobnum)', 'flabel': 'runjob', 'fsuffix':''}})
     jobattribs = { 
-                'executable':'$(exec)', 
+                'executable':'../%s/%s' % (config['blockname'], scriptfile), 
                 'arguments':'$(args)',
 #               'remote_initialdir':remote_initialdir, 
-#                'initialdir':initialdir,
+                'initialdir':initialdir,
 #               'transfer_output_files': '$(jobnum).pipeline.log',
 #                'should_transfer_files': 'IF_NEEDED',
                 'when_to_transfer_output': 'ON_EXIT_OR_EVICT',

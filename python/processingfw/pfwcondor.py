@@ -207,8 +207,8 @@ def create_condor_env(envvars):
             # Each environment entry has the form <name>=<value>
             # Use white space (space or tab characters) to separate 
             #     environment entries. 
-            envparts.append('%s=%s' % (key.upper, val))
-    else:
+            envparts.append('%s=%s' % (key.upper(), val))
+    elif type(envvars) is str:
         envparts.append(envvars)
     
     # put double quote marks around the entire argument string.
@@ -233,6 +233,11 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
 
     if 'error' not in jobattribs:
         jobattribs['error'] = '%s.err' % jobname
+
+    if 'environment' in jobattribs:
+        jobattribs['environment'] = create_condor_env(jobattribs['environment'])
+    else:
+        jobattribs['environment'] = create_condor_env(None)
 
     if 'universe' not in jobattribs:
         jobattribs['universe'] = 'vanilla'

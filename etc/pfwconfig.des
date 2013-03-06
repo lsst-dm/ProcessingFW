@@ -1,45 +1,50 @@
-useqcf = False
-usedb = True
+use_qcf = False
+use_db_in = True
+use_db_out = True
 tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
+modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
 <filename_pattern>
-    <qoutput>
-        name = qoutput
-        pattern = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
-    </qoutput>
-    <config>
-        name = config
-        pattern = ${unitname}_r${reqnum}p${attnum:2}_config.des
-    </config>
-    <block>
-        name = block
-        pattern = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
-    </block>
-    <wcl>
-        name = wcl
-        pattern = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}_${wcltype}.wcl
-    </wcl>
-    <log>
-        name = log
-        pattern = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}.log
-    </log>
-    <job>
-        name = job
-        pattern = ${unitname}_r${reqnum}p${attnum:2}j${jobnum}_${flabel}.${fsuffix}
-    </job>
-    <mngrdag>
-        name = mngrdag
-        pattern = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
-    </mngrdag>
+    qoutput = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
+    config = ${unitname}_r${reqnum}p${attnum:2}_config.des
+    inputwcl = ${modnamepat}_input.wcl
+    outputwcl = ${modnamepat}_output.wcl
+    log = ${modnamepat}.log
+    inputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_inputwcl.tar.gz
+    outputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_outputwcl.tar.gz
+    runjob = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_runjob.sh
+    jobwcl = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_job.wcl
+    jobtasklist = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_task.list
+
+    envfile = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum}_env.txt
+
+    block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
+    blockbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}
+    job = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}.${fsuffix}
+    jobbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}
+
+    mngrdag = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
+    blockdag = ${unitname}_r${reqnum}p${attnum:2}_block.dag
+    jobdag = ${unitname}_r${reqnum}p${attnum:2}_job.dag
 </filename_pattern>
 <directory_pattern>
-    <wcl>
+    <inputwcl>
         name = wcl
         ops = tbd 
-        runtime = ${wcltype}wcl/${modulename}
-    </wcl>
+        runtime = inputwcl/${modulename}
+    </inputwcl>
+    <outputwcl>
+        name = wcl
+        ops = tbd 
+        runtime = outputwcl/${modulename}
+    </outputwcl>
     <log> 
         name = log
         ops = tbd 
         runtime = log/${modulename}
     </log>
+    <jobdir> 
+        name = jobdir
+        ops = tbd 
+        runtime = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum}
+    </jobdir>
 </directory_pattern>

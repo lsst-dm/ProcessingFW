@@ -6,9 +6,12 @@ import argparse
 import sys
 import os
 import time
+
+from processingfw.fwutils import *
+from processingfw.pfwdefs import *
+
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
-from processingfw.pfwdefs import *
 import filemgmt.cache as cache
 import intgutils.wclutils as wclutils
 
@@ -19,30 +22,40 @@ VERSION = '$Rev$'
 def getVersion(execname, verflag, verpat):
     """run command with version flag and parse output for version"""
 
+    ver = None
     cmd = "%s %s" % (execname, verflag)
     process = subprocess.Popen(cmd.split(),
                                shell=False,
+                               stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
     process.wait()
     out = process.communicate()[0]
     if process.returncode != 0:
         print "Warning:  problem when trying to get version"
+        print "getVersion", execname, verflag, verpat
         print "\tcmd> ",cmd
         print out
-        ver = "UNK"
+        ver = None
     else:
         # parse output with verpat
-        m = re.match(verpat, out)
-        if m:
-            ver = m.group(1)
+        try:
+            m = re.search(verpat, out)
+            if m:
+                ver = m.group(1)
+            #else:
+            #    print "Didn't find version"
+        except Exception as err:
+            #print type(err)
+            ver = None 
+            fwdie("Exception from re.match.  Didn't find version: %s" % err, PF_EXIT_FAILURE)
 
     return ver
 
 
-def setupwrapper(inputwcl, iwfilename, logfilename, useDB=False):
+def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
     """ Create output directories, get files from cache, and other setup work """
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
 
     # make directory for log file
     logdir = os.path.dirname(logfilename)
@@ -50,7 +63,7 @@ def setupwrapper(inputwcl, iwfilename, logfilename, useDB=False):
         os.makedirs(logdir)
 
     # make directory for outputwcl
-    outputwclfile = inputwcl[WRAPSECT]['outputwcl']
+    outputwclfile = inwcl[IW_WRAPSECT]['outputwcl']
     outputwcldir = os.path.dirname(outputwclfile)
     if len(outputwcldir) > 0:
         if not os.path.exists(outputwcldir):
@@ -61,76 +74,120 @@ def setupwrapper(inputwcl, iwfilename, logfilename, useDB=False):
     dbh = None
     if useDB:
         dbh = pfwdb.PFWDB()
-        inputwcl['wrapperid'] = dbh.insert_wrapper(inputwcl, iwfilename)
-        print "wrapperid =", inputwcl['wrapperid']
-        inputwcl['dbids'] = {}
+        inwcl['dbids'] = {}
+        inwcl['wrapperid'] = dbh.insert_wrapper(inwcl, iwfilename)
+        pfw_file_metadata = {}
+        pfw_file_metadata['file_1'] = {'filename' : iwfilename, 
+                                       'filetype' : 'wcl'}
+        dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
+
+    else:
+        inwcl['wrapperid'] = -1
+        inwcl['dbids'] = {}
 
 
     # make directories for output files, cache input files
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "section loop beg")
-    execnamesarr = [inputwcl['wrapname']]
-    for sect in inputwcl.keys():
-        pfwutils.debug(3, "PFWRUNJOB_DEBUG", "section %s" % sect)
-        if sect.startswith(IW_EXECPREFIX):
-            execname = inputwcl[sect]['execname']
+    fwdebug(3, "PFWRUNJOB_DEBUG", "section loop beg")
+    execnamesarr = [inwcl['wrapname']]
+    outfiles = {}
+    for sect in sorted(inwcl.keys()):
+        fwdebug(3, "PFWRUNJOB_DEBUG", "section %s" % sect)
+        if re.search("^%s\d+$" % IW_EXECPREFIX, sect):
+            if 'execname' not in inwcl[sect]:
+                print "Missing execname in input wcl.  sect =", sect
+                print "inwcl[sect] = ", wclutils.write_wcl(inwcl[sect])
+                
+                
+            execname = inwcl[sect]['execname']
             execnamesarr.append(execname)
-            if OUTPUTS in inputwcl[sect]:
-                for outfile in pfwutils.pfwsplit(inputwcl[sect][OUTPUTS]):
-                    fullnames = pfwutils.get_wcl_value(outfile+'.fullname', inputwcl)
-                    outfile_names = pfwutils.pfwsplit(fullnames)
-                    for outfile in outfile_names:
-                        outfile_dir = os.path.dirname(outfile)
-                        if len(outfile_dir) > 0:
-                            if not os.path.exists(outfile_dir):
-                                os.makedirs(outfile_dir)
-                        else:
-                            print "0 length directory for output file:", outfile
+            if IW_OUTPUTS in inwcl[sect]:
+                for outfile in fwsplit(inwcl[sect][IW_OUTPUTS]):
+                    outfiles[outfile] = True
+                    fullnames = pfwutils.get_wcl_value(outfile+'.fullname', inwcl)
+                    #print "fullnames = ", fullnames
+                    if '$RNMLST{' in fullnames:
+                        m = re.search("\$RNMLST{\${(.+)},(.+)}", fullnames)
+                        if m:
+                            print "Found rnmlst"
+                            print m.group(1)
+                        pattern = pfwutils.get_wcl_value(m.group(1), inwcl)
+                        print pattern
+                    else:
+                        outfile_names = fwsplit(fullnames)
+                        for outfile in outfile_names:
+                            outfile_dir = os.path.dirname(outfile)
+                            if len(outfile_dir) > 0:
+                                if not os.path.exists(outfile_dir):
+                                    os.makedirs(outfile_dir)
+                            else:
+                                print "0 length directory for output file:", outfile
             else:
-                print "Note: 0 output files (%s) in exec section %s" % (OUTPUTS, sect)
+                print "Note: 0 output files (%s) in exec section %s" % (IW_OUTPUTS, sect)
 
-            if INPUTS in inputwcl[sect]:
+            if IW_INPUTS in inwcl[sect]:
                 files2get = {}
-                for infile in pfwutils.pfwsplit(inputwcl[sect][INPUTS]):
-                    infile_names = pfwutils.get_wcl_value(infile+'.fullname', inputwcl)
-                    infile_names = pfwutils.pfwsplit(infile_names)
+                for infile in fwsplit(inwcl[sect][IW_INPUTS]):
+                    infile_names = pfwutils.get_wcl_value(infile+'.fullname', inwcl)
+                    infile_names = fwsplit(infile_names)
                     for inname in infile_names:
-                        if not os.path.exists(inname):
+                        if not os.path.exists(inname) and not infile in outfiles:
                             files2get[inname] = True
-                problemfiles = cache.get_from_cache(files2get.keys())
-                if len(problemfiles) != 0:
-                    print "Error: had problems getting input files from cache"
-                    print "\t", problemfiles
-                    return(len(problemfiles))
+                            infile_dir = os.path.dirname(inname)
+                            if len(infile_dir) > 0:
+                                if not os.path.exists(infile_dir):
+                                    os.makedirs(infile_dir)
+                            else:
+                                print "0 length directory for input file:", inname
+                            
+
+                if len(files2get) > 0:
+                    if 'cachename' in inwcl and IW_DATA_DEF in inwcl:
+                        filecache = cache.Cache()
+                        print "execname =", execname
+                        print "Calling get_within_job_wrapper with: "
+                        print "First arg: ", files2get.keys()
+                        print "Second arg: ", inwcl['cachename']
+
+                        problemfiles = filecache.get_within_job_wrapper(files2get.keys(), inwcl['cachename'])
+                    else:  # depricated
+                        problemfiles = cache.get_from_cache(files2get.keys())
+
+                    if len(problemfiles) != 0:
+                        print "Error: had problems getting input files from cache"
+                        print "\t", problemfiles
+                        return(len(problemfiles))
+        
             else:
-                print "Note: 0 inputs (%s) in exec section %s" % (INPUTS, sect)
+                print "Note: 0 inputs (%s) in exec section %s" % (IW_INPUTS, sect)
 
-            if 'execdef' in inputwcl:
-                if execname.lower() in inputwcl['execdef']:
-                    if ( 'verflag' in inputwcl['execdef'][execname.lower()]
-                       and 'verpat' in inputwcl['execdef'][execname.lower()] ):
-                        verflag = inputwcl['execdef'][execname.lower()]['verflag']
-                        verpat = inputwcl['execdef'][execname.lower()]['verpat']
+            if IW_EXEC_DEF in inwcl:
+                if execname.lower() in inwcl[IW_EXEC_DEF]:    # might be a function or just missing
+                    if ( 'version_flag' in inwcl[IW_EXEC_DEF][execname.lower()]
+                       and 'version_pattern' in inwcl[IW_EXEC_DEF][execname.lower()] ):
+                        verflag = inwcl[IW_EXEC_DEF][execname.lower()]['version_flag']
+                        verpat = inwcl[IW_EXEC_DEF][execname.lower()]['version_pattern']
 
-                        inputwcl['sect']['version'] = getVersion(execname, verflag, verpat)
+                        inwcl[sect]['version'] = getVersion(execname, verflag, verpat)
+                        #print "inwcl[sect]['version']", sect, inwcl[sect]['version']
 
             if useDB: 
-                if 'execnum' not in inputwcl[sect]:
+                if 'execnum' not in inwcl[sect]:
                     result = re.match('%s(\d+)' % IW_EXECPREFIX, sect)
                     execnum = result.group(1)
-                    inputwcl[sect]['execnum'] = execnum
-                inputwcl['dbids'][sect] = dbh.insert_exec(inputwcl, sect) 
+                    inwcl[sect]['execnum'] = execnum
+                inwcl['dbids'][sect] = dbh.insert_exec(inwcl, sect) 
 
-    inputwcl['execnames'] = ','.join(execnamesarr)
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "section loop end")
+    inwcl['execnames'] = ','.join(execnamesarr)
+    fwdebug(3, "PFWRUNJOB_DEBUG", "section loop end")
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "END")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "END")
 
     return(0)
 
 
 
 def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQCF=False):
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     print "wrappercmd = ", wrappercmd
     print "logfilename = ", logfilename
     print "useQCF = ", useQCF
@@ -176,26 +233,119 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
 
                     logfh.close()
             else:
-                print "Unexpected error:", sys.exc_info()[0]
-                raise
+                fwdie("Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
+                
     except:
-        print "Unexpected error:", sys.exc_info()[0]
-        raise
+        fwdie("Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
 
     if processWrap.returncode != 0:
         print "wrapper returned non-zero exit code"
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "END")
+    fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     return processWrap.returncode
 
 
-def postwrapper(inputwcl, jobwcl, logfile, exitcode, useDB=False):
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "BEG")
+
+######################################################################
+def compose_path(dirpat, inwcl, infdict, fdict):
+    maxtries = 1000    # avoid infinite loop
+    count = 0
+    m = re.search("(?i)\$\{([^}]+)\}", dirpat)
+    while m and count < maxtries:
+        count += 1
+        var = m.group(1)
+        parts = var.split(':')
+        newvar = parts[0]
+        fwdebug(6, 'PFWRUNJOB_DEBUG', "\twhy req: newvar: %s " % (newvar))
+
+        # search for replacement value
+        if newvar in inwcl:
+            newval = inwcl[newvar]
+        elif newvar in infdict:
+            newval = inwcl[newvar]
+        else:
+            fwdie("Could not find value for %s" % newvar, PF_EXIT_FAILURE)
+
+        fwdebug(6, 'PFWRUNJOB_DEBUG',
+              "\twhy req: newvar, newval, type(newval): %s %s %s" % (newvar, newval, type(newval)))
+        newval = str(newval)
+        if len(parts) > 1:
+            prpat = "%%0%dd" % int(parts[1])
+            try:
+                newval = prpat % int(newval)
+            except ValueError as err:
+                fwdie("Error padding value (%s, %s, %s): %s" % (var, newval, prpat, err))
+        dirpat = re.sub("(?i)\${%s}" % var, newval, dirpat)
+        m = re.search("(?i)\$\{([^}]+)\}", dirpat)
+
+    if count >= maxtries:
+        fwdie("Aborting from infinite loop\n. Current string: '%s'" % dirpat, PF_EXIT_FAILURE)
+    return dirpat
+
+
+
+
+
+######################################################################
+def copy_output_to_cache(inwcl, fileinfo, exitcode):
+    """ If requested, copy output file(s) to cache """
+
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
+
+    if USE_CACHE not in inwcl:    # default to never
+        inwcl[USE_CACHE] = 'never';
+
+    inwcl[USE_CACHE] = inwcl[USE_CACHE].lower()
+
+    usecache = False
+    if inwcl[USE_CACHE] == 'never':
+        usecache = False
+    elif inwcl[USE_CACHE] == 'filespecs':
+        usecache = True
+    elif inwcl[USE_CACHE] == 'filesuccess':
+        usecache = (exitcode == 0)
+    elif inwcl[USE_CACHE] == 'filetransfer':
+        usecache = True
+    else:
+        print "Warning: unknown value for %s (%s).  Defaulting it to 'never'" %  (USE_CACHE, inwcl[USE_CACHE])
+
+    fwdebug(0, "PFWRUNJOB_DEBUG", "usecache = %s" % usecache)
+
+
+    if usecache:
+        if DATA_DEF not in inwcl:
+            fwdie("Error: %s not specified" % DATA_DEF, PF_EXIT_FAILURE)
+        if 'cachename' not in inwcl:
+            fwdie('Error: cachename not specified', PF_EXIT_FAILURE)
+        cachedict = inwcl[DATA_DEF][inwcl['cachename']]
+
+        putinfo = {}
+        for (filename, fdict) in fileinfo.items():
+            fwdebug(0, "PFWRUNJOB_DEBUG", "file %s" % fdict['fullname'])
+            fwdebug(0, "PFWRUNJOB_DEBUG", "\tsection %s" % fdict['sectname'])
+            infdict = inwcl[IW_FILESECT][fdict['sectname']]
+            if COPY_CACHE in infdict and convertBool(infdict[COPY_CACHE]):
+                putinfo[fdict['fullname']] = infdict['cachepath']
+            else:
+                print "\tcopycache is false or missing"
+
+        # call cache put function
+        fwdebug(0, "PFWRUNJOB_DEBUG", "Calling put_within_job for %s files" % len(putinfo))
+        wclutils.write_wcl(putinfo)
+        filecache = cache.Cache()
+        problemfiles = filecache.put_within_job(putinfo, cachedict)
+    else:
+        print "usecache is false"
+                   
+
+######################################################################
+def postwrapper(inwcl, logfile, exitcode, useDB=False):
+    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
 
     if not os.path.isfile(logfile):
         logfile = None
 
-    outputwclfile = inputwcl[WRAPSECT]['outputwcl']
+    outputwclfile = inwcl[IW_WRAPSECT]['outputwcl']
     outputwcl = None
     if not os.path.isfile(outputwclfile):
         outputwclfile = None
@@ -203,32 +353,64 @@ def postwrapper(inputwcl, jobwcl, logfile, exitcode, useDB=False):
         outwclfh = open(outputwclfile, 'r')
         outputwcl = wclutils.read_wcl(outwclfh)
 
-    # make 
+    # handle copying output files to cache
+    if OW_METASECT in outputwcl and len(outputwcl[OW_METASECT]) > 0:
+        # separate metadata needed for PFW from DB metadata tables
+        finfo = {}
+        for fdict in outputwcl[OW_METASECT].values():
+            finfo[fdict['filename']] = { 'sectname': fdict['sectname'],
+                                         'fullname': fdict['fullname'],
+                                         'filename': fdict['filename'] }
+            del fdict['sectname']
+            del fdict['fullname']
+        #wclutils.write_wcl(finfo)
+        copy_output_to_cache(inwcl, finfo, exitcode)
+
     if useDB:
         dbh = pfwdb.PFWDB()
-        dbh.update_wrapper_end(inputwcl, outputwclfile, logfile, exitcode)
+        dbh.update_wrapper_end(inwcl, outputwclfile, logfile, exitcode)
         if outputwcl is not None:
             for sect in outputwcl.keys():
-                if sect.startswith(OW_EXECPREFIX):
-                    dbh.update_exec_end(outputwcl[sect], inputwcl['dbids'][sect], exitcode)
-            if METASECT in outputwcl:
-                dbh.ingest_file_metadata(outputwcl[METASECT], jobwcl['filetype_metadata'])
-            if PROVSECT in outputwcl:
-                dbh.ingest_provenance(outputwcl[PROVSECT], inputwcl['dbids'])
+                if re.search("^%s\d+$" % OW_EXECPREFIX, sect):
+                    dbh.update_exec_end(outputwcl[sect], inwcl['dbids'][sect], exitcode)
+            if OW_METASECT in outputwcl:
+                dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
 
-    pfwutils.debug(3, "PFWRUNJOB_DEBUG", "END")
+            pfw_file_metadata = {}
+            pfw_file_metadata['file_1'] = {'filename' : outputwclfile, 
+                                           'filetype' : 'wcl'}
+            pfw_file_metadata['file_2'] = {'filename' : logfile, 
+                                           'filetype' : 'log'}
+            dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
+
+            if OW_PROVSECT in outputwcl and len(outputwcl[OW_PROVSECT].keys()) > 0:
+                dbh.ingest_provenance(outputwcl[OW_PROVSECT], inwcl['dbids'])
+
+    fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     
 
 
 
 def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
     # run each wrapper execution sequentially
+    linecnt = 0
     with open(taskfile, 'r') as tasksfh:
         # for each task
         line = tasksfh.readline()
+        linecnt += 1
         while line:
-            (wrapnum, wrapname, wclfile, logfile) = pfwutils.pfwsplit(line.strip())
-            wrappercmd = "%s --input=%s" % (wrapname, wclfile)
+            lineparts = fwsplit(line.strip())
+            if len(lineparts) == 5:
+                (wrapnum, wrapname, wclfile, wrapdebug, logfile) = lineparts
+            elif len(lineparts) == 4:
+                (wrapnum, wrapname, wclfile, logfile) = lineparts
+                wrapdebug = 0
+            else:
+                print "Error: incorrect number of items in line #%s" % linecnt
+                print "\tline: %s" % line
+                return(1)
+
+            wrappercmd = "%s --input=%s --debug=%s" % (wrapname, wclfile, wrapdebug)
             print "%04d: wrappercmd: %s" % (int(wrapnum), wrappercmd)
 
             if not os.path.exists(wclfile):
@@ -236,23 +418,19 @@ def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
                 return(1)
 
             with open(wclfile, 'r') as wclfh:
-                inputwcl = wclutils.read_wcl(wclfh)
-            inputwcl.update(jobwcl)
+                inwcl = wclutils.read_wcl(wclfh)
+            inwcl.update(jobwcl)
 
-            exitcode = setupwrapper(inputwcl, wclfile, logfile, useDB)
+            exitcode = setupwrapper(inwcl, wclfile, logfile, useDB)
             if exitcode == 0:
                 exitcode = runwrapper(wrappercmd, 
                                       logfile,
-                                      inputwcl['wrapperid'], 
-                                      inputwcl['execnames'],
+                                      inwcl['wrapperid'], 
+                                      inwcl['execnames'],
                                       5000,
                                       useQCF)
-                postwrapper(inputwcl, jobwcl, logfile, exitcode, useDB) 
+                postwrapper(inwcl, logfile, exitcode, useDB) 
  
-                # to give me full inputwcl to run against dummy output wcl
-                with open(wclfile+'.mmg', 'w') as wclfh:
-                    wclutils.write_wcl(inputwcl, wclfh, True, 4)
-
                 sys.stdout.flush()
                 sys.stderr.flush()
                 if exitcode:
@@ -277,14 +455,17 @@ def runjob(args):
         with open(args.config, 'r') as wclfh:
             wcl = wclutils.read_wcl(wclfh) 
         if 'usedb' in wcl:
-            if wcl['usedb'].lower() == 'true':
-                useDB = True
+            useDB = convertBool(wcl['usedb'])
 
         if 'useqcf' in wcl:
-            if wcl['useqcf'].lower() == 'true':
-                useQCF = True
+            useQCF = convertBool(wcl['useqcf'])
 
     if useDB:
+        if 'des_services' in wcl:
+            os.environ['DES_SERVICES'] = wcl['des_services']
+        if 'des_db_section' in wcl:
+            os.environ['DES_DB_SECTION'] = wcl['des_db_section']
+
         dbh = pfwdb.PFWDB()
         dbh.insert_job(wcl)
 
@@ -310,4 +491,5 @@ def parseArgs(argv):
 
 if __name__ == '__main__':
     print ' '.join(sys.argv)
+    print cache.__file__
     sys.exit(runjob(parseArgs(sys.argv)))

@@ -46,7 +46,7 @@ def send_email(config, block, status, subject, msg1, msg2):
 
     mailfh.write("Submit:\n")
     mailfh.write("\tmachine = %s\n" % localmachine)
-    mailfh.write("\tnode = %s\n" % config['submitnode'])
+#    mailfh.write("\tnode = %s\n" % config['submitnode'])
     mailfh.write("\tDES_HOME = %s\n" % config['des_home'])
     mailfh.write("\tconfig = %s/%s\n" % \
             (config['submit_dir'], config['config_filename']))
@@ -55,8 +55,7 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("Target:\n")
     mailfh.write("\tmachine = %s\n" % config['loginhost'])
     mailfh.write("\tnode = %s\n" % config['targetnode'])
-    mailfh.write("\tdirectory = %s/%s\n" % \
-            (config['archive_root'], config['run_dir']))
+    mailfh.write("\troot dir = %s\n" % (config['runroot']))
     mailfh.write("\n\n")
     mailfh.write("------------------------------\n")
 
@@ -66,9 +65,9 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.close()
 
     subject = "DESDM: %s %s %s %s" % (project, run, block, subject)
-    if int(status) == pfwconfig.PfwConfig.NOTARGET:
-        subject += " [NOTARGET]"
-    elif int(status) != PF_SUCCESS:
+    if int(status) == PF_EXIT_DRYRUN:
+        subject += " [DRYRUN]"
+    elif int(status) != PF_EXIT_SUCCESS:
         subject += " [FAILED]"
 
     if 'email' in config:

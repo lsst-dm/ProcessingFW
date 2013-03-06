@@ -6,39 +6,14 @@ import inspect
 import tarfile
 from collections import OrderedDict
 from collections import Mapping
+from processingfw.pfwdefs import *
+from processingfw.fwutils import *
 
 """ Miscellaneous support functions for processing framework """
 
 #######################################################################
-def debug(msglvl, envdbgvar, msgstr):
-    # environment debug variable overrides code set level
-    if envdbgvar in os.environ:
-        dbglvl = os.environ[envdbgvar]
-    elif 'PFW_DEBUG' in os.environ:
-        dbglvl = os.environ['PFW_DEBUG']
-    else:
-        dbglvl = 0
-
-    if int(dbglvl) >= int(msglvl): 
-        print "%s: %s" % (inspect.stack()[1][3], msgstr)
-
-#######################################################################
-def pfwsplit(fullstr, delim=','):
-    """ Split by delim and trim substrs """
-    fullstr = re.sub('[()]', '', fullstr) # delete parens if exist
-    items = []
-    for item in [x.strip() for x in fullstr.split(delim)]:
-        if ':' in item:
-            rangevals = pfwsplit(item, ':')
-            items.extend(map(str, range(int(rangevals[0]), 
-                                        int(rangevals[1])+1)))
-        else:
-            items.append(item)
-    return items
-
-#######################################################################
 def traverse_wcl(wcl):
-    debug(9, "PFWUTILS_DEBUG", "BEG")
+    fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     usedvars = {}
     for key, val in wcl.items():
         if type(val) is dict or type(val) is OrderedDict:
@@ -54,24 +29,24 @@ def traverse_wcl(wcl):
         else:
             print "Error: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val)
     
-    debug(9, "PFWUTILS_DEBUG", "END")
+    fwdebug(9, "PFWUTILS_DEBUG", "END")
     return usedvars
 
 #######################################################################
 def get_wcl_value(key, wcl):
     """ Return value of key from wcl, follows section notation """
-    debug(9, "PFWUTILS_DEBUG", "BEG")
+    fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     val = wcl
     for k in key.split('.'):
         #print "get_wcl_value: k=", k
         val = val[k]
-    debug(9, "PFWUTILS_DEBUG", "END")
+    fwdebug(9, "PFWUTILS_DEBUG", "END")
     return val
 
 #######################################################################
 def set_wcl_value(key, val, wcl):
     """ sets value of key in wcl, follows section notation """
-    debug(9, "PFWUTILS_DEBUG", "BEG")
+    fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     wclkeys = key.split('.')
     valkey = wclkeys.pop()
     wcldict = wcl
@@ -79,7 +54,7 @@ def set_wcl_value(key, val, wcl):
         wcldict = wcldict[k]
 
     wcldict[valkey] = val
-    debug(9, "PFWUTILS_DEBUG", "END")
+    fwdebug(9, "PFWUTILS_DEBUG", "END")
 
 #######################################################################
 def tar_dir(filename, indir):
@@ -92,6 +67,21 @@ def tar_dir(filename, indir):
         tar.add(indir)
 
 #######################################################################
+def tar_list(tarfilename, filelist):
+    """ Tars a directory """
+
+    if tarfilename.endswith('.gz'):
+        mode = 'w:gz'
+    else:
+        mode = 'w'
+
+    with tarfile.open(tarfilename, mode) as tar:
+        for f in filelist:
+            tar.add(f)
+
+
+
+#######################################################################
 def untar_dir(filename, outputdir):
     """ Untars a directory """
     if filename.endswith('.gz'):
@@ -101,14 +91,14 @@ def untar_dir(filename, outputdir):
     with tarfile.open(filename, mode) as tar:
        tar.extractall(outputdir)
 
-
+#######################################################################
 def get_metadata_wcl(filetype, fsectname, dbwcl):
     fdict = OrderedDict()
     fdict['req_metadata'] = OrderedDict()
-    print 'filetype =', filetype
-    print 'fsetname =', fsectname
+    #print 'filetype =', filetype
+    #print 'fsetname =', fsectname
     if filetype in dbwcl:
-        print "Found filetype in dbwcl"
+        #print "Found filetype in dbwcl"
         if 'r' in dbwcl[filetype]:
             if 'h' in dbwcl[filetype]['r']:
                 fdict['req_metadata']['headers'] = ','.join(dbwcl[filetype]['r']['h'].keys())
@@ -122,7 +112,7 @@ def get_metadata_wcl(filetype, fsectname, dbwcl):
             if 'c' in dbwcl[filetype]['o']:
                 fdict['opt_metadata']['compute'] = ','.join(dbwcl[filetype]['o']['c'].keys())
     else:
-        print "Could not find filetype in dbwcl"
+        print "Could not find filetype (%s) in dbwcl" % filetype
         print dbwcl
         exit(1)
 

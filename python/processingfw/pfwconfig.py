@@ -17,10 +17,8 @@ import time
 from processingfw.pfwdefs import *
 import intgutils.wclutils as wclutils
 import processingfw.pfwdb as pfwdb
+from processingfw.fwutils import *
 
-from pfwutils import debug
-from pfwutils import pfwsplit
-import pfwutils
 
 class PfwConfig:
     """ Contains configuration and state information for PFW """
@@ -31,36 +29,77 @@ class PfwConfig:
     ###########################################################################
     def __init__(self, args):
         """ Initialize configuration object, typically reading from wclfile """
+
+        # data which needs to be kept across programs must go in self.config
+        # data which needs to be searched also must go in self.config
         self.config = OrderedDict()
 
-        if 'debug' in args:
-            self.config['debug'] = args['debug']
-        else:
-            self.config['debug'] = 0
+        wcldict = OrderedDict()
+        if 'wclfile' in args:
+            fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+            try:
+                starttime = time.time()
+                print "\tReading submit wcl...",
+                with open(args['wclfile'], "r") as fh:
+                    wcldict = wclutils.read_wcl(fh)
+                print "DONE (%0.2f secs)" % (time.time()-starttime)
+                wcldict['wclfile'] = args['wclfile']
+            except Exception as err:
+                fwdie("Error: problem reading wcl file '%s' : %s" % (args['wclfile'], err), PF_EXIT_FAILURE)
 
-        if 'pfwconfig' in args:
+        if 'des_services' in args and args['des_services'] is not None:
+            wcldict['des_services'] = args['des_services']
+        elif 'des_services' not in wcldict:
+            if 'DES_SERVICES' in os.environ:
+                wcldict['des_services'] = os.environ['DES_SERVICES']
+            else:
+                # let it default to $HOME/.desservices.init    
+                wcldict['des_services'] = None
+
+        if 'des_db_section' in args and args['des_db_section'] is not None:
+            wcldict['des_db_section'] = args['des_db_section']
+        elif 'des_db_section' not in wcldict:
+            if 'DES_DB_SECTION' in os.environ:
+                wcldict['des_db_section'] = os.environ['DES_DB_SECTION']
+            else:
+                # let DB connection code print error message
+                wcldict['des_db_section'] = None
+        #else:
+        #    print "des_db_section in wcldict"
+
+        # for values passed in on command line, set top-level config 
+        for var in (PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF):
+            if var in args and args[var] is not None:
+                wcldict[var] = args[var]
+
+        if 'usePFWconfig' in args:
             pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
-            debug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+            fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+            starttime = time.time()
+            print "\tReading config from software install...",
             fh = open(pfwconfig, "r")
             wclutils.updateDict(self.config, wclutils.read_wcl(fh))
             fh.close()
+            print "DONE (%0.2f secs)" % (time.time()-starttime)
 
-        if 'querydb' in args and args['querydb']:
-            dbh = pfwdb.PFWDB()
+        if (PF_USE_DB_IN in wcldict and 
+            convertBool(wcldict[PF_USE_DB_IN]) and 
+            'get_db_config' in args and args['get_db_config']):
+            print "\tGetting defaults from DB...",
+            sys.stdout.flush()
+            starttime = time.time()
+            dbh = pfwdb.PFWDB(wcldict['des_services'], wcldict['des_db_section'])
+            print "DONE (%0.2f secs)" % (time.time()-starttime)
             wclutils.updateDict(self.config, dbh.get_database_defaults())
 
+        # wclfile overrides all, so must be added last
         if 'wclfile' in args:
-            debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
-            fh = open(args['wclfile'], "r")
-            wclutils.updateDict(self.config, wclutils.read_wcl(fh))
-            fh.close()
-            if 'debug' not in self.config:  # recheck since reset config
-                self.config['debug'] = 0
-            self.config['wclfile'] = args['wclfile']
+            fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+            wclutils.updateDict(self.config, wcldict)
 
 #        runwcl = OrderedDict()
 #        if 'wclfile' in args:
-#            debug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+#            fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
 #            fh = open(args['wclfile'], "r")
 #            runwcl = wclutils.read_wcl(fh)
 #            fh.close()
@@ -72,21 +111,21 @@ class PfwConfig:
 #            if 'pfwconfig' in runwcl['_config']:
 #                #pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
 #                pfwconfig = runwcl['_config']['pfwconfig']
-#                debug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+#                fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
 #                fh = open(pfwconfig, "r")
 #                pfwwcl = wclutils.read_wcl(fh)
 #                fh.close()
 #
 #            if 'dbconfig' in runwcl['_config']:
 #                dbconfig = runwcl['_config']['dbconfig']
-#                debug(3, 'PFWCONFIG_DEBUG', "Reading dbconfig: %s" % (dbconfig))
+#                fwdebug(3, 'PFWCONFIG_DEBUG', "Reading dbconfig: %s" % (dbconfig))
 #                fh = open(dbconfig, "r")
 #                dbwcl = wclutils.read_wcl(fh)
 #                fh.close()
 #
 #            if 'opconfig' in runwcl['_config']:
 #                opconfig = runwcl['_config']['opconfig']
-#                debug(3, 'PFWCONFIG_DEBUG', "Reading opconfig: %s" % (opconfig))
+#                fwdebug(3, 'PFWCONFIG_DEBUG', "Reading opconfig: %s" % (opconfig))
 #                fh = open(opconfig, "r")
 #                opwcl = wclutils.read_wcl(fh)
 #                fh.close()
@@ -98,11 +137,8 @@ class PfwConfig:
 
         self.set_names()
 
-        if NOTARGET in args:
-            self.config[NOTARGET] = args[NOTARGET]
-
         # during runtime save blocklist as array
-        self.block_array = pfwsplit(self.config[SW_BLOCKLIST])
+        self.block_array = fwsplit(self.config[SW_BLOCKLIST])
         self.config['num_blocks'] = len(self.block_array)
     
         # store the file name of the top-level submitwcl in dict:
@@ -119,10 +155,10 @@ class PfwConfig:
                                                   'curr_archive': '', 
                                                   'curr_software': '', 
                                                   'curr_site' : ''} )
-            self.config[WRAPNUM] = '0'
+            self.config[PF_WRAPNUM] = '0'
             self.config[PF_BLKNUM] = '1'
-            self.config[TASKNUM] = '0'
-            self.config[JOBNUM] = '1'
+            self.config[PF_TASKNUM] = '0'
+            self.config[PF_JOBNUM] = '0'
 
         self.set_block_info()
 
@@ -130,6 +166,8 @@ class PfwConfig:
     def save_file(self, filename):
         """Saves configuration in WCL format"""
         fh = open(filename, "w")
+        if 'des_services' in self.config and self.config['des_services'] == None:
+            del self.config['des_services']
         wclutils.write_wcl(self.config, fh, True, 4)  # save it sorted
 #        wclutils.write_wcl(self.config['_config'], fh, True, 4)  # save it sorted
 #        wclutils.write_wcl(self.config['current'], fh, True, 4)  # save it sorted
@@ -158,13 +196,14 @@ class PfwConfig:
         self.config[key] = val
 
     ###########################################################################
-    #def get(self, key, default = None, opt = None):
-    #    (found, val) = self.search(key, opt)
-    #    if not found:
-    #        val = default
-    #    return val
+    def get(self, key, default = None, opt = None):
+        (found, val) = self.search(key, opt)
+        if not found:
+            val = default
+        return val
 
 
+    ###########################################################################
     def set(self, key, val):
         """ store a value in wcl """
         subkeys = key.split('.')
@@ -179,10 +218,10 @@ class PfwConfig:
     ###########################################################################
     def search(self, key, opt=None):
         """ Searches for key using given opt following hierarchy rules """ 
-        debug(8, 'PFWCONFIG_DEBUG', "\tBEG")
-        debug(8, 'PFWCONFIG_DEBUG',
+        fwdebug(8, 'PFWCONFIG_DEBUG', "\tBEG")
+        fwdebug(8, 'PFWCONFIG_DEBUG',
                  "\tinitial key = '%s'" % key)
-        debug(8, 'PFWCONFIG_DEBUG',
+        fwdebug(8, 'PFWCONFIG_DEBUG',
                  "\tinitial opts = '%s'" % opt)
 
         found = False
@@ -245,13 +284,13 @@ class PfwConfig:
             print "\topt = ", opt
             print "\tcurvals = ", curvals
             print "\n\n"
-            raise Exception("Search failed (%s)" % key)
+            fwdie("Search failed (%s)" % key, PF_EXIT_FAILURE)
     
         if found and opt and 'interpolate' in opt and opt['interpolate']:
             opt['interpolate'] = False
             value = self.interpolate(value, opt) 
 
-        debug(8, 'PFWCONFIG_DEBUG', "\tEND")
+        fwdebug(8, 'PFWCONFIG_DEBUG', "\tEND")
         return (found, value)
     
 
@@ -267,11 +306,11 @@ class PfwConfig:
         
         # just abort the check if do not have major sections of config
         if 'archive' not in self.config:
-            raise Exception('Error: Could not find archive section')
+            fwdie('Error: Could not find archive section', PF_EXIT_FAILURE)
         if SW_BLOCKSECT not in self.config:
-            raise Exception('Error: Could not find block section')
+            fwdie('Error: Could not find block section', PF_EXIT_FAILURE)
         if SW_MODULESECT not in self.config:
-            raise Exception('Error: Could not find module section')
+            fwdie('Error: Could not find module section', PF_EXIT_FAILURE)
     
         # make sure project is all uppercase
         # self.config['project'] = self['project'].upper()
@@ -330,11 +369,11 @@ class PfwConfig:
                     del self.config['archive_node']
                     cleancnt += 1
                 
-        # submitnode must be set globally
-        submitnode = None
-        if 'submitnode' not in self.config:
-            print 'Error: submitnode is not specified.'
-            errcnt += 1
+#        # submitnode must be set globally
+#        submitnode = None
+#        if 'submitnode' not in self.config:
+#            print 'Error: submitnode is not specified.'
+#            errcnt += 1
 #        elif self.config['submitnode'] not in self.config['archive']:
 #            print 'Error:  Could not find archive information for submit node %s' % self.config['submitnode']
 #            errcnt += 1
@@ -462,10 +501,10 @@ class PfwConfig:
         self.config['submit_time'] = submit_time
     
         self.config['submit_epoch'] = submit_epoch
-        self.config[JOBNUM] = '1'
+        self.config[PF_JOBNUM] = '0'
         self.config[PF_BLKNUM] = '1'
-        self.config[TASKNUM] = '0'
-        self.config[WRAPNUM] = '0'
+        self.config[PF_TASKNUM] = '0'
+        self.config[PF_WRAPNUM] = '0'
         self.set_block_info()
     
         self.config['submit_run'] = self.interpolate("${unitname}_r${reqnum}p${attnum:2}")
@@ -481,26 +520,26 @@ class PfwConfig:
     ###########################################################################
     def set_block_info(self):
         """ Set current vals to match current block number """
-        debug(1, 'PFWCONFIG_DEBUG', "BEG")
+        fwdebug(1, 'PFWCONFIG_DEBUG', "BEG")
 
         curdict = self.config['current']
-        debug(4, 'PFWCONFIG_DEBUG', "\tcurdict = %s" % (curdict))
+        fwdebug(4, 'PFWCONFIG_DEBUG', "\tcurdict = %s" % (curdict))
 
         blknum = self.config[PF_BLKNUM]
 
         blockname = self.get_block_name(blknum) 
         if not blockname:
-            raise Exception("Error: set_block_info cannot determine block name value for blknum=%s" % blknum)
+            fwdie("Error: set_block_info cannot determine block name value for blknum=%s" % blknum, PF_EXIT_FAILURE)
         curdict['curr_block'] = blockname
     
         (exists, targetnode) = self.search('targetnode')
         if not exists:
-            raise Exception("Error: set_block_info cannot determine targetnode value")
+            fwdie("Error: set_block_info cannot determine targetnode value", PF_EXIT_FAILURE)
     
         if targetnode not in self.config['archive']:
             print "Error: invalid targetnode value (%s)" % targetnode
             print "\tArchive contains: ", self.config['archive']
-            raise Exception("Error: invalid targetnode value (%s)" % targetnode)
+            fwdie("Error: invalid targetnode value (%s)" % targetnode, PF_EXIT_FAILURE)
     
         curdict['curr_archive'] = targetnode
     
@@ -518,8 +557,8 @@ class PfwConfig:
             self.config['runsite'] = sitename
             curdict['curr_site'] = sitename
         else:
-            raise Exception('Error: set_block_info cannot determine run_site value')
-        debug(1, 'PFWCONFIG_DEBUG', "END") 
+            fwdie('Error: set_block_info cannot determine run_site value', PF_EXIT_FAILURE)
+        fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
 
     
     ###########################################################################
@@ -527,38 +566,39 @@ class PfwConfig:
         """ increment the block number """
         # note config stores numbers as strings
         self.config[PF_BLKNUM] = str(int(self.config[PF_BLKNUM]) + 1)
-        self.config[TASKNUM] = '0'
+#        self.config[PF_TASKNUM] = '0'
     
     ###########################################################################
     def reset_blknum(self):
         """ reset block number to 1 """
         self.config[PF_BLKNUM] = '1'
-        self.config[TASKNUM] = '0'
+#        self.config[PF_TASKNUM] = '0'
     
     ###########################################################################
-    def inc_jobnum(self, inc):
+    def inc_jobnum(self, inc=1):
         """ Increment running job number """
-        self.config[JOBNUM] = str(int(self.config[JOBNUM]) + inc)
+        self.config[PF_JOBNUM] = str(int(self.config[PF_JOBNUM]) + inc)
+        return self.config[PF_JOBNUM]
     
 
     ###########################################################################
     def inc_tasknum(self, inc=1):
         """ Increment blktask number """
-        self.config[TASKNUM] = str(int(self.config[TASKNUM]) + inc)
-        return self.config[TASKNUM]
+        self.config[PF_TASKNUM] = str(int(self.config[PF_TASKNUM]) + inc)
+        return self.config[PF_TASKNUM]
         
 
     ###########################################################################
     def inc_wrapnum(self):
         """ Increment running wrapper number """
-        self.config[WRAPNUM] = str(int(self.config[WRAPNUM]) + 1)
+        self.config[PF_WRAPNUM] = str(int(self.config[PF_WRAPNUM]) + 1)
 
     ###########################################################################
     def interpolate(self, value, opts=None):
         """ Replace variables in given value """
-        debug(5, 'PFWCONFIG_DEBUG', "BEG")
-        debug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
-        debug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
+        fwdebug(5, 'PFWCONFIG_DEBUG', "BEG")
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
 
         maxtries = 1000    # avoid infinite loop
         count = 0
@@ -597,18 +637,18 @@ class PfwConfig:
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
-                debug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
                 (haskey, newval) = self.search(newvar, opts)
-                debug(6, 'PFWCONFIG_DEBUG', 
+                fwdebug(6, 'PFWCONFIG_DEBUG', 
                       "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
                 if haskey:
                     newval = str(newval)
                     if '(' in newval or ',' in newval:
                         if 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
-                        debug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
                     elif len(parts) > 1:
                         try:
                             newval = prpat % int(newval)
@@ -620,7 +660,7 @@ class PfwConfig:
                     value = re.sub("(?i)\${%s}" % var, newval, value)
                     done = False
                 else:
-                    raise Exception("Could not find value for %s" % newvar)
+                    fwdie("Could not find value for %s" % newvar, PF_EXIT_FAILURE)
                 m = re.search("(?i)\$\{([^}]+)\}", value)
 
 
@@ -635,27 +675,27 @@ class PfwConfig:
             looptodo = [ value ]
             while len(looptodo) > 0 and count < maxtries:
                 count += 1
-                debug(6, 'PFWCONFIG_DEBUG',
+                fwdebug(6, 'PFWCONFIG_DEBUG',
                         "todo loop: before pop number in looptodo = %s" % len(looptodo))
                 value = looptodo.pop() 
-                debug(6, 'PFWCONFIG_DEBUG',
+                fwdebug(6, 'PFWCONFIG_DEBUG',
                         "todo loop: after pop number in looptodo = %s" % len(looptodo))
 
-                debug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % value)
+                fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % value)
                 m = re.search("(?i)\$LOOP\{([^}]+)\}", value)
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
-                debug(6, 'PFWCONFIG_DEBUG', "\tloop search: newvar= %s" % newvar)
-                debug(6, 'PFWCONFIG_DEBUG', "\tloop search: opts= %s" % opts)
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: newvar= %s" % newvar)
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: opts= %s" % opts)
                 (haskey, newval) = self.search(newvar, opts)
                 if haskey:
-                    debug(6, 'PFWCONFIG_DEBUG', "\tloop search results: newva1= %s" % newval)
-                    newvalarr = pfwsplit(newval) 
+                    fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search results: newva1= %s" % newval)
+                    newvalarr = fwsplit(newval) 
                     for nv in newvalarr:
-                        debug(6, 'PFWCONFIG_DEBUG', "\tloop nv: nv=%s" % nv)
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv: nv=%s" % nv)
                         if len(parts) > 1:
                             try:
                                 nv = prpat % int(nv)
@@ -664,26 +704,26 @@ class PfwConfig:
                                 print "prpat =", prpat
                                 print "nv =", nv
                                 raise err
-                        debug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
-                        debug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
                         valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, value)
-                        debug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
                         if '$LOOP{' in valsub:
-                            debug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
+                            fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
                             looptodo.append(valsub)
                         else:
                             valuedone.append(valsub)
-                            debug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
-                debug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
-                debug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
-            debug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
+                            fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
+            fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
     
         if count >= maxtries:
-            raise Exception("Interpolate function aborting from infinite loop\n. Current string: '%s'" % value)
+            fwdie("Interpolate function aborting from infinite loop\n. Current string: '%s'" % value, PF_EXIT_FAILURE)
     
-        debug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
-        debug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
-        debug(5, 'PFWCONFIG_DEBUG', "END")
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
+        fwdebug(5, 'PFWCONFIG_DEBUG', "END")
 
         if len(valuedone) > 1:
             return valuedone
@@ -710,6 +750,7 @@ class PfwConfig:
         attribs = {} 
         attribs[ATTRIB_PREFIX + 'isjob'] = 'TRUE'
         attribs[ATTRIB_PREFIX + 'project'] = self.config['project']
+        attribs[ATTRIB_PREFIX + 'pipeline'] = self.config['pipeline']
         attribs[ATTRIB_PREFIX + 'run'] = self.config['submit_run']
         attribs[ATTRIB_PREFIX + 'block'] = self.config['current']['curr_block']
         attribs[ATTRIB_PREFIX + 'operator'] = self.config['operator']
@@ -752,7 +793,7 @@ class PfwConfig:
                 if exists:
                     vals[newkey] = value
                 else:
-                    print "Could not find value for %s(%s)" % (key, newkey)
+                    fwdebug(3, 'PFWCONFIG_DEBUG', "Could not find value for %s(%s)" % (key, newkey))
     
         print "get_grid_info:  returning vals=", vals
         return vals
@@ -761,11 +802,11 @@ class PfwConfig:
     def stagefile(self, opts):
         """ Determine whether should stage files or not """
         retval = True
-        (notarget_exists, notarget) = self.search(NOTARGET, opts)
-        if (notarget_exists and notarget):  
+        (dryrun_exists, dryrun) = self.search(PF_DRYRUN, opts)
+        if dryrun_exists and convertBool(dryrun):
             retval = False
         (stagefiles_exists, stagefiles) = self.search(STAGEFILES, opts)
-        if (stagefiles_exists and not stagefiles):  
+        if stagefiles_exists and not convertBool(stagefiles):
             retval = False
         return retval
 
@@ -784,17 +825,17 @@ class PfwConfig:
                 (found, filepat) = self.search(SW_FILEPAT, searchopts)
 
                 if not found:
-                    raise Exception("Could not find file pattern %s" % SW_FILEPAT)
+                    fwdie("Could not find file pattern %s" % SW_FILEPAT, PF_EXIT_FAILURE)
 
         
         if SW_FILEPATSECT not in self.config:
             wclutils.write_wcl(self.config)
-            raise Exception("Could not find filename pattern section (%s)" % SW_FILEPATSECT)
+            fwdie("Could not find filename pattern section (%s)" % SW_FILEPATSECT, PF_EXIT_FAILURE)
         elif filepat in self.config[SW_FILEPATSECT]:
-            filenamepat = self.config[SW_FILEPATSECT][filepat]['pattern']
+            filenamepat = self.config[SW_FILEPATSECT][filepat]
         else:
             print SW_FILEPATSECT, " keys: ", self.config[SW_FILEPATSECT].keys()
-            raise Exception("Could not find filename pattern for %s" % filepat)
+            fwdie("Could not find filename pattern for %s" % filepat, PF_EXIT_FAILURE)
                 
         filename = self.interpolate(filenamepat, searchopts)
         return filename
@@ -807,15 +848,15 @@ class PfwConfig:
        
         # get filename pattern from global settings:
         if not dirpat:
-            (found, dirpat) = self.search(SW_DIRPAT, searchopts)
+            (found, dirpat) = self.search(DIRPAT, searchopts)
 
             if not found:
-                raise Exception("Could not find dirpat")
+                fwdie("Could not find dirpat", PF_EXIT_FAILURE)
 
-        if dirpat in self.config[SW_DIRPATSECT]:
-            filepathpat = self.config[SW_DIRPATSECT][dirpat][pathtype]
+        if dirpat in self.config[DIRPATSECT]:
+            filepathpat = self.config[DIRPATSECT][dirpat][pathtype]
         else:
-            raise Exception("Could not find pattern %s in directory patterns" % dirpat)
+            fwdie("Could not find pattern %s in directory patterns" % dirpat, PF_EXIT_FAILURE)
                 
         filepath = self.interpolate(filepathpat, searchopts)
         return filepath

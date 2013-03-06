@@ -8,7 +8,7 @@
 import argparse
 import sys
 import processingfw.pfwdb as pfwdb
-import processingfw.pfwutils as pfwutils
+from processingfw.fwutils import fwsplit
 from time import strftime
 
 
@@ -80,7 +80,7 @@ def main(argv=None):
             val = argsdict[argkey]
             if 'time' in col:
                 if ',' in val:    # times can have date range
-                    (begdate,enddate) = pfwutils.pfwsplit(val)
+                    (begdate,enddate) = fwsplit(val)
                 else:
                     begdate = val
                     enddate = val

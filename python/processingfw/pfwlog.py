@@ -16,6 +16,7 @@ def get_timestamp():
     tstamp = time.strftime("%m/%d/%Y %H:%M:%S", time.localtime())
     return tstamp
 
+
 #######################################################################
 def log_pfw_event(config, block=None, subblock=None, 
                   subblocktype=None, info=None):
@@ -98,7 +99,7 @@ def log_pfw_event(config, block=None, subblock=None,
 #                $$BlockInfoArrRef[$InfoNum]{"jobstat"} = "PRE"
 #                $$BlockInfoArrRef[$InfoNum]{"clusterid"} = ""
 #                $$BlockInfoArrRef[$InfoNum]{"jobid"} = ""
-#                $$BlockInfoArrRef[$InfoNum]{"exitval"} = $FAILURE
+#                $$BlockInfoArrRef[$InfoNum]{"exitval"} = PF_EXIT_FAILURE
 #                $$BlockInfoArrRef[$InfoNum]{"endtime"} = ""
 #
 #                $NextInfoNum++
@@ -110,7 +111,7 @@ def log_pfw_event(config, block=None, subblock=None,
 #                }
 #                else {
 #                    print "Error: Could not find matching job $KeyStr for cid line\n'$Line'\n"
-#                    exit $FAILURE
+#                    exit PF_EXIT_FAILURE
 #                }
 #            }
 #            elsif ($Type =~ /jobid/) {
@@ -120,7 +121,7 @@ def log_pfw_event(config, block=None, subblock=None,
 #                }
 #                else {
 #                    print "Error: Could not find matching job $KeyStr for jobid line\n'$Line'\n"
-#                    exit $FAILURE
+#                    exit PF_EXIT_FAILURE
 #                }
 #            }
 #            elsif ($Type =~ /posttask/) {
@@ -131,7 +132,7 @@ def log_pfw_event(config, block=None, subblock=None,
 #                }
 #                else {
 #                    print "Error: Could not find matching job $KeyStr for posttask line\n"
-#                    exit $FAILURE
+#                    exit PF_EXIT_FAILURE
 #                }
 #
 #            }

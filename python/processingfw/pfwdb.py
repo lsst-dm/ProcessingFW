@@ -22,7 +22,7 @@ from collections import OrderedDict
 
 import coreutils
 from processingfw.pfwdefs import *
-from processingfw.pfwutils import debug
+from processingfw.fwutils import *
 
 from errors import DuplicateDBFiletypeError
 from errors import DuplicateDBHeaderError
@@ -40,7 +40,12 @@ class PFWDB (coreutils.DesDbi):
     """
 
     def __init__ (self, *args, **kwargs):
-        coreutils.DesDbi.__init__ (self, *args, **kwargs)
+        fwdebug(3, 'PFWDB_DEBUG', args)
+        try:
+            coreutils.DesDbi.__init__ (self, *args, **kwargs)
+        except Exception as err:
+            fwdie("Error: problem connecting to database: %s\n\tCheck desservices file and environment variables" % err, PF_EXIT_FAILURE)
+            
 
     def get_database_defaults(self):
         """ Grab default configuration information stored in database """
@@ -48,10 +53,12 @@ class PFWDB (coreutils.DesDbi):
         result = OrderedDict()
         
         result['archive'] = self.get_database_table('OPS_ARCHIVE_NODE', 'NAME') 
-        result[SW_DIRPATSECT] = self.get_database_table('OPS_DIRECTORY_PATTERN', 'NAME')
-        result[SW_FILEPATSECT] = self.get_database_table('OPS_FILENAME_PATTERN', 'NAME')
+        result[DIRPATSECT] = self.get_database_table('OPS_DIRECTORY_PATTERN', 'NAME')
+        result[SW_FILEPATSECT] = self.get_filename_pattern()
         result['site'] = self.get_database_table('OPS_SITE', 'NAME')
         result['filetype_metadata'] = self.get_all_filetype_metadata()
+        result[SW_EXEC_DEF] = self.get_database_table('OPS_EXEC_DEF', 'NAME')
+        result[DATA_DEF] = self.get_database_table('OPS_DATA_DEFS', 'NAME')
 
         return result
 
@@ -65,6 +72,20 @@ class PFWDB (coreutils.DesDbi):
         for line in curs:
             d = dict(zip(desc, line))
             result[d[tkey.lower()].lower()] = d
+
+        curs.close()
+        return result
+
+    def get_filename_pattern(self):
+        sql = "select * from OPS_FILENAME_PATTERN"
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        result = OrderedDict()
+        for line in curs:
+            d = dict(zip(desc, line))
+            result[d['name'].lower()] = d['pattern']
 
         curs.close()
         return result
@@ -170,7 +191,7 @@ class PFWDB (coreutils.DesDbi):
             curs = self.cursor()
 
             # pfw_request
-            debug(3, 'PFWDB_DEBUG', "Inserting to pfw_request table\n")
+            fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_request table\n")
             reqnum = config.search(REQNUM, {'interpolate': True})[1]
             project = config.search('project', {'interpolate': True})[1]
             jiraid = config.search('jira_id', {'interpolate': True})[1]
@@ -178,11 +199,11 @@ class PFWDB (coreutils.DesDbi):
         
             try:
                 sql = "insert into pfw_request (reqnum, project, jira_id, pipeline) select %s, '%s', '%s', '%s' %s where not exists (select null from pfw_request where reqnum=%s)" % (reqnum, project, jiraid, pipeline, from_dual, reqnum)
-                debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
                 curs.execute(sql)
             except Exception as e:
                 if loopcnt <= maxtries:
-                    debug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
+                    fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
                     loopcnt = loopcnt + 1
                     self.rollback()
                     continue
@@ -190,16 +211,16 @@ class PFWDB (coreutils.DesDbi):
                     raise e
 
             # pfw_unit
-            debug(3, 'PFWDB_DEBUG', "Inserting to pfw_unit table\n")
+            fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_unit table\n")
             unitname = config.search(UNITNAME, {'interpolate': True})[1]
             try:
                 curs = self.cursor()
                 sql = "insert into pfw_unit (reqnum, unitname) select %s, '%s' %s where not exists (select null from pfw_unit where reqnum=%s and unitname='%s')" % (reqnum, unitname, from_dual, reqnum, unitname)
-                debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
                 curs.execute(sql)
             except Exception as e:
                 if loopcnt <= maxtries:
-                    debug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
+                    fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
                     loopcnt = loopcnt + 1
                     self.rollback()
                     continue
@@ -207,12 +228,12 @@ class PFWDB (coreutils.DesDbi):
                     raise e
 
             # pfw_attempt
-            debug(3, 'PFWDB_DEBUG', "Inserting to pfw_attempt table\n")
+            fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_attempt table\n")
             operator = config.search('operator', {'interpolate': True})[1]
 
             ## get current max attnum and try next value
             sql = "select max(attnum) from pfw_attempt where reqnum='%s' and unitname = '%s'" % (reqnum, unitname)
-            debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+            fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
             curs.execute(sql)
             maxarr = curs.fetchall()
             if len(maxarr) == 0:
@@ -224,11 +245,11 @@ class PFWDB (coreutils.DesDbi):
 
             try:
                 sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime) select %s, '%s', '%s', '%s', %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname='%s' and attnum=%s)" % (reqnum, unitname, maxatt+1, operator, self.get_current_timestamp_str(), from_dual, reqnum, unitname, maxatt+1)
-                debug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
                 curs.execute(sql)
             except Exception as e:
                 if loopcnt <= maxtries:
-                    debug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
+                    fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % str(e))
                     loopcnt = loopcnt + 1
                     self.rollback()
                     continue
@@ -262,7 +283,8 @@ class PFWDB (coreutils.DesDbi):
         """ update row in pfw_attempt with end of attempt info """
 
         updatevals = {}
-        updatevals['starttime'] = 'CURRENT_TIMESTAMP'
+        #updatevals['starttime'] = 'CURRENT_TIMESTAMP'
+        updatevals['starttime'] = self.get_current_timestamp_str()
 
         wherevals = {}
         wherevals['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
@@ -276,7 +298,7 @@ class PFWDB (coreutils.DesDbi):
         """ update row in pfw_attempt with end of attempt info """
 
         updatevals = {}
-        updatevals['endtime'] = 'CURRENT_TIMESTAMP'
+        updatevals['endtime'] = self.get_current_timestamp_str()
         updatevals['status'] = self.quote(exitcode)
 
         wherevals = {}
@@ -284,13 +306,14 @@ class PFWDB (coreutils.DesDbi):
         wherevals['unitname'] = self.quote(unitname)
         wherevals['attnum'] = self.quote(attnum)
         
+        fwdebug(0, 'PFWDB_DEBUG', "%s %s" % (wherevals, updatevals))
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
 
     ##### BLOCK #####
     def insert_block (self, config):
         """ Insert an entry into the pfw_block table """
-        debug(3, 'PFWDB_DEBUG', "Inserting to pfw_block table\n")
+        fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_block table\n")
 
         blknum = config.search(PF_BLKNUM, {'interpolate': False})[1]
         if blknum == '1':  # attempt is starting
@@ -347,7 +370,7 @@ class PFWDB (coreutils.DesDbi):
     #### BLKTASK #####
     def insert_blktask(self, config, modname, taskname):
         """ Insert an entry into the pfw_blktask table """
-        debug(3, 'PFWDB_DEBUG', "Inserting to pfw_blktask table\n")
+        fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_blktask table\n")
         row = {}
         row['reqnum'] = self.quote(config.search(REQNUM, {'interpolate': True})[1])
         row['unitname'] = self.quote(config.search(UNITNAME, {'interpolate': True})[1])
@@ -380,14 +403,14 @@ class PFWDB (coreutils.DesDbi):
     ##### JOB #####
     def insert_job (self, wcl):
         """ Insert an entry into the pfw_job table """
-        debug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
+        fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
 
         row = {}
         row['reqnum'] = self.quote(wcl[REQNUM])
         row['unitname'] = self.quote(wcl[UNITNAME])
         row['attnum'] = self.quote(wcl[ATTNUM])
         row['blknum'] = self.quote(wcl[PF_BLKNUM])
-        row['jobnum'] = self.quote(wcl[JOBNUM])
+        row['jobnum'] = self.quote(wcl[PF_JOBNUM])
         row['starttime'] = self.get_current_timestamp_str()
         row['numexpwrap'] = self.quote(wcl['numexpwrap'])
         row['exechost'] = self.quote(socket.gethostname())
@@ -421,7 +444,7 @@ class PFWDB (coreutils.DesDbi):
         wherevals['reqnum'] = self.quote(wcl[REQNUM])
         wherevals['unitname'] = self.quote(wcl[UNITNAME])
         wherevals['attnum'] = self.quote(wcl[ATTNUM])
-        wherevals['jobnum'] = self.quote(wcl[JOBNUM])
+        wherevals['jobnum'] = self.quote(wcl[PF_JOBNUM])
 
         self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
 
@@ -437,11 +460,11 @@ class PFWDB (coreutils.DesDbi):
         row['reqnum'] = self.quote(inputwcl[REQNUM])
         row['unitname'] = self.quote(inputwcl[UNITNAME])
         row['attnum'] = self.quote(inputwcl[ATTNUM])
-        row['wrapnum'] = self.quote(inputwcl[WRAPNUM])
+        row['wrapnum'] = self.quote(inputwcl[PF_WRAPNUM])
         row['name'] = self.quote(inputwcl['wrapname'])
         row['id'] = self.quote(wrapid)
         row['blknum'] = self.quote(inputwcl[PF_BLKNUM])
-        row['jobnum'] = self.quote(inputwcl[JOBNUM])
+        row['jobnum'] = self.quote(inputwcl[PF_JOBNUM])
         row['inputwcl'] = self.quote(os.path.split(iwfilename)[-1])
         row['starttime'] = self.get_current_timestamp_str()
 
@@ -471,7 +494,8 @@ class PFWDB (coreutils.DesDbi):
     def insert_exec (self, inputwcl, sect):
         """ insert row into pfw_exec """
 
-        debug(3, 'PFWDB_DEBUG', sect)
+        fwdebug(3, 'PFWDB_DEBUG', sect)
+        fwdebug(3, 'PFWDB_DEBUG', inputwcl[sect])
 
         execid = self.get_seq_next_value('pfw_exec_seq')
 
@@ -479,19 +503,21 @@ class PFWDB (coreutils.DesDbi):
         row['reqnum'] = self.quote(inputwcl[REQNUM])
         row['unitname'] = self.quote(inputwcl[UNITNAME])
         row['attnum'] = self.quote(inputwcl[ATTNUM])
-        row['wrapnum'] = self.quote(inputwcl[WRAPNUM])
+        row['wrapnum'] = self.quote(inputwcl[PF_WRAPNUM])
         row['id'] = self.quote(execid)
         row['execnum'] = self.quote(inputwcl[sect]['execnum'])
         row['name'] = self.quote(inputwcl[sect]['execname'])
+        if 'version' in inputwcl[sect] and inputwcl[sect]['version'] is not None:
+            row['version'] = self.quote(inputwcl[sect]['version'])
 
         self.insert_pfw_row('PFW_EXEC', row)
-        debug(3, 'PFWDB_DEBUG', "end")
+        fwdebug(3, 'PFWDB_DEBUG', "end")
         return execid
 
 
     def update_exec_end (self, execwcl, execid, exitcode):
         """ update row in pfw_exec with end of exec info """
-        debug(3, 'PFWDB_DEBUG', execid)
+        fwdebug(3, 'PFWDB_DEBUG', execid)
 
         updatevals = {}
         updatevals['cmdargs'] = self.quote(execwcl['cmdlineargs'])
@@ -511,14 +537,18 @@ class PFWDB (coreutils.DesDbi):
                                                    ','.join(row.keys()), 
                                                    ','.join(row.values()))
     
-        debug(3, 'PFWDB_DEBUG', sql)
+        fwdebug(3, 'PFWDB_DEBUG', sql)
 
         curs = self.cursor()
-        debug(3, 'PFWDB_DEBUG', "cursor")
-        curs.execute(sql)
-        debug(3, 'PFWDB_DEBUG', "execute")
+        fwdebug(3, 'PFWDB_DEBUG', "cursor")
+        try:
+            curs.execute(sql)
+        except Exception as err:
+            fwdie("Error: %s\nsql> %s\n" % (err,sql), PF_EXIT_FAILURE)
+
+        fwdebug(3, 'PFWDB_DEBUG', "execute")
         self.commit()
-        debug(3, 'PFWDB_DEBUG', "end")
+        fwdebug(3, 'PFWDB_DEBUG', "end")
             
     def update_PFW_row (self, pfwtable, wherevals, updatevals):
         """ update a row into pfw_wrapper """
@@ -536,7 +566,7 @@ class PFWDB (coreutils.DesDbi):
                                              ','.join(upclause),
                                              ' and '.join(whclause))
 
-        debug(3, 'PFWDB_DEBUG', sql)
+        fwdebug(3, 'PFWDB_DEBUG', sql)
         curs = self.cursor()
         curs.execute(sql)
         curs.close()

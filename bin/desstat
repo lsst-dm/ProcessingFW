@@ -17,7 +17,6 @@ def main(argv=None):
     constraint_str = "-constraint %sisjob " % ATTRIB_PREFIX
     if args.user:
         constraint_str += args.user
-    print constraint_str
     (qjobs, top_jobs, orphan_jobs) = pfwcondor.condorq_dag(constraint_str)
 #    print qjobs
 
@@ -43,10 +42,10 @@ def main(argv=None):
 
 def print_header(): 
     """ Print header line """
-    print "%7s %1s %3s %-27s %-30s %-15s %-17s %-8s %-15s" % \
-          ("ID", "T","PRJ","RUN","BLOCK","SUBBLOCK","STAT",
+    print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-30s" % \
+          ("ID", "T","PRJ","PIPELINE","RUN","BLOCK","SUBBLOCK","STAT",
            "OPERATOR", "RUNSITE")
-    print "="*123
+    print "="*133
 
 
 def status_target_jobs(job, qjobs):
@@ -64,6 +63,7 @@ def status_target_jobs(job, qjobs):
     return(status)
     
 
+
 def print_single(topjobid, jobtype, qjobs):
     """ Print info for single job """
 
@@ -80,7 +80,7 @@ def print_single(topjobid, jobtype, qjobs):
 
     # grab DESDM from job attributes 
     info = {}
-    for key in ['project', 'run', 'runsite', 'block', 'subblock', 'operator']:
+    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator']:
         info[key] = ""
         if ATTRIB_PREFIX + key in qjobs[jobid]:
             info[key] = qjobs[jobid][ATTRIB_PREFIX + key]
@@ -93,10 +93,10 @@ def print_single(topjobid, jobtype, qjobs):
         info['subblock'] = "pipelines"
         info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % ATTRIB_PREFIX]
 
-    print "%7s %1s %3s %-27s %-30s %-15s %-17s %-8s %-15s" % ( 
-          topjobid, jobtype, info['project'][:3], info['run'][:27], 
-          info['block'][:25], info['subblock'][:15], info['status'][:17],
-          info['operator'][:8], info['runsite'][:15],
+    print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-15s" % ( 
+          topjobid, jobtype, info['project'][:3], info['pipeline'][:8],
+          info['run'][:27], info['block'][:25], info['subblock'][:15], 
+          info['status'][:17], info['operator'][:8], info['runsite'][:15]
     )
 
 

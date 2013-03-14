@@ -77,7 +77,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
         inwcl['dbids'] = {}
         inwcl['wrapperid'] = dbh.insert_wrapper(inwcl, iwfilename)
         pfw_file_metadata = {}
-        pfw_file_metadata['file_1'] = {'filename' : iwfilename, 
+        pfw_file_metadata['file_1'] = {'filename' : wclutils.getFilename(iwfilename), 
                                        'filetype' : 'wcl'}
         dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
 
@@ -377,9 +377,9 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
                 dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
 
             pfw_file_metadata = {}
-            pfw_file_metadata['file_1'] = {'filename' : outputwclfile, 
+            pfw_file_metadata['file_1'] = {'filename' : wclutils.getFilename(outputwclfile), 
                                            'filetype' : 'wcl'}
-            pfw_file_metadata['file_2'] = {'filename' : logfile, 
+            pfw_file_metadata['file_2'] = {'filename' : wclutils.getFilename(logfile), 
                                            'filetype' : 'log'}
             dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
 

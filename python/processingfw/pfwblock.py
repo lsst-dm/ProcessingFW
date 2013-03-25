@@ -738,7 +738,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     currvals = {'curr_module': modname, PF_WRAPNUM: wrapinst[PF_WRAPNUM]}
 
 
-    wrapperwcl = {}
+    wrapperwcl = {'modname': modname}
 
     # file is optional
     if IW_FILESECT in wrapinst:

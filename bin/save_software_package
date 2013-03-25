@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedDate::                      $:  # Date of last commit.
+
+""" TODO docstring """
+
+import argparse
+import os
+import sys
+import re
+
+from processingfw.fwutils import *
+import coreutils.desdbi as desdbi
+
+
+def parse_file(filename):
+    contents = []
+    with open(filename, 'r') as fh:
+        for line in fh:
+            m = re.search("setup.*\(([^\)]+)\)", line)
+            if m:
+                (name,version) = fwsplit(m.group(1), ',')
+                contents.append((name, version))
+    return contents
+
+
+
+def save_uber_package(dbh, name, version, note):
+    fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+
+    from_dual = dbh.from_dual()
+    row = {}
+    row['name'] = dbh.quote(name)
+    row['version'] = dbh.quote(version)
+    if note is not None:
+        row['note'] = dbh.quote(note)
+    sql = "insert into ops_uber_package (%s) select %s %s where not exists (select null from ops_uber_package where name=%s and version=%s)" % (','.join(row.keys()), ','.join(row.values()), from_dual, row['name'], row['version'])
+    fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+    curs = dbh.cursor()
+    curs.execute(sql)
+    fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_uber_package: %s" % curs.rowcount)
+    fwdebug(3, 'SAVESOFT_DEBUG', "END")
+
+
+def save_indiv_packages(dbh, packages):
+    fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+
+    from_dual = dbh.from_dual()
+    curs = dbh.cursor()
+    row = {}
+    inscnt = 0
+    for (name,version) in packages:
+        row['name'] = dbh.quote(name)
+        row['version'] = dbh.quote(version)
+        sql = "insert into ops_indiv_package (%s) select %s %s where not exists (select null from ops_indiv_package where name=%s and version=%s)" % (','.join(row.keys()), ','.join(row.values()), from_dual, row['name'], row['version'])
+        fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+        curs.execute(sql)
+        inscnt += curs.rowcount
+    fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_indiv_package: %s" % inscnt)
+    fwdebug(3, 'SAVESOFT_DEBUG', "END")
+
+
+def save_uber_contents(dbh, ubername, uberversion, packages):
+    fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+
+    from_dual = dbh.from_dual()
+    row = {}
+    row['uber_name'] = dbh.quote(ubername)
+    row['uber_version'] = dbh.quote(uberversion)
+    curs = dbh.cursor()
+    cnt = 1
+    inscnt = 0
+    for (name,version) in packages:
+        row['indiv_name'] = dbh.quote(name)
+        row['indiv_version'] = dbh.quote(version)
+        row['indiv_order'] = dbh.quote(cnt)
+        
+        sql = "insert into ops_uber_package_contents (%s) select %s %s where not exists (select null from ops_uber_package_contents where uber_name=%s and uber_version=%s and indiv_name=%s and indiv_version=%s)" % (','.join(row.keys()), ','.join(row.values()), from_dual, row['uber_name'], row['uber_version'], row['indiv_name'], row['indiv_version'])
+        fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+        curs.execute(sql)
+        inscnt += curs.rowcount
+        cnt += 1
+    fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_uber_package_contents: %s" % inscnt)
+    fwdebug(3, 'SAVESOFT_DEBUG', "END")
+
+
+def save_software_info(dbh, name, version, contents, note=None):
+    save_uber_package(dbh, name, version, note)
+    save_indiv_packages(dbh, contents) 
+    save_uber_contents(dbh, name, version, contents)
+    
+
+
+def main(args):
+    parser = argparse.ArgumentParser(description='Submit a run to the processing framework')
+    parser.add_argument('--des_services', action='store')
+    parser.add_argument('--des_db_section', action='store')
+    parser.add_argument('--note', action='store')
+    parser.add_argument('name', action='store')
+    parser.add_argument('version', action='store')
+    parser.add_argument('tablefile', action='store')
+
+    args = vars(parser.parse_args())   # convert dict
+
+    contents = parse_file(args['tablefile'])
+    if len(contents) > 0:
+        dbh = desdbi.DesDbi(args['des_services'], args['des_db_section']) 
+        save_software_info(dbh, args['name'], args['version'], contents, args['note'])
+        dbh.commit()
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

@@ -461,6 +461,7 @@ class PFWDB (coreutils.DesDbi):
         row['unitname'] = self.quote(inputwcl[UNITNAME])
         row['attnum'] = self.quote(inputwcl[ATTNUM])
         row['wrapnum'] = self.quote(inputwcl[PF_WRAPNUM])
+        row['modname'] = self.quote(inputwcl['modname'])
         row['name'] = self.quote(inputwcl['wrapname'])
         row['id'] = self.quote(wrapid)
         row['blknum'] = self.quote(inputwcl[PF_BLKNUM])

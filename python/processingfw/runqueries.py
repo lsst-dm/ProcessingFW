@@ -52,7 +52,7 @@ def create_master_list(config, modname, moddict,
         elif 'PROCESSINGFW_DIR' in os.environ:
             dirgenquery = os.environ['PROCESSINGFW_DIR']
         else:
-            fwdie("Could not determine base path for genquerydb.py", PF_EXIT_FAILURE)
+            fwdie("Error: Could not determine base path for genquerydb.py", PF_EXIT_FAILURE)
 
         prog = "%s/libexec/genquerydb.py" % (dirgenquery)
         args = "--qoutfile %s --qouttype %s --config %s --module %s --search %s" % \

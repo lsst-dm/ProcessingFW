@@ -21,7 +21,7 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
             if exc.errno == errno.EEXIST:
                 pass
             else: 
-                fwdie("Error making directory wcldir: %s" % exc, PF_EXIT_FAILURE)
+                fwdie("Error: problems making directory wcldir: %s" % exc, PF_EXIT_FAILURE)
 
     with open(filename, 'w', 0) as wclfh:
         write_wcl(wrapperwcl, wclfh, True, 4)

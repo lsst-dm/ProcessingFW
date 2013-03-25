@@ -47,7 +47,7 @@ def getVersion(execname, verflag, verpat):
         except Exception as err:
             #print type(err)
             ver = None 
-            fwdie("Exception from re.match.  Didn't find version: %s" % err, PF_EXIT_FAILURE)
+            fwdie("Error: Exception from re.match.  Didn't find version: %s" % err, PF_EXIT_FAILURE)
 
     return ver
 
@@ -77,7 +77,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
         inwcl['dbids'] = {}
         inwcl['wrapperid'] = dbh.insert_wrapper(inwcl, iwfilename)
         pfw_file_metadata = {}
-        pfw_file_metadata['file_1'] = {'filename' : iwfilename, 
+        pfw_file_metadata['file_1'] = {'filename' : wclutils.getFilename(iwfilename), 
                                        'filetype' : 'wcl'}
         dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
 
@@ -233,10 +233,10 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
 
                     logfh.close()
             else:
-                fwdie("Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
+                fwdie("Error: Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
                 
     except:
-        fwdie("Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
+        fwdie("Error: Unexpected error: %s" % sys.exc_info()[0], PF_EXIT_FAILURE)
 
     if processWrap.returncode != 0:
         print "wrapper returned non-zero exit code"
@@ -264,7 +264,7 @@ def compose_path(dirpat, inwcl, infdict, fdict):
         elif newvar in infdict:
             newval = inwcl[newvar]
         else:
-            fwdie("Could not find value for %s" % newvar, PF_EXIT_FAILURE)
+            fwdie("Error: Could not find value for %s" % newvar, PF_EXIT_FAILURE)
 
         fwdebug(6, 'PFWRUNJOB_DEBUG',
               "\twhy req: newvar, newval, type(newval): %s %s %s" % (newvar, newval, type(newval)))
@@ -274,12 +274,12 @@ def compose_path(dirpat, inwcl, infdict, fdict):
             try:
                 newval = prpat % int(newval)
             except ValueError as err:
-                fwdie("Error padding value (%s, %s, %s): %s" % (var, newval, prpat, err))
+                fwdie("Error: Problem padding value (%s, %s, %s): %s" % (var, newval, prpat, err))
         dirpat = re.sub("(?i)\${%s}" % var, newval, dirpat)
         m = re.search("(?i)\$\{([^}]+)\}", dirpat)
 
     if count >= maxtries:
-        fwdie("Aborting from infinite loop\n. Current string: '%s'" % dirpat, PF_EXIT_FAILURE)
+        fwdie("Error: Aborting from infinite loop\n. Current string: '%s'" % dirpat, PF_EXIT_FAILURE)
     return dirpat
 
 
@@ -316,7 +316,7 @@ def copy_output_to_cache(inwcl, fileinfo, exitcode):
         if DATA_DEF not in inwcl:
             fwdie("Error: %s not specified" % DATA_DEF, PF_EXIT_FAILURE)
         if 'cachename' not in inwcl:
-            fwdie('Error: cachename not specified', PF_EXIT_FAILURE)
+            fwdie("Error: cachename not specified", PF_EXIT_FAILURE)
         cachedict = inwcl[DATA_DEF][inwcl['cachename']]
 
         putinfo = {}
@@ -377,9 +377,9 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
                 dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
 
             pfw_file_metadata = {}
-            pfw_file_metadata['file_1'] = {'filename' : outputwclfile, 
+            pfw_file_metadata['file_1'] = {'filename' : wclutils.getFilename(outputwclfile), 
                                            'filetype' : 'wcl'}
-            pfw_file_metadata['file_2'] = {'filename' : logfile, 
+            pfw_file_metadata['file_2'] = {'filename' : wclutils.getFilename(logfile), 
                                            'filetype' : 'log'}
             dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
 

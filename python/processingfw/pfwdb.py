@@ -965,7 +965,7 @@ class PFWDB (coreutils.DesDbi):
                             rowdata[column] = filedata[header]
                             mappedHeaders.add(header)
                         else:
-                            rowdata[column] = ''
+                            rowdata[column] = None
                 
                 # report elements that were in the file that do not map to a DB column
                 for notmapped in (set(filedata.keys()) - mappedHeaders):

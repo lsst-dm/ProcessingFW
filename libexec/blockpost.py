@@ -62,8 +62,23 @@ def blockpost(argv = None):
     failedfile = config['failedfile']
     run = config['run']
 
+    dbh = None
+    if convertBool(config[PF_USE_DB_OUT]): 
+        dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+        jobinfo = dbh.get_job_info(config)
+        dbh.close()
+        for jobnum, jinfo in jobinfo.items():
+            if jinfo['status'] != PF_EXIT_SUCCESS:
+                retval = PF_EXIT_FAILURE
+                
     if retval:
-        print "Block failed\nAlready sent email"
+        #print "Block failed\nAlready sent email"
+        print "Sending block failed email\n";
+        msg1 = "%s:  block %s has failed." % (run, blockname)
+        #msg2 = "\n\n" + getJobInfo(blockname)
+        msg2 = ""
+
+        send_email(config, blockname, retval, "", msg1, msg2)
     elif convertBool(dryrun):
         print "dryrun = ", dryrun
         print "Sending dryrun email"

@@ -1101,3 +1101,22 @@ class PFWDB (coreutils.DesDbi):
             self.commit()
     #end_ingest_provenance
 
+
+    def get_job_info(self, config):
+        """ Dictionary containing rows from job table for the current block """
+
+        sql = "select * from pfw_job where reqnum=%s and attnum=%s and unitname='%s' and blknum=%s" % (config[REQNUM], config[ATTNUM], config.interpolate(config[UNITNAME]), config[PF_BLKNUM])
+        fwdebug(0, 'PFWDB_DEBUG', sql)
+
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        result = {}
+        for line in curs:
+            d = dict(zip(desc, line))
+            result[d['jobnum']] = d
+
+        curs.close()
+        return result
+

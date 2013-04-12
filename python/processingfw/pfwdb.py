@@ -243,8 +243,10 @@ class PFWDB (coreutils.DesDbi):
             else:
                 maxatt = int(maxarr[0][0])
 
+            numexpblk = len(fwsplit(config[SW_BLOCKLIST]))
+
             try:
-                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime) select %s, '%s', '%s', '%s', %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname='%s' and attnum=%s)" % (reqnum, unitname, maxatt+1, operator, self.get_current_timestamp_str(), from_dual, reqnum, unitname, maxatt+1)
+                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime, numexpblk) select %s, '%s', '%s', '%s', %s, %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname='%s' and attnum=%s)" % (reqnum, unitname, maxatt+1, operator, self.get_current_timestamp_str(), numexpblk, from_dual, reqnum, unitname, maxatt+1)
                 fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
                 curs.execute(sql)
             except Exception as e:
@@ -416,6 +418,10 @@ class PFWDB (coreutils.DesDbi):
         row['exechost'] = self.quote(socket.gethostname())
         row['pipeprod'] = self.quote(wcl['pipeprod'])
         row['pipever'] = self.quote(wcl['pipever'])
+
+        if 'jobkeys' in wcl:
+            row['jobkeys'] = self.quote(wcl['jobkeys'])
+            
 
         # batchid 
         if "PBS_JOBID" in os.environ:
@@ -965,7 +971,7 @@ class PFWDB (coreutils.DesDbi):
                             rowdata[column] = filedata[header]
                             mappedHeaders.add(header)
                         else:
-                            rowdata[column] = ''
+                            rowdata[column] = None
                 
                 # report elements that were in the file that do not map to a DB column
                 for notmapped in (set(filedata.keys()) - mappedHeaders):
@@ -1101,3 +1107,71 @@ class PFWDB (coreutils.DesDbi):
             self.commit()
     #end_ingest_provenance
 
+
+    def get_job_info(self, reqnum, unitname, attnum, blknum = None):
+        sql = "select * from pfw_job where reqnum=%s and attnum=%s and unitname='%s'" % (reqnum, attnum, unitname)
+        if blknum == -1:  # want only latest block
+           blknum = len(blockinfo) - 1 
+        if blknum is not None:
+            sql += " and blknum=%s" % blknum
+
+        fwdebug(1, 'PFWDB_DEBUG', sql)
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+
+        jobinfo = {}
+        for line in curs:
+            d = dict(zip(desc, line))
+            jobinfo[d['jobnum']] = {}
+            jobinfo[d['jobnum']] = d
+        return jobinfo
+
+
+    def get_attempt_info(self, reqnum, unitname, attnum):
+        """ """
+        # get the run info
+        sql = "select * from pfw_attempt where reqnum=%s and attnum=%s and unitname='%s'"  % (reqnum, attnum, unitname)
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+        attinfo = dict(zip(desc, curs.fetchall()[0]))
+        return attinfo
+
+
+    def get_block_info(self, reqnum, unitname, attnum, blknum = None):
+        # get the block info
+        sql = "select * from pfw_block where reqnum=%s and attnum=%s and unitname='%s'"  % (reqnum, attnum, unitname)
+        if blknum == -1:  # want only latest block
+            sql += " and blknum = (select max blknum from pfw_block where reqnum=%s and attnum=%s and unitname='%s')"  % (reqnum, attnum, unitname)
+        elif blknum is not None:
+            sql += " and blknum=%s" % blknum
+            
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+        blockinfo = {}
+        for line in curs:
+            b = dict(zip(desc, line))
+            blockinfo[b['blknum']] = b
+        return blockinfo
+
+
+    def get_wrapper_info(self, reqnum, unitname, attnum, blknum = None):
+        # get wrapper instance information
+        sql = "select * from pfw_wrapper where reqnum=%s and attnum=%s and unitname='%s'" % (reqnum, attnum, unitname)
+        if blknum == -1:  # want only latest block
+            sql += " and blknum = (select max blknum from pfw_block where reqnum=%s and attnum=%s and unitname='%s')"  % (reqnum, attnum, unitname)
+        elif blknum is not None:
+            sql += " and blknum=%s" % blknum
+            
+        #print "sql =", sql
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+        wrappers = {}
+        for line in curs:
+            d = dict(zip(desc, line))
+            wrappers[d['wrapnum']] = d
+
+        return wrappers

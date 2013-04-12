@@ -55,7 +55,7 @@ def list_not_in_db(filenames, dbh):
 
     origcount = len(filenames)
 
-    print "Checking if files are already in database"
+    print "\tChecking if files are already in database"
     dbq = "select filename from genfile where filename in ('%s')" % "','".join(filenames)
     curs = dbh.cursor()
     curs.execute(dbq)
@@ -64,10 +64,31 @@ def list_not_in_db(filenames, dbh):
         dblist.append(row[0])
 
     filenames = set(filenames) - set(dblist)
-    print "\t%0d files already in database" % len(dblist)
 
-    if len(filenames) > 0:
-        print "\t%0d files still to be ingested" % len(filenames)
+    print "\t\t%0d files already in database" % len(dblist)
+    print "\t\t%0d files still to be ingested" % len(filenames)
+
+    return filenames
+
+
+def list_not_in_cache(filenames, cachename, dbh):
+    """ Return list of files from given set which are not in cache """
+
+    origcount = len(filenames)
+
+    print "\tChecking if files are already in cache"
+    dbq = "select filename from ops_cache_location where cache_name='%s' and filename in ('%s')" % \
+                                                                (cachename, "','".join(filenames))
+
+    curs = dbh.cursor()
+    curs.execute(dbq)
+    dblist = []
+    for row in curs:
+        dblist.append(row[0])
+
+    filenames = set(filenames) - set(dblist)
+    print "\t\t%0d files already in cache" % len(dblist)
+    print "\t\t%0d files still to be copied to cache" % len(filenames)
 
     return filenames
 
@@ -81,6 +102,7 @@ def get_metadata_specs(ftype, dbwcl):
             if len(metaspecs[key]) == 0:
                 del metaspecs[key]
     return metaspecs
+
 
 
 def process_files(filelist, dbwcl, dbh, cachename, noingest=False):
@@ -100,62 +122,89 @@ def process_files(filelist, dbwcl, dbh, cachename, noingest=False):
     for f in filelist:
         filetype = filelist[f]['filetype']
         if filetype not in byfiletype:
-            byfiletype[filetype] = {'fullname': [], 'cachefinfo': {}}
-        fullname = filelist[f]['fullname']
-        byfiletype[filetype]['fullname'].append(fullname)
-        byfiletype[filetype]['cachefinfo'][fullname] = filelist[f]['cachepath']
+            byfiletype[filetype] = {'filename':[], 'fullname': [], 'cachefinfo': []}
+        byfiletype[filetype]['filename'].append(f)
+        byfiletype[filetype]['fullname'].append(filelist[f]['fullname'])
+        byfiletype[filetype]['cachefinfo'].append(filelist[f]['cachepath'])
 
     filedata = {}
     for ftype in sorted(byfiletype):
         print "%s:" % ftype
-        metaspecs = get_metadata_specs(ftype, dbwcl['filetype_metadata'])
-        metaspecs['filetype'] = ftype
-        metaspecs['fullname'] = ','.join(sorted(byfiletype[ftype]['fullname']))
-        print "\tGathering file metadata on %0d files...." % len(byfiletype[ftype]['fullname']), 
-        #wclutils.write_wcl(metaspecs)
-        filemeta = wraputils.get_file_metadata(metaspecs)
-        #wclutils.write_wcl(filemeta)
-    
-        if filemeta is not None:
-            # add filenames and filetypes to metadata
-            for fdict in filemeta.values():
-                fdict['filename'] = wclutils.getFilename(fdict['fullname'])
-                fdict['filetype'] = ftype
-        else:
-            filemeta = {}
-            fcnt = 0
-            for f in byfiletype[ftype]['fullname']:
-                filemeta['file_%s' % fcnt] = {'filename': wclutils.getFilename(f), 
-                                              'filetype': ftype}
-                fcnt += 1
+        print "\t%s files of this type" % len(byfiletype[ftype]['fullname'])
 
-        print "DONE"
-         
-        if not noingest:
-            print "\tCalling ingest_file_metadata on %s files..." % len(filemeta), 
-            try:
-                dbh.ingest_file_metadata(filemeta, dbwcl['filetype_metadata'])
-            except processingfw.errors.FileMetadataIngestError as err:
-                fwdie("\nERROR: %s" % err, PF_EXIT_FAILURE)
+        # check which files already have metadata in database
+        filenames = None
+        filenames = list_not_in_db(byfiletype[ftype]['filename'], dbh)
+
+        if len(filenames) != 0:
+            # create input list of files not already in db
+            insfilelist = {}
+            for f in filenames:
+                insfilelist[f] = filelist[f]
+
+            metaspecs = get_metadata_specs(ftype, dbwcl['filetype_metadata'])
+            metaspecs['filetype'] = ftype
+
+            metaspecs['fullname'] = ','.join(sorted(byfiletype[ftype]['fullname']))
+            print "\tGathering file metadata on %0d files...." % len(insfilelist), 
+            #wclutils.write_wcl(metaspecs)
+            filemeta = {}
+            filemeta = wraputils.get_file_metadata(metaspecs)
+            #wclutils.write_wcl(filemeta)
+    
+            if filemeta is not None:
+                # add filenames and filetypes to metadata
+                for fdict in filemeta.values():
+                    fdict['filename'] = wclutils.getFilename(fdict['fullname'])
+                    fdict['filetype'] = ftype
+            else:
+                filemeta = {}
+                fcnt = 0
+                for f in insfilelist:
+                    filemeta['file_%s' % fcnt] = {'filename': wclutils.getFilename(f), 
+                                                  'filetype': ftype}
+                    fcnt += 1
 
             print "DONE"
+         
+            if not noingest:
+                print "\tCalling ingest_file_metadata on %s files..." % len(filemeta), 
+                try:
+                    dbh.ingest_file_metadata(filemeta, dbwcl['filetype_metadata'])
+                except processingfw.errors.FileMetadataIngestError as err:
+                    wclutils.write_wcl(dbwcl['filetype_metadata'], fh)
+                    fwdie("\nERROR: %s" % err, PF_EXIT_FAILURE)
 
-        #wclutils.write_wcl(cachedict)
-        #wclutils.write_wcl(cachefileinfo)
-        print "\tCalling filecache.put_within_job on %s files..." % len(byfiletype[ftype]['cachefinfo']),
-        try:
-            filecache = cache.Cache()
-            problemfiles = filecache.put_within_job(byfiletype[ftype]['cachefinfo'], cachedict)
+                print "DONE"
+
+
+
+        # check which files already are in cache
+        filenames = list_not_in_cache(byfiletype[ftype]['filename'], cachename, dbh)
+
+        if len(filenames) != 0:
+            # create input list of files not already in db
+            insfilelist = {}
+            for f in filenames:
+                insfilelist[filelist[f]['fullname']] = filelist[f]['cachepath']
+
+            #wclutils.write_wcl(cachedict)
+            #wclutils.write_wcl(cachefileinfo)
+            print "\tCalling filecache.put_within_job on %s files..." % len(insfilelist),
+            try:
+                filecache = cache.Cache()
+                #wclutils.write_wcl(insfilelist)
+                problemfiles = filecache.put_within_job(insfilelist, cachedict)
     
-            if len(problemfiles) > 0:
-                print "ERROR\nProblems putting %0d files into cache" % len(problemfiles)
-                for file in problemfiles:
-                    print file, "\n"
-                sys.exit(PF_EXIT_FAILURE)
-        except Exception as err:
-            fwdie("ERROR\n%s" % err, PF_EXIT_FAILURE)
+                if len(problemfiles) > 0:
+                    print "ERROR\n\n\nProblems putting %0d files into cache" % len(problemfiles)
+                    for file in problemfiles:
+                        print file, problemfiles[file]
+                    sys.exit(PF_EXIT_FAILURE)
+            except Exception as err:
+                fwdie("ERROR\n%s" % err, PF_EXIT_FAILURE)
 
-        print "DONE"
+            print "DONE"
 
      
 def main(args):
@@ -221,18 +270,8 @@ def main(args):
         filelist = parse_provided_list(args['list'])
 
     print "Asked to ingest %0d files\n" % (len(filelist))
-    filenames = list_not_in_db(filelist.keys(), dbh)
-
-    if len(filenames) == 0:
-        print "\nAll files already in database"
-    else:
-        # create input list of files not already in db
-        insfilelist = {}
-        for f in filenames:
-            insfilelist[f] = filelist[f]
-
-        process_files(insfilelist, dbwcl, dbh, args['cachename'], args['noingest'])
-        dbh.commit()
+    process_files(filelist, dbwcl, dbh, args['cachename'], args['noingest'])
+    dbh.commit()
     
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

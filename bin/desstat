@@ -2,11 +2,8 @@
 
 import argparse
 import sys
-#import re
-#import os
 import processingfw.pfwcondor as pfwcondor
 from processingfw.pfwdefs import *
-#import pfwcondor
 
 
 def main(argv=None):
@@ -18,7 +15,6 @@ def main(argv=None):
     if args.user:
         constraint_str += args.user
     (qjobs, top_jobs, orphan_jobs) = pfwcondor.condorq_dag(constraint_str)
-#    print qjobs
 
     jobcnt = len(qjobs)
     if jobcnt == 0:
@@ -43,15 +39,17 @@ def main(argv=None):
 def print_header(): 
     """ Print header line """
     print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-30s" % \
-          ("ID", "T","PRJ","PIPELINE","RUN","BLOCK","SUBBLOCK","STAT",
+          ("ID", "T","PRJ","PIPELINE","RUN","BLOCK","SUBBLOCK","STAT (H/P/R/T)",
            "OPERATOR", "RUNSITE")
     print "="*133
 
 
 def status_target_jobs(job, qjobs):
     numtjobs = 'UNK'
-    if '%snumjobs' % ATTRIB_PREFIX in qjobs[job]:
-        numtjobs = qjobs[job]['%snumjobs' % ATTRIB_PREFIX]
+    if '%snumjobs' % ATTRIB_PREFIX in qjobs[qjobs[job]['children'][0]]:
+        numtjobs = qjobs[qjobs[job]['children'][0]]['%snumjobs' % ATTRIB_PREFIX]
+    else:
+        print "Could not find %snumjobs in qjobs for job %s" % (ATTRIB_PREFIX, job)
 
     chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'ERR': 0}
     for childjob in qjobs[job]['children']:
@@ -75,8 +73,11 @@ def print_single(topjobid, jobtype, qjobs):
 
     # find innermost dag job
     jobid = topjobid
-    while len(qjobs[jobid]['children']) == 1:
+    while len(qjobs[jobid]['children']) == 1 and \
+          ('%sblock' % ATTRIB_PREFIX not in qjobs[jobid] or \
+           'pipe' not in qjobs[jobid]['%sblock' % ATTRIB_PREFIX]):
         jobid = qjobs[jobid]['children'][0]
+
 
     # grab DESDM from job attributes 
     info = {}

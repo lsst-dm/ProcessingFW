@@ -249,10 +249,8 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
 
     if userattribs:
         for key, val in userattribs.items():
-            print key, val,
-            if val.lower() != 'true' and val.lower() != 'false':
+            if type(val) == str and val.lower() != 'true' and val.lower() != 'false':
                 val = '"%s"' % val
-            print val
             condorfh.write('+%s = %s\n' % (key, val))
 
     condorfh.write('queue\n')

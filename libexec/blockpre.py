@@ -27,8 +27,8 @@ getenv=true
 environment="submit_condorid=$(Cluster).$(Process)"
 notification=never
 initialdir = ../%(block)s
-output=../%(block)s/$(run)_$(jobname).out
-error=../%(block)s/$(run)_$(jobname).err
+output=../%(block)s/$(run)_%(block)s_$(jobname).out
+error=../%(block)s/$(run)_%(block)s_$(jobname).err
 log=blocktask.log
 queue
         """ % {'block':blockname})

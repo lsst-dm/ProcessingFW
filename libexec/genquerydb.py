@@ -64,6 +64,10 @@ def main(argv):
     query = {}
     qtable = search_dict['query_table']
     for f in fields:
+        table = qtable
+        if '.' in f:
+            table, f = f.split('.')
+
         if f in search_dict:
             value = search_dict[f]
         elif f in module_dict:
@@ -80,10 +84,6 @@ def main(argv):
         if ':' in value:
             value = fwsplit(value)
     
-        table = qtable
-        if '.' in f:
-            table, f = f.split('.')
-
         if table not in query:
             query[table] = {}
 
@@ -95,12 +95,21 @@ def main(argv):
     
     # if specified, insert join into query hash
     if 'join' in search_dict:
-        joins = fwsplit(search_dict['join'].lower())
-        for j in joins:
-            m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
-            if m:
-                query[m.group(1)]['join'][m.group(2)] = m.group(3)
-    
+        #joins = fwsplit(search_dict['join'].lower())
+        #for j in joins:
+        #    m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
+        #    if m:
+        #        print "1", m.group(1)
+        #        print "2", m.group(2)
+        #        print "3", m.group(3)
+        #        table = m.group(1)
+        #        if table not in query:
+        #            query[table] = {}
+        #        if 'join' not in query[table]:
+        #            query[table]['join'] = {}
+        #        query[m.group(1)]['join'][m.group(2)] = m.group(3)
+        query[table]['join']=search_dict['join']
+
 
     query[qtable]['select_fields'] = ['filename']
 
@@ -128,7 +137,7 @@ def main(argv):
     files = pfwfilelist.gen_file_list(query)
     
     if len(files) == 0:
-        raise Exception("genquery: query returned zero results for %s\nAborting\n" % searchname)
+        raise Exception("genquery: query returned zero results for %s\nAborting\n" % args.searchname)
     
     
 #    ## if asked, parse values from filenames

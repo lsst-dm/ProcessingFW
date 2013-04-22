@@ -74,7 +74,7 @@ def send_email(config, block, status, subject, msg1, msg2):
         email = config['email']
         print "Sending %s as email to %s (block=%s)" % (mailfile, email, block)
         mailfh = open(mailfile, 'r')
-        print subprocess.check_output(['/bin/mail', '-s', '"%s"' % subject, email], stdin=mailfh)
+        print subprocess.check_output(['/bin/mail', '-s', '%s' % subject, email], stdin=mailfh)
         mailfh.close()
         # don't delete email file as helps others debug as well as sometimes emails are missed
     else:

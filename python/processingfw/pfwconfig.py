@@ -350,25 +350,25 @@ class PfwConfig:
             print "Error: missing unitname"
             errcnt += 1
 
-        # targetnode replaces depricated archive_node
-        if 'archive_node' in self.config:
-            if 'targetnode' in self.config:
-                print "\tWarning: have both targetnode and depricated archive_node defined in global section."
-                warncnt += 1
-                if cleanup:
-                    print "\tDeleting depricated archive_node"
-                    del self.config['archive_node']
-                    cleancnt += 1
-            else:
-                print "\tWarning: depricated use of archive_node in global section."
-                warncnt += 1
-                if cleanup:
-                    print "\tSetting global targetnode = global archive_node"
-                    self.config['targetnode'] = self.config['archive_node']
-                    print "\tDeleting depricated archive_node"
-                    del self.config['archive_node']
-                    cleancnt += 1
-                
+#        # targetnode replaces depricated archive_node
+#        if 'archive_node' in self.config:
+#            if 'targetnode' in self.config:
+#                print "\tWarning: have both targetnode and depricated archive_node defined in global section."
+#                warncnt += 1
+#                if cleanup:
+#                    print "\tDeleting depricated archive_node"
+#                    del self.config['archive_node']
+#                    cleancnt += 1
+#            else:
+#                print "\tWarning: depricated use of archive_node in global section."
+#                warncnt += 1
+#                if cleanup:
+#                    print "\tSetting global targetnode = global archive_node"
+#                    self.config['targetnode'] = self.config['archive_node']
+#                    print "\tDeleting depricated archive_node"
+#                    del self.config['archive_node']
+#                    cleancnt += 1
+#                
 #        # submitnode must be set globally
 #        submitnode = None
 #        if 'submitnode' not in self.config:
@@ -446,41 +446,41 @@ class PfwConfig:
                         print "\tError: missing definition for block %s" % (blockname)
                         errcnt += 1
     
-                if block: 
-                    if 'archive_node' in block:
-                        if 'targetnode' in block:
-                            print "\tWarning:  Have both archive_node and targetnode defined in block %s" % (blockname)
-                            warncnt += 1
-                            if cleanup:
-                                print "\t\tDeleting depricated archive_node"
-                                del block['archive_node']
-                                cleancnt += 1
-                        else:
-                            print "\tWarning:  deprecated archive_node defined in block %s" % (blockname)
-                            warncnt += 1
-                            if cleanup:
-                                print "\t\tSetting targetnode = archive_node"
-                                block['targetnode'] = block['archive_node']
-                                print "\t\tDeleting depricated archive_node"
-                                del block['archive_node']
-                                cleancnt += 1
-    
-                    if 'targetnode' in block:
-                        targetnode = block['targetnode']
-                    elif 'targetnode' in self.config:
-                        targetnode = self.config['targetnode']
-                    else:
-                        print "\tError: Could not determine targetnode for block %s" % (blockname)
-                        errcnt += 1
-    
-                    target_sitename = None
-                    if targetnode not in self.config['archive']:
-                        print "\tError: missing definition for target node %s from block %s" % (targetnode, blockname)
-                        errcnt += 1
-                    elif 'sitename' not in self.config['archive'][targetnode]:
-                        print "\tError: missing sitename for target node %s from block %s" % (targetnode, blockname)
-                        errcnt += 1
-    
+#                if block: 
+#                    if 'archive_node' in block:
+#                        if 'targetnode' in block:
+#                            print "\tWarning:  Have both archive_node and targetnode defined in block %s" % (blockname)
+#                            warncnt += 1
+#                            if cleanup:
+#                                print "\t\tDeleting depricated archive_node"
+#                                del block['archive_node']
+#                                cleancnt += 1
+#                        else:
+#                            print "\tWarning:  deprecated archive_node defined in block %s" % (blockname)
+#                            warncnt += 1
+#                            if cleanup:
+#                                print "\t\tSetting targetnode = archive_node"
+#                                block['targetnode'] = block['archive_node']
+#                                print "\t\tDeleting depricated archive_node"
+#                                del block['archive_node']
+#                                cleancnt += 1
+#    
+#                    if 'targetnode' in block:
+#                        targetnode = block['targetnode']
+#                    elif 'targetnode' in self.config:
+#                        targetnode = self.config['targetnode']
+#                    else:
+#                        print "\tError: Could not determine targetnode for block %s" % (blockname)
+#                        errcnt += 1
+#    
+#                    target_sitename = None
+#                    if targetnode not in self.config['archive']:
+#                        print "\tError: missing definition for target node %s from block %s" % (targetnode, blockname)
+#                        errcnt += 1
+#                    elif 'sitename' not in self.config['archive'][targetnode]:
+#                        print "\tError: missing sitename for target node %s from block %s" % (targetnode, blockname)
+#                        errcnt += 1
+#    
             return (errcnt, warncnt, cleancnt)
     
     
@@ -536,12 +536,13 @@ class PfwConfig:
         if not exists:
             fwdie("Error: Cannot determine targetnode value", PF_EXIT_FAILURE)
     
-        if targetnode not in self.config['archive']:
+        if targetnode not in self.config['site']:
             print "Error: invalid targetnode value (%s)" % targetnode
-            print "\tArchive contains: ", self.config['archive']
+            print "\tsite contains: ", self.config['site']
             fwdie("Error: Invalid targetnode value (%s)" % targetnode, PF_EXIT_FAILURE)
     
-        curdict['curr_archive'] = targetnode
+        curdict['curr_site'] = targetnode
+        self.config['runsite'] = targetnode
     
         if 'listtargets' in self.config:
             listt = self.config['listtargets']
@@ -552,12 +553,12 @@ class PfwConfig:
         
 #depricated?        curdict['curr_software'] = self['software_node']
     
-        (exists, sitename) = self.search('sitename')
-        if exists and sitename in self.config['site']:
-            self.config['runsite'] = sitename
-            curdict['curr_site'] = sitename
-        else:
-            fwdie("Error: Cannot determine run_site value", PF_EXIT_FAILURE)
+        #(exists, sitename) = self.search('sitename')
+        #if exists and sitename in self.config['site']:
+        #    self.config['runsite'] = sitename
+        #    curdict['curr_site'] = sitename
+        #else:
+        #    fwdie("Error: Cannot determine run_site value", PF_EXIT_FAILURE)
         fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
 
     
@@ -646,7 +647,7 @@ class PfwConfig:
                 if haskey:
                     newval = str(newval)
                     if '(' in newval or ',' in newval:
-                        if 'expand' in opts and opts['expand']:
+                        if opts is not None and 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
                         fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
                     elif len(parts) > 1:
@@ -756,10 +757,11 @@ class PfwConfig:
         attribs[ATTRIB_PREFIX + 'operator'] = self.config['operator']
         attribs[ATTRIB_PREFIX + 'runsite'] = self.config['runsite']
         attribs[ATTRIB_PREFIX + 'subblock'] = subblock
-#        if (subblock == '$(jobnum)'):
-#            attribs[ATTRIB_PREFIX + 'numjobs'] = self.config['numjobs']
-#            if ('glidein_name' in self.config):
-#                attribs['GLIDEIN_NAME'] = self.config['glidein_name']
+        if (subblock == '$(jobnum)'):
+            if 'numjobs' in self.config:
+                attribs[ATTRIB_PREFIX + 'numjobs'] = self.config['numjobs']
+            if 'glidein_name' in self.config:
+                attribs['GLIDEIN_NAME'] = self.config['glidein_name']
         return attribs
     
     
@@ -816,6 +818,11 @@ class PfwConfig:
         """ Return filename based upon given file pattern name """
         filename = ""
 
+        origreq = False
+        if searchopts is not None and 'required' in searchopts:
+            origreq = searchopts['required']
+            searchopts['required'] = False
+            
         if not filepat:
             # first check for filename pattern override 
             (found, filenamepat) = self.search('filename', searchopts)
@@ -826,6 +833,8 @@ class PfwConfig:
 
                 if not found:
                     fwdie("Error: Could not find file pattern %s" % SW_FILEPAT, PF_EXIT_FAILURE)
+        else:
+            fwdebug(0, 'PFWCONFIG_DEBUG', "given filepat = %s" % (filepat))
 
         
         if SW_FILEPATSECT not in self.config:
@@ -836,6 +845,9 @@ class PfwConfig:
         else:
             print SW_FILEPATSECT, " keys: ", self.config[SW_FILEPATSECT].keys()
             fwdie("Error: Could not find filename pattern for %s" % filepat, PF_EXIT_FAILURE)
+
+        if searchopts is not None:
+            searchopts['required'] = origreq
                 
         filename = self.interpolate(filenamepat, searchopts)
         return filename
@@ -865,7 +877,7 @@ class PfwConfig:
     ###########################################################################
     def combine_lists_files(self, modulename):
         """ Return python list of file and file list objects """
-        print "\tModule %s\n" % (modulename)
+        fwdebug(3, 'PFWCONFIG_DEBUG', "BEG")
         
         moduledict = self[SW_MODULESECT][modulename]
         
@@ -879,14 +891,15 @@ class PfwConfig:
             for k in listorder:
                 dataset.append((k, moduledict[SW_LISTSECT][k]))
         else:
-            print "\t\tNo lists"
+            fwdebug(3, 'PFWCONFIG_DEBUG', "no lists")
         
         if SW_FILESECT in moduledict and len(moduledict[SW_FILESECT]) > 0:
             for k,v in moduledict[SW_FILESECT].items():
                 dataset.append((k,v))
         else:
-            print "\t\tNo files"
+            fwdebug(3, 'PFWCONFIG_DEBUG', "no files")
 
+        fwdebug(3, 'PFWCONFIG_DEBUG', "END")
         return dataset 
 
     def set_names(self):

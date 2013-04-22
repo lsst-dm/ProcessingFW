@@ -26,16 +26,16 @@ def begblock(argv):
     os.chdir('../%s' % config['blockname'])
 
     # now that have more information, can rename output file
-    fwdebug(0, 'PFWBLOCK_DEBUG', "getting new_log_name")
-    new_log_name = config.get_filename('block', {PF_CURRVALS:
-                                                    {'flabel': 'begblock',
-                                                     'fsuffix':'out'}})
-    new_log_name = "../%s/%s" % (config['blockname'], new_log_name)
-    fwdebug(0, 'PFWBLOCK_DEBUG', "new_log_name = %s" % new_log_name)
+    #fwdebug(0, 'PFWBLOCK_DEBUG', "getting new_log_name")
+    #new_log_name = config.get_filename('block', {PF_CURRVALS:
+    #                                                {'flabel': 'begblock',
+    #                                                 'fsuffix':'out'}})
+    #new_log_name = "../%s/%s" % (config['blockname'], new_log_name)
+    #fwdebug(0, 'PFWBLOCK_DEBUG', "new_log_name = %s" % new_log_name)
 
-    debugfh = open(new_log_name, 'a+')
-    sys.stdout = debugfh
-    sys.stderr = debugfh
+    #debugfh = open(new_log_name, 'a+')
+    #sys.stdout = debugfh
+    #sys.stderr = debugfh
 
     if 'des_services' in config and config['des_services'] is not None:
         os.environ['DES_SERVICES'] = config['des_services']
@@ -66,9 +66,10 @@ def begblock(argv):
         if convertBool(config[PF_USE_DB_OUT]): 
             dbh.update_blktask_end(config, modname, "runqueries", 1)
         pfwblock.read_master_lists(config, modname, modules_prev_in_list)
+        pfwblock.create_fullnames(config, modname)
         pfwblock.add_file_metadata(config, modname)
-        loopvals = pfwblock.get_wrapper_loopvals(config, modname)
         pfwblock.create_sublists(config, modname)
+        loopvals = pfwblock.get_wrapper_loopvals(config, modname)
         wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
         pfwblock.assign_data_wrapper_inst(config, modname, wrapinst)
         pfwblock.finish_wrapper_inst(config, modname, wrapinst)
@@ -79,10 +80,11 @@ def begblock(argv):
     scriptfile = pfwblock.write_runjob_script(config)
 
     for jobkey,jobdict in joblist.items():
+        print "jobkey =",jobkey
         jobdict['jobnum'] = config.inc_jobnum()
         jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])
-        jobdict['tarfile'] = pfwblock.tar_inputwcl(config, jobdict['jobnum'], jobdict['inwcllist'])
-        jobdict['jobwclfile'] = pfwblock.write_jobwcl(config, jobdict['jobnum'], len(jobdict['tasks']))
+        jobdict['tarfile'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'], jobdict['inlist'])
+        jobdict['jobwclfile'] = pfwblock.write_jobwcl(config, jobkey, jobdict['jobnum'], len(jobdict['tasks']), jobdict['wrapinputs'])
 
     numjobs = len(joblist)
     if convertBool(config[PF_USE_DB_OUT]): 
@@ -93,18 +95,19 @@ def begblock(argv):
 
     config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
 
-    print "begblock done"
     if PF_DRYRUN in config and convertBool(config[PF_DRYRUN]):
         retval = PF_EXIT_DRYRUN
     else:
         retval = PF_EXIT_SUCCESS
+    fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
     return(retval)
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print "Usage: begblock.py configfile"
         sys.exit(PF_EXIT_FAILURE)
 
-    print ' '.join(sys.argv)
+    print ' '.join(sys.argv)    # print command so can run by hand if needed
     sys.stdout.flush()
     sys.exit(begblock(sys.argv[1:]))

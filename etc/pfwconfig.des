@@ -9,7 +9,7 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
     inputwcl = ${modnamepat}_input.wcl
     outputwcl = ${modnamepat}_output.wcl
     log = ${modnamepat}.log
-    inputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_inputwcl.tar.gz
+    inputtar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_inputwcl.tar.gz
     outputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_outputwcl.tar.gz
     runjob = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_runjob.sh
     jobwcl = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_job.wcl
@@ -29,14 +29,19 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
 <directory_pattern>
     <inputwcl>
         name = wcl
-        ops = tbd 
+        ops = ${project}/${pipeline}/${nite}-r${reqnum}/p${attnum:2}/inputwcl/${modulename}
         runtime = inputwcl/${modulename}
     </inputwcl>
     <outputwcl>
         name = wcl
-        ops = tbd 
+        ops = ${project}/${pipeline}/${nite}-r${reqnum}/p${attnum:2}/outputwcl/${modulename}
         runtime = outputwcl/${modulename}
     </outputwcl>
+    <list>
+        name = list
+        ops = ${project}/${pipeline}/${nite}-r${reqnum}/p${attnum:2}/list/${modulename}
+        runtime = list/${modulename}
+    </list>
     <log> 
         name = log
         ops = tbd 

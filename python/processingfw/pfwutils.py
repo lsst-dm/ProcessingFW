@@ -12,6 +12,19 @@ from processingfw.fwutils import *
 """ Miscellaneous support functions for processing framework """
 
 #######################################################################
+def get_exec_sections(wcl, prefix):
+    execs = {}
+    for key, val in wcl.items():
+        fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for exec prefix in %s" % key)
+
+        if re.search("^%s\d+$" % prefix, key):
+            fwdebug(4, "PFWUTILS_DEBUG", "\tFound exec prefex %s" % key)
+            execs[key] = val
+    return execs
+
+        
+
+#######################################################################
 def traverse_wcl(wcl):
     fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     usedvars = {}

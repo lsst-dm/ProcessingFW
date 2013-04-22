@@ -107,55 +107,56 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
     fwdebug(3, "PFWRUNJOB_DEBUG", "section loop beg")
     execnamesarr = [inwcl['wrapname']]
     outfiles = {}
-    for sect in sorted(inwcl.keys()):
-        fwdebug(3, "PFWRUNJOB_DEBUG", "section %s" % sect)
-        if re.search("^%s\d+$" % IW_EXECPREFIX, sect):
-            if 'execname' not in inwcl[sect]:
-                print "Missing execname in input wcl.  sect =", sect
-                print "inwcl[sect] = ", wclutils.write_wcl(inwcl[sect])
+    execs = pfwutils.get_exec_sections(inwcl, IW_EXECPREFIX)
+    for sect in sorted(execs):
+        fwdebug(0, "PFWRUNJOB_DEBUG", "section %s" % sect)
+        if 'execname' not in inwcl[sect]:
+            print "Missing execname in input wcl.  sect =", sect
+            print "inwcl[sect] = ", wclutils.write_wcl(inwcl[sect])
                 
                 
-            execname = inwcl[sect]['execname']
-            execnamesarr.append(execname)
-            if IW_OUTPUTS in inwcl[sect]:
-                for outfile in fwsplit(inwcl[sect][IW_OUTPUTS]):
-                    outfiles[outfile] = True
-                    fullnames = pfwutils.get_wcl_value(outfile+'.fullname', inwcl)
-                    #print "fullnames = ", fullnames
-                    if '$RNMLST{' in fullnames:
-                        m = re.search("\$RNMLST{\${(.+)},(.+)}", fullnames)
-                        if m:
-                            print "Found rnmlst"
-                            print m.group(1)
-                        pattern = pfwutils.get_wcl_value(m.group(1), inwcl)
-                        print pattern
-                    else:
-                        outfile_names = fwsplit(fullnames)
-                        for outfile in outfile_names:
-                            outfile_dir = os.path.dirname(outfile)
-                            if len(outfile_dir) > 0:
-                                if not os.path.exists(outfile_dir):
-                                    os.makedirs(outfile_dir)
-                            else:
-                                print "0 length directory for output file:", outfile
-            else:
-                print "Note: 0 output files (%s) in exec section %s" % (IW_OUTPUTS, sect)
+        execname = inwcl[sect]['execname']
+        execnamesarr.append(execname)
+        if IW_OUTPUTS in inwcl[sect]:
+            for outfile in fwsplit(inwcl[sect][IW_OUTPUTS]):
+                outfiles[outfile] = True
+                print outfile
+                fullnames = pfwutils.get_wcl_value(outfile+'.fullname', inwcl)
+                #print "fullnames = ", fullnames
+                if '$RNMLST{' in fullnames:
+                    m = re.search("\$RNMLST{\${(.+)},(.+)}", fullnames)
+                    if m:
+                        print "Found rnmlst"
+                        print m.group(1)
+                    pattern = pfwutils.get_wcl_value(m.group(1), inwcl)
+                    print pattern
+                else:
+                    outfile_names = fwsplit(fullnames)
+                    for outfile in outfile_names:
+                        outfile_dir = os.path.dirname(outfile)
+                        if len(outfile_dir) > 0:
+                            if not os.path.exists(outfile_dir):
+                                os.makedirs(outfile_dir)
+                        else:
+                            print "0 length directory for output file:", outfile
+        else:
+            print "Note: 0 output files (%s) in exec section %s" % (IW_OUTPUTS, sect)
 
-            if IW_EXEC_DEF in inwcl:
-                if execname.lower() in inwcl[IW_EXEC_DEF]:    # might be a function or just missing
-                    if ( 'version_flag' in inwcl[IW_EXEC_DEF][execname.lower()]
-                       and 'version_pattern' in inwcl[IW_EXEC_DEF][execname.lower()] ):
-                        verflag = inwcl[IW_EXEC_DEF][execname.lower()]['version_flag']
-                        verpat = inwcl[IW_EXEC_DEF][execname.lower()]['version_pattern']
+        if IW_EXEC_DEF in inwcl:
+            if execname.lower() in inwcl[IW_EXEC_DEF]:    # might be a function or just missing
+                if ( 'version_flag' in inwcl[IW_EXEC_DEF][execname.lower()]
+                   and 'version_pattern' in inwcl[IW_EXEC_DEF][execname.lower()] ):
+                    verflag = inwcl[IW_EXEC_DEF][execname.lower()]['version_flag']
+                    verpat = inwcl[IW_EXEC_DEF][execname.lower()]['version_pattern']
 
-                        inwcl[sect]['version'] = getVersion(execname, verflag, verpat)
-                        #print "inwcl[sect]['version']", sect, inwcl[sect]['version']
+                    inwcl[sect]['version'] = getVersion(execname, verflag, verpat)
+                    #print "inwcl[sect]['version']", sect, inwcl[sect]['version']
 
-            if useDB: 
-                if 'execnum' not in inwcl[sect]:
-                    result = re.match('%s(\d+)' % IW_EXECPREFIX, sect)
-                    execnum = result.group(1)
-                    inwcl[sect]['execnum'] = execnum
+        if useDB: 
+            if 'execnum' not in inwcl[sect]:
+                result = re.match('%s(\d+)' % IW_EXECPREFIX, sect)
+                execnum = result.group(1)
+                inwcl[sect]['execnum'] = execnum
                 inwcl['dbids'][sect] = dbh.insert_exec(inwcl, sect) 
 
     if 'wrapinputs' in inwcl and inwcl[PF_WRAPNUM] in inwcl['wrapinputs']:
@@ -203,8 +204,8 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
 def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQCF=False):
     fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     print "wrappercmd = ", wrappercmd
-    print "logfilename = ", logfilename
-    print "useQCF = ", useQCF
+    print "\tlogfilename = ", logfilename
+    print "\tuseQCF = ", useQCF
 
     logfh = open(logfilename, 'w', 0)
 
@@ -254,6 +255,8 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
 
     if processWrap.returncode != 0:
         print "wrapper returned non-zero exit code"
+    else:
+        print "wrapper exited with zero exit code"
 
     fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     return processWrap.returncode
@@ -383,10 +386,10 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
     if useDB:
         dbh = pfwdb.PFWDB()
         dbh.update_wrapper_end(inwcl, outputwclfile, logfile, exitcode)
-        if outputwcl is not None:
-            for sect in outputwcl.keys():
-                if re.search("^%s\d+$" % OW_EXECPREFIX, sect):
-                    dbh.update_exec_end(outputwcl[sect], inwcl['dbids'][sect], exitcode)
+        if outputwcl is not None:    
+            execs = pfwutils.get_exec_sections(outputwcl, OW_EXECPREFIX)
+            for sect in execs:
+                dbh.update_exec_end(outputwcl[sect], inwcl['dbids'][sect], exitcode)
             if OW_METASECT in outputwcl:
                 dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
 
@@ -425,7 +428,7 @@ def runtasks(taskfile, useDB=False, jobwcl={}, useQCF=False):
                 return(1)
 
             wrappercmd = "%s --input=%s --debug=%s" % (wrapname, wclfile, wrapdebug)
-            print "%04d: wrappercmd: %s" % (int(wrapnum), wrappercmd)
+            print "%04d:" % (int(wrapnum))
 
             if not os.path.exists(wclfile):
                 print "Error: input wcl file does not exist (%s)" % wclfile

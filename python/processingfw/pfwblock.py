@@ -1346,7 +1346,7 @@ mystat=$?
 d2=`/bin/date "+%%s"` 
 echo "\t$((d2-d1)) secs"
 if [ $mystat != 0 ]; then
-    echo "eups setup had non-zero exit code ($mystat)"
+    echo "Error: eups setup had non-zero exit code ($mystat)"
     exit $mystat 
 fi
 """ % ({'eups': config['setupeups'], 

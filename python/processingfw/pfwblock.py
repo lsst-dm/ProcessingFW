@@ -1341,7 +1341,7 @@ export SHELL=/bin/bash    # needed for setup to work in Condor environment
 source %(eups)s 
 echo "Using eups to setup up %(pipe)s %(ver)s"
 d1=`/bin/date "+%%s"` 
-setup %(pipe)s %(ver)s
+setup --nolock %(pipe)s %(ver)s
 mystat=$?
 d2=`/bin/date "+%%s"` 
 echo "\t$((d2-d1)) secs"

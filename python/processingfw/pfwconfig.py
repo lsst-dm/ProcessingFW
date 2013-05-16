@@ -305,8 +305,8 @@ class PfwConfig:
         cleancnt = 0
         
         # just abort the check if do not have major sections of config
-        if 'archive' not in self.config:
-            fwdie("Error: Could not find archive section", PF_EXIT_FAILURE)
+        #if 'archive' not in self.config:
+        #    fwdie("Error: Could not find archive section", PF_EXIT_FAILURE)
         if SW_BLOCKSECT not in self.config:
             fwdie("Error: Could not find block section", PF_EXIT_FAILURE)
         if SW_MODULESECT not in self.config:
@@ -314,7 +314,31 @@ class PfwConfig:
     
         # make sure project is all uppercase
         # self.config['project'] = self['project'].upper()
+
+        if PF_USE_DB_IN in self.config:
+            if convertBool(self.config[PF_USE_DB_IN]):
+                if 'des_db_section' not in self.config:
+                    print "Error:  using DB (%s), but missing des_db_section" % (PF_USE_DB_IN)
+                    errcnt += 1
+                if 'des_services' not in self.config:
+                    print "Error:  using DB (%s), but missing des_services" % (PF_USE_DB_IN)
+                    errcnt += 1
     
+        if PF_USE_DB_OUT in self.config:
+            if convertBool(self.config[PF_USE_DB_OUT]):
+                if 'des_db_section' not in self.config:
+                    print "Error:  using DB (%s), but missing des_db_section" % PF_USE_DB_OUT
+                    errcnt += 1
+                if 'des_services' not in self.config:
+                    print "Error:  using DB (%s), but missing des_services" % PF_USE_DB_OUT
+                    errcnt += 1
+
+        # if using QCF must also be writing run info into DB
+        if PF_USE_QCF in self.config and convertBool(self.config[PF_USE_QCF]) and \
+            (PF_USE_DB_OUT in self.config and not convertBool(self.config[PF_USE_DB_OUT])):
+            print "Error: if %s is true, %s must also be set to true" % (PF_USE_QCF, PF_USE_DB_OUT)
+            errcnt += 1
+
         if 'operator' not in self.config:
             print 'Warning:  Must specify operator'
             print 'Using your Unix login for this submission.  Please fix in your submit file.'

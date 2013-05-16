@@ -172,8 +172,12 @@ def process_files(filelist, dbwcl, dbh, cachename, noingest=False):
                 try:
                     dbh.ingest_file_metadata(filemeta, dbwcl['filetype_metadata'])
                 except processingfw.errors.FileMetadataIngestError as err:
-                    wclutils.write_wcl(dbwcl['filetype_metadata'], fh)
-                    fwdie("\nERROR: %s" % err, PF_EXIT_FAILURE)
+                    print "\n\n\nError: %s" % err
+                    print "Rerun using --dbwcl <outfile> to see config from DB, esp filetype_metadata"
+                    print "---------- filemeta to ingest:"
+                    wclutils.write_wcl(filemeta)
+                    print "----------"
+                    fwdie("Error: problem ingesting metadata (%s)" % (err), PF_EXIT_FAILURE)
 
                 print "DONE"
 

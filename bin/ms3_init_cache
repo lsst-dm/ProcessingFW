@@ -94,12 +94,27 @@ def list_not_in_cache(filenames, cachename, dbh):
 
 
 def get_metadata_specs(ftype, dbwcl):
-    metaspecs = pfwutils.get_metadata_wcl(ftype, ftype, dbwcl)
+    """ Return dict/wcl describing metadata to gather for given filetype """
+
+    metaspecs = OrderedDict()
+
+    # note:  When manually ingesting files generated externally to the framework, we do not want to modify the files (i.e., no updating/inserting headers
+    (metaspecs[IW_REQ_META], metaspecs[IW_OPT_META], updatemeta) = pfwutils.create_file_metadata_dict(ftype, dbwcl['filetype_metadata'], None, None)
+    #print 'keys = ', metaspecs.keys()
+    if updatemeta is not None:
+        print "WARNING:  create_file_metadata_dict incorrectly returned values to update."
+        print "\tContinuing but not updating these values."
+        print "\tReport this to code developer."
+        print "\t\t", updatemeta
+        updatemeta = None
+
     for key in metaspecs:
         if type(metaspecs[key]) == dict or type(metaspecs[key]) == OrderedDict:
-            if 'wcl' in metaspecs[key]:
-                del metaspecs[key]['wcl']    # remove wcl requirements for manual file ingestion
+            if IW_META_WCL in metaspecs[key]:
+                #print "deleting wcl from", key
+                del metaspecs[key][IW_META_WCL]    # remove wcl requirements for manual file ingestion
             if len(metaspecs[key]) == 0:
+                #print "deleting", key
                 del metaspecs[key]
     return metaspecs
 
@@ -142,14 +157,18 @@ def process_files(filelist, dbwcl, dbh, cachename, noingest=False):
             for f in filenames:
                 insfilelist[f] = filelist[f]
 
-            metaspecs = get_metadata_specs(ftype, dbwcl['filetype_metadata'])
+            metaspecs = get_metadata_specs(ftype, dbwcl)
             metaspecs['filetype'] = ftype
-
             metaspecs['fullname'] = ','.join(sorted(byfiletype[ftype]['fullname']))
+
             print "\tGathering file metadata on %0d files...." % len(insfilelist), 
+            #print "\n\nmetaspecs = "
             #wclutils.write_wcl(metaspecs)
+
+     
             filemeta = {}
             filemeta = wraputils.get_file_metadata(metaspecs)
+            #print "\n\noutput wcl"
             #wclutils.write_wcl(filemeta)
     
             if filemeta is not None:
@@ -225,7 +244,7 @@ def main(args):
     args = vars(parser.parse_args())
 
     sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 0)
-    #print 'Using version %s of file_metadata_ingest\n' % VERSION
+    #print 'Using version %s of ms3_init_cache\n' % VERSION
     #
     #if args['version']:
         # return 0

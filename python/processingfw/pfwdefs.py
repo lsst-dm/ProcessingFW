@@ -54,6 +54,13 @@ IW_LISTSECT = 'list'
 IW_FILESECT = 'filespecs'
 IW_EXECPREFIX = 'exec_'
 IW_WRAPSECT = 'wrapper'
+IW_META_HEADERS = 'headers'
+IW_META_COMPUTE = 'compute'
+IW_META_WCL = 'wcl'
+IW_UPDATE_HEAD_PREFIX = 'hdrupd_'
+IW_UPDATE_WHICH_HEAD = 'headers'
+IW_REQ_META = 'req_metadata'
+IW_OPT_META = 'opt_metadata'
 
 OW_INPUTS = USED
 OW_OUTPUTS = WGB
@@ -61,6 +68,14 @@ OW_ANCESTRY = WDF
 OW_EXECPREFIX = IW_EXECPREFIX
 OW_PROVSECT = 'provenance'
 OW_METASECT = 'file_metadata'
+
+# lower case because appears as wcl section and wcl sections are converted to lowercase
+META_HEADERS = 'h'
+META_COMPUTE = 'c'
+META_WCL = 'w'
+META_REQUIRED = 'r'
+META_OPTIONAL = 'o'
+
 
 PF_TASKNUM = 'tasknum'
 PF_JOBNUM = 'jobnum'

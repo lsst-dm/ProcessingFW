@@ -59,6 +59,7 @@ class PFWDB (coreutils.DesDbi):
         result['filetype_metadata'] = self.get_all_filetype_metadata()
         result[SW_EXEC_DEF] = self.get_database_table('OPS_EXEC_DEF', 'NAME')
         result[DATA_DEF] = self.get_database_table('OPS_DATA_DEFS', 'NAME')
+        result['file_header'] = self.get_database_table('OPS_FILE_HEADER', 'NAME')
 
         return result
 

@@ -202,8 +202,8 @@ def assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fna
 #        winst[IW_FILESECT][fname]['filename'] = config.get_filename(None, {PF_CURRVALS: currvals, 'searchobj': finfo}) 
 #        if type(winst[IW_FILESECT][fname]['filename']) is list:
 #            winst[IW_FILESECT][fname]['filename'] = ','.join(winst[IW_FILESECT][fname]['filename'])
-#    if 'req_metadata' in finfo:
-#        winst[IW_FILESECT][fname]['req_metadata'] = copy.deepcopy(finfo['req_metadata'])
+#    if IW_REQ_META in finfo:
+#        winst[IW_FILESECT][fname][IW_REQ_META] = copy.deepcopy(finfo[IW_REQ_META])
         del winst[IW_FILESECT][fname]['filename']
 
     fwdebug(0, "PFWBLOCK_DEBUG", "is_iter_obj = %s %s" % (is_iter_obj, finfo))
@@ -445,12 +445,17 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                 fwdebug(3, "PFWBLOCK_DEBUG", "fullname = %s" % (winst[IW_FILESECT][fname]['fullname']))
 
                 
-                for k in ['filetype', 'req_metadata', 'opt_metadata', COPY_CACHE, DIRPAT]:
+                for k in ['filetype', IW_REQ_META, IW_OPT_META, COPY_CACHE, DIRPAT]:
                     if k in fdict:
-                        fwdebug(3, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, k))
+                        fwdebug(0, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, k))
                         winst[IW_FILESECT][fname][k] = copy.deepcopy(fdict[k])
                     else:
-                        fwdebug(3, "PFWBLOCK_DEBUG", "%s: no %s" % (fname, k))
+                        fwdebug(0, "PFWBLOCK_DEBUG", "%s: no %s" % (fname, k))
+
+                hdrups = pfwutils.get_hdrup_sections(fdict, IW_UPDATE_HEAD_PREFIX)
+                for hname, hdict in hdrups.items():
+                    fwdebug(0, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, hname))
+                    winst[IW_FILESECT][fname][hname] = copy.deepcopy(hdict)
 
                 # save OPS path for cache
                 if USE_CACHE in config:
@@ -520,41 +525,47 @@ def add_file_metadata(config, modname):
                         fname = m.group(1)
                         fwdebug(3, "PFWBLOCK_DEBUG", "Working on file " + fname)
                         fdict = moddict[SW_FILESECT][fname]
-            
                         filetype = fdict['filetype'].lower()
-                        fdict['req_metadata'] = OrderedDict()
-
                         wclsect = "%s.%s" % (IW_FILESECT, fname)
-                        if filetype in config['filetype_metadata']:
-                            if 'r' in config['filetype_metadata'][filetype]:
-                                if 'h' in config['filetype_metadata'][filetype]['r']:
-                                    fdict['req_metadata']['headers'] = ','.join(config['filetype_metadata'][filetype]['r']['h'].keys())
-                                if 'c' in config['filetype_metadata'][filetype]['r']:
-                                    fdict['req_metadata']['compute'] = ','.join(config['filetype_metadata'][filetype]['r']['c'].keys())
-                                if 'w' in config['filetype_metadata'][filetype]['r']:
-                                    wclkeys = []
-                                    for k in config['filetype_metadata'][filetype]['r']['w'].keys():
-                                        wclkeys.append('%s.%s' % (wclsect, k))
-                                    fdict['req_metadata']['wcl'] = ','.join(wclkeys)
-
-                            if 'o' in config['filetype_metadata'][filetype]:
-                                fdict['opt_metadata'] = OrderedDict()
-                                if 'h' in config['filetype_metadata'][filetype]['o']:
-                                    fdict['opt_metadata']['headers'] = ','.join(config['filetype_metadata'][filetype]['o']['h'].keys())
-                                if 'c' in config['filetype_metadata'][filetype]['o']:
-                                    fdict['opt_metadata']['compute'] = ','.join(config['filetype_metadata'][filetype]['o']['c'].keys())
-                                if 'w' in config['filetype_metadata'][filetype]['o']:
-                                    wclkeys = []
-                                    for k in config['filetype_metadata'][filetype]['o']['w'].keys():
-                                        wclkeys.append('%s.%s' % (wclsect, k))
-                                    fdict['opt_metadata']['wcl'] = ','.join(wclkeys)
-                
-                        if 'wcl' not in fdict['req_metadata']:
-                            fdict['req_metadata']['wcl'] = ''
+             
+                        (reqmeta, optmeta, updatemeta) = pfwutils.create_file_metadata_dict(filetype, config['filetype_metadata'], wclsect, config['file_header']) 
+                        if reqmeta is not None:
+                            fdict[IW_REQ_META] = reqmeta
                         else:
-                            fdict['req_metadata']['wcl'] += ','
+                            fdict[IW_REQ_META] = OrderedDict()  # framework fields addition below assume dict exists, so can just create empty one here
+            
+                        if optmeta is not None:
+                            fdict[IW_OPT_META] = optmeta
 
-                        fdict['req_metadata']['wcl'] += '%(sect)s.fullname,%(sect)s.sectname' % ({'sect':wclsect})
+                        if updatemeta is not None:
+                            updatemeta[IW_UPDATE_WHICH_HEAD] = '0'  # framework always updates primary header
+                            headsectnum = 0
+                            if IW_UPDATE_HEAD_PREFIX+'0' in fdict:
+                                fwdie("Error: %s is reserved for PFW updates but was specified in file %s" % (IW_UPDATE_HEAD_PREFIX+'0', fname), PF_EXIT_FAILURE)
+
+                            fdict[IW_UPDATE_HEAD_PREFIX+'0'] = updatemeta
+                         
+                        # add descriptions/types to submit-wcl specified updates if missing
+                        hdrups = pfwutils.get_hdrup_sections(fdict, IW_UPDATE_HEAD_PREFIX)
+                        for hname, hdict in sorted(hdrups.items()):
+                            for key,val in hdict.items():
+                                if key != IW_UPDATE_WHICH_HEAD:
+                                    valparts = fwsplit(val, '/')
+                                    print key, valparts
+                                    if len(valparts) == 1:  # wcl specified value, look up rest from config
+                                        newvaldict = pfwutils.create_update_items('V', [key], config['file_header'], header_value={key:val}) 
+                                        hdict.update(newvaldict)
+                                    elif len(valparts) != 3:  # 3 is valid full spec of update header line
+                                        fwdie('Error:  invalid header update line (%s = %s)\nNeeds value[/descript/type]' % (key,val), PF_EXIT_FAILURE)
+
+
+                        # add some fields needed by framework for processing output wcl (not stored in database)
+                        if IW_META_WCL not in fdict[IW_REQ_META]:
+                            fdict[IW_REQ_META][IW_META_WCL] = ''
+                        else:
+                            fdict[IW_REQ_META][IW_META_WCL] += ','
+
+                        fdict[IW_REQ_META][IW_META_WCL] += '%(sect)s.fullname,%(sect)s.sectname' % ({'sect':wclsect})
                     else:
                         fwdebug(3, "PFWBLOCK_DEBUG", "output file %s doesn't have definition (%s) " % (k, SW_FILESECT))
 

@@ -941,7 +941,7 @@ class PFWDB (coreutils.DesDbi):
                         fullMessage = '\n'.join("ERROR: " + filedata[FILENAME] + " missing required data for " + dbkey,fullMessage)
                 
                 # any error should then skip all upload attempts
-                if not fullMessage:
+                if fullMessage:
                     continue
 
                 # now load structures needed for upload
@@ -988,7 +988,7 @@ class PFWDB (coreutils.DesDbi):
         except Exception as ex:
             raise FileMetadataIngestError(ex)
 
-        if not fullMessage:
+        if fullMessage:
             print >> sys.stderr, fullMessage
             raise RequiredMetadataMissingError(fullMessage)
 

@@ -918,36 +918,32 @@ class PFWDB (coreutils.DesDbi):
         COLMAP    = "column_map"
         ROWS      = "rows"
         metadataTables = OrderedDict()
-        foundError = 0
         message = ""
+        fullMessage = ""
         
         try:
             for key, filedata in filemeta.iteritems():
                 foundError = 0
-                if FILETYPE not in filedata.keys():
-                    message = "ERROR: cannot upload file " + filedata[FILENAME] + ": no FILETYPE provided."
-                    raise RequiredMetadataMissingError(message)
-                    continue
                 if FILENAME not in filedata.keys():
-                    message = "ERROR: cannot upload file <" + key + ">, no FILENAME provided."
-                    raise RequiredMetadataMissingError(message)
+                    fullMessage = '\n'.join("ERROR: cannot upload file <" + key + ">, no FILENAME provided.",fullMessage)
+                    continue
+                if FILETYPE not in filedata.keys():
+                    fullMessage = '\n'.join("ERROR: cannot upload file " + filedata[FILENAME] + ": no FILETYPE provided.",fullMessage)
                     continue
                 if filedata[FILETYPE] not in dbdict:
-                    message = "ERROR: cannot upload " + filedata[FILENAME] + ": " + \
-                            filedata[FILETYPE] + " is not a known FILETYPE."
-                    raise DBMetadataNotFoundError(message)
+                    fullMessage = '\n'.join("ERROR: cannot upload " + filedata[FILENAME] + ": " + \
+                            filedata[FILETYPE] + " is not a known FILETYPE.",fullMessage)
                     continue
                 # check that all required are present
                 allReqHeaders = self.get_required_headers(dbdict[filedata[FILETYPE]])
                 for dbkey in allReqHeaders:
                     if dbkey not in filedata.keys() or filedata[dbkey] == "":
-                        print "ERROR: " + filedata[FILENAME] + " missing required data for " + dbkey
-                        foundError = 1
-                if foundError == 1:
-                    message = "ERROR: required metadata missing for " + filedata[FILENAME] + "."
-                    raise RequiredMetadataMissingError(message)
+                        fullMessage = '\n'.join("ERROR: " + filedata[FILENAME] + " missing required data for " + dbkey,fullMessage)
+                
+                # any error should then skip all upload attempts
+                if not fullMessage:
                     continue
-            
+
                 # now load structures needed for upload
                 rowdata = OrderedDict()
                 mappedHeaders = set()
@@ -989,16 +985,13 @@ class PFWDB (coreutils.DesDbi):
                 self.insert_many(metaTable, dict[COLMAP].keys(), dict[ROWS])
             self.commit()
             
-        except FileMetadataIngestError as ex:
-            print ex
-            # For now, simply print these "known" error conditions to stdout
-            # so that a data error does not prevent further execution for testing.
-            # Once this is more stable, then these should be re-raised and
-            # perhaps not printed here
-            
-            # raise
         except Exception as ex:
             raise FileMetadataIngestError(ex)
+
+        if not fullMessage:
+            print >> sys.stderr, fullMessage
+            raise RequiredMetadataMissingError(fullMessage)
+
     # end ingest_file_metadata
 
 

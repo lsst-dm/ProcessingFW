@@ -94,9 +94,15 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
         
         try:
             dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
-        except Exception as err:
-            print err
+        except:
+            (type, value, traceback) = sys.exc_info()
+            print type, value
+            print "pfw_file_metadata:"
             wclutils.write_wcl(pfw_file_metadata)
+            print "filetype_metadata wcl filetype:"
+            wclutils.write_wcl(inwcl['filetype_metadata']['wcl'])
+            print "filetype_metadata list filetype:"
+            wclutils.write_wcl(inwcl['filetype_metadata']['list'])
             raise
     else:
         inwcl['wrapperid'] = -1
@@ -391,17 +397,44 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
             for sect in execs:
                 dbh.update_exec_end(outputwcl[sect], inwcl['dbids'][sect], exitcode)
             if OW_METASECT in outputwcl:
-                dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
+                try:
+                    dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
+                except:
+                    (type, value, traceback) = sys.exc_info()
+                    print type, value
+                    print "outputwcl:"
+                    wclutils.write_wcl(outputwcl[OW_METASECT])
+                    print "filetype_metadata:"
+                    wclutils.write_wcl(inwcl['filetype_metadata'])
+                    raise
 
             pfw_file_metadata = {}
             pfw_file_metadata['file_1'] = {'filename' : wclutils.getFilename(outputwclfile), 
                                            'filetype' : 'wcl'}
             pfw_file_metadata['file_2'] = {'filename' : wclutils.getFilename(logfile), 
                                            'filetype' : 'log'}
-            dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
+            try:
+                dbh.ingest_file_metadata(pfw_file_metadata, inwcl['filetype_metadata'])
+            except:
+                (type, value, traceback) = sys.exc_info()
+                print type, value
+                print "pfw_file_metadata:"
+                wclutils.write_wcl(pfw_file_metadata)
+                print "filetype_metadata wcl filetype:"
+                wclutils.write_wcl(inwcl['filetype_metadata']['wcl'])
+                print "filetype_metadata list filetype:"
+                wclutils.write_wcl(inwcl['filetype_metadata']['log'])
+                raise
 
             if OW_PROVSECT in outputwcl and len(outputwcl[OW_PROVSECT].keys()) > 0:
-                dbh.ingest_provenance(outputwcl[OW_PROVSECT], inwcl['dbids'])
+                try:
+                    dbh.ingest_provenance(outputwcl[OW_PROVSECT], inwcl['dbids'])
+                except:
+                    (type, value, traceback) = sys.exc_info()
+                    print type, value
+                    print "outputwcl"
+                    wclutils.write_wcl(outputwcl[OW_PROVSECT])
+                    raise
 
     fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     

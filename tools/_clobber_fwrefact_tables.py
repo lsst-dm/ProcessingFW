@@ -8,14 +8,18 @@ import processingfw.pfwdb as pfwdb
 
 # assumes partitions to drop start with F  (firstcut, finalcut)
 def empty_se_objects_table(dbh):
-    sql = "select partition_name from all_tab_partitions where table_name='OBJECTS_CURRENT' and partition_name!='PINIT'"
+    sql = "select partition_name from all_tab_partitions where table_name='OBJECTS_CURRENT' and table_owner=(select user from dual) and partition_name!='PINIT'"
     print sql
     curs = dbh.cursor()
     curs.execute(sql)
+    linecnt = 0
     for line in curs:
         sql = "alter table objects_current drop partition (%s)" % line
         print "\t",sql
         curs.execute(sql)
+        linecnt += 1
+    print "Dropping %s partitions from OBJECTS_CURRENT" % linecnt
+
     print "You'll need to manually delete any temp tables if they exist"
     
     

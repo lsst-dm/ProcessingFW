@@ -229,9 +229,14 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
     try:
         buf = os.read(processWrap.stdout.fileno(), bufsize)
         while processWrap.poll() == None or len(buf) != 0:
-            logfh.write(buf)
+            filtered_string = buf.replace("[1A", "")     # remove special characters present in AstrOmatic outputs
+            filtered_string = filtered_string.replace(chr(27), "")  
+            filtered_string = filtered_string.replace("[1M", "")
+            filtered_string = filtered_string.replace("[7m", "")
+
+            logfh.write(filtered_string)   # write to log file
             if useQCF:
-                processQCF.stdin.write(buf)
+                processQCF.stdin.write(filtered_string) # pass to QCF
             buf = os.read(processWrap.stdout.fileno(), bufsize)
 
         logfh.close()

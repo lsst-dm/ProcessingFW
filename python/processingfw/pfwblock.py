@@ -1364,6 +1364,12 @@ fi
         'pipe':config['pipeprod'],
         'ver':config['pipever']})
 
+    # add any job environment from submit wcl
+    scriptstr += 'echo ""\n'
+    if SW_JOB_ENVIRONMENT in config:
+        for name,value in config[SW_JOB_ENVIRONMENT].items():
+            scriptstr += 'export %s="%s"\n' % (name.upper(), value)
+    scriptstr += 'echo ""\n'
 
     # print start of job information 
     #      Since wcl's variable syntax matches shell variable syntax and 
@@ -1405,6 +1411,7 @@ echo "\t$((d2-d1)) secs"
 
     # copy files so can test by hand after job
     scriptstr += """
+echo "Copying job wcl and task list to job working directory"
 cp $initdir/$jobwcl $jobwcl
 cp $initdir/$tasklist $tasklist
 """

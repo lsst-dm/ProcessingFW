@@ -43,6 +43,7 @@ SW_EXECPREFIX = 'exec_'
 SW_STAGEFILES = 'stagefiles'
 SW_WRAPSECT = 'wrapper'
 SW_WRAPPER_DEBUG = 'wrapper_debug'
+SW_JOB_ENVIRONMENT = 'job_environment'
 
 
 IW_INPUTS = USED

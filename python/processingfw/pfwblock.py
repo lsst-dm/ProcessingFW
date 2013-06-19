@@ -1338,6 +1338,7 @@ if [ $# -ne 4 ]; then
     echo "Usage: <jobnum> <input tar> <job wcl> <tasklist> ";
     exit 1;
 fi
+shd1=`/bin/date "+%s"` 
 jobnum=$1
 padjnum=`/usr/bin/printf %04d $jobnum`
 intar=$2
@@ -1356,6 +1357,7 @@ setup --nolock %(pipe)s %(ver)s
 mystat=$?
 d2=`/bin/date "+%%s"` 
 echo "\t$((d2-d1)) secs"
+echo "DESDMTIME: eups_setup $((d2-d1))"
 if [ $mystat != 0 ]; then
     echo "Error: eups setup had non-zero exit code ($mystat)"
     exit $mystat 
@@ -1407,13 +1409,17 @@ d1=`/bin/date "+%s"`
 tar -xzf $initdir/$intar
 d2=`/bin/date "+%s"` 
 echo "\t$((d2-d1)) secs"
+echo "DESDMTIME: untar_input_tar $((d2-d1))"
 """
 
     # copy files so can test by hand after job
     scriptstr += """
 echo "Copying job wcl and task list to job working directory"
+d1=`/bin/date "+%s"` 
 cp $initdir/$jobwcl $jobwcl
 cp $initdir/$tasklist $tasklist
+d2=`/bin/date "+%s"` 
+echo "DESDMTIME: copy_jobwcl_tasklist $((d2-d1))"
 """
 
     # call the job workflow program
@@ -1421,7 +1427,12 @@ cp $initdir/$tasklist $tasklist
 echo ""
 echo "Calling pfwrunjob.py"
 echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist"
+d1=`/bin/date "+%s"` 
 ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist
+d2=`/bin/date "+%s"` 
+echo "DESDMTIME: pfwrunjob.py $((d2-d1))"
+shd2=`/bin/date "+%s"` 
+echo "DESDMTIME: job_shell_script $((shd2-shd1))"
 """ 
 
     # write shell script to file

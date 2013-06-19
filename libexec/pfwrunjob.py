@@ -22,6 +22,7 @@ VERSION = '$Rev$'
 def getVersion(execname, verflag, verpat):
     """run command with version flag and parse output for version"""
 
+    starttime = time.time()
     ver = None
     cmd = "%s %s" % (execname, verflag)
     process = subprocess.Popen(cmd.split(),
@@ -48,6 +49,7 @@ def getVersion(execname, verflag, verpat):
             #print type(err)
             ver = None 
             fwdie("Error: Exception from re.match.  Didn't find version: %s" % err, PF_EXIT_FAILURE)
+    print "DESDMTIME: getVersion %0.3f" % (time.time()-starttime)
 
     return ver
 
@@ -123,6 +125,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                 
         execname = inwcl[sect]['execname']
         execnamesarr.append(execname)
+        starttime = time.time()
         if IW_OUTPUTS in inwcl[sect]:
             for outfile in fwsplit(inwcl[sect][IW_OUTPUTS]):
                 outfiles[outfile] = True
@@ -147,6 +150,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                             print "0 length directory for output file:", outfile
         else:
             print "Note: 0 output files (%s) in exec section %s" % (IW_OUTPUTS, sect)
+        print "DESDMTIME: make_output_dirs %0.3f" % (time.time()-starttime)
 
         if IW_EXEC_DEF in inwcl:
             if execname.lower() in inwcl[IW_EXEC_DEF]:    # might be a function or just missing
@@ -167,6 +171,8 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
 
     if 'wrapinputs' in inwcl and inwcl[PF_WRAPNUM] in inwcl['wrapinputs']:
         files2get = {}
+
+        starttime = time.time()
         for infile in inwcl['wrapinputs'][inwcl[PF_WRAPNUM]].values():
             if not os.path.exists(infile) and not infile in outfiles:
                 files2get[infile] = True
@@ -176,9 +182,10 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                         os.makedirs(infile_dir)
                 else:
                     print "0 length directory for input file:", inname
-                    
+        print "DESDMTIME: make_input_dirs %0.3f" % (time.time()-starttime)
 
         if len(files2get) > 0:
+            starttime = time.time()
             if 'cachename' in inwcl and IW_DATA_DEF in inwcl:
                 filecache = cache.Cache()
                 print "execname =", execname
@@ -189,6 +196,7 @@ def setupwrapper(inwcl, iwfilename, logfilename, useDB=False):
                 problemfiles = filecache.get_within_job_wrapper(files2get.keys(), inwcl['cachename'])
             else:  # depricated
                 problemfiles = cache.get_from_cache(files2get.keys())
+            print "DESDMTIME: get_from_cache %0.3f" % (time.time()-starttime)
 
             if len(problemfiles) != 0:
                 print "Error: had problems getting input files from cache"
@@ -213,6 +221,7 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
     print "\tlogfilename = ", logfilename
     print "\tuseQCF = ", useQCF
 
+    starttime = time.time()
     logfh = open(logfilename, 'w', 0)
 
     processWrap = subprocess.Popen(wrappercmd.split(),
@@ -268,6 +277,7 @@ def runwrapper(wrappercmd, logfilename, wrapperid, execnames, bufsize=5000, useQ
         print "wrapper returned non-zero exit code"
     else:
         print "wrapper exited with zero exit code"
+    print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
     fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     return processWrap.returncode
@@ -348,6 +358,7 @@ def copy_output_to_cache(inwcl, fileinfo, exitcode):
         cachedict = inwcl[DATA_DEF][inwcl['cachename']]
 
         putinfo = {}
+        starttime = time.time()
         for (filename, fdict) in fileinfo.items():
             fwdebug(0, "PFWRUNJOB_DEBUG", "file %s" % fdict['fullname'])
             fwdebug(0, "PFWRUNJOB_DEBUG", "\tsection %s" % fdict['sectname'])
@@ -362,6 +373,7 @@ def copy_output_to_cache(inwcl, fileinfo, exitcode):
         wclutils.write_wcl(putinfo)
         filecache = cache.Cache()
         problemfiles = filecache.put_within_job(putinfo, cachedict)
+        print "DESDMTIME: copy_output_to_cache %0.3f" % (time.time()-starttime)
     else:
         print "usecache is false"
                    
@@ -401,9 +413,12 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
             execs = pfwutils.get_exec_sections(outputwcl, OW_EXECPREFIX)
             for sect in execs:
                 dbh.update_exec_end(outputwcl[sect], inwcl['dbids'][sect], exitcode)
+                print "DESDMTIME: app_exec %0.3f" % float(outputwcl[sect]['walltime'])
             if OW_METASECT in outputwcl:
                 try:
+                    starttime = time.time()
                     dbh.ingest_file_metadata(outputwcl[OW_METASECT], inwcl['filetype_metadata'])
+                    print "DESDMTIME: ingest_file_metadata %0.3f" % (time.time()-starttime)
                 except:
                     (type, value, traceback) = sys.exc_info()
                     print type, value
@@ -433,7 +448,9 @@ def postwrapper(inwcl, logfile, exitcode, useDB=False):
 
             if OW_PROVSECT in outputwcl and len(outputwcl[OW_PROVSECT].keys()) > 0:
                 try:
+                    starttime = time.time()
                     dbh.ingest_provenance(outputwcl[OW_PROVSECT], inwcl['dbids'])
+                    print "DESDMTIME: ingest_provenance %0.3f" % (time.time()-starttime)
                 except:
                     (type, value, traceback) = sys.exc_info()
                     print type, value
@@ -506,6 +523,7 @@ def runjob(args):
     useQCF = False
     wcl = {}
 
+    jobstart = time.time()
     if args.config:
         with open(args.config, 'r') as wclfh:
             wcl = wclutils.read_wcl(wclfh) 
@@ -528,6 +546,7 @@ def runjob(args):
 
     if useDB:
         dbh.update_job_end(wcl, exitcode)
+    print "DESDMTIME: pfwrunjob %0.3f" % (time.time()-jobstart)
         
 
 def parseArgs(argv):

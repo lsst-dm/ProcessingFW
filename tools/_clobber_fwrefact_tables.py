@@ -16,7 +16,8 @@ def empty_se_objects_table(dbh):
     for line in curs:
         sql = "alter table objects_current drop partition (%s)" % line
         print "\t",sql
-        curs.execute(sql)
+        curs2 = dbh.cursor()
+        curs2.execute(sql)
         linecnt += 1
     print "Dropping %s partitions from OBJECTS_CURRENT" % linecnt
 
@@ -93,15 +94,15 @@ def main(args):
         print "Skipping OPM tables because couldn't determine user"
     
     # non-file tables
-    for tname in ['pfw_request', 'pfw_unit', 'pfw_attempt', 'pfw_block',
-                  'pfw_blktask', 'pfw_job', 'pfw_wrapper', 'pfw_exec',
-                  'qc_processed_value', 'qc_processed_message']:
+    for tname in [ 'qc_processed_value', 'qc_processed_message',
+        'pfw_exec', 'pfw_wrapper', 'pfw_job', 'pfw_exec',
+        'pfw_blktask', 'pfw_block',
+        'pfw_attempt', 'pfw_unit', 'pfw_request']:
         delete_from_table(dbh, tname)
     
     for tname in ['image', 'catalog']:
         delete_from_table(dbh, tname)
 
-    
     for ftype in ['cal_biascor', 'cal_dflatcor', 'xtalked_bias', 'xtalked_dflat']:
         delete_from_table_by_ftype(dbh, 'CALIBRATION', ftype)
     

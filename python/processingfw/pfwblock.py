@@ -139,7 +139,7 @@ def assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fna
     if 'sublists' in finfo:  # files came from query
         sublist = find_sublist(finfo, winst)
         if len(sublist['list'][PF_LISTENTRY]) > 1:
-            fwdie("Error: more than 1 line to choose from for file" + sublist['list'][PF_LISTENTRY], PW_EXIT_FAILURE)
+            fwdie("Error: more than 1 line to choose from for file (%s)" % sublist['list'][PF_LISTENTRY], PF_EXIT_FAILURE)
         line = sublist['list'][PF_LISTENTRY].values()[0]
         if 'file' not in line:
             fwdie("Error: 0 file in line" + str(line), PW_EXIT_FAILURE)
@@ -255,8 +255,8 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
     print ldict['sublists'].keys()
     if 'sublists' in ldict:
         sublist = find_sublist(ldict, winst)
-        for llabel,ldict in sublist['list'][PF_LISTENTRY].items():
-            for flabel,fdict in ldict['file'].items():
+        for llabel,lldict in sublist['list'][PF_LISTENTRY].items():
+            for flabel,fdict in lldict['file'].items():
                 winst['wrapinputs'][len(winst['wrapinputs'])+1] = fdict['fullname']
         output_list(config, winst[IW_LISTSECT][lname]['fullname'], sublist, lname, ldict, currvals)
 #    else:
@@ -330,7 +330,8 @@ def assign_data_wrapper_inst(config, modname, wrapperinst):
 
 #######################################################################
 def output_list(config, listname, sublist, lname, ldict, currvals):
-    fwdebug(0, "PFWBLOCK_DEBUG", "BEG: %s" % listname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG: %s (%s)" % (lname, listname))
+    fwdebug(3, "PFWBLOCK_DEBUG", "list dict: %s" % ldict)
 
     listdir = os.path.dirname(listname)
     if len(listdir) > 0 and not os.path.exists(listdir):  # some parallel filesystems really don't like
@@ -350,7 +351,9 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
     if 'columns' in ldict:
         columns = ldict['columns'].lower()
     else:
+        fwdebug(3, "PFWBLOCK_DEBUG", "columns not in ldict, so defaulting to fullname")
         columns = 'fullname'
+    fwdebug(3, "PFWBLOCK_DEBUG", "columns = %s" % columns)
     
     with open(listname, "w") as listfh:
         for linenick, linedict in sublist['list'][PF_LISTENTRY].items():
@@ -363,6 +366,7 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
 #####################################################################
 def output_line(listfh, line, format, keyarr):
     """ output line into fo input list for science code"""
+    fwdebug(4, "PFWBLOCK_DEBUG", "BEG line=%s  keyarr=%s" % (line, keyarr))
 
     format = format.lower()
 
@@ -374,19 +378,26 @@ def output_line(listfh, line, format, keyarr):
         key = keyarr[i]
         value = None
 
+        fwdebug(4, "PFWBLOCK_DEBUG", "key: %s" % key)
         if '.' in  key:
+            fwdebug(4, "PFWBLOCK_DEBUG", "Found period in key")
             [nickname, key2] = key.replace(' ','').split('.')
+            fwdebug(4, "PFWBLOCK_DEBUG", "\tnickname = %s, key2 = %s" % (nickname, key2))
             value = get_value_from_line(line, key2, nickname, None)
             if value == None:
+                fwdebug(4, "PFWBLOCK_DEBUG", "Didn't find value in line with nickname %s" % (nickname))
+                fwdebug(4, "PFWBLOCK_DEBUG", "Trying to find %s without nickname" % (key2))
                 value = get_value_from_line(line, key2, None, 1)
                 if value == None:
                     fwdie("Error: could not find value %s for line...\n%s" % (key, line), PF_EXIT_FAILURE)
                 else: # assume nickname was really table name
+                    fwdebug(4, "PFWBLOCK_DEBUG", "\tassuming nickname (%s) was really table name" % (nickname))
                     key = key2
         else:
             value = get_value_from_line(line, key, None, 1)
 
         # handle last field (separate to avoid trailing comma)
+        fwdebug(4, "PFWBLOCK_DEBUG", "printing key=%s value=%s" % (key, value))
         if i == numkeys - 1:
             print_value(listfh, key, value, format, True)
         else:
@@ -985,10 +996,10 @@ def get_wrapper_loopvals(config, modname):
             if 'keyvals' in loopdict:
                 loopvals = loopdict['keyvals'].values()
             else:
-                print "Couldn't find keyvals for loopobj", moddict['loopobj']     
-        else:
-            print "\tdefaulting to wcl values"
-            loopvals = []
+                print "Warning: Couldn't find keyvals for loopobj", moddict['loopobj']     
+
+        if len(loopvals) == 0:
+            print "\tDefaulting to wcl values"
             for key in loopkeys:
                 (found, val) = config.search(key, 
                             {PF_CURRVALS: {'curr_module': modname},

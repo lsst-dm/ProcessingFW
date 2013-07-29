@@ -130,8 +130,8 @@ VARS begrun arguments="../uberctrl/config.des"
 JOB blockmngr %s.condor.sub
 SCRIPT pre blockmngr %s/libexec/blockpre.py ../uberctrl/config.des 
 SCRIPT post blockmngr %s/libexec/blockpost.py ../uberctrl/config.des $RETURN
-RETRY blockmngr 5 UNLESS-EXIT %s
-""" % (blockdag, pfwdir, pfwdir, PF_EXIT_FAILURE))
+RETRY blockmngr %s UNLESS-EXIT %s
+""" % (blockdag, pfwdir, pfwdir, config['num_blocks'], PF_EXIT_FAILURE))
     varstr = create_common_vars(config, 'blockmngr')
     dagfh.write('%s\n' % varstr)
 

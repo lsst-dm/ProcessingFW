@@ -15,8 +15,10 @@ import copy
 import re
 import time
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from filemgmt.filemgmt_defs import *
+from coreutils.miscutils import *
 #import processingfw.pfwxml as pfwxml
+import filemgmt.archive_transfer_utils as archive_transfer_utils
 import intgutils.wclutils as wclutils
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwcondor as pfwcondor
@@ -56,7 +58,7 @@ def create_simple_list(config, lname, ldict, currvals):
 def get_match_keys(sdict):
     mkeys = []
 
-    print sdict.keys()
+    fwdebug(3, "PFWBLOCK_DEBUG", "keys in sdict: %s " % sdict.keys())
     if 'loopkey' in sdict:
         mkeys = fwsplit(sdict['loopkey'].lower())
         mkeys.sort()
@@ -74,9 +76,9 @@ def get_match_keys(sdict):
 def find_sublist(objDef, objInst):
 
     if len(objDef['sublists'].keys()) > 1:
-        print objDef['sublists'].keys()
+        fwdebug(3, "PFWBLOCK_DEBUG", "sublist keys: %s" % (objDef['sublists'].keys()))
         matchkeys = get_match_keys(objDef)
-        print matchkeys
+        fwdebug(3, "PFWBLOCK_DEBUG", "matchkeys: %s" % (matchkeys))
         index = ""
         for mkey in matchkeys:
             if mkey not in objInst:
@@ -119,17 +121,34 @@ def which_are_inputs(config, modname):
     return inputs
             
 
+#######################################################################
+def which_are_outputs(config, modname):
+    """ Return dict of files that are outputs for given module """
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+
+    outfiles = {}
+    
+    execs = pfwutils.get_exec_sections(config[SW_MODULESECT][modname], SW_EXECPREFIX)
+    for ekey, einfo in sorted(execs.items()):
+        if SW_OUTPUTS in einfo:
+            for outfile in fwsplit(einfo[OW_OUTPUTS]):
+                parts = fwsplit(outfile, '.')
+                outfiles['.'.join(parts[1:])] = True
+
+    fwdebug(0, "PFWBLOCK_DEBUG", outfiles.keys())
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
+    return outfiles.keys()
 
 
 
 
     
 #######################################################################
-def assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fname, finfo, is_iter_obj=False):
-    fwdebug(0, "PFWBLOCK_DEBUG", "BEG: Working on file %s" % fname)
+def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst, fname, finfo, is_iter_obj=False):
+    fwdebug(3, "PFWBLOCK_DEBUG", "BEG: Working on file %s" % fname)
 
     if 'listonly' in finfo and convertBool(finfo['listonly']):
-        fwdebug(0, "PFWBLOCK_DEBUG", "Skipping %s due to listonly key" % fname)
+        fwdebug(3, "PFWBLOCK_DEBUG", "Skipping %s due to listonly key" % fname)
         return
 
     if IW_FILESECT not in winst:
@@ -147,21 +166,26 @@ def assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fna
         if len(line['file']) > 1:
             raise Exception("more than 1 file to choose from for file" + line['file'])
         finfo = line['file'].values()[0]
-        print "finfo =", finfo
+        fwdebug(6, "PFWBLOCK_DEBUG", "finfo = %s" % finfo)
 
         fullname = finfo['fullname']
         winst[IW_FILESECT][fname]['fullname'] = fullname
 
+        # save input and output filenames (with job scratch path)
+        # In order to preserve capitalization, put on right side of =, using dummy count for left side
         if fname in theinputs[SW_FILESECT]:
             winst['wrapinputs'][len(winst['wrapinputs'])+1] = fullname
+        elif fname in theoutputs:
+            winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = fullname
 
-        print "Assigned filename for fname %s (%s)" % (fname, finfo['filename'])
+        fwdebug(6, "PFWBLOCK_DEBUG", "Assigned filename for fname %s (%s)" % (fname, finfo['filename']))
     elif 'fullname' in moddict[SW_FILESECT][fname]:
         winst[IW_FILESECT][fname]['fullname'] = moddict[SW_FILESECT][fname]['fullname']
-        print "Copied fullname for ", fname
-        print winst[IW_FILESECT][fname]
+        fwdebug(6, "PFWBLOCK_DEBUG", "Copied fullname for %s = %s" % (fname, winst[IW_FILESECT][fname]))
         if fname in theinputs[SW_FILESECT]:
             winst['wrapinputs'][len(winst['wrapinputs'])+1] = moddict[SW_FILESECT][fname]['fullname']
+        elif fname in theoutputs:
+            winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = moddict[SW_FILESECT][fname]['fullname']
     else:
         if 'filename' in moddict[SW_FILESECT][fname]:
             winst[IW_FILESECT][fname]['filename'] = config.search('filename', {PF_CURRVALS: currvals, 
@@ -170,7 +194,7 @@ def assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fna
                                                                                'required': True,
                                                                                'interpolate':True})[1]
         else:
-            print "creating filename for", fname 
+            fwdebug(6, "PFWBLOCK_DEBUG", "creating filename for %s" % fname) 
             sobj = copy.deepcopy(finfo)
             sobj.update(winst)
             winst[IW_FILESECT][fname]['filename'] = config.get_filename(None, {PF_CURRVALS: currvals, 
@@ -178,25 +202,28 @@ def assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fna
                                                                 'expand': True}) 
 
         # Add runtime path to filename
-        print "creating path for", fname #, winst[IW_FILESECT][fname]['filename']
+        fwdebug(3,"PFWBLOCK_DEBUG", "creating path for %s" % fname)
         path = config.get_filepath('runtime', None, {PF_CURRVALS: currvals, 'searchobj': finfo})
-        print "\tpath = ", path
+        fwdebug(3, "PFWBLOCK_DEBUG", "\tpath = %s" % path)
         if type(winst[IW_FILESECT][fname]['filename']) is list:
-            print fname,"filename is a list"
             winst[IW_FILESECT][fname]['fullname'] = []
-            print fname,"number of names = ", len(winst[IW_FILESECT][fname]['filename'])
+            fwdebug(3, "PFWBLOCK_DEBUG", "%s is a list, number of names = %s" % (fname,len(winst[IW_FILESECT][fname]['filename'])))
             for f in winst[IW_FILESECT][fname]['filename']:
-            #    print path,"+",f
+                fwdebug(6, "PFWBLOCK_DEBUG", "path + filename = %s/%s" % (path,f))
                 winst[IW_FILESECT][fname]['fullname'].append("%s/%s" % (path, f))
                 if fname in theinputs[SW_FILESECT]:
                     winst['wrapinputs'][len(winst['wrapinputs'])+1] = "%s/%s" % (path,f)
+                elif fname in theoutputs:
+                    winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = "%s/%s" % (path,f) 
 
             winst[IW_FILESECT][fname]['fullname'] = ','.join(winst[IW_FILESECT][fname]['fullname'])
         else:
-            print "Adding path to filename for", fname
+            fwdebug(3, "PFWBLOCK_DEBUG", "Adding path to filename for %s" % fname)
             winst[IW_FILESECT][fname]['fullname'] = "%s/%s" % (path, winst[IW_FILESECT][fname]['filename'])
             if fname in theinputs[SW_FILESECT]:
                 winst['wrapinputs'][len(winst['wrapinputs'])+1] = winst[IW_FILESECT][fname]['fullname']
+            elif fname in theoutputs:
+                winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = winst[IW_FILESECT][fname]['fullname']
 
 
 #        winst[IW_FILESECT][fname]['filename'] = config.get_filename(None, {PF_CURRVALS: currvals, 'searchobj': finfo}) 
@@ -206,21 +233,24 @@ def assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fna
 #        winst[IW_FILESECT][fname][IW_REQ_META] = copy.deepcopy(finfo[IW_REQ_META])
         del winst[IW_FILESECT][fname]['filename']
 
-    fwdebug(0, "PFWBLOCK_DEBUG", "is_iter_obj = %s %s" % (is_iter_obj, finfo))
+    fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = %s %s" % (is_iter_obj, finfo))
     if finfo is not None and is_iter_obj:
-        fwdebug(0, "PFWBLOCK_DEBUG", "is_iter_obj = true")
+        fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = true")
         for key,val in finfo.items():
             if key not in ['fullname','filename']:
-                fwdebug(0, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
+                fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
                 winst[key] = val
         
-    fwdebug(0, "PFWBLOCK_DEBUG", "END: Done working on file %s" % fname)
+    fwdebug(3, "PFWBLOCK_DEBUG", "END: Done working on file %s" % fname)
 
 
 
 #######################################################################
 def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
-    fwdebug(0, "PFWBLOCK_DEBUG", "Working on list %s from %s" % (lname, moddict['modulename']))
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG: Working on list %s from %s" % (lname, moddict['modulename']))
+    fwdebug(3, "PFWBLOCK_DEBUG", "currvals = %s" % (currvals))
+    fwdebug(6, "PFWBLOCK_DEBUG", "ldict = %s" % (ldict))
+
     if IW_LISTSECT not in winst:
         winst[IW_LISTSECT] = {}
 
@@ -228,31 +258,21 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
 
     sobj = copy.deepcopy(ldict)
     sobj.update(winst)
+    fwdebug(3, "PFWBLOCK_DEBUG", "sobj = %s" % (sobj))
 
     fwdebug(0, "PFWBLOCK_DEBUG", "creating listdir and listname")
-    if moddict['modulename'] == 'mkdflatcor':
-        print 'w band = %s' % winst['band']
-        print 'w ccd = %s' % winst['ccd']
-        print 's band = %s' % sobj['band']
-        print 's ccd = %s' % sobj['ccd']
-        if 'band' in currvals:
-            print 'c band = %s' % currvals['band']
-        if 'ccd' in currvals:
-            print 'c ccd = %s' % currvals['ccd']
 
     listdir = config.get_filepath('runtime', 'list', {PF_CURRVALS: currvals,
                          'required': True, 'interpolate': True,
                          'searchobj': sobj})
     
     listname = config.get_filename(None, {PF_CURRVALS: currvals,
-                                    'searchobj': sobj, 'required': True, 'interpolate': True})
-    fwdebug(0, "PFWBLOCK_DEBUG", "listname = %s" % (listname))
+                                   'searchobj': sobj, 'required': True, 'interpolate': True})
+    fwdebug(3, "PFWBLOCK_DEBUG", "listname = %s" % (listname))
     listname = "%s/%s" % (listdir, listname)
 
     winst[IW_LISTSECT][lname]['fullname'] = listname
-    fwdebug(0, "PFWBLOCK_DEBUG", "listname = %s" % (winst[IW_LISTSECT][lname]['fullname']))
-    print ldict.keys()
-    print ldict['sublists'].keys()
+    fwdebug(3, "PFWBLOCK_DEBUG", "full listname = %s" % (winst[IW_LISTSECT][lname]['fullname']))
     if 'sublists' in ldict:
         sublist = find_sublist(ldict, winst)
         for llabel,lldict in sublist['list'][PF_LISTENTRY].items():
@@ -261,6 +281,7 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
         output_list(config, winst[IW_LISTSECT][lname]['fullname'], sublist, lname, ldict, currvals)
 #    else:
 #        create_simple_list(config, lname, ldict, currvals)
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
 
                         
 #######################################################################
@@ -279,31 +300,34 @@ def assign_data_wrapper_inst(config, modname, wrapperinst):
 
     # figure out which lists/files are input files
     theinputs = which_are_inputs(config, modname)
+    theoutputs = which_are_outputs(config, modname)
 
     for winst in wrapperinst.values():
         winst['wrapinputs'] = {}
+        winst['wrapoutputs'] = {}
 
         # create currvals
         currvals = { 'curr_module': modname, PF_WRAPNUM: winst[PF_WRAPNUM]}
         for key in loopkeys:
             currvals[key] = winst[key]
-        fwdebug(0, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
+        fwdebug(3, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
 
-        fwdebug(0, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
         # do wrapper loop object first, if exists, to provide keys for filenames
         iter_obj_key = get_wrap_iter_obj_key(config, moddict)
+
+        if iter_obj_key is not None or SW_FILESECT in moddict:
+            fwdebug(0, "PFWBLOCK_DEBUG", "%s: Assigning files to wrapper inst" % winst[PF_WRAPNUM])
+
         if iter_obj_key is not None:
             (iter_obj_sect, iter_obj_name) = fwsplit(iter_obj_key, '.')
             iter_obj_dict = pfwutils.get_wcl_value(iter_obj_key, moddict) 
-            fwdebug(0, "PFWBLOCK_DEBUG", "iter_obj %s %s" % (iter_obj_name, iter_obj_sect))
-            print SW_FILESECT
+            fwdebug(3, "PFWBLOCK_DEBUG", "iter_obj %s %s" % (iter_obj_name, iter_obj_sect))
             if iter_obj_sect.lower() == SW_FILESECT.lower():
-                assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, iter_obj_name, iter_obj_dict, True)
+                assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst, iter_obj_name, iter_obj_dict, True)
             elif iter_obj_sect.lower() == SW_LISTSECT.lower():
                 assign_list_to_wrapper_inst(config, moddict, currvals, winst, iter_obj_name, iter_obj_dict)
             else:
                 fwdie("Error: unknown iter_obj_sect (%s)" % iter_obj_sect, PF_EXIT_FAILURE)
-        print winst
 
         
         if SW_FILESECT in moddict:
@@ -312,16 +336,17 @@ def assign_data_wrapper_inst(config, modname, wrapperinst):
                    iter_obj_sect.lower() == SW_FILESECT.lower() and \
                    iter_obj_name.lower() == fname.lower():
                     continue    # already did iter_obj
-                assign_file_to_wrapper_inst(config, theinputs, moddict, currvals, winst, fname, fdict)
+                assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst, fname, fdict)
 
-        fwdebug(0, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
+        fwdebug(3, "PFWBLOCK_DEBUG", "currvals " + str(currvals))
 
         if SW_LISTSECT in moddict:
+            fwdebug(0, "PFWBLOCK_DEBUG", "%s: Assigning lists to wrapper inst" % winst[PF_WRAPNUM])
             for lname, ldict in moddict[SW_LISTSECT].items():
                 if iter_obj_key is not None and \
                    iter_obj_sect.lower() == SW_LISTSECT.lower() and \
                    iter_obj_name.lower() == lname.lower():
-                    fwdebug(0, "PFWBLOCK_DEBUG", "skipping list %s as already did for it as iter_obj")
+                    fwdebug(3, "PFWBLOCK_DEBUG", "skipping list %s as already did for it as iter_obj" % lname)
                     continue    # already did iter_obj
                 assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict)
     fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
@@ -355,6 +380,7 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
         columns = 'fullname'
     fwdebug(3, "PFWBLOCK_DEBUG", "columns = %s" % columns)
     
+
     with open(listname, "w") as listfh:
         for linenick, linedict in sublist['list'][PF_LISTENTRY].items():
             output_line(listfh, linedict, format, fwsplit(columns))
@@ -377,8 +403,8 @@ def output_line(listfh, line, format, keyarr):
     for i in range(0, numkeys):
         key = keyarr[i]
         value = None
-
         fwdebug(4, "PFWBLOCK_DEBUG", "key: %s" % key)
+
         if '.' in  key:
             fwdebug(4, "PFWBLOCK_DEBUG", "Found period in key")
             [nickname, key2] = key.replace(' ','').split('.')
@@ -433,7 +459,19 @@ def finish_wrapper_inst(config, modname, wrapperinst):
     
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     moddict = config[SW_MODULESECT][modname] 
+    outputfiles = which_are_outputs(config, modname)
+
+    input_filenames = []
+    output_filenames = []
     for winst in wrapperinst.values():
+        for f in winst['wrapinputs'].values():
+            input_filenames.append(parse_fullname(f, 2))
+
+        for f in winst['wrapoutputs'].values():
+            output_filenames.append(parse_fullname(f, 2))
+
+
+
         # create searching options
         currvals = {'curr_module': modname, PF_WRAPNUM: winst[PF_WRAPNUM]}
         #(found, loopkeys) = config.search('wrapperloop', searchopts)
@@ -445,41 +483,45 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                       'searchobj': winst, 
                       'interpolate': True,
                       'required': True}
-    
+
+        
         if SW_FILESECT in moddict:
             for fname, fdict in moddict[SW_FILESECT].items(): 
                 if 'listonly' in fdict and convertBool(fdict['listonly']):
-                    fwdebug(0, "PFWBLOCK_DEBUG", "Skipping %s due to listonly key" % fname)
+                    fwdebug(3, "PFWBLOCK_DEBUG", "Skipping %s due to listonly key" % fname)
                     continue
 
-                fwdebug(0, 'PFWBLOCK_DEBUG', '%s: working on file: %s' % (winst[PF_WRAPNUM], fname))
-                fwdebug(3, "PFWBLOCK_DEBUG", "fullname = %s" % (winst[IW_FILESECT][fname]['fullname']))
+                fwdebug(3, 'PFWBLOCK_DEBUG', '%s: working on file: %s' % (winst[PF_WRAPNUM], fname))
+                fwdebug(4, "PFWBLOCK_DEBUG", "fullname = %s" % (winst[IW_FILESECT][fname]['fullname']))
 
                 
-                for k in ['filetype', IW_REQ_META, IW_OPT_META, COPY_CACHE, DIRPAT]:
+                for k in ['filetype', WCL_REQ_META, WCL_OPT_META, SAVE_FILE_ARCHIVE, DIRPAT]:
                     if k in fdict:
-                        fwdebug(0, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, k))
+                        fwdebug(3, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, k))
                         winst[IW_FILESECT][fname][k] = copy.deepcopy(fdict[k])
                     else:
-                        fwdebug(0, "PFWBLOCK_DEBUG", "%s: no %s" % (fname, k))
+                        fwdebug(3, "PFWBLOCK_DEBUG", "%s: no %s" % (fname, k))
 
-                hdrups = pfwutils.get_hdrup_sections(fdict, IW_UPDATE_HEAD_PREFIX)
+                hdrups = pfwutils.get_hdrup_sections(fdict, WCL_UPDATE_HEAD_PREFIX)
                 for hname, hdict in hdrups.items():
-                    fwdebug(0, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, hname))
+                    fwdebug(3, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, hname))
                     winst[IW_FILESECT][fname][hname] = copy.deepcopy(hdict)
 
-                # save OPS path for cache
-                if USE_CACHE in config:
-                    if (config[USE_CACHE].lower() == 'filetransfer' or
-                        (config[USE_CACHE].lower() != 'never' and COPY_CACHE in fdict and fdict[COPY_CACHE])): 
-                        if DIRPAT not in fdict:
-                            print "Warning: Could not find %s in %s's section" % (DIRPAT,fname)
-                        else:
-                            searchobj = copy.deepcopy(fdict)
-                            searchobj.update(winst)
-                            searchopts['searchobj'] = searchobj
-                            winst[IW_FILESECT][fname]['cachepath'] = config.get_filepath('ops', 
-                                                                            fdict[DIRPAT], searchopts)
+                # save OPS path for archive
+                fwdebug(4, "PFWBLOCK_DEBUG", "Is fname (%s) in outputfiles? %s" % (fname, fname in outputfiles))
+                fwdebug(4, "PFWBLOCK_DEBUG", "Is save_file_archive true? %s" % (checkTrue(SAVE_FILE_ARCHIVE, fdict, True)))
+                if checkTrue(SAVE_FILE_ARCHIVE, fdict, True) and fname in outputfiles: 
+                    winst[IW_FILESECT][fname][SAVE_FILE_ARCHIVE] = True   # canonicalize
+                    if DIRPAT not in fdict:
+                        print "Warning: Could not find %s in %s's section" % (DIRPAT,fname)
+                    else:
+                        searchobj = copy.deepcopy(fdict)
+                        searchobj.update(winst)
+                        searchopts['searchobj'] = searchobj
+                        winst[IW_FILESECT][fname]['archivepath'] = config.get_filepath('ops', 
+                                                                        fdict[DIRPAT], searchopts)
+                else:
+                    winst[IW_FILESECT][fname][SAVE_FILE_ARCHIVE] = False   # canonicalize
 
             fwdebug(4, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
             fwdebug(4, "PFWBLOCK_DEBUG", "winst[%s] = %s" % (IW_FILESECT,  winst[IW_FILESECT]))
@@ -506,6 +548,8 @@ def finish_wrapper_inst(config, modname, wrapperinst):
         log_name = config.get_filename('log', searchopts)
         log_path = config.get_filepath('runtime', 'log', searchopts)
         winst['log'] = log_path + '/' + log_name
+        winst['log_archive_path'] = config.get_filepath('ops', 'log', searchopts)
+        output_filenames.append(winst['log'])
 
 
         # output wcl fullname
@@ -515,6 +559,7 @@ def finish_wrapper_inst(config, modname, wrapperinst):
 
 
     fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
+    return input_filenames, output_filenames
 
 
 #######################################################################
@@ -524,9 +569,19 @@ def add_file_metadata(config, modname):
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
     fwdebug(0, "PFWBLOCK_DEBUG", "Working on module " + modname)
     moddict = config[SW_MODULESECT][modname]
-    
     execs = pfwutils.get_exec_sections(moddict, SW_EXECPREFIX)
+
     if SW_FILESECT in moddict:
+        filemgmt = None         
+        try:
+            filemgmt_class = dynamically_load_class(config['filemgmt'])
+            paramDict = config.get_param_info(filemgmt_class.requested_config_vals(), 
+                                               {PF_CURRVALS: {'curr_module': modname}})
+            filemgmt = filemgmt_class(config=paramDict)
+        except:
+            print "Error:  Problems dynamically loading class (%s) in order to get metadata specs" % config['filemgmt']
+            raise
+
         for k in execs:
             if SW_OUTPUTS in moddict[k]:
                 for outfile in fwsplit(moddict[k][SW_OUTPUTS]):
@@ -538,31 +593,20 @@ def add_file_metadata(config, modname):
                         fdict = moddict[SW_FILESECT][fname]
                         filetype = fdict['filetype'].lower()
                         wclsect = "%s.%s" % (IW_FILESECT, fname)
+
+                        meta_specs = filemgmt.get_metadata_specs(filetype, wclsect, updatefits=True)
+                        fwdebug(3, "PFWBLOCK_DEBUG", "meta_specs = %s" % meta_specs)
+                        fwdebug(3, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
+                        fdict.update(meta_specs)
+
              
-                        (reqmeta, optmeta, updatemeta) = pfwutils.create_file_metadata_dict(filetype, config['filetype_metadata'], wclsect, config['file_header']) 
-                        if reqmeta is not None:
-                            fdict[IW_REQ_META] = reqmeta
-                        else:
-                            fdict[IW_REQ_META] = OrderedDict()  # framework fields addition below assume dict exists, so can just create empty one here
-            
-                        if optmeta is not None:
-                            fdict[IW_OPT_META] = optmeta
-
-                        if updatemeta is not None:
-                            updatemeta[IW_UPDATE_WHICH_HEAD] = '0'  # framework always updates primary header
-                            headsectnum = 0
-                            if IW_UPDATE_HEAD_PREFIX+'0' in fdict:
-                                fwdie("Error: %s is reserved for PFW updates but was specified in file %s" % (IW_UPDATE_HEAD_PREFIX+'0', fname), PF_EXIT_FAILURE)
-
-                            fdict[IW_UPDATE_HEAD_PREFIX+'0'] = updatemeta
-                         
                         # add descriptions/types to submit-wcl specified updates if missing
-                        hdrups = pfwutils.get_hdrup_sections(fdict, IW_UPDATE_HEAD_PREFIX)
+                        hdrups = pfwutils.get_hdrup_sections(fdict, WCL_UPDATE_HEAD_PREFIX)
                         for hname, hdict in sorted(hdrups.items()):
                             for key,val in hdict.items():
-                                if key != IW_UPDATE_WHICH_HEAD:
+                                if key != WCL_UPDATE_WHICH_HEAD:
                                     valparts = fwsplit(val, '/')
-                                    print key, valparts
+                                    fwdebug(3, "PFWBLOCK_DEBUG", "hdrup: key, valparts = %s, %s" % (key, valparts))
                                     if len(valparts) == 1:  # wcl specified value, look up rest from config
                                         newvaldict = pfwutils.create_update_items('V', [key], config['file_header'], header_value={key:val}) 
                                         hdict.update(newvaldict)
@@ -571,12 +615,12 @@ def add_file_metadata(config, modname):
 
 
                         # add some fields needed by framework for processing output wcl (not stored in database)
-                        if IW_META_WCL not in fdict[IW_REQ_META]:
-                            fdict[IW_REQ_META][IW_META_WCL] = ''
+                        if WCL_META_WCL not in fdict[WCL_REQ_META]:
+                            fdict[WCL_REQ_META][WCL_META_WCL] = ''
                         else:
-                            fdict[IW_REQ_META][IW_META_WCL] += ','
+                            fdict[WCL_REQ_META][WCL_META_WCL] += ','
 
-                        fdict[IW_REQ_META][IW_META_WCL] += '%(sect)s.fullname,%(sect)s.sectname' % ({'sect':wclsect})
+                        fdict[WCL_REQ_META][WCL_META_WCL] += '%(sect)s.fullname,%(sect)s.sectname' % ({'sect':wclsect})
                     else:
                         fwdebug(3, "PFWBLOCK_DEBUG", "output file %s doesn't have definition (%s) " % (k, SW_FILESECT))
 
@@ -600,7 +644,7 @@ def add_file_metadata(config, modname):
 #######################################################################
 def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
     """ write a little config file containing variables needed at the job level """
-    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(3, "PFWBLOCK_DEBUG", "BEG jobnum=%s jobkey=%s" % (jobnum, jobkey))
 
     jobwclfile = config.get_filename('jobwcl', {PF_CURRVALS: {PF_JOBNUM: jobnum}, 'required': True, 'interpolate': True})
 
@@ -622,31 +666,121 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
                                     'interpolate': True})[1], 
               'pipever': config.search('pipever', {'required': True,
                                     'interpolate': True})[1], 
-              'cachename': config.search('cachename', {'required': True,
-                                    'interpolate': True})[1],
-              'jobkeys': jobkey[1:].replace('_',',')
+              'jobkeys': jobkey[1:].replace('_',','),
+              'archive': config['archive'],
+              'output_wcl_tar': config.get_filename('outputwcltar', {PF_CURRVALS:{'jobnum': jobnum}}),
+              'junktar': config.get_filename('junktar', {PF_CURRVALS:{'jobnum': jobnum}}),
+              'junktar_archive_path': config.get_filepath('ops', 'junktar', {PF_CURRVALS:{'jobnum': jobnum}})
             }
+
+    if CREATE_JUNK_TARBALL in config and convertBool(config[CREATE_JUNK_TARBALL]):
+        jobwcl[CREATE_JUNK_TARBALL] = True
+    else:
+        jobwcl[CREATE_JUNK_TARBALL] = False
+
+
+    if not USE_TARGET_ARCHIVE_INPUT in config or convertBool(config[USE_TARGET_ARCHIVE_INPUT]):
+        jobwcl[USE_TARGET_ARCHIVE_INPUT] = True
+    else:
+        jobwcl[USE_TARGET_ARCHIVE_INPUT] = False
+
+
+    if not USE_TARGET_ARCHIVE_OUTPUT in config or convertBool(config[USE_TARGET_ARCHIVE_OUTPUT]):
+        jobwcl[USE_TARGET_ARCHIVE_OUTPUT] = True
+    else:
+        jobwcl[USE_TARGET_ARCHIVE_OUTPUT] = False
+
+
+    if jobwcl[USE_TARGET_ARCHIVE_INPUT] or jobwcl[USE_TARGET_ARCHIVE_OUTPUT]: 
+        jobwcl[TARGET_ARCHIVE] = config[TARGET_ARCHIVE]
+        target_archive = config[TARGET_ARCHIVE]
+    else:
+        jobwcl[TARGET_ARCHIVE] = None
+        target_archive = 'no_archive'
+
+
+    if USE_HOME_ARCHIVE_INPUT in config:
+        jobwcl[USE_HOME_ARCHIVE_INPUT] = config[USE_HOME_ARCHIVE_INPUT].lower()
+    else:
+        jobwcl[USE_HOME_ARCHIVE_INPUT] = 'never'
+
+    if USE_HOME_ARCHIVE_OUTPUT in config:
+        jobwcl[USE_HOME_ARCHIVE_OUTPUT] = config[USE_HOME_ARCHIVE_OUTPUT].lower()
+    else:
+        jobwcl[USE_HOME_ARCHIVE_OUTPUT] = 'never'
+    
+
+    if jobwcl[USE_HOME_ARCHIVE_INPUT] != 'never' or jobwcl[USE_HOME_ARCHIVE_OUTPUT] != 'never':
+        jobwcl[HOME_ARCHIVE] = config[HOME_ARCHIVE]
+        home_archive = config[HOME_ARCHIVE]
+    else:
+        jobwcl[HOME_ARCHIVE] = None
+        home_archive = 'no_archive'
+
+
+
+    # include variables needed by target archive's file mgmt class
+    if jobwcl[TARGET_ARCHIVE] is not None:
+        try:
+            filemgmt_class = dynamically_load_class(config['archive'][target_archive]['filemgmt'])
+            valDict = config.get_param_info(filemgmt_class.requested_config_vals())
+            jobwcl.update(valDict)
+        except Exception as err:
+            print "ERROR\nError: creating loading job_file_mvmt class\n%s" % err
+            raise
+
+    # include variables needed by home archive's file mgmt class
+    if jobwcl[HOME_ARCHIVE] is not None:
+        try:
+            filemgmt_class = dynamically_load_class(config['archive'][home_archive]['filemgmt'])
+            valDict = config.get_param_info(filemgmt_class.requested_config_vals(),
+                                        {PF_CURRVALS: config['archive'][home_archive]})
+            jobwcl.update(valDict)
+        except Exception as err:
+            print "ERROR\nError: creating loading job_file_mvmt class\n%s" % err
+            raise
+
+    try: 
+        jobwcl['job_file_mvmt'] = config['job_file_mvmt'][config['curr_site']][home_archive][target_archive]
+    except:
+        print "\n\n\nError: Problem trying to find: config['job_file_mvmt'][%s][%s][%s]" % (config['curr_site'], home_archive,target_archive)
+        print "USE_HOME_ARCHIVE_INPUT =", jobwcl[USE_HOME_ARCHIVE_INPUT]
+        print "USE_HOME_ARCHIVE_OUTPUT =", jobwcl[USE_HOME_ARCHIVE_OUTPUT]
+        print "site =", config['curr_site']
+        print "home_archive =", home_archive
+        print "target_archive =", target_archive
+        print 'job_file_mvmt =' 
+        pretty_print_dict(config['job_file_mvmt'])
+        print "\n"
+        raise
+
+    # include variables needed by job_file_mvmt class
+    try:
+        jobfilemvmt_class = dynamically_load_class(jobwcl['job_file_mvmt']['mvmtclass'])
+        valDict = config.get_param_info(jobfilemvmt_class.requested_config_vals(),
+                                        {PF_CURRVALS: jobwcl['job_file_mvmt']})
+        jobwcl.update(valDict)
+    except Exception as err:
+        print "ERROR\nError: creating loading job_file_mvmt class\n%s" % err
+        raise
+
+
     if convertBool(config[PF_USE_DB_OUT]):
         if 'des_services' in config and config['des_services'] is not None: 
             jobwcl['des_services'] = config['des_services']
         jobwcl['des_db_section'] = config['des_db_section']
 
-    (exists, value) =  config.search(USE_CACHE, {'interpolate': True})
-    if exists:
-        jobwcl[USE_CACHE]=value
 
     jobwcl['filetype_metadata'] = config['filetype_metadata']
     jobwcl[IW_EXEC_DEF] = config[SW_EXEC_DEF]
-    jobwcl[DATA_DEF] = config[DATA_DEF]
-    #jobwcl[DIRPATSECT] = config[DIRPATSECT]
     jobwcl['wrapinputs'] = wrapinputs
 
-    print jobwcl.keys()
+    fwdebug(3, "PFWBLOCK_DEBUG", "jobwcl.keys() = %s" % jobwcl.keys())
    
     with open(jobwclfile, 'w') as wclfh:
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
 
-    fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
+    fwdebug(3, "PFWBLOCK_DEBUG", "END\n\n")
     return jobwclfile
     
 
@@ -699,7 +833,7 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
             neededvals[rv] = True
 
     # go through all values in wcl
-    neededvals.update(pfwutils.traverse_wcl(wrapwcl))
+    neededvals.update(pfwutils.search_wcl_for_variables(wrapwcl))
 
     # add neededvals to wcl (values can also contain vars)
     done = False
@@ -774,7 +908,7 @@ def create_wrapper_inst(config, modname, loopvals):
 
         fwdebug(0, "PFWBLOCK_DEBUG", "loopvals = %s" % (loopvals))
         for instvals in loopvals:
-            fwdebug(0, "PFWBLOCK_DEBUG", "instvals = %s" % str(instvals) )
+            fwdebug(3, "PFWBLOCK_DEBUG", "creating instance for %s" % str(instvals) )
             
             config.inc_wrapnum()
             winst = {PF_WRAPNUM: config[PF_WRAPNUM],
@@ -792,8 +926,8 @@ def create_wrapper_inst(config, modname, loopvals):
         config.inc_wrapnum()
         wrapperinst['noloop'] = {PF_WRAPNUM: config[PF_WRAPNUM],
                                  'wrapname':  config.search('wrappername',
-                            {PF_CURRVALS: {'curr_module': modname},
-                             'required': True, 'interpolate': True})[1]
+                                 {PF_CURRVALS: {'curr_module': modname},
+                                 'required': True, 'interpolate': True})[1]
                                 }
 
     fwdebug(0, "PFWBLOCK_DEBUG", "Number wrapper inst: %s" % len(wrapperinst))
@@ -805,7 +939,6 @@ def create_wrapper_inst(config, modname, loopvals):
 def read_master_lists(config, modname, modules_prev_in_list):
     """ Read master lists and files from files created earlier """
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
-    print "\tModule %s" % (modname)
 
     # create python list of files and lists for this module
     searchobj = config.combine_lists_files(modname)
@@ -828,8 +961,8 @@ def read_master_lists(config, modname, modules_prev_in_list):
                 raise Exception("xml datasets not supported yet")
             elif qoutfile.endswith(".wcl"):
                 with open(qoutfile, 'r') as wclfh:
-                    master = wclutils.read_wcl(wclfh)
-                    print master.keys()
+                    master = wclutils.read_wcl(wclfh, filename=qoutfile)
+                    fwdebug(3, "PFWBLOCK_DEBUG", "master.keys() = " % master.keys())
             else:
                 raise Exception("Unsupported dataset format in qoutfile for object %s in module %s (%s) " % (sname, modname, qoutfile))
             endtime = time.time()
@@ -912,7 +1045,6 @@ def create_fullnames(config, modname):
 def create_sublists(config, modname):
     """ break master lists into sublists based upon match or divide_by """
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
-    print "\tModule %s" % (modname)
     dataset = config.combine_lists_files(modname)
 
     for (sname, sdict) in dataset:
@@ -948,8 +1080,8 @@ def create_sublists(config, modname):
             del sdict['master']
             sdict['sublists'] = sublists
             print "\t%s-%s: number of sublists = %s" % (modname, sname, len(sublists))
-            print sublists.keys()
-            print sublists[sublists.keys()[0]]
+            fwdebug(3, "PFWBLOCK_DEBUG", "sublist.keys()=%s" % sublists.keys())
+            fwdebug(4, "PFWBLOCK_DEBUG", "sublists[sublists.keys()[0]]=%s" % sublists[sublists.keys()[0]])
             print ""
             print ""
         else:
@@ -980,7 +1112,7 @@ def get_wrapper_loopvals(config, modname):
                    {PF_CURRVALS: {'curr_module': modname},
                     'required': False, 'interpolate': True})
     if found:
-        print "\tloopkeys = ", loopkeys
+        fwdebug(0,"PFWBLOCK_DEBUG", "\tloopkeys = %s" % loopkeys)
         loopkeys = fwsplit(loopkeys.lower())
         loopkeys.sort()  # sort so can make same key easily
 
@@ -1000,12 +1132,16 @@ def get_wrapper_loopvals(config, modname):
 
         if len(loopvals) == 0:
             print "\tDefaulting to wcl values"
+            loopvals = []
             for key in loopkeys:
+                fwdebug(0, "PFWBLOCK_DEBUG", "key=%s" % key)
                 (found, val) = config.search(key, 
                             {PF_CURRVALS: {'curr_module': modname},
                             'required': False, 
                             'interpolate': True})
+                fwdebug(0, "PFWBLOCK_DEBUG", "found=%s" % found)
                 if found:
+                    fwdebug(0, "PFWBLOCK_DEBUG", "val=%s" % val)
                     val = fwsplit(val)
                     loopvals.append(val)
             loopvals = itertools.product(*loopvals)
@@ -1071,7 +1207,7 @@ def get_value_from_line(line, key, nickname=None, numvals=None):
 #######################################################################
 # Assumes currvals includes specific values (e.g., band, ccd)
 def create_single_wrapper_wcl(config, modname, wrapinst):
-    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s %s" % (modname, wrapinst[PF_WRAPNUM]))
 
     fwdebug(3, "PFWBLOCK_DEBUG", "\twrapinst=%s" % wrapinst)
 
@@ -1102,14 +1238,14 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     moddict = config[SW_MODULESECT][modname]
     execs = pfwutils.get_exec_sections(moddict, SW_EXECPREFIX)
     for execkey in execs:
-        fwdebug(0, 'PFWBLOCK_DEBUG', "Working on exec section (%s)"% execkey)
+        fwdebug(3, 'PFWBLOCK_DEBUG', "Working on exec section (%s)"% execkey)
         numexec += 1
         iwkey = execkey.replace(SW_EXECPREFIX, IW_EXECPREFIX)
         wrapperwcl[iwkey] = {}
         execsect = moddict[execkey]
-        fwdebug(0, 'PFWBLOCK_DEBUG', "\t\t(%s)" % (execsect))
+        fwdebug(3, 'PFWBLOCK_DEBUG', "\t\t(%s)" % (execsect))
         for key, val in execsect.items():
-            fwdebug(0, 'PFWBLOCK_DEBUG', "\t\t%s (%s)" % (key, val))
+            fwdebug(5, 'PFWBLOCK_DEBUG', "\t\t%s (%s)" % (key, val))
             if key == SW_INPUTS:
                 iwexkey = IW_INPUTS
             elif key == SW_OUTPUTS:
@@ -1124,13 +1260,18 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                                                             'required': True, 'interpolate': True})
             else:
                 wrapperwcl[iwkey]['cmdline'] = copy.deepcopy(val)
+        if 'execnum' not in wrapperwcl[execkey]:
+            result = re.match('%s(\d+)' % IW_EXECPREFIX, execkey)
+            if not result:
+                fwdie('Error:  Could not determine execnum from exec label %s' % execkey, PF_EXIT_FAILURE)
+            wrapperwcl[execkey]['execnum'] = result.group(1)
 
     if SW_WRAPSECT in config[SW_MODULESECT][modname]:
-        fwdebug(0, 'PFWBLOCK_DEBUG', "Copying wrapper section (%s)"% SW_WRAPSECT)
+        fwdebug(3, 'PFWBLOCK_DEBUG', "Copying wrapper section (%s)"% SW_WRAPSECT)
         wrapperwcl[IW_WRAPSECT] = copy.deepcopy(config[SW_MODULESECT][modname][SW_WRAPSECT])
 
     if IW_WRAPSECT not in wrapperwcl:
-        fwdebug(1, 'PFWBLOCK_DEBUG', "%s (%s): Initializing wrapper section (%s)"% (modname, wrapinst[PF_WRAPNUM], IW_WRAPSECT))
+        fwdebug(3, 'PFWBLOCK_DEBUG', "%s (%s): Initializing wrapper section (%s)"% (modname, wrapinst[PF_WRAPNUM], IW_WRAPSECT))
         wrapperwcl[IW_WRAPSECT] = {}
     wrapperwcl[IW_WRAPSECT]['pipeline'] = config['pipeprod']
     wrapperwcl[IW_WRAPSECT]['pipever'] = config['pipever']
@@ -1140,6 +1281,8 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     wrapperwcl[IW_WRAPSECT]['tmpfile_prefix'] =  config.search('tmpfile_prefix',
                                 {PF_CURRVALS: currvals,
                                  'required': True, 'interpolate': True})[1]
+    wrapperwcl['log'] = wrapinst['log'] 
+    wrapperwcl['log_archive_path'] = wrapinst['log_archive_path']
 
 
     if numexec == 0:
@@ -1209,7 +1352,7 @@ def translate_sw_iw(config, wrapperwcl, modname, winst):
                 fwdebug(4, 'PFWBLOCK_DEBUG', "key = %s" % (key))
                 if type(val) is dict or type(val) is OrderedDict:
                     wcltodo.append(val)
-                else:
+                elif type(val) is str:
                     fwdebug(4, 'PFWBLOCK_DEBUG', "val = %s, %s" % (val, type(val)))
                     for (sw, iw) in translation:
                         val = val.replace(sw+'.', iw+'.')
@@ -1236,7 +1379,7 @@ def create_module_wrapper_wcl(config, modname, wrapinst):
     for inst in wrapinst.values():
         wrapperwcl = create_single_wrapper_wcl(config, modname, inst)
         #fix_globalvars(config, wrapperwcl, modname, inst)
-        wclutils.write_wcl(wrapperwcl)
+        #wclutils.write_wcl(wrapperwcl)
         
         translate_sw_iw(config, wrapperwcl, modname, inst)
         add_needed_values(config, modname, inst, wrapperwcl)
@@ -1349,7 +1492,6 @@ if [ $# -ne 4 ]; then
     echo "Usage: <jobnum> <input tar> <job wcl> <tasklist> ";
     exit 1;
 fi
-shd1=`/bin/date "+%s"` 
 jobnum=$1
 padjnum=`/usr/bin/printf %04d $jobnum`
 intar=$2
@@ -1361,7 +1503,19 @@ initdir=`/bin/pwd`
     # setup job environment
     scriptstr += """
 export SHELL=/bin/bash    # needed for setup to work in Condor environment
+shd1=`/bin/date "+%%s"`
+echo ""
+echo "Cmdline given: " $@
+echo ""
+echo ""
+echo "Initial condor job directory = " $initdir
+echo "Files copied over by condor:"
+ls -l
+echo ""
+
+echo "Sourcing script to set up EUPS (%(eups)s)"
 source %(eups)s 
+
 echo "Using eups to setup up %(pipe)s %(ver)s"
 d1=`/bin/date "+%%s"` 
 setup --nolock %(pipe)s %(ver)s
@@ -1384,6 +1538,7 @@ fi
             scriptstr += 'export %s="%s"\n' % (name.upper(), value)
     scriptstr += 'echo ""\n'
 
+
     # print start of job information 
     #      Since wcl's variable syntax matches shell variable syntax and 
     #      underscores are used to separate name parts, have to use place 
@@ -1393,24 +1548,23 @@ fi
     envfile = envfile.replace("XXXXXXXX", "${padjnum}")
 
     scriptstr +="""
+echo "Saving environment after setting up meta package to %s"
 env > %s
-echo ""
-echo "Initial condor job directory = " $initdir
-echo "Files copied over by condor:"
-ls -l
-""" % (envfile)
+""" % (envfile, envfile)
    
-    if 'runroot' in config and config['runroot'] is not None:
-        rdir = config['runroot'] + '/' + jobdir
-        print "rdir =", rdir
+    if SW_JOB_BASE_DIR in config and config[SW_JOB_BASE_DIR] is not None:
+        full_job_dir = config[SW_JOB_BASE_DIR] + '/' + jobdir
+        print "full_job_dir =", full_job_dir
         scriptstr += """
 echo ""
-echo "Making run directory in runroot: %(rdir)s"
-if [ ! -e %(rdir)s ]; then
-    mkdir -p %(rdir)s
+echo "Making target job's directory (%(full_job_dir)s)"
+if [ ! -e %(full_job_dir)s ]; then
+    mkdir -p %(full_job_dir)s
 fi
-cd %(rdir)s
-        """ % ({'rdir': rdir})
+cd %(full_job_dir)s
+        """ % ({'full_job_dir': full_job_dir})
+    else:
+        print "%s wasn't specified.   Running job in condor job directory" % SW_JOB_BASE_DIR
 
     # untar file containing input wcl files
     scriptstr += """
@@ -1424,13 +1578,15 @@ echo "DESDMTIME: untar_input_tar $((d2-d1))"
 """
 
     # copy files so can test by hand after job
+    # save initial directory to job wcl file
     scriptstr += """
 echo "Copying job wcl and task list to job working directory"
-d1=`/bin/date "+%s"` 
+d1=`/bin/date "+%s"`
 cp $initdir/$jobwcl $jobwcl
 cp $initdir/$tasklist $tasklist
-d2=`/bin/date "+%s"` 
+d2=`/bin/date "+%s"`
 echo "DESDMTIME: copy_jobwcl_tasklist $((d2-d1))"
+echo "condor_job_init_dir = " $initdir >> $jobwcl
 """
 
     # call the job workflow program
@@ -1438,12 +1594,15 @@ echo "DESDMTIME: copy_jobwcl_tasklist $((d2-d1))"
 echo ""
 echo "Calling pfwrunjob.py"
 echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist"
-d1=`/bin/date "+%s"` 
+d1=`/bin/date "+%s"`
 ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist
-d2=`/bin/date "+%s"` 
+rjstat=$?
+d2=`/bin/date "+%s"`
 echo "DESDMTIME: pfwrunjob.py $((d2-d1))"
-shd2=`/bin/date "+%s"` 
+shd2=`/bin/date "+%s"`
 echo "DESDMTIME: job_shell_script $((shd2-shd1))"
+echo "Exiting with status $rjstat"
+exit $rjstat
 """ 
 
     # write shell script to file
@@ -1477,8 +1636,8 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write('JOB %s %s\n' % (tjpad, condorfile))
             dagfh.write('VARS %s jobnum="%s"\n' % (tjpad, tjpad))
             dagfh.write('VARS %s exec="%s"\n' % (tjpad, scriptfile))
-            dagfh.write('VARS %s args="%s %s %s %s"\n' % (tjpad, jobnum, jobdict['tarfile'], jobdict['jobwclfile'], jobdict['tasksfile']))
-            dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['tarfile'], jobdict['jobwclfile'], jobdict['tasksfile']))
+            dagfh.write('VARS %s args="%s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
+            dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
             # no pre script for job.   Job inserted into DB at beginning of job running
             #TODO dagfh.write('SCRIPT post %s %s/libexec/logpost.py config.des %s j $JOB $RETURN\n' % (tjpad, pfwdir, blockname)) 
 
@@ -1494,7 +1653,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
 #######################################################################
 def tar_inputfiles(config, jobnum, inlist):
     """ Tar the input wcl files for a single job """
-    inputtar = config.get_filename('inputtar', {PF_CURRVALS:{'jobnum': jobnum}})
+    inputtar = config.get_filename('inputwcltar', {PF_CURRVALS:{'jobnum': jobnum}})
     pfwutils.tar_list(inputtar, inlist)
     return inputtar
 
@@ -1605,3 +1764,39 @@ def create_runjob_condorfile(config, scriptfile):
     return condorfile
 
 
+
+#######################################################################
+def stage_inputs(config, inputfiles):
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "number of input files needed at target = %s" % len(inputfiles))
+    fwdebug(6, "PFWBLOCK_DEBUG", "input files %s" % inputfiles)
+
+    if (USE_HOME_ARCHIVE_INPUT in config and 
+        (config[USE_HOME_ARCHIVE_INPUT].lower() == TARGET_ARCHIVE or
+        config[USE_HOME_ARCHIVE_INPUT].lower() == 'all')):
+
+        fwdebug(0, "PFWBLOCK_DEBUG", "home_archive = %s" % config[HOME_ARCHIVE])
+        fwdebug(0, "PFWBLOCK_DEBUG", "target_archive = %s" % config[TARGET_ARCHIVE])
+        archive_transfer_utils.archive_copy(config['archive'][config[HOME_ARCHIVE]], 
+                                            config['archive'][config[TARGET_ARCHIVE]],
+                                            config['archive_transfer'],
+                                            inputfiles, config)
+
+    fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
+
+
+
+#######################################################################
+def write_output_list(config, outputfiles):
+    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
+    fwdebug(0, "PFWBLOCK_DEBUG", "output files %s" % outputfiles)
+
+    if 'block_outputlist' not in config:
+        fwdie("Error:  Could not find block_outputlist in config.   Internal Error.", PF_EXIT_FAILURE)
+
+    with open(config['block_outputlist'], 'w') as fh:
+        for f in outputfiles:
+            fh.write("%s\n" % parse_fullname(f, 2))
+    
+    fwdebug(0, "PFWBLOCK_DEBUG", "END")
+    

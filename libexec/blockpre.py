@@ -8,7 +8,7 @@ import sys
 import os
 
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -107,7 +107,7 @@ def blockpre(argv = None):
     
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
-        dbh.insert_blktask(config, "", 'blockpre')
+        dbh.insert_block(config)
     
     log_pfw_event(config, blockname, 'blockpre', 'j', ['pretask'])
     

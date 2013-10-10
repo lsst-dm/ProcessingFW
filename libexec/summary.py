@@ -6,7 +6,7 @@
 
 """ Send summary email when run ends (successfully or not) """
 
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwemail as pfwemail
 import processingfw.pfwdb as pfwdb

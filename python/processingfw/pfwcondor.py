@@ -282,7 +282,8 @@ def parse_condor_user_log(logfilename):
                                         'clusterid':jobnum,
                                         'machine':'',
                                         'jobstat':'UNSUB',
-                                        'submittime':time }
+                                        'submittime':time,
+                                        'csubmittime':time }
                     if len(splitline) > 1:
                         result = re.match('\s*DAG Node:\s+(\S+)\s*', splitline[1])
                         if result:
@@ -355,9 +356,8 @@ def parse_condor_user_log(logfilename):
                 #    pass  # Globus Resource Down
                 #elif code == '021': 
                 #    pass  # Remote Error
-                #elif code == '027': 
-                #    pass  # Job submitted to grid resource, 
-                #          # same info as case 017
+                elif code == '027': 
+                    jobinfo[jobnum]['gsubmittime'] = time
                 else: 
                     jobinfo[jobnum]['jobstat'] = 'U%s' % (code)
             else:

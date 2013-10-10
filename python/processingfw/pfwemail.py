@@ -38,24 +38,31 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("%s\n\n\n" % msg1)
 
     mailfh.write("operator = %s\n" % config['operator'])
+    mailfh.write("pipeline = %s\n" % config['pipeline'])
     mailfh.write("project = %s\n" % project)
     mailfh.write("run = %s\n" % run)
+    if HOME_ARCHIVE in config:
+        mailfh.write("\t%s = %s\n" % (HOME_ARCHIVE.lower(), config[HOME_ARCHIVE]))
     if 'event_tag' in config:
         mailfh.write("run name = %s\n" % config['event_tag'])
     mailfh.write("\n")
 
+
     mailfh.write("Submit:\n")
     mailfh.write("\tmachine = %s\n" % localmachine)
 #    mailfh.write("\tnode = %s\n" % config['submitnode'])
-    mailfh.write("\tDES_HOME = %s\n" % config['des_home'])
+    mailfh.write("\tPROCESSINGFW_DIR = %s\n" % os.environ['PROCESSINGFW_DIR'])
     mailfh.write("\tconfig = %s/%s\n" % \
             (config['submit_dir'], config['config_filename']))
     mailfh.write("\tdirectory = %s\n\n" % config['work_dir'])
 
+
     mailfh.write("Target:\n")
     mailfh.write("\tmachine = %s\n" % config['loginhost'])
-    mailfh.write("\tnode = %s\n" % config['targetnode'])
-    mailfh.write("\troot dir = %s\n" % (config['runroot']))
+    if TARGET_ARCHIVE in config:
+        mailfh.write("\t%s = %s\n" % (TARGET_ARCHIVE.lower(), config[TARGET_ARCHIVE]))
+    mailfh.write("\tdirectory = %s/%s\n" % (config['root'], config.interpolate(config[OPS_RUN_DIR])))
+    mailfh.write("\tmetapackage = %s %s\n" % (config['pipeprod'], config['pipever']))
     mailfh.write("\n\n")
     mailfh.write("------------------------------\n")
 

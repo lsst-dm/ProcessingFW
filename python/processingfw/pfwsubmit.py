@@ -12,8 +12,9 @@ import os
 import stat
 import subprocess
 
-from processingfw.pfwdefs import *
+from coreutils.miscutils import *
 from processingfw.pfwutils import *
+from processingfw.pfwdefs import *
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb

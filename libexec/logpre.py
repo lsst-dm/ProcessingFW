@@ -7,7 +7,7 @@
 import sys
 import os
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -37,10 +37,11 @@ def logpre(argv = None):
 
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
-        dbh.insert_blktask(config, "", subblock)
+        #dbh.insert_blktask(config, "", subblock)
 
     # now that have more information, can rename output file
     fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    blockname = config['blockname']
     new_log_name = config.get_filename('block', {PF_CURRVALS:
                                                     {'flabel': '${subblock}_logpre',
                                                      'subblock': subblock,

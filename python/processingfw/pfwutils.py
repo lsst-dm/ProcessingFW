@@ -4,16 +4,19 @@ import re
 import os
 import inspect
 import tarfile
+import time
+import subprocess
 from collections import OrderedDict
 from collections import Mapping
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 import intgutils.wclutils as wclutils
 
 """ Miscellaneous support functions for processing framework """
 
 #######################################################################
 def get_exec_sections(wcl, prefix):
+    """ Returns exec sections appearing in given wcl """
     execs = {}
     for key, val in wcl.items():
         fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for exec prefix in %s" % key)
@@ -25,6 +28,7 @@ def get_exec_sections(wcl, prefix):
 
 #######################################################################
 def get_hdrup_sections(wcl, prefix):
+    """ Returns header update sections appearing in given wcl """
     hdrups = {}
     for key, val in wcl.items():
         fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for hdrup prefix in %s" % key)
@@ -37,12 +41,12 @@ def get_hdrup_sections(wcl, prefix):
         
 
 #######################################################################
-def traverse_wcl(wcl):
+def search_wcl_for_variables(wcl):
     fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     usedvars = {}
     for key, val in wcl.items():
         if type(val) is dict or type(val) is OrderedDict:
-            uvars = traverse_wcl(val)
+            uvars = search_wcl_for_variables(val)
             if uvars is not None:
                 usedvars.update(uvars)
         elif type(val) is str:
@@ -52,7 +56,7 @@ def traverse_wcl(wcl):
                     vstr = vstr.split(':')[0]
                 usedvars[vstr] = True
         else:
-            print "Error: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val)
+            fwdebug(9, "PFWUTILS_DEBUG", "Note: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val))
     
     fwdebug(9, "PFWUTILS_DEBUG", "END")
     return usedvars
@@ -70,7 +74,7 @@ def get_wcl_value(key, wcl):
 
 #######################################################################
 def set_wcl_value(key, val, wcl):
-    """ sets value of key in wcl, follows section notation """
+    """ Sets value of key in wcl, follows section notation """
     fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     wclkeys = key.split('.')
     valkey = wclkeys.pop()
@@ -151,6 +155,7 @@ def create_update_items(metastatus, file_header_names, file_header_info, header_
 
 #####################################################################################################
 def create_one_sect_metadata_info(derived_from, filetype_metadata, wclsect = None, file_header_info=None):
+    """ Create a dictionary containing instructions for a single section (req, opt) to be used by other code that retrieves metadata for a file """
 
     metainfo = OrderedDict()
     updatemeta = None
@@ -193,6 +198,7 @@ def create_one_sect_metadata_info(derived_from, filetype_metadata, wclsect = Non
 
 ##################################################################################################
 def create_file_metadata_dict(filetype, filetype_metadata, wclsect = None, file_header_info=None):
+    """ Create a dictionary containing instructions to be used by other code that retrieves metadata for a file """
     reqmeta = None
     optmeta = None
     updatemeta = None
@@ -217,30 +223,145 @@ def create_file_metadata_dict(filetype, filetype_metadata, wclsect = None, file_
     return (reqmeta, optmeta, updatemeta)
 
 
-#######################################################################
-#def get_metadata_wcl(filetype, fsectname, dbwcl):
-#    fdict = OrderedDict()
-#    fdict['req_metadata'] = OrderedDict()
-#    #print 'filetype =', filetype
-#    #print 'fsetname =', fsectname
-#    if filetype in dbwcl:
-#        #print "Found filetype in dbwcl"
-#        if 'r' in dbwcl[filetype]:
-#            if 'h' in dbwcl[filetype]['r']:
-#                fdict['req_metadata']['headers'] = ','.join(dbwcl[filetype]['r']['h'].keys())
-#            if 'c' in dbwcl[filetype]['r']:
-#                fdict['req_metadata']['compute'] = ','.join(dbwcl[filetype]['r']['c'].keys())
-#
-#        if 'o' in dbwcl[filetype]:
-#            fdict['opt_metadata'] = OrderedDict()
-#            if 'h' in dbwcl[filetype]['o']:
-#                fdict['opt_metadata']['headers'] = ','.join(dbwcl[filetype]['o']['h'].keys())
-#            if 'c' in dbwcl[filetype]['o']:
-#                fdict['opt_metadata']['compute'] = ','.join(dbwcl[filetype]['o']['c'].keys())
-#    else:
-#        print "Could not find filetype (%s) in dbwcl" % filetype
-#        print dbwcl
-#        exit(1)
-#
-#    fdict['req_metadata']['wcl'] = 'filespecs.%(name)s.fullname,filespecs.%(name)s.filename,filespecs.%(name)s.filetype' % ({'name': fsectname})
-#    return fdict
+###########################################################################
+def next_tasknum(wcl, tasktype, step=1):
+    """ Returns next tasknum for a specific task type """
+
+    fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  tasktype=%s, step=%s" % (tasktype, step))
+
+    # note wcl stores numbers as strings
+    if 'tasknums' not in wcl:
+        wcl['tasknums'] = OrderedDict()
+        fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added tasknums subdict")
+    if tasktype not in wcl['tasknums']:
+        wcl['tasknums'][tasktype] = '1'
+        fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added subdict for tasktype")
+    else:
+        wcl['tasknums'][tasktype] = str(int(wcl['tasknums'][tasktype]) + step)
+        fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  incremented tasknum")
+
+    return wcl['tasknums'][tasktype]
+
+
+###########################################################################
+# assumes exit code for version is 0
+def get_version(execname, execdefs):
+    """run command with version flag and parse output for version"""
+
+    ver = None
+    if ( execname.lower() in execdefs and
+         'version_flag' in execdefs[execname.lower()] and 
+         'version_pattern' in execdefs[execname.lower()] ):
+        verflag = execdefs[execname.lower()]['version_flag']
+        verpat = execdefs[execname.lower()]['version_pattern']
+
+        cmd = "%s %s" % (execname, verflag)
+        process = subprocess.Popen(cmd.split(),
+                                   shell=False,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        process.wait()
+        out = process.communicate()[0]
+        if process.returncode != 0:
+            fwdebug(0, 'PFWUTILS_DEBUG', "INFO:  problem when running code to get version")
+            fwdebug(0, 'PFWUTILS_DEBUG', "\t%s %s %s" % (execname, verflag, verpat))
+            fwdebug(0, 'PFWUTILS_DEBUG', "\tcmd> %s" % cmd)
+            fwdebug(0, 'PFWUTILS_DEBUG', "\t%s" % out)
+            ver = None
+        else:
+            # parse output with verpat
+            try:
+                m = re.search(verpat, out)
+                if m:
+                    ver = m.group(1)
+                else:
+                    fwdebug(1, 'PFWUTILS_DEBUG', "re.search didn't find version for exec %s" % execname)
+                    fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd output=%s" % out)
+                    fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd verpat=%s" % verpat)
+            except Exception as err:
+                #print type(err)
+                ver = None
+                print "Error: Exception from re.match.  Didn't find version: %s" % err
+                raise
+    else:
+        fwdebug(1, 'PFWUTILS_DEBUG', "INFO: Could not find version info for exec %s" % execname)
+
+    return ver
+
+
+############################################################################
+def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
+    """ Execute the command piping stdout/stderr to log and QCF """
+
+    fwdebug(3, "PFWUTILS_DEBUG", "BEG")
+    fwdebug(3, "PFWUTILS_DEBUG", "cmd = %s" % cmd)
+    fwdebug(3, "PFWUTILS_DEBUG", "logfilename = %s" % logfilename)
+    fwdebug(3, "PFWUTILS_DEBUG", "id = %s" % id)
+    fwdebug(3, "PFWUTILS_DEBUG", "execnames = %s" % execnames)
+    fwdebug(3, "PFWUTILS_DEBUG", "useQCF = %s" % useQCF)
+
+    starttime = time.time()
+    logfh = open(logfilename, 'w', 0)
+
+    sys.stdout.flush()
+    processWrap = subprocess.Popen(cmd.split(),
+                                   shell=False,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+    if useQCF:
+        cmdQCF = "qcf_controller.pl -wrapperInstanceId %s -execnames %s" % (id, execnames)
+        processQCF = subprocess.Popen(cmdQCF.split(),
+                                      shell=False,
+                                      stdin=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT)
+
+    try:
+        buf = os.read(processWrap.stdout.fileno(), bufsize)
+        while processWrap.poll() == None or len(buf) != 0:
+            filtered_string = buf.replace("[1A", "")     # remove special characters present in AstrOmatic outputs
+            filtered_string = filtered_string.replace(chr(27), "")
+            filtered_string = filtered_string.replace("[1M", "")
+            filtered_string = filtered_string.replace("[7m", "")
+
+            logfh.write(filtered_string)   # write to log file
+            if useQCF:
+                processQCF.stdin.write(filtered_string) # pass to QCF
+            buf = os.read(processWrap.stdout.fileno(), bufsize)
+
+        logfh.close()
+        if useQCF:
+            processQCF.stdin.close()
+            while processQCF.poll() == None:
+                time.sleep(1)
+            if processQCF.returncode != 0:
+                print "\tWarning: QCF returned non-zero exit code"
+    except IOError as e:
+        print "\tI/O error({0}): {1}".format(e.errno, e.strerror)
+        if useQCF:
+            qcfpoll = processQCF.poll()
+            if qcfpoll != None and qcfpoll != 0:
+                if processWrap.poll() == None:
+                    buf = os.read(processWrap.stdout.fileno(), bufsize)
+                    while processWrap.poll() == None or len(buf) != 0:
+                        logfh.write(buf)
+                        buf = os.read(processWrap.stdout.fileno(), bufsize)
+
+                    logfh.close()
+            else:
+                print "\tError: Unexpected error: %s" % sys.exc_info()[0]
+                raise
+
+    except:
+        print "\tError: Unexpected error: %s" % sys.exc_info()[0]
+        raise
+
+    sys.stdout.flush()
+    if processWrap.returncode != 0:
+        print "\tError: cmd returned non-zero exit code (%s)" % processWrap.returncode
+    else:
+        fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with exit code = 0")
+
+    print "DESDMTIME: run_cmd_qcf %0.3f" % (time.time()-starttime)
+
+    fwdebug(3, "PFWUTILS_DEBUG", "END")
+    return processWrap.returncode

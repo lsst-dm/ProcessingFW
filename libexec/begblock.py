@@ -8,8 +8,9 @@ import sys
 import os
 
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwutils as pfwutils
 from processingfw.runqueries import runqueries
 import processingfw.pfwwrappers as pfwwrappers
 import processingfw.pfwblock as pfwblock
@@ -45,14 +46,18 @@ def begblock(argv):
     fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[PF_BLKNUM]))
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
-        dbh.insert_block(config)
 
-        if config[PF_BLKNUM] == '0':
-            fwdebug(3, 'PFWBLOCK_DEBUG', "Calling update_attempt_beg")
-            dbh.update_attempt_beg(config)
+#   Moved insert_block into blockpre
+#        dbh.insert_block(config)
+#
+#        if config[PF_BLKNUM] == '0':
+#            fwdebug(3, 'PFWBLOCK_DEBUG', "Calling update_attempt_beg")
+#            dbh.update_attempt_beg(config)
 
     modulelist = fwsplit(config[SW_MODULELIST].lower())
     modules_prev_in_list = {}
+    inputfiles = []
+    outputfiles = []
     tasks = []
 
     joblist = {} 
@@ -61,10 +66,10 @@ def begblock(argv):
             fwdie("Error: Could not find module description for module %s\n" % (modname), PF_EXIT_FAILURE)
 
         if convertBool(config[PF_USE_DB_OUT]): 
-            dbh.insert_blktask(config, modname, "runqueries")
+            dbh.insert_block_task(config, "runqueries_%s" % modname)
         runqueries(config, modname, modules_prev_in_list)
         if convertBool(config[PF_USE_DB_OUT]): 
-            dbh.update_blktask_end(config, modname, "runqueries", 1)
+            dbh.update_block_task_end(config, PF_EXIT_SUCCESS)
         pfwblock.read_master_lists(config, modname, modules_prev_in_list)
         pfwblock.create_fullnames(config, modname)
         pfwblock.add_file_metadata(config, modname)
@@ -72,23 +77,38 @@ def begblock(argv):
         loopvals = pfwblock.get_wrapper_loopvals(config, modname)
         wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
         pfwblock.assign_data_wrapper_inst(config, modname, wrapinst)
-        pfwblock.finish_wrapper_inst(config, modname, wrapinst)
+        modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, wrapinst)
+        inputfiles.extend(modinputs)
+        outputfiles.extend(modoutputs)
         pfwblock.create_module_wrapper_wcl(config, modname, wrapinst)
         pfwblock.divide_into_jobs(config, modname, wrapinst, joblist)
         modules_prev_in_list[modname] = True
 
     scriptfile = pfwblock.write_runjob_script(config)
 
+    fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - BEG")
     for jobkey,jobdict in joblist.items():
-        print "jobkey =",jobkey
         jobdict['jobnum'] = config.inc_jobnum()
+        fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
         jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])
-        jobdict['tarfile'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'], jobdict['inlist'])
+        jobdict['inputwcltar'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'], jobdict['inlist'])
         jobdict['jobwclfile'] = pfwblock.write_jobwcl(config, jobkey, jobdict['jobnum'], len(jobdict['tasks']), jobdict['wrapinputs'])
+    fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - END")
 
     numjobs = len(joblist)
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh.update_block_numexpjobs(config, numjobs)
+
+    fwdebug(6, "PFWBLOCK_DEBUG", "inputfiles: %s, %s" % (type(inputfiles), inputfiles))
+    fwdebug(6, "PFWBLOCK_DEBUG", "outputfiles: %s, %s" % (type(outputfiles), outputfiles))
+    files2stage = set(inputfiles) - set(outputfiles)
+    pfwblock.stage_inputs(config, files2stage)    
+
+
+    if USE_HOME_ARCHIVE_OUTPUT in config and config[USE_HOME_ARCHIVE_OUTPUT].lower() == 'block':
+        config['block_outputlist'] = 'potential_outputfiles.list'
+        pfwblock.write_output_list(config, outputfiles)
+
 
     dagfile = config.get_filename('jobdag')
     pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, joblist)

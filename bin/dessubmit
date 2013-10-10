@@ -13,12 +13,11 @@ import shutil
 import sys
 
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwlog as pfwlog
-import processingfw.pfwdb as pfwdb
 
 VERSION = '$Rev$'
 
@@ -46,7 +45,7 @@ def create_dags(config, logfh):
 
     return maindag
 
-# useDBin:   get default config, files already in cache, files already tracked, existing file metadata, provenance
+# useDBin:   get default config, files already tracked in archive, existing file metadata, provenance
 # use_db_out:  framework can write to database, unclear how can control pipeline application codes
 # useQCF: only used if useDBout is true, controls whether to use QCF or not
 # usePFWconfig:  whether to include $PROCESSINGFW_DIR/etc/pfwconfig.des
@@ -105,8 +104,10 @@ def main(args):
             if convertBool(config[PF_USE_DB_OUT]):
                 print 'Inserting run into PFW tables...',
                 sys.stdout.flush()
+                import processingfw.pfwdb as pfwdb   # import late 
                 dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
                 dbh.insert_run(config)
+                dbh.insert_attempt_label(config)
                 print 'DONE'
             elif ATTNUM not in config:
                 print '\tNo DB.  Defaulting %s to 0' % ATTNUM
@@ -159,6 +160,7 @@ def main(args):
             if (convertBool(config[PF_USE_DB_OUT]) and 
                 condorid is not None):
                 print "Saving run's condorid into PFW tables...",
+                import processingfw.pfwdb as pfwdb
                 dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
                 dbh.update_attempt_cid(config, condorid)
                 print 'DONE'

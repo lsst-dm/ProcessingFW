@@ -8,10 +8,13 @@ import sys
 import os
 import subprocess
 import time
+import traceback
 
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from processingfw.pfwutils import *
+from coreutils.miscutils import *
 import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwblock as pfwblock
 
@@ -19,8 +22,8 @@ import processingfw.pfwblock as pfwblock
 
 ###########################################################
 def create_master_list(config, modname, moddict, 
-        search_name, search_dict):
-    print "\tcreate_master_list: BEG"
+        search_name, search_dict, search_type):
+    fwdebug(0, "RUNQUERIES_DEBUG", "BEG")
 
 
     if 'qouttype' in search_dict:
@@ -75,7 +78,29 @@ def create_master_list(config, modname, moddict,
                               'searchobj':search_dict})
 
 
+    # get version for query code
+    query_version = None
+    if prog in config[SW_EXEC_DEF]:
+        verflag = wcl[SW_EXEC_DEF][prog.lower()]['version_flag']
+        verpat = wcl[SW_EXEC_DEF][prog.lower()]['version_pattern']
+        query_version = get_version(prog, verflag, verpat)
+
+    if search_type == SW_LISTSECT:
+        datatype = 'L'
+    elif search_type == SW_FILESECT:
+        datatype = 'F'
+    else:
+        datatype = search_type[0].upper()
+    
     # call code
+    queryid = None
+    if config[PF_USE_DB_OUT]:
+        pfw_dbh = pfwdb.PFWDB()
+        queryid = pfw_dbh.insert_data_query(config, modname, datatype, search_name,
+                                       prog, args, query_version)
+        pfw_dbh.close()
+    
+
     cwd = os.getcwd()
     print "\t\tCalling code to create master list for obj %s in module %s" % \
            (search_name, modname)
@@ -84,20 +109,30 @@ def create_master_list(config, modname, moddict,
     print "\t\tSee master list will be in %s/%s" % (cwd, qoutfile)
 
     print "\t\tCreating master list - start ", time.time()
-    outfh = open(qlog, "w")
+
     cmd = "%s %s" % (prog, args)
-    process = subprocess.Popen(cmd.split(), shell=False, 
-                               stdout=outfh, stderr=subprocess.STDOUT)
-    process.wait()
-    outfh.close()
-#    print process.communicate()
-    print "\t\texit=", process.returncode
+    exitcode = None
+    try:
+        exitcode = run_cmd_qcf(cmd, qlog, queryid, os.path.basename(prog), 5000, config[PF_USE_QCF])
+    except:
+        print "******************************"
+        print "Error: "
+        (type, value, trback) = sys.exc_info()
+        print "******************************"
+        traceback.print_exception(type, value, trback, file=sys.stdout)
+        exitcode = PF_EXIT_FAILURE
+
     print "\t\tCreating master list - end ", time.time()
+    if config[PF_USE_DB_OUT]:
+        pfw_dbh = pfwdb.PFWDB()
+        pfw_dbh.update_data_query_end(queryid, exitcode)
+        pfw_dbh.close()
 
-    if process.returncode != 0:
+    if exitcode != 0:
         fwdie("Error: problem creating master list\n%s" % (cmd), PF_EXIT_FAILURE)
+    
+    fwdebug(0, "RUNQUERIES_DEBUG", "END")
 
-    print "\tcreate_master_list: END\n"
 
 
 
@@ -119,7 +154,7 @@ def runqueries(config, modname, modules_prev_in_list):
                 print "\t%s-%s: creating master list\n" % \
                       (modname, listname)
                 create_master_list(config, modname, 
-                                   moddict, listname, list_dict)
+                                   moddict, listname, list_dict, SW_LISTSECT)
     
     # process each "file" in each module
     if SW_FILESECT in moddict:
@@ -129,7 +164,7 @@ def runqueries(config, modname, modules_prev_in_list):
                 print "\t%s-%s: creating master list\n" % \
                       (modname, filename)
                 create_master_list(config, modname, 
-                                   moddict, filename, file_dict)
+                                   moddict, filename, file_dict, SW_FILESECT)
 
 def main(argv = None):
     if argv is None:

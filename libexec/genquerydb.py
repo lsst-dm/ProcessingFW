@@ -9,7 +9,7 @@ import sys
 import re
 import coreutils.desdbi as desdbi
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwfilelist as pfwfilelist
     

@@ -68,7 +68,7 @@ def print_job_info(run):
     blockinfo = dbh.get_block_info(reqnum, unitname, attnum)
 
     # get job info
-    jobinfo = dbh.get_job_info(reqnum, unitname, attnum)
+    jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname':unitname, 'attnum':attnum})
     # index jobinfo by blknum
     job_byblk = {}
     for j in jobinfo.keys():

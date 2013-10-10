@@ -4,7 +4,7 @@ import sys
 import os
 
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -69,7 +69,7 @@ def blockpost(argv = None):
     if convertBool(config[PF_USE_DB_OUT]): 
         print "\n\nChecking job status from pfw_job table in DB (%s is success)" % PF_EXIT_SUCCESS
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
-        jobinfo = dbh.get_job_info(reqnum, unitname, attnum)
+        jobinfo = dbh.get_job_info({'reqnum':config[REQNUM], 'unitname': config[UNITNAME], 'attnum': config[ATTNUM], 'blknum': config['blknum']})
         dbh.close()
         print "\n\n%6s %s" % ('jobnum', 'status') 
         for jobnum, jinfo in jobinfo.items():
@@ -148,7 +148,7 @@ def blockpost(argv = None):
     if convertBool(config[PF_USE_DB_OUT]): 
         if retval != PF_EXIT_NEXTBLOCK:
             fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
-            dbh.update_attempt_end(reqnum, unitname, attnum, retval)
+            dbh.update_attempt_end(config, retval)
         else:
             fwdebug(0, 'PFWPOST_DEBUG', "Not calling update_attempt_end: use_db_out = %s, retval = %s" % (config[PF_USE_DB_OUT], retval))
 

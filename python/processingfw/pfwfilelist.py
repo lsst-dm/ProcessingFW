@@ -8,7 +8,7 @@ import coreutils.desdbi as desdbi
 import intgutils.wclutils as wclutils
 
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb
 

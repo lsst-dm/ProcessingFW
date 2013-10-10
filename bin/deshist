@@ -8,7 +8,7 @@
 import argparse
 import sys
 import processingfw.pfwdb as pfwdb
-from processingfw.fwutils import fwsplit
+from coreutils.miscutils import fwsplit
 from time import strftime
 
 

@@ -11,7 +11,7 @@ import os
 import sys
 import re
 
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 import coreutils.desdbi as desdbi
 
 
@@ -20,9 +20,15 @@ def parse_file(filename):
     with open(filename, 'r') as fh:
         for line in fh:
             m = re.search("setup.*\(([^\)]+)\)", line)
-            if m:
-                (name,version) = fwsplit(m.group(1), ',')
-                contents.append((name, version))
+            if m: 
+                # look for separating spaces, comma, or -j
+                m2 = re.search("([^, \t\n\r\f\v]+)(\s*,\s*|\s+-\S+\s+|\s+)([^, \t\n\r\f\v]+)", m.group(1)) 
+                if m2:
+                    contents.append((m2.group(1), m2.group(3)))
+                else:
+                    print "Warning: Skipping line.  Couldn't find name and version in line:", line
+            #else:
+            #    print "Skipping line:", line
     return contents
 
 

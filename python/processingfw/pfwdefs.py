@@ -19,49 +19,75 @@ ATTNUM = 'attnum'
 UNITNAME = 'unitname'
 ATTRIB_PREFIX='des_'
 
-COPY_CACHE = 'copycache'
-USE_CACHE = 'usecache'
-DATA_DEF = 'data_def'
+
+HOME_ARCHIVE = 'home_archive'
+USE_HOME_ARCHIVE_INPUT = 'use_home_archive_input'
+USE_HOME_ARCHIVE_OUTPUT = 'use_home_archive_output'
+VALID_HOME_ARCHIVE_INPUT = ['target_archive', 'job', 'all', 'never']
+VALID_HOME_ARCHIVE_OUTPUT = ['wrapper', 'job', 'block', 'run', 'never']
+CREATE_JUNK_TARBALL = 'create_junk_tarball'
+
+
+TARGET_ARCHIVE = 'target_archive'
+USE_TARGET_ARCHIVE_INPUT =  'use_target_archive_input'
+USE_TARGET_ARCHIVE_OUTPUT = 'use_target_archive_output'
+
+
+STAGE_FILES = 'stagefiles'
+SAVE_FILE_ARCHIVE = 'savefiles'
+
+
+
 DIRPAT = 'dirpat'
 DIRPATSECT = 'directory_pattern'
 
+
+SW_LABEL = 'label'
+SW_JOB_ENVIRONMENT = 'job_environment'
 SW_DIVIDE_JOBS_BY = 'divide_jobs_by'
 SW_INPUTS = USED
 SW_OUTPUTS = WGB
 SW_ANCESTRY = 'ancestry'
 SW_EXEC_DEF = 'exec_def'
 SW_FILEPAT = 'filepat'
+SW_FILEPATSECT = 'filename_pattern'
 SW_BLOCKLIST = 'blocklist'
 SW_MODULELIST = 'modulelist'
 SW_BLOCKSECT = 'block'
 SW_MODULESECT = 'module'
 SW_LISTSECT = 'list'
 SW_FILESECT = 'file'
-SW_FILEPATSECT = 'filename_pattern'
 SW_QUERYFIELDS = 'query_fields'
 SW_EXECPREFIX = 'exec_'
-SW_STAGEFILES = 'stagefiles'
 SW_WRAPSECT = 'wrapper'
 SW_WRAPPER_DEBUG = 'wrapper_debug'
-SW_JOB_ENVIRONMENT = 'job_environment'
+
+SW_JOB_BASE_DIR = 'jobroot'   # must match column name in ops_site
 
 
 IW_INPUTS = USED
 IW_OUTPUTS = WGB
 IW_ANCESTRY = WDF
 IW_EXEC_DEF = 'exec_def'
-IW_DATA_DEF = 'data_def'
 IW_LISTSECT = 'list'
 IW_FILESECT = 'filespecs'
 IW_EXECPREFIX = 'exec_'
 IW_WRAPSECT = 'wrapper'
-IW_META_HEADERS = 'headers'
-IW_META_COMPUTE = 'compute'
-IW_META_WCL = 'wcl'
-IW_UPDATE_HEAD_PREFIX = 'hdrupd_'
-IW_UPDATE_WHICH_HEAD = 'headers'
-IW_REQ_META = 'req_metadata'
-IW_OPT_META = 'opt_metadata'
+
+#IW_META_HEADERS = 'headers'
+#IW_META_COMPUTE = 'compute'
+#IW_META_WCL = 'wcl'
+#IW_UPDATE_HEAD_PREFIX = 'hdrupd_'
+#IW_UPDATE_WHICH_HEAD = 'headers'
+#IW_REQ_META = 'req_metadata'
+#IW_OPT_META = 'opt_metadata'
+
+# lower case because appears as wcl section and wcl sections are converted to lowercase
+#META_HEADERS = 'h'
+#META_COMPUTE = 'c'
+#META_WCL = 'w'
+#META_REQUIRED = 'r'
+#META_OPTIONAL = 'o'
 
 OW_INPUTS = USED
 OW_OUTPUTS = WGB
@@ -70,14 +96,8 @@ OW_EXECPREFIX = IW_EXECPREFIX
 OW_PROVSECT = 'provenance'
 OW_METASECT = 'file_metadata'
 
-# lower case because appears as wcl section and wcl sections are converted to lowercase
-META_HEADERS = 'h'
-META_COMPUTE = 'c'
-META_WCL = 'w'
-META_REQUIRED = 'r'
-META_OPTIONAL = 'o'
-
-
+PF_RUN_PAT = '%(unitname)s_r%(reqnum)dp%(attnum)02d'
+OPS_RUN_DIR = 'ops_run_dir'
 PF_TASKNUM = 'tasknum'
 PF_JOBNUM = 'jobnum'
 PF_WRAPNUM = 'wrapnum'

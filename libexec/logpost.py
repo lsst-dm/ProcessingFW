@@ -3,7 +3,7 @@
 import sys
 import os
 from processingfw.pfwdefs import *
-from processingfw.fwutils import *
+from coreutils.miscutils import *
 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -45,10 +45,11 @@ def logpost(argv = None):
     fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
-        dbh.update_blktask_end(config, "", subblock, retval)
+        #dbh.update_blktask_end(config, "", subblock, retval)
 
     # now that have more information, rename output file
     fwdebug(3, 'PFWPOST_DEBUG', "before get_filename")
+    blockname = config['blockname']
     new_log_name = config.get_filename('block', {PF_CURRVALS: 
                                                   {'flabel': '${subblock}_logpost', 
                                                    'subblock': subblock,

@@ -15,9 +15,9 @@ import os
 import time
 
 from processingfw.pfwdefs import *
+from coreutils.miscutils import *
 import intgutils.wclutils as wclutils
 import processingfw.pfwdb as pfwdb
-from processingfw.fwutils import *
 
 
 class PfwConfig:
@@ -41,7 +41,7 @@ class PfwConfig:
                 starttime = time.time()
                 print "\tReading submit wcl...",
                 with open(args['wclfile'], "r") as fh:
-                    wcldict = wclutils.read_wcl(fh)
+                    wcldict = wclutils.read_wcl(fh, filename=args['wclfile'])
                 print "DONE (%0.2f secs)" % (time.time()-starttime)
                 wcldict['wclfile'] = args['wclfile']
             except Exception as err:
@@ -78,7 +78,7 @@ class PfwConfig:
             starttime = time.time()
             print "\tReading config from software install...",
             fh = open(pfwconfig, "r")
-            wclutils.updateDict(self.config, wclutils.read_wcl(fh))
+            wclutils.updateDict(self.config, wclutils.read_wcl(fh, filename=pfwconfig))
             fh.close()
             print "DONE (%0.2f secs)" % (time.time()-starttime)
 
@@ -97,43 +97,6 @@ class PfwConfig:
             fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
             wclutils.updateDict(self.config, wcldict)
 
-#        runwcl = OrderedDict()
-#        if 'wclfile' in args:
-#            fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
-#            fh = open(args['wclfile'], "r")
-#            runwcl = wclutils.read_wcl(fh)
-#            fh.close()
-#
-#        pfwwcl = OrderedDict()
-#        dbwcl = OrderedDict()
-#        opwcl = OrderedDict()
-#        if '_config' in runwcl:
-#            if 'pfwconfig' in runwcl['_config']:
-#                #pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
-#                pfwconfig = runwcl['_config']['pfwconfig']
-#                fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
-#                fh = open(pfwconfig, "r")
-#                pfwwcl = wclutils.read_wcl(fh)
-#                fh.close()
-#
-#            if 'dbconfig' in runwcl['_config']:
-#                dbconfig = runwcl['_config']['dbconfig']
-#                fwdebug(3, 'PFWCONFIG_DEBUG', "Reading dbconfig: %s" % (dbconfig))
-#                fh = open(dbconfig, "r")
-#                dbwcl = wclutils.read_wcl(fh)
-#                fh.close()
-#
-#            if 'opconfig' in runwcl['_config']:
-#                opconfig = runwcl['_config']['opconfig']
-#                fwdebug(3, 'PFWCONFIG_DEBUG', "Reading opconfig: %s" % (opconfig))
-#                fh = open(opconfig, "r")
-#                opwcl = wclutils.read_wcl(fh)
-#                fh.close()
-#
-#        # combine configs
-#        self.config = pfwwcl
-#        wclutils.updateDict(self.config, dbwcl)
-#        wclutils.updateDict(self.config, opwcl)
 
         self.set_names()
 
@@ -160,7 +123,11 @@ class PfwConfig:
             self.config[PF_TASKNUM] = '0'
             self.config[PF_JOBNUM] = '0'
 
-        self.set_block_info()
+
+
+        if self.config[PF_BLKNUM] <= self.config['num_blocks']:
+            self.set_block_info()
+
 
     ###########################################################################
     def save_file(self, filename):
@@ -226,10 +193,13 @@ class PfwConfig:
 
         found = False
         value = ''
-        key = key.lower()
+        if hasattr(key, 'lower'):
+            key = key.lower()
+        else:
+            print "key = %s" % key
 
         # if key contains period, use it exactly instead of scoping rules
-        if '.' in key:
+        if isinstance(key, str) and '.' in key:
             val = self.config
             found = True
             for k in key.split('.'):
@@ -374,25 +344,6 @@ class PfwConfig:
             print "Error: missing unitname"
             errcnt += 1
 
-#        # targetnode replaces depricated archive_node
-#        if 'archive_node' in self.config:
-#            if 'targetnode' in self.config:
-#                print "\tWarning: have both targetnode and depricated archive_node defined in global section."
-#                warncnt += 1
-#                if cleanup:
-#                    print "\tDeleting depricated archive_node"
-#                    del self.config['archive_node']
-#                    cleancnt += 1
-#            else:
-#                print "\tWarning: depricated use of archive_node in global section."
-#                warncnt += 1
-#                if cleanup:
-#                    print "\tSetting global targetnode = global archive_node"
-#                    self.config['targetnode'] = self.config['archive_node']
-#                    print "\tDeleting depricated archive_node"
-#                    del self.config['archive_node']
-#                    cleancnt += 1
-#                
 #        # submitnode must be set globally
 #        submitnode = None
 #        if 'submitnode' not in self.config:
@@ -441,6 +392,7 @@ class PfwConfig:
     
             for blockname in blocklist:
                 print "\tChecking block:", blockname
+                block = None
                 if blockname in self.config[SW_BLOCKSECT]:
                     block = self.config[SW_BLOCKSECT][blockname]
                     if SW_MODULELIST in block:
@@ -470,41 +422,84 @@ class PfwConfig:
                         print "\tError: missing definition for block %s" % (blockname)
                         errcnt += 1
     
-#                if block: 
-#                    if 'archive_node' in block:
-#                        if 'targetnode' in block:
-#                            print "\tWarning:  Have both archive_node and targetnode defined in block %s" % (blockname)
-#                            warncnt += 1
-#                            if cleanup:
-#                                print "\t\tDeleting depricated archive_node"
-#                                del block['archive_node']
-#                                cleancnt += 1
-#                        else:
-#                            print "\tWarning:  deprecated archive_node defined in block %s" % (blockname)
-#                            warncnt += 1
-#                            if cleanup:
-#                                print "\t\tSetting targetnode = archive_node"
-#                                block['targetnode'] = block['archive_node']
-#                                print "\t\tDeleting depricated archive_node"
-#                                del block['archive_node']
-#                                cleancnt += 1
-#    
-#                    if 'targetnode' in block:
-#                        targetnode = block['targetnode']
-#                    elif 'targetnode' in self.config:
-#                        targetnode = self.config['targetnode']
-#                    else:
-#                        print "\tError: Could not determine targetnode for block %s" % (blockname)
-#                        errcnt += 1
-#    
-#                    target_sitename = None
-#                    if targetnode not in self.config['archive']:
-#                        print "\tError: missing definition for target node %s from block %s" % (targetnode, blockname)
-#                        errcnt += 1
-#                    elif 'sitename' not in self.config['archive'][targetnode]:
-#                        print "\tError: missing sitename for target node %s from block %s" % (targetnode, blockname)
-#                        errcnt += 1
-#    
+                if block: 
+                    target_archive = None
+                    if TARGET_ARCHIVE in block:
+                        target_archive = block[TARGET_ARCHIVE]
+                    elif TARGET_ARCHIVE in self.config:
+                        target_archive = self.config[TARGET_ARCHIVE]
+                    else:
+                        print "\tError: Could not determine target_archive for block %s" % (blockname)
+                        errcnt += 1
+    
+                    target_sitename = None
+                    if target_archive not in self.config['archive']:
+                        print "\tError: missing definition for target_archive %s from block %s" % (target_archive, blockname)
+                        errcnt += 1
+                    elif 'site' not in self.config['archive'][target_archive]:
+                        print "\tError: missing site for target_archive %s from block %s" % (target_archive, blockname)
+                        errcnt += 1
+
+
+                    if USE_HOME_ARCHIVE_INPUT in block:
+                        home_archive_input = block[USE_HOME_ARCHIVE_INPUT]
+                    elif USE_HOME_ARCHIVE_INPUT in self.config:
+                        home_archive_input = self.config[USE_HOME_ARCHIVE_INPUT]
+                    else:
+                        home_archive_input = None
+
+                    if home_archive_input is not None:
+                        if home_archive_input.lower() not in VALID_HOME_ARCHIVE_INPUT:
+                            print "\tError: Invalid value for %s from block %s" % (USE_HOME_ARCHIVE_INPUT, blockname)
+                            errcnt += 1
+
+                        
+                        if home_archive_input.lower() != 'never':
+                            if HOME_ARCHIVE in block:
+                                home_archive = block[HOME_ARCHIVE]
+                            elif HOME_ARCHIVE in self.config:
+                                home_archive = self.config[HOME_ARCHIVE]
+                            else:
+                                home_archive = None
+
+                            if home_archive is None:
+                                print "\tError: Missing value for %s from block %s" % (HOME_ARCHIVE, blockname)
+                                errcnt += 1
+                            elif home_archive not in self.config['archive']:
+                                print "\tError: Invalid value for %s from block %s" % (HOME_ARCHIVE, blockname)
+                                errcnt += 1
+                    
+        
+
+                    if USE_HOME_ARCHIVE_OUTPUT in block:
+                        home_archive_output = block[USE_HOME_ARCHIVE_OUTPUT]
+                    elif USE_HOME_ARCHIVE_OUTPUT in self.config:
+                        home_archive_output = self.config[USE_HOME_ARCHIVE_OUTPUT]
+                    else:
+                        home_archive_output = None
+
+                    if home_archive_output is not None:
+                        if home_archive_output.lower() not in VALID_HOME_ARCHIVE_OUTPUT:
+                            print "\tError: Invalid value for %s from block %s" % (USE_HOME_ARCHIVE_OUTPUT, blockname)
+                            errcnt += 1
+
+                        if home_archive_output.lower() != 'never':
+                            if HOME_ARCHIVE in block:
+                                home_archive = block[HOME_ARCHIVE]
+                            elif HOME_ARCHIVE in self.config:
+                                home_archive = self.config[HOME_ARCHIVE]
+                            else:
+                                home_archive = None
+
+                            if home_archive is None:
+                                print "\tError: Missing value for %s from block %s" % (HOME_ARCHIVE, blockname)
+                                errcnt += 1
+                            elif home_archive not in self.config['archive']:
+                                print "\tError: Invalid value for %s from block %s" % (HOME_ARCHIVE, blockname)
+                                errcnt += 1
+                    
+
+    
             return (errcnt, warncnt, cleancnt)
     
     
@@ -529,6 +524,7 @@ class PfwConfig:
         self.config[PF_BLKNUM] = '1'
         self.config[PF_TASKNUM] = '0'
         self.config[PF_WRAPNUM] = '0'
+        self.config[UNITNAME] = self.interpolate(self.config[UNITNAME])  
         self.set_block_info()
     
         self.config['submit_run'] = self.interpolate("${unitname}_r${reqnum}p${attnum:2}")
@@ -549,50 +545,64 @@ class PfwConfig:
         curdict = self.config['current']
         fwdebug(4, 'PFWCONFIG_DEBUG', "\tcurdict = %s" % (curdict))
 
+        # current block number
         blknum = self.config[PF_BLKNUM]
 
+        # update current block name for accessing block information 
         blockname = self.get_block_name(blknum) 
         if not blockname:
             fwdie("Error: Cannot determine block name value for blknum=%s" % blknum, PF_EXIT_FAILURE)
         curdict['curr_block'] = blockname
     
-        (exists, targetnode) = self.search('targetnode')
+        # update current target site name
+        (exists, site) = self.search('target_site')
         if not exists:
-            fwdie("Error: Cannot determine targetnode value", PF_EXIT_FAILURE)
-    
-        if targetnode not in self.config['site']:
-            print "Error: invalid targetnode value (%s)" % targetnode
+            # if target archive specified, get site associated to it
+            (exists, archive) = self.search(TARGET_ARCHIVE)
+            if not exists: 
+                fwdie("Error:  Cannot determine target site (missing both target_site and target_archive)", PF_EXIT_FAILURE)
+            site = self.config['archive'][archive]['site']
+
+        site = site.lower()
+        if site not in self.config['site']:
+            print "Error: invalid site value (%s)" % (site)
             print "\tsite contains: ", self.config['site']
-            fwdie("Error: Invalid targetnode value (%s)" % targetnode, PF_EXIT_FAILURE)
+            fwdie("Error: Invalid site value (%s)" % (site), PF_EXIT_FAILURE)
+        curdict['curr_site'] = site
+        self.config['runsite'] = site
+
+        # update current target archive name if using archive
+        if ((USE_TARGET_ARCHIVE_INPUT in self and convertBool(self[USE_TARGET_ARCHIVE_INPUT])) or
+            (USE_TARGET_ARCHIVE_OUTPUT in self and convertBool(self[USE_TARGET_ARCHIVE_OUTPUT])) ):
+            (exists, archive) = self.search(TARGET_ARCHIVE)
+            if not exists:
+                fwdie("Error: Cannot determine target_archive value.   \n\tEither set target_archive or set to FALSE both %s and %s" % (USE_TARGET_ARCHIVE_INPUT, USE_TARGET_ARCHIVE_OUTPUT), PF_EXIT_FAILURE)
     
-        curdict['curr_site'] = targetnode
-        self.config['runsite'] = targetnode
+            archive = archive.lower()
+            if archive not in self.config['archive']:
+                print "Error: invalid target_archive value (%s)" % archive
+                print "\tarchive contains: ", self.config['archive']
+                fwdie("Error: Invalid target_archive value (%s)" % archive, PF_EXIT_FAILURE)
     
-        if 'listtargets' in self.config:
-            listt = self.config['listtargets']
-            if not targetnode in listt:  # assumes targetnode names are not substrings of one another
-                self.config['listtargets'] += ',' + targetnode
+            curdict['curr_archive'] = archive
+
+            if 'list_target_archives' in self.config:
+                if not archive in self.config['list_target_archives']:  # assumes target archive names are not substrings of one another
+                    self.config['list_target_archives'] += ',' + archive
+            else:
+                self.config['list_target_archives'] = archive
         else:
-            self.config['listtargets'] = targetnode
-        
-#depricated?        curdict['curr_software'] = self['software_node']
+            curdict['curr_archive'] = None    # make sure to reset curr_archive from possible prev block value
     
-        #(exists, sitename) = self.search('sitename')
-        #if exists and sitename in self.config['site']:
-        #    self.config['runsite'] = sitename
-        #    curdict['curr_site'] = sitename
-        #else:
-        #    fwdie("Error: Cannot determine run_site value", PF_EXIT_FAILURE)
         fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
 
     
-    ###########################################################################
     def inc_blknum(self):
         """ increment the block number """
         # note config stores numbers as strings
         self.config[PF_BLKNUM] = str(int(self.config[PF_BLKNUM]) + 1)
 #        self.config[PF_TASKNUM] = '0'
-    
+
     ###########################################################################
     def reset_blknum(self):
         """ reset block number to 1 """
@@ -858,7 +868,7 @@ class PfwConfig:
                 if not found:
                     fwdie("Error: Could not find file pattern %s" % SW_FILEPAT, PF_EXIT_FAILURE)
         else:
-            fwdebug(0, 'PFWCONFIG_DEBUG', "given filepat = %s" % (filepat))
+            fwdebug(2, 'PFWCONFIG_DEBUG', "given filepat = %s" % (filepat))
 
         
         if SW_FILEPATSECT not in self.config:
@@ -926,16 +936,85 @@ class PfwConfig:
         fwdebug(3, 'PFWCONFIG_DEBUG', "END")
         return dataset 
 
+    ###########################################################################
     def set_names(self):
         """ set names for use in patterns (i.e., blockname, modulename) """
 
-        for blk, blkdict in self.config[SW_BLOCKSECT].items():
-            if 'blockname' not in blkdict:
-                blkdict['blockname'] = blk 
-    
-        for mod, moddict in self.config[SW_MODULESECT].items():
-            if 'modulename' not in moddict:
-                moddict['modulename'] = mod 
+
+        for tsname, tsval in self.config.items():
+            if isinstance(tsval, dict):
+                for nsname, nsval in tsval.items():
+                    if isinstance(nsval, dict): 
+                        namestr = '%sname' % tsname
+                        if namestr not in nsval: 
+                            nsval[namestr] = nsname
+
+
+
+    ###########################################################################
+    # Determine whether should stage files or not
+    def stagefiles(self, opts=None):
+        """ Return whether to save stage files to target archive """
+        retval = True
+
+        notarget_exists, notarget = self.search(NO_TARGET, opts)
+        if notarget_exists and convertBool(notarget):
+            print "Do not stage file due to notarget\n"
+            retval = False
+        else:
+            stagefiles_exists, stagefiles = self.search(SW_STAGEFILES, opts)
+            if stagefiles_exists:
+                #print "checking stagefiles (%s)" % stagefiles
+                retval = convertBool(self.interpolate(stagefiles, opts))
+                #print "after interpolation stagefiles (%s)" % retval
+            else:
+                envkey = 'DESDM_%' % SW_STAGEFILES.upper()
+                if envkey in os.environ and not convertBool(os.environ[envkey]):
+                    retval = False
+
+        #print "stagefiles retval = %s" % retval
+        return retval
+
+
+
+    ###########################################################################
+    # Determine whether should save files or not
+    def savefiles(self, opts=None):
+        """ Return whether to save files from job """
+        retval = True
+
+        savefiles_exists, savefiles = self.search(SAVE_FILE_ARCHIVE, opts)
+        if savefiles_exists:
+            fwdebug(3, "PFWUTILS_DEBUG", "checking savefiles (%s)" % savefiles)
+            retval = convertBool(self.interpolate(savefiles, opts))
+            fwdebug(3, "PFWUTILS_DEBUG", "after interpolation savefiles (%s)" % retval)
+        else:
+            envkey = 'DESDM_%' % SW_SAVEFILES.upper()
+            if envkey in os.environ and not convertBool(os.environ[envkey]):
+                retval = False
+
+        fwdebug(3, "PFWUTILS_DEBUG", "savefiles retval = %s" % retval)
+        return retval
+
+    def __len__(self):
+        return len(self.config)
+
+    def items(self):
+        return self.config.items()
+
+
+    def get_param_info(self, vals, opts=None):
+        info = {}
+        for v, stat in vals.items():
+            (found, value) = self.search(v, opts)
+            if found:
+                info[v] = value
+            else:
+                if stat.lower() == 'req':
+                    fwdie("Error:  Config does not contain value for %s" % v, PF_EXIT_FAILURE, 2)
+
+        return info
+        
 
 
 if __name__ ==  '__main__' :

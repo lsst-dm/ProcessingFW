@@ -1,3 +1,4 @@
+wrapper_debug = 1
 use_qcf = False
 use_db_in = True
 use_db_out = True
@@ -9,18 +10,23 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
     inputwcl = ${modnamepat}_input.wcl
     outputwcl = ${modnamepat}_output.wcl
     log = ${modnamepat}.log
-    inputtar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_inputwcl.tar.gz
-    outputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_outputwcl.tar.gz
+    inputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_inputwcl.tar.gz
+    outputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_outputwcl.tar
+    junktar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_junk.tar
     runjob = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_runjob.sh
     jobwcl = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_job.wcl
     jobtasklist = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_task.list
 
     envfile = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum}_env.txt
 
-    block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
-    blockbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}
-    job = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}.${fsuffix}
-    jobbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}
+    #block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
+    #blockbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}
+    #job = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}.${fsuffix}
+    #jobbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}
+    blockbase = ${flabel}
+    block = ${flabel}.${fsuffix}
+    job = ${blockname}_j${jobnum:4}_${flabel}.${fsuffix}
+    jobbase = ${blockname}_j${jobnum:4}_${flabel}
 
     mngrdag = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
     blockdag = ${unitname}_r${reqnum}p${attnum:2}_block.dag
@@ -29,24 +35,29 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
 <directory_pattern>
     <inputwcl>
         name = wcl
-        ops = ${project}/${pipeline}/${nite}-r${reqnum}/p${attnum:2}/inputwcl/${modulename}
+        ops = ${ops_run_dir}/inputwcl/${modulename}
         runtime = inputwcl/${modulename}
     </inputwcl>
     <outputwcl>
         name = wcl
-        ops = ${project}/${pipeline}/${nite}-r${reqnum}/p${attnum:2}/outputwcl/${modulename}
+        ops = ${ops_run_dir}/outputwcl/${modulename}
         runtime = outputwcl/${modulename}
     </outputwcl>
     <list>
         name = list
-        ops = ${project}/${pipeline}/${nite}-r${reqnum}/p${attnum:2}/list/${modulename}
+        ops = ${ops_run_dir}/list/${modulename}
         runtime = list/${modulename}
     </list>
     <log> 
         name = log
-        ops = tbd 
+        ops = ${ops_run_dir}/log/${modulename}
         runtime = log/${modulename}
     </log>
+    <junktar> 
+        name = junktar
+        ops = ${ops_run_dir}/junktar/
+        runtime = junktar
+    </junktar>
     <jobdir> 
         name = jobdir
         ops = tbd 

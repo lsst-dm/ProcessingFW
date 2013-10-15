@@ -1138,7 +1138,6 @@ def get_wrapper_loopvals(config, modname):
                 (found, val) = config.search(key, 
                             {PF_CURRVALS: {'curr_module': modname},
                             'required': False, 
-                            'expand': True, 
                             'interpolate': True})
                 fwdebug(0, "PFWBLOCK_DEBUG", "found=%s" % found)
                 if found:

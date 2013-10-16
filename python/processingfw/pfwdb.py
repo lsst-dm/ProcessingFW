@@ -616,7 +616,7 @@ class PFWDB (coreutils.DesDbi):
         row['attnum'] = wcl[ATTNUM]
         row['wrapnum'] = wcl[PF_WRAPNUM]
         row['modname'] = wcl['modname']
-        row['name'] = wcl['wrapname']
+        row['name'] = wcl['wrapper']['wrappername']
         row['id'] = wrapid
         row['blknum'] = wcl[PF_BLKNUM]
         row['jobnum'] = wcl[PF_JOBNUM]

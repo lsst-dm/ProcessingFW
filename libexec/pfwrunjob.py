@@ -247,7 +247,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
     
     # make directories for output files, get input files from targetnode
     fwdebug(3, "PFWRUNJOB_DEBUG", "section loop beg")
-    execnamesarr = [wcl['wrapname']]
+    execnamesarr = [wcl['wrapper']['wrappername']]
     outfiles = {}
     execs = pfwutils.get_exec_sections(wcl, IW_EXECPREFIX)
     for sect in sorted(execs):

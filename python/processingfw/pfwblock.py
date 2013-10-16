@@ -822,11 +822,6 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
                                     'searchobj': wrapinst,
                                     'required': True,
                                     'interpolate': True})[1], 
-                  'wrapname': config.search('wrapname',
-                                   {PF_CURRVALS: {'curr_module': modname},
-                                    'searchobj': wrapinst,
-                                    'required': True,
-                                    'interpolate': True})[1], 
                  }
 
     # start with specified
@@ -912,11 +907,7 @@ def create_wrapper_inst(config, modname, loopvals):
             fwdebug(3, "PFWBLOCK_DEBUG", "creating instance for %s" % str(instvals) )
             
             config.inc_wrapnum()
-            winst = {PF_WRAPNUM: config[PF_WRAPNUM],
-                     'wrapname':  config.search('wrappername',
-                            {PF_CURRVALS: {'curr_module': modname},
-                             'required': True, 'interpolate': True})[1]
-                    }
+            winst = {PF_WRAPNUM: config[PF_WRAPNUM]}
 
             if len(instvals) != len(loopkeys):
                 fwdebug(0, "PFWBLOCK_DEBUG", "Error: invalid number of values for instance")
@@ -938,11 +929,7 @@ def create_wrapper_inst(config, modname, loopvals):
             wrapperinst[instkey] = winst
     else:
         config.inc_wrapnum()
-        wrapperinst['noloop'] = {PF_WRAPNUM: config[PF_WRAPNUM],
-                                 'wrapname':  config.search('wrappername',
-                                 {PF_CURRVALS: {'curr_module': modname},
-                                 'required': True, 'interpolate': True})[1]
-                                }
+        wrapperinst['noloop'] = {PF_WRAPNUM: config[PF_WRAPNUM]}
 
     fwdebug(0, "PFWBLOCK_DEBUG", "Number wrapper inst: %s" % len(wrapperinst))
     if len(wrapperinst) == 0:

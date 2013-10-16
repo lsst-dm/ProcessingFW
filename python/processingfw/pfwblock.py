@@ -146,6 +146,8 @@ def which_are_outputs(config, modname):
 #######################################################################
 def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst, fname, finfo, is_iter_obj=False):
     fwdebug(3, "PFWBLOCK_DEBUG", "BEG: Working on file %s" % fname)
+    fwdebug(3, "PFWBLOCK_DEBUG", "theinputs: %s" % theinputs)
+    fwdebug(3, "PFWBLOCK_DEBUG", "outputs: %s" % theoutputs)
 
     if 'listonly' in finfo and convertBool(finfo['listonly']):
         fwdebug(3, "PFWBLOCK_DEBUG", "Skipping %s due to listonly key" % fname)
@@ -906,7 +908,6 @@ def create_wrapper_inst(config, modname, loopvals):
         loopkeys = fwsplit(loopkeys.lower())
         loopkeys.sort()  # sort so can make same key easily
 
-        fwdebug(0, "PFWBLOCK_DEBUG", "loopvals = %s" % (loopvals))
         for instvals in loopvals:
             fwdebug(3, "PFWBLOCK_DEBUG", "creating instance for %s" % str(instvals) )
             
@@ -916,10 +917,23 @@ def create_wrapper_inst(config, modname, loopvals):
                             {PF_CURRVALS: {'curr_module': modname},
                              'required': True, 'interpolate': True})[1]
                     }
-            instkey = ""
-            for k in range(0, len(loopkeys)):
-                winst[loopkeys[k]] = instvals[k] 
-                instkey += instvals[k] + '_'
+
+            if len(instvals) != len(loopkeys):
+                fwdebug(0, "PFWBLOCK_DEBUG", "Error: invalid number of values for instance")
+                fwdebug(0, "PFWBLOCK_DEBUG", "\t%d loopkeys (%s)" % (len(loopkeys), loopkeys))
+                fwdebug(0, "PFWBLOCK_DEBUG", "\t%d instvals (%s)" % (len(instvals), instvals))
+                raise IndexError("Invalid number of values for instance")
+
+            try:
+                instkey = ""
+                for k in range(0, len(loopkeys)):
+                    winst[loopkeys[k]] = instvals[k] 
+                    instkey += instvals[k] + '_'
+            except:
+                fwdebug(0, "PFWBLOCK_DEBUG", "Error: problem trying to create wrapper instance")
+                fwdebug(0, "PFWBLOCK_DEBUG", "\tWas creating instance for %s" % str(instvals) )
+                fwdebug(0, "PFWBLOCK_DEBUG", "\tloopkeys = %s" % loopkeys)
+                raise
 
             wrapperinst[instkey] = winst
     else:
@@ -931,6 +945,10 @@ def create_wrapper_inst(config, modname, loopvals):
                                 }
 
     fwdebug(0, "PFWBLOCK_DEBUG", "Number wrapper inst: %s" % len(wrapperinst))
+    if len(wrapperinst) == 0:
+        fwdebug(0, "PFWBLOCK_DEBUG", "Error: 0 wrapper inst")
+        raise Exception("Error: 0 wrapper instances")
+        
     fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
     return wrapperinst
 
@@ -1096,7 +1114,8 @@ def get_wrap_iter_obj_key(config, moddict):
     if 'loopobj' in moddict:
         iter_obj_key = moddict['loopobj'].lower()
     else:
-        fwdebug(0, "PFWBLOCK_DEBUG", "Could not find loopobj in %s" % moddict)
+        fwdebug(0, "PFWBLOCK_DEBUG", "Could not find loopobj. moddict keys = %s" % moddict.keys())
+        fwdebug(6, "PFWBLOCK_DEBUG", "Could not find loopobj in modict %s" % moddict)
     return iter_obj_key
 
 

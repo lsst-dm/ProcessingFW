@@ -504,6 +504,11 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                     else:
                         fwdebug(3, "PFWBLOCK_DEBUG", "%s: no %s" % (fname, k))
 
+                if SW_OUTPUT_OPTIONAL in fdict:
+                    fwdebug(3, "PFWBLOCK_DEBUG", "%s copying %s " % (fname, SW_OUTPUT_OPTIONAL))
+                    
+                    winst[IW_FILESECT][fname][IW_OUTPUT_OPTIONAL] = convertBool(fdict[SW_OUTPUT_OPTIONAL])
+
                 hdrups = pfwutils.get_hdrup_sections(fdict, WCL_UPDATE_HEAD_PREFIX)
                 for hname, hdict in hdrups.items():
                     fwdebug(3, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, hname))

@@ -61,6 +61,7 @@ SW_QUERYFIELDS = 'query_fields'
 SW_EXECPREFIX = 'exec_'
 SW_WRAPSECT = 'wrapper'
 SW_WRAPPER_DEBUG = 'wrapper_debug'
+SW_OUTPUT_OPTIONAL = 'optional'
 
 SW_JOB_BASE_DIR = 'jobroot'   # must match column name in ops_site
 
@@ -73,6 +74,7 @@ IW_LISTSECT = 'list'
 IW_FILESECT = 'filespecs'
 IW_EXECPREFIX = 'exec_'
 IW_WRAPSECT = 'wrapper'
+IW_OUTPUT_OPTIONAL = 'optional'
 
 #IW_META_HEADERS = 'headers'
 #IW_META_COMPUTE = 'compute'

@@ -1,3 +1,8 @@
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit.
+# $LastChangedDate::                      $:  # Date of last commit.
+
 wrapper_debug = 1
 use_qcf = False
 use_db_in = True

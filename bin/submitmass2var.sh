@@ -1,4 +1,8 @@
 #!/bin/sh
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit.
+# $LastChangedDate::                      $:  # Date of last commit.
 
 # example of a shell-script which does mass production of DES jobs
 # this may need lots of tweaks depending on what needs to be done.

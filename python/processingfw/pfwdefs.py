@@ -1,3 +1,8 @@
+# $Id$
+# $Rev::                                  $:  # Revision of last commit.
+# $LastChangedBy::                        $:  # Author of last commit.
+# $LastChangedDate::                      $:  # Date of last commit.
+
 # when changing values, check if change also needed in $PROCESSINGFW_DIR/etc/pfwconfig.des
 #
 # SW_  submit wcl

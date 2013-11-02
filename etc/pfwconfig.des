@@ -15,14 +15,14 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
     inputwcl = ${modnamepat}_input.wcl
     outputwcl = ${modnamepat}_output.wcl
     log = ${modnamepat}.log
-    inputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_inputwcl.tar.gz
-    outputwcltar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_outputwcl.tar
-    junktar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_junk.tar
     runjob = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_runjob.sh
-    jobwcl = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_job.wcl
-    jobtasklist = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_task.list
 
-    envfile = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum}_env.txt
+    inputwcltar =  j${jobnum:4}_inputwcl_${blockname}_${unitname}_r${reqnum}p${attnum:2}.tar.gz
+    outputwcltar =  j${jobnum:4}_outputwcl_${blockname}_${unitname}_r${reqnum}p${attnum:2}.tar
+    jobwcl =  j${jobnum:4}_job_${blockname}_${unitname}_r${reqnum}p${attnum:2}.wcl
+    jobtasklist =  j${jobnum:4}_task_${blockname}_${unitname}_r${reqnum}p${attnum:2}.list
+    envfile =  j${jobnum:4}_env_${blockname}_${unitname}_r${reqnum}p${attnum:2}.txt
+    junktar =  ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_junk.tar
 
     #block = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}.${fsuffix}
     #blockbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${flabel}
@@ -30,8 +30,9 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
     #jobbase = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_j${jobnum:4}_${flabel}
     blockbase = ${flabel}
     block = ${flabel}.${fsuffix}
-    job = ${blockname}_j${jobnum:4}_${flabel}.${fsuffix}
-    jobbase = ${blockname}_j${jobnum:4}_${flabel}
+    job = j${jobnum:4}_${flabel}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.${fsuffix}
+    #jobbase = ${blockname}_j${jobnum:4}_${flabel}
+    jobbase = j${jobnum:4}_${flabel}_${blockname}_${unitname}_r${reqnum}p${attnum:2}
 
     mngrdag = ${unitname}_r${reqnum}p${attnum:2}_${dagtype}.dag
     blockdag = ${unitname}_r${reqnum}p${attnum:2}_block.dag

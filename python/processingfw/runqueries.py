@@ -123,6 +123,7 @@ def create_master_list(config, modname, moddict,
         exitcode = PF_EXIT_FAILURE
 
     print "\t\tCreating master list - end ", time.time()
+    sys.stdout.flush()
     if config[PF_USE_DB_OUT]:
         pfw_dbh = pfwdb.PFWDB()
         pfw_dbh.update_data_query_end(queryid, exitcode)

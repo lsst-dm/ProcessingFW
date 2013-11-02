@@ -71,9 +71,11 @@ def ingest_file_metadata(pfw_dbh, wcl, archive_info, file_metadata, tasktype, ta
         filemgmt.commit()
         if pfw_dbh is not None:
             pfw_dbh.update_task_end(wcl, tasktype, PF_EXIT_SUCCESS)
-        print "DESDMTIME: %s %0.3f" % (tasklabel, time.time()-starttime)
+        else:
+            print "DESDMTIME: %s %0.3f" % (tasklabel, time.time()-starttime)
     except:
-        print "DESDMTIME: %s %0.3f" % (tasklabel, time.time()-starttime)
+        if pfw_dbh is None:
+            print "DESDMTIME: %s %0.3f" % (tasklabel, time.time()-starttime)
         (type, value, traceback) = sys.exc_info()
         print "\nError: Problem ingesting file metadata\n%s" % value
         if pfw_dbh is not None:
@@ -118,9 +120,10 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
         else:
             results = jobfilemvmt.home2job(transinfo)
 
-        print "DESDMTIME: %s2job %0.3f" % (dest.lower(), time.time()-starttime)
         if pfw_dbh is not None:
             pfw_dbh.update_job_wrapper_task_end(wcl, PF_EXIT_SUCCESS)
+        else:
+            print "DESDMTIME: %s2job %0.3f" % (dest.lower(), time.time()-starttime)
 
     fwdebug(3, "PFWRUNJOB_DEBUG", "END")
     return results
@@ -308,13 +311,15 @@ def setup_wrapper(wcl, iwfilename, logfilename):
                             print "0 length directory for output file:", outfile
         else:
             print "Info: 0 output files (%s) in exec section %s" % (IW_OUTPUTS, sect)
-        print "DESDMTIME: make_output_dirs %0.3f" % (time.time()-starttime)
+
         if pfw_dbh is not None:
             pfw_dbh.update_job_exec_task_end(wcl, wcl[sect]['execnum'], PF_EXIT_SUCCESS)
+        else:
+            print "DESDMTIME: make_output_dirs %0.3f" % (time.time()-starttime)
 
 
 
-    if 'wrapinputs' in wcl and wcl[PF_WRAPNUM] in wcl['wrapinputs']:
+    if 'wrapinputs' in wcl and wcl[PF_WRAPNUM] in wcl['wrapinputs'] and len(wcl['wrapinputs'][wcl[PF_WRAPNUM]].values()) > 0:
         # check which input files are already in job scratch directory (i.e., outputs from a previous execution)
         neededinputs = {}
         for infile in wcl['wrapinputs'][wcl[PF_WRAPNUM]].values():
@@ -552,7 +557,9 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
         results = jobfilemvmt.job2target(putinfo)
     else:
         results = jobfilemvmt.job2home(putinfo)
-    print "DESDMTIME: %s-filemvmt %0.3f" % (tasklabel, time.time()-starttime)
+    
+    if pfw_dbh is None:
+        print "DESDMTIME: %s-filemvmt %0.3f" % (tasklabel, time.time()-starttime)
 
     # register files that we just copied into archive
     files2register = {}
@@ -566,7 +573,8 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
 
     starttime = time.time()
     regprobs = register_files_in_archive(pfw_dbh, wcl, archive_info, files2register, tasktype, tasklabel)
-    print "DESDMTIME: %s-register_files %0.3f" % (tasklabel, time.time()-starttime)
+    if pfw_dbh is None:
+        print "DESDMTIME: %s-register_files %0.3f" % (tasklabel, time.time()-starttime)
 
     if regprobs is not None and len(regprobs) > 0:
         problemfiles.update(regprobs)
@@ -686,7 +694,8 @@ def postwrapper(wcl, logfile, exitcode):
                 execs = pfwutils.get_exec_sections(outputwcl, OW_EXECPREFIX)
                 for sect in execs:
                     pfw_dbh.update_exec_end(outputwcl[sect], wcl['dbids'][sect], exitcode)
-                    print "DESDMTIME: app_exec %0.3f" % float(outputwcl[sect]['walltime'])
+            else:
+                print "DESDMTIME: app_exec %0.3f" % float(outputwcl[sect]['walltime'])
 
             finfo = {}
             if exitcode == 0:
@@ -720,7 +729,8 @@ def postwrapper(wcl, logfile, exitcode):
                         provdbh.commit()
                         if pfw_dbh is not None:
                             pfw_dbh.update_job_wrapper_task_end(wcl, PF_EXIT_SUCCESS)
-                        print "DESDMTIME: ingest_provenance %0.3f" % (time.time()-starttime)
+                        else:
+                            print "DESDMTIME: ingest_provenance %0.3f" % (time.time()-starttime)
                     except:
                         (type, value, traceback) = sys.exc_info()
                         print type, value
@@ -786,11 +796,15 @@ def run_tasks(taskfile, jobwcl={}):
                 exitcode = PF_EXIT_FAILURE
                 
 
-            print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
+            if exitcode != 0:
+                print "Error: wrapper exited with non-zero exit code %s.   Check log." % exitcode
+
             if wcl['use_db']:
                 pfw_dbh = pfwdb.PFWDB() 
                 pfw_dbh.update_job_wrapper_task_end(wcl, exitcode)
                 pfw_dbh.close()
+            else:
+                print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
             postwrapper(wcl, logfile, exitcode) 
 
@@ -879,8 +893,9 @@ def run_job(args):
     if pfw_dbh is not None:
         pfw_dbh.update_job_end(wcl, exitcode)
         pfw_dbh.close()
+    else:
+        print "DESDMTIME: pfwrun_job %0.3f" % (time.time()-jobstart)
 
-    print "DESDMTIME: pfwrun_job %0.3f" % (time.time()-jobstart)
     return exitcode
 
 

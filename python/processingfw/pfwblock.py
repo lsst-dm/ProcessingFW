@@ -654,6 +654,7 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
     fwdebug(3, "PFWBLOCK_DEBUG", "BEG jobnum=%s jobkey=%s" % (jobnum, jobkey))
 
     jobwclfile = config.get_filename('jobwcl', {PF_CURRVALS: {PF_JOBNUM: jobnum}, 'required': True, 'interpolate': True})
+    outputwcltar = config.get_filename('outputwcltar', {PF_CURRVALS:{'jobnum': jobnum}, 'required': True, 'interpolate': True})
 
     jobwcl = {REQNUM: config.search(REQNUM, { 'required': True,
                                     'interpolate': True})[1], 
@@ -675,7 +676,7 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
                                     'interpolate': True})[1], 
               'jobkeys': jobkey[1:].replace('_',','),
               'archive': config['archive'],
-              'output_wcl_tar': config.get_filename('outputwcltar', {PF_CURRVALS:{'jobnum': jobnum}}),
+              'output_wcl_tar': outputwcltar,
               'junktar': config.get_filename('junktar', {PF_CURRVALS:{'jobnum': jobnum}}),
               'junktar_archive_path': config.get_filepath('ops', 'junktar', {PF_CURRVALS:{'jobnum': jobnum}})
             }
@@ -788,7 +789,7 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
 
     fwdebug(3, "PFWBLOCK_DEBUG", "END\n\n")
-    return jobwclfile
+    return (jobwclfile, outputwcltar)
     
 
 #######################################################################
@@ -1433,7 +1434,8 @@ def divide_into_jobs(config, modname, wrapinst, joblist):
         joblist[key]['tasks'].append([inst[PF_WRAPNUM], inst['wrappername'], inst['inputwcl'], inst['wrapdebug'], inst['log']])
         joblist[key]['inlist'].append(inst['inputwcl'])
         #print inst[PF_WRAPNUM], inst['wrapinputs'].keys()
-        joblist[key]['wrapinputs'][inst[PF_WRAPNUM]] = inst['wrapinputs']
+        if inst['wrapinputs'] is not None and len(inst['wrapinputs']) > 0:
+            joblist[key]['wrapinputs'][inst[PF_WRAPNUM]] = inst['wrapinputs']
         if IW_LISTSECT in inst:
             for linfo in inst[IW_LISTSECT].values():
                 joblist[key]['inlist'].append(linfo['fullname'])
@@ -1555,8 +1557,8 @@ fi
     #      underscores are used to separate name parts, have to use place 
     #      holder for jobnum and replace later with shell variable
     #      Otherwise, get_filename fails to substitute for padjnum
-    envfile = config.get_filename('envfile', {PF_CURRVALS: {PF_JOBNUM:"XXXXXXXX"}})
-    envfile = envfile.replace("XXXXXXXX", "${padjnum}")
+    envfile = config.get_filename('envfile', {PF_CURRVALS: {PF_JOBNUM:"9999"}})
+    envfile = envfile.replace("j9999", "j${padjnum}")
 
     scriptstr +="""
 echo "Saving environment after setting up meta package to %s"
@@ -1650,7 +1652,8 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write('VARS %s args="%s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
             dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
             # no pre script for job.   Job inserted into DB at beginning of job running
-            #TODO dagfh.write('SCRIPT post %s %s/libexec/logpost.py config.des %s j $JOB $RETURN\n' % (tjpad, pfwdir, blockname)) 
+#jobpost.py configfile block jobnum inputtar outputtar retval
+            dagfh.write('SCRIPT post %s %s/libexec/jobpost.py config.des %s $JOB %s %s $RETURN\n' % (tjpad, pfwdir, blockname, jobdict['inputwcltar'], jobdict['outputwcltar'])) 
 
     uberdagfile = "../uberctrl/%s" % (dagfile)
     if os.path.exists(uberdagfile):
@@ -1788,6 +1791,7 @@ def stage_inputs(config, inputfiles):
 
         fwdebug(0, "PFWBLOCK_DEBUG", "home_archive = %s" % config[HOME_ARCHIVE])
         fwdebug(0, "PFWBLOCK_DEBUG", "target_archive = %s" % config[TARGET_ARCHIVE])
+        sys.stdout.flush()
         archive_transfer_utils.archive_copy(config['archive'][config[HOME_ARCHIVE]], 
                                             config['archive'][config[TARGET_ARCHIVE]],
                                             config['archive_transfer'],

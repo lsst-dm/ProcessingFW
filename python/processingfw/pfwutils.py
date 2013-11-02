@@ -361,7 +361,8 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
 
     sys.stdout.flush()
     if processWrap.returncode != 0:
-        print "\tError: cmd returned non-zero exit code (%s)" % processWrap.returncode
+        fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with non-zero exit code = %s" % processWrap.returncode)
+        fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: failed cmd = %s" % cmd)
     else:
         fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with exit code = 0")
 

@@ -681,12 +681,12 @@ def postwrapper(wcl, logfile, exitcode):
 
         # handle copying output files to archive
         if outputwcl is not None and len(outputwcl) > 0:
-            if pfw_dbh is not None:
-                execs = pfwutils.get_exec_sections(outputwcl, OW_EXECPREFIX)
-                for sect in execs:
+            execs = pfwutils.get_exec_sections(outputwcl, OW_EXECPREFIX)
+            for sect in execs:
+                if pfw_dbh is not None:
                     pfw_dbh.update_exec_end(outputwcl[sect], wcl['dbids'][sect], exitcode)
-            else:
-                print "DESDMTIME: app_exec %0.3f" % float(outputwcl[sect]['walltime'])
+                else:
+                    print "DESDMTIME: app_exec %s %0.3f" % (sect, float(outputwcl[sect]['walltime']))
 
             finfo = {}
             if exitcode == 0:

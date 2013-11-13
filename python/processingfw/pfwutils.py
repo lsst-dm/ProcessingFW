@@ -260,10 +260,21 @@ def get_version(execname, execdefs):
         verpat = execdefs[execname.lower()]['version_pattern']
 
         cmd = "%s %s" % (execname, verflag)
-        process = subprocess.Popen(cmd.split(),
-                                   shell=False,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+        try:
+            process = subprocess.Popen(cmd.split(),
+                                       shell=False,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT)
+        except:
+            (type, value, traceback) = sys.exc_info()
+            print "********************"
+            print "Unexpected error: %s" % value
+            print "cmd> %s" % cmd
+            print "Probably could not find %s in path" % cmd.split()[0]
+            print "Check for mispelled execname in submit wcl or"
+            print "    make sure that the corresponding eups package is in the metapackage and it sets up the path correctly"
+            raise
+
         process.wait()
         out = process.communicate()[0]
         if process.returncode != 0:
@@ -304,20 +315,44 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
     fwdebug(3, "PFWUTILS_DEBUG", "execnames = %s" % execnames)
     fwdebug(3, "PFWUTILS_DEBUG", "useQCF = %s" % useQCF)
 
+    useQCF = convertBool(useQCF)
+
     starttime = time.time()
     logfh = open(logfilename, 'w', 0)
 
     sys.stdout.flush()
-    processWrap = subprocess.Popen(cmd.split(),
-                                   shell=False,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+    try:
+        processWrap = subprocess.Popen(cmd.split(),
+                                       shell=False,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT)
+    except:
+        (type, value, traceback) = sys.exc_info()
+        print "********************"
+        print "Unexpected error: %s" % value
+        print "cmd> %s" % cmd
+        print "Probably could not find %s in path" % cmd.split()[0]
+        print "Check for mispelled execname in submit wcl or"
+        print "    make sure that the corresponding eups package is in the metapackage and it sets up the path correctly"
+        raise
+
     if useQCF:
         cmdQCF = "qcf_controller.pl -wrapperInstanceId %s -execnames %s" % (id, execnames)
-        processQCF = subprocess.Popen(cmdQCF.split(),
-                                      shell=False,
-                                      stdin=subprocess.PIPE,
-                                      stderr=subprocess.STDOUT)
+        try:
+            processQCF = subprocess.Popen(cmdQCF.split(),
+                                        shell=False,
+                                        stdin=subprocess.PIPE,
+                                        stderr=subprocess.STDOUT)
+        except:
+            (type, value, traceback) = sys.exc_info()
+            print "********************"
+            print "Unexpected error: %s" % value
+            print "cmdQCF> %s" % cmdQCF
+            print "use_qcf was true, but probably could not find QCF in path (%s)" % cmdQCF.split()[0]
+            print "Either change submit wcl (use_qcf = False) or"
+            print "    make sure that the QCFramework eups package is in the metapackage and it sets up the path correctly"
+            raise
+
 
     try:
         buf = os.read(processWrap.stdout.fileno(), bufsize)
@@ -340,6 +375,7 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
             if processQCF.returncode != 0:
                 print "\tWarning: QCF returned non-zero exit code"
     except IOError as e:
+        (type, value, traceback) = sys.exc_info()
         print "\tI/O error({0}): {1}".format(e.errno, e.strerror)
         if useQCF:
             qcfpoll = processQCF.poll()
@@ -352,11 +388,12 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
 
                     logfh.close()
             else:
-                print "\tError: Unexpected error: %s" % sys.exc_info()[0]
+                print "\tError: Unexpected error: %s" % value
                 raise
 
     except:
-        print "\tError: Unexpected error: %s" % sys.exc_info()[0]
+        (type, value, traceback) = sys.exc_info()
+        print "\tError: Unexpected error: %s" % value
         raise
 
     sys.stdout.flush()

@@ -211,13 +211,13 @@ def create_submitside_dirs(config):
         raise Exception('%s subdirectory already exists.\nAborting submission' % (workdir))
 
     print '\tMaking submit run directory...',
-    os.makedirs(workdir)
+    coremakedirs(workdir)
     print 'DONE'
 
     uberdir = config['uberctrl_dir']
     fwdebug(3, 'PFWSUBMIT_DEBUG', "uberdir = %s" % uberdir)
     print '\tMaking submit uberctrl directory...',
-    os.makedirs(uberdir)
+    coremakedirs(uberdir)
     print 'DONE'
 
 

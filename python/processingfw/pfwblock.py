@@ -361,15 +361,7 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
     fwdebug(3, "PFWBLOCK_DEBUG", "list dict: %s" % ldict)
 
     listdir = os.path.dirname(listname)
-    if len(listdir) > 0 and not os.path.exists(listdir):  # some parallel filesystems really don't like
-                                                          # trying to make directory if it already exists
-        try:
-            os.makedirs(listdir)
-        except OSError as exc:      # go ahead and check for race condition
-            if exc.errno == errno.EEXIST:
-                pass
-            else:
-                fwdie("Error: problems making directory listdir: %s" % exc, PF_EXIT_FAILURE)
+    coremakedirs(listdir)
 
     format = 'textsp'
     if 'format' in ldict:

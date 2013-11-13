@@ -217,17 +217,12 @@ def setup_wrapper(wcl, iwfilename, logfilename):
 
     # make directory for log file
     logdir = os.path.dirname(logfilename)
-    if not os.path.exists(logdir):
-        os.makedirs(logdir)
+    coremakedirs(logdir)
 
     # make directory for outputwcl
     outputwclfile = wcl[IW_WRAPSECT]['outputwcl']
     outputwcldir = os.path.dirname(outputwclfile)
-    if len(outputwcldir) > 0:
-        if not os.path.exists(outputwcldir):
-            os.makedirs(outputwcldir)
-    else:
-        print "0 length directory for outputwcl"
+    coremakedirs(outputwcldir)
 
     pfw_dbh = None
     if wcl['use_db']:
@@ -304,11 +299,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
                     outfile_names = fwsplit(fullnames)
                     for outfile in outfile_names:
                         outfile_dir = os.path.dirname(outfile)
-                        if len(outfile_dir) > 0:
-                            if not os.path.exists(outfile_dir):
-                                os.makedirs(outfile_dir)
-                        else:
-                            print "0 length directory for output file:", outfile
+                        coremakedirs(outfile_dir)
         else:
             print "Info: 0 output files (%s) in exec section %s" % (IW_OUTPUTS, sect)
 

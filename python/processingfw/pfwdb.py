@@ -1379,7 +1379,10 @@ class PFWDB (coreutils.DesDbi):
         curs = self.cursor()
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
-        attinfo = dict(zip(desc, curs.fetchall()[0]))
+        attinfo = None
+        row = curs.fetchone()    # should only be 1 row
+        if row is not None: 
+            attinfo = dict(zip(desc, row))
         return attinfo
 
 

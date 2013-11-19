@@ -42,9 +42,14 @@ def check_globals(config, indent=''):
     for key in ['pipeline', 'pipeprod', 'pipever', 'project', REQNUM, ATTNUM, UNITNAME, 'jira_id', 'target_site',
                 'site', 'filename_pattern', 'directory_pattern', 'job_file_mvmt', 'ops_run_dir', 
                 PF_USE_QCF, PF_USE_DB_IN, PF_USE_DB_OUT, SW_BLOCKLIST, SW_BLOCKSECT, SW_MODULESECT, 'create_junk_tarball']:
-        if key not in config:
+        try:
+            if key not in config:
+                print "%s    Error: missing %s global key or section" % (indent, key)
+                cnts[ERRCNT_POS] += 1
+        except:
             print "%s    Error: missing %s global key or section" % (indent, key)
             cnts[ERRCNT_POS] += 1
+            
 
     if PF_USE_DB_IN in config:
         if convertBool(config[PF_USE_DB_IN]):

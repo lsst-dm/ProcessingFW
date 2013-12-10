@@ -8,6 +8,7 @@ import sys
 import os
 
 from processingfw.pfwdefs import *
+from processingfw.pfwutils import *
 from coreutils.miscutils import *
 
 import processingfw.pfwconfig as pfwconfig
@@ -68,26 +69,80 @@ def blockpost(argv = None):
     reqnum = config.search(REQNUM, {'interpolate': True})[1]
     unitname = config.search(UNITNAME, {'interpolate': True})[1]
     attnum = config.search(ATTNUM, {'interpolate': True})[1]
+    blknum = int(config.search(PF_BLKNUM, {'interpolate': True})[1])
 
+    msg2 = ""
     dbh = None
     if convertBool(config[PF_USE_DB_OUT]): 
         print "\n\nChecking job status from pfw_job table in DB (%s is success)" % PF_EXIT_SUCCESS
         dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
-        jobinfo = dbh.get_job_info({'reqnum':config[REQNUM], 'unitname': config[UNITNAME], 'attnum': config[ATTNUM], 'blknum': config['blknum']})
+        jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
+        wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
         dbh.close()
-        print "\n\n%6s %s" % ('jobnum', 'status') 
-        for jobnum, jinfo in jobinfo.items():
-            print "%6s %s" % (jobnum, jinfo['status']) 
-            if jinfo['status'] != PF_EXIT_SUCCESS:
+
+        job_byblk = index_job_info(jobinfo)
+        print job_byblk
+        wrap_byjob, wrap_bymod = index_wrapper_info(wrapinfo)
+
+
+        lastwraps = []
+        for jobnum,jobdict in sorted(job_byblk[blknum].items()):
+            if jobnum not in wrap_byjob:
+                print "\t%06d No wrapper instances" % jobnum
+            #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+            maxwrap = max(wrap_byjob[jobnum].keys())
+            modname = wrap_byjob[jobnum][maxwrap]['modname']
+            jobkeys = ""
+            if jobdict['jobkeys'] is not None:
+                jobkeys = jobdict['jobkeys']
+                print jobkeys, type(jobkeys)
+
+            msg2 += "\t%04d %d/%d  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['numexpwrap'], modname, jobkeys)
+            if jobdict['status'] is None:
+                msg2 += " FAIL - NULL status"
+                lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
                 retval = PF_EXIT_FAILURE
-        print "\n"
+            elif jobdict['status'] != PF_EXIT_SUCCESS:
+                lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
+                msg2 += " FAIL"
+                retval = PF_EXIT_FAILURE
+
+            msg2 += '\n'
+
+
+        if convertBool(config[PF_USE_QCF]): 
+            import qcframework.qcfdb as qcfdb
+            dbh = qcfdb.QCFDB(config['des_services'], config['des_db_section'])
+            print "lastwraps = ", lastwraps
+            wrapmsg = dbh.get_qcf_messages_for_wrappers(lastwraps)
+            print "wrapmsg = ", wrapmsg
+            dbh.close() 
+
+            MAXMESG = 3
+            msg2 += "\n\n\nDetails\n"
+            for jobnum in sorted(job_byblk[blknum].keys()):
+                maxwrap = max(wrap_byjob[jobnum].keys())
+                maxwrapid = wrap_byjob[jobnum][maxwrap]['id']
+                modname = wrap_byjob[jobnum][maxwrap]['modname']
+                if jobdict['status'] != PF_EXIT_SUCCESS:
+                    msg2 += "\t%04d %s\n" % (jobnum, modname)
+                    if maxwrapid in wrapmsg:
+                        if len(wrapmsg[maxwrapid]) > MAXMESG:
+                            msg2 += "\t\tOnly printing last %d messages\n" % MAXMESG
+                            for mesgrow in wrapmsg[maxwrapid][-MAXMESG:]:
+                                msg2 += "\t\t%s\n" % mesgrow['message']
+                        else:
+                            for mesgrow in wrapmsg[maxwrapid]:
+                                msg2 += "\t\t%s\n" % mesgrow['message']
+                    else:
+                        msg2 += "\t\tNo QCF messages\n"
+
+                
                 
     if retval:
         #print "Block failed\nAlready sent email"
         print "Sending block failed email\n";
         msg1 = "%s:  block %s has failed." % (run, blockname)
-        #msg2 = "\n\n" + getJobInfo(blockname)
-        msg2 = ""
 
         send_email(config, blockname, retval, "", msg1, msg2)
     elif convertBool(dryrun):

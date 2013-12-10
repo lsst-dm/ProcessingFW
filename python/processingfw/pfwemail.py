@@ -42,7 +42,7 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("project = %s\n" % project)
     mailfh.write("run = %s\n" % run)
     if HOME_ARCHIVE in config:
-        mailfh.write("\t%s = %s\n" % (HOME_ARCHIVE.lower(), config[HOME_ARCHIVE]))
+        mailfh.write("%s = %s\n" % (HOME_ARCHIVE.lower(), config[HOME_ARCHIVE]))
     if 'event_tag' in config:
         mailfh.write("run name = %s\n" % config['event_tag'])
     mailfh.write("\n")
@@ -52,13 +52,13 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("\tmachine = %s\n" % localmachine)
 #    mailfh.write("\tnode = %s\n" % config['submitnode'])
     mailfh.write("\tPROCESSINGFW_DIR = %s\n" % os.environ['PROCESSINGFW_DIR'])
-    mailfh.write("\tconfig = %s/%s\n" % \
-            (config['submit_dir'], config['config_filename']))
+    #mailfh.write("\tconfig = %s/%s\n" % \
+    #        (config['submit_dir'], config['config_filename']))
     mailfh.write("\tdirectory = %s\n\n" % config['work_dir'])
 
 
     mailfh.write("Target:\n")
-    mailfh.write("\tmachine = %s\n" % config['loginhost'])
+    mailfh.write("\tsite = %s\n" % config['target_site'])
     if TARGET_ARCHIVE in config:
         mailfh.write("\t%s = %s\n" % (TARGET_ARCHIVE.lower(), config[TARGET_ARCHIVE]))
     mailfh.write("\tdirectory = %s/%s\n" % (config['root'], config.interpolate(config[OPS_RUN_DIR])))

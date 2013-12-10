@@ -87,7 +87,7 @@ def begblock(argv):
     scriptfile = pfwblock.write_runjob_script(config)
 
     fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - BEG")
-    for jobkey,jobdict in joblist.items():
+    for jobkey,jobdict in sorted(joblist.items()):
         jobdict['jobnum'] = config.inc_jobnum()
         fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
         jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])

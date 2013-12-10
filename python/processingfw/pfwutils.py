@@ -407,3 +407,34 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
 
     fwdebug(3, "PFWUTILS_DEBUG", "END")
     return processWrap.returncode
+
+
+#######################################################################
+def index_job_info(jobinfo):    
+    """ create dictionary of jobs indexed on blknum """
+    # index jobinfo by blknum
+    job_byblk = {}
+    for j in jobinfo.keys():
+        blknum = jobinfo[j]['blknum']
+        #print "job = ",j,"blknum =", blknum
+        if blknum not in job_byblk:
+            job_byblk[blknum] = {}
+        job_byblk[blknum][j] = jobinfo[j]
+
+    return job_byblk
+
+
+#######################################################################
+def index_wrapper_info(wrapinfo):
+    """ create dictionaries of wrappers indexed on jobnum and modname """
+    wrap_byjob = {}
+    wrap_bymod = {}
+    for wrap in wrapinfo.values():
+        if wrap['jobnum'] not in wrap_byjob:
+            wrap_byjob[wrap['jobnum']] = {}
+        wrap_byjob[wrap['jobnum']][wrap['wrapnum']] = wrap
+        if wrap['modname'] not in wrap_bymod:
+            wrap_bymod[wrap['modname']] = {}
+        wrap_bymod[wrap['modname']][wrap['wrapnum']] = wrap
+
+    return wrap_byjob, wrap_bymod

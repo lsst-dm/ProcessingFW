@@ -6,6 +6,7 @@
 
 import coreutils
 import processingfw.pfwdb as pfwdb
+from processingfw.pfwutils import *
 import re
 import sys
 
@@ -31,13 +32,17 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
             #print "wrapnum in job =", wrap_byjob[jobnum].keys()
             maxwrap = max(wrap_byjob[jobnum].keys())
             modname = wrap_byjob[jobnum][maxwrap]['modname']    
+            
             jobkeys = ""
             if jobdict['jobkeys'] is not None:
                 jobkeys = jobdict['jobkeys']
             
             print "\t%04d %d/%d  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['numexpwrap'], modname, jobkeys),
             if 'endtime' in jobdict and jobdict['endtime'] is not None:
-                print "done"
+                if jobdict['status'] == 0:
+                    print "done"
+                else:
+                    print "fail %s" % jobdict['status']
             else:
                 print ""
                 
@@ -74,13 +79,7 @@ def print_job_info(run):
     # get job info
     jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname':unitname, 'attnum':attnum})
     # index jobinfo by blknum
-    job_byblk = {}
-    for j in jobinfo.keys():
-        blknum = jobinfo[j]['blknum']
-        #print "job = ",j,"blknum =", blknum
-        if blknum not in job_byblk:
-            job_byblk[blknum] = {}
-        job_byblk[blknum][j] = jobinfo[j]
+    job_byblk = index_job_info(jobinfo)
 
     #print job_byblk.keys()
     #for b in job_byblk.keys():
@@ -89,16 +88,7 @@ def print_job_info(run):
 
     # get wrapper instance information
     wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum)
-    # create "index" by jobnum and modname
-    wrap_byjob = {}
-    wrap_bymod = {}
-    for wrap in wrapinfo.values():
-        if wrap['jobnum'] not in wrap_byjob:
-            wrap_byjob[wrap['jobnum']] = {} 
-        wrap_byjob[wrap['jobnum']][wrap['wrapnum']] = wrap
-        if wrap['modname'] not in wrap_bymod:
-            wrap_bymod[wrap['modname']] = {}
-        wrap_bymod[wrap['modname']][wrap['wrapnum']] = wrap
+    wrap_byjob, wrap_bymod = index_wrapper_info(wrapinfo)
 
     verbose = 3
 

@@ -20,6 +20,7 @@ from coreutils.miscutils import *
 #import processingfw.pfwxml as pfwxml
 import filemgmt.archive_transfer_utils as archive_transfer_utils
 import intgutils.wclutils as wclutils
+import intgutils.metadata_utils as metautils
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwcondor as pfwcondor
 from processingfw.pfwwrappers import write_wrapper_wcl
@@ -593,7 +594,9 @@ def add_file_metadata(config, modname):
                         filetype = fdict['filetype'].lower()
                         wclsect = "%s.%s" % (IW_FILESECT, fname)
 
-                        meta_specs = filemgmt.get_metadata_specs(filetype, wclsect, updatefits=True)
+                        print "len(config[FILE_HEADER_INFO]) =", len(config['FILE_HEADER_INFO'])
+                        meta_specs = metautils.get_metadata_specs(filetype, config['FILETYPE_METADATA'], config['FILE_HEADER'], 
+                                                        wclsect, updatefits=True)
                         fwdebug(3, "PFWBLOCK_DEBUG", "meta_specs = %s" % meta_specs)
                         fwdebug(3, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
                         fdict.update(meta_specs)
@@ -606,9 +609,10 @@ def add_file_metadata(config, modname):
                                 if key != WCL_UPDATE_WHICH_HEAD:
                                     valparts = fwsplit(val, '/')
                                     fwdebug(3, "PFWBLOCK_DEBUG", "hdrup: key, valparts = %s, %s" % (key, valparts))
-                                    if len(valparts) == 1:  # wcl specified value, look up rest from config
-                                        newvaldict = pfwutils.create_update_items('V', [key], config['file_header'], header_value={key:val}) 
-                                        hdict.update(newvaldict)
+                                    if len(valparts) == 1:
+                                        if 'COPY{' not in valparts[0]:  # wcl specified value, look up rest from config
+                                            newvaldict = metautils.create_update_items('V', [key], config['file_header'], header_value={key:val}) 
+                                            hdict.update(newvaldict)
                                     elif len(valparts) != 3:  # 3 is valid full spec of update header line
                                         fwdie('Error:  invalid header update line (%s = %s)\nNeeds value[/descript/type]' % (key,val), PF_EXIT_FAILURE)
 

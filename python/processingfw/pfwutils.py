@@ -121,139 +121,28 @@ def untar_dir(filename, outputdir):
         mode = 'r:gz'
     else:
         mode = 'r'
-    with tarfile.open(filename, mode) as tar:
-       tar.extractall(outputdir)
 
-#M #######################################################################
-#M def create_copy_items(metastatus, file_header_names):
-#M     """ Create the update wcl for headers that should be copied from another header """
-#M     updateDict = OrderedDict()
-#M     for name in file_header_names:
-#M         if 
-#M         if metastatus == META_REQUIRED:
-#M             updateDict[name] = "$REQCOPY{%s}" % (name.upper())
-#M         elif metastatus == META_OPTIONAL:
-#M             updateDict[name] = "$OPTCOPY{%s}" % (name.upper())
-#M         else:
-#M             fwdie('Error:  Unknown metadata metastatus (%s)' % (metastatus), PF_EXIT_FAILURE)
-#M 
-#M     return updateDict
-#M         
-#M 
-#M #######################################################################
-#M def create_update_items(metastatus, file_header_names, file_header_info, header_value=None):
-#M     """ Create the update wcl for headers that should be updated """
-#M     updateDict = OrderedDict()
-#M     for name in file_header_names:
-#M         if name not in file_header_info:
-#M             fwdie('Error: Missing entry in file_header_info for %s' % name, FW_EXIT_FAILURE)
-#M 
-#M         # Example: $HDRFNC{BAND}/Filter identifier/str
-#M         if header_value is not None and name in header_value: 
-#M             updateDict[name] = header_value[name] 
-#M         elif metastatus == META_REQUIRED:
-#M             updateDict[name] = "$HDRFNC{%s}" % (name.upper())
-#M         elif metastatus == META_OPTIONAL:
-#M             updateDict[name] = "$OPTFNC{%s}" % (name.upper())
-#M         else:
-#M             fwdie('Error:  Unknown metadata metastatus (%s)' % (metastatus), PF_EXIT_FAILURE)
-#M 
-#M         if file_header_info[name]['fits_data_type'].lower() == 'none':
-#M             fwdie('Error:  Missing fits_data_type for file header %s\nCheck entry in OPS_FILE_HEADER table' % name, PF_EXIT_FAILURE)
-#M 
-#M         # Requires 'none' to not be a valid description
-#M         if file_header_info[name]['description'].lower() == 'none':
-#M             fwdie('Error:  Missing description for file header %s\nCheck entry in OPS_FILE_HEADER table' % name, PF_EXIT_FAILURE)
-#M 
-#M         updateDict[name] += "/%s/%s" % (file_header_info[name]['description'], 
-#M                                         file_header_info[name]['fits_data_type'])
-#M 
-#M     return updateDict
-#M         
-#M          
-#M 
-#M #####################################################################################################
-#M def create_one_sect_metadata_info(derived_from, filetype_metadata, wclsect = None, file_header_info=None):
-#M     """ Create a dictionary containing instructions for a single section (req, opt) to be used by other code that retrieves metadata for a file """
-#M 
-#M     metainfo = OrderedDict()
-#M     updatemeta = None
-#M 
-#M     #print "create_one_sect_metadata_info:"
-#M     #wclutils.write_wcl(filetype_metadata)
-#M     #wclutils.write_wcl(file_header_info)
-#M 
-#M     if META_HEADERS in filetype_metadata:
-#M         metainfo[IW_META_HEADERS] = ','.join(filetype_metadata[META_HEADERS].keys())
-#M 
-#M     if META_COMPUTE in filetype_metadata:
-#M         if file_header_info is not None:   # if supposed to update headers and update DB
-#M             updatemeta = create_update_items(derived_from, filetype_metadata[META_COMPUTE].keys(), file_header_info)
-#M             if IW_META_HEADERS not in metainfo:
-#M                 metainfo[IW_META_HEADERS] = ""
-#M             else:
-#M                 metainfo[IW_META_HEADERS] += ','
-#M 
-#M             metainfo[IW_META_HEADERS] += ','.join(filetype_metadata[META_COMPUTE].keys())
-#M         else:  # just compute values for DB
-#M             metainfo[IW_META_COMPUTE] = ','.join(filetype_metadata[META_COMPUTE].keys())
-#M 
-#M     if META_COPY in filetype_metadata:
-#M         if file_header_info is not None:   # if supposed to update headers and update DB
-#M             updatemeta = create_update_items(derived_from, filetype_metadata[META_COMPUTE].keys(), file_header_info) #MMG
-#M             if IW_META_HEADERS not in metainfo:
-#M                 metainfo[IW_META_HEADERS] = ""
-#M             else:
-#M                 metainfo[IW_META_HEADERS] += ','
-#M 
-#M             metainfo[IW_META_HEADERS] += ','.join(filetype_metadata[META_COMPUTE].keys())
-#M         else:  # just compute values for DB
-#M             metainfo[IW_META_COMPUTE] = ','.join(filetype_metadata[META_COMPUTE].keys())
-#M 
-#M     if META_WCL in filetype_metadata:
-#M         wclkeys = []
-#M         for k in filetype_metadata[META_WCL].keys():
-#M              if wclsect is not None:
-#M                  wclkey = '%s.%s' % (wclsect, k)
-#M              else:
-#M                  wclkey = k
-#M              wclkeys.append(wclkey)
-#M         metainfo[IW_META_WCL] = ','.join(wclkeys)
-#M 
-#M     #print "create_one_sect_metadata_info:"
-#M     #print "\tmetainfo = ", metainfo
-#M     #print "\tupdatemeta = ", updatemeta
-#M     return (metainfo, updatemeta)
-#M 
+    MAXCNT = 4
+    cnt = 1
+    done = False
+    while (not done and cnt <= MAXCNT):
+        with tarfile.open(filename, mode) as tar:
+            try:
+                tar.extractall(outputdir)
+                done = True
+            except OSError as exc:
+                if exc.errno == errno.EEXIST:
+                    print "Problems untaring %s: %s" % (filename, exc)
+                    if cnt < MAXCNT:
+                        print "Trying again."
+                    pass
+                else:
+                    print "Error: %s" % exc
+                    raise
+        cnt += 1
 
-
-#M ##################################################################################################
-#M def create_file_metadata_dict(filetype, filetype_metadata, wclsect = None, file_header_info=None):
-#M     """ Create a dictionary containing instructions to be used by other code that retrieves metadata for a file """
-#M     reqmeta = None
-#M     optmeta = None
-#M     updatemeta = None
-#M 
-#M     if filetype in filetype_metadata:
-#M         # required
-#M         if META_REQUIRED in filetype_metadata[filetype]:
-#M             (reqmeta, updatemeta) = create_one_sect_metadata_info(META_REQUIRED, 
-#M                                                                   filetype_metadata[filetype][META_REQUIRED],
-#M                                                                   wclsect, file_header_info)
-#M 
-#M         # optional
-#M         if META_OPTIONAL in filetype_metadata[filetype]:
-#M             (optmeta, tmp_updatemeta) = create_one_sect_metadata_info(META_OPTIONAL, 
-#M                                                                   filetype_metadata[filetype][META_OPTIONAL],
-#M                                                                   wclsect, file_header_info)
-#M             if tmp_updatemeta is not None:
-#M                 if updatemeta is None:
-#M                     updatemeta = tmp_updatemeta
-#M                 else:
-#M                     updatemeta.update(tmp_updatemeta)
-#M 
-#M     return (reqmeta, optmeta, updatemeta)
-#M 
+    if not done:
+        print "Could not untar %s.  Aborting" % filename
 
 ###########################################################################
 def next_tasknum(wcl, tasktype, step=1):

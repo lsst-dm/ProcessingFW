@@ -607,7 +607,7 @@ class PFWDB (coreutils.DesDbi):
         """ insert row into pfw_wrapper """
 
         wrapid = self.get_seq_next_value('pfw_wrapper_seq')
-        assert(wrapid > 1)
+        
         #self.start_timing(wcl, 'wrapper', '%4d_%s' % (int(wcl[PF_WRAPNUM]), wcl['modname']), blknum=wcl[PF_BLKNUM], jobnum=wcl[PF_JOBNUM], wrapnum=wcl['wrapnum'])
 
         row = {}

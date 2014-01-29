@@ -17,9 +17,10 @@ import time
 from processingfw.pfwdefs import *
 from filemgmt.filemgmt_defs import *
 from coreutils.miscutils import *
-#import processingfw.pfwxml as pfwxml
 import filemgmt.archive_transfer_utils as archive_transfer_utils
 import intgutils.wclutils as wclutils
+import intgutils.metautils as metautils
+from intgutils.metadefs import *
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwcondor as pfwcondor
 from processingfw.pfwwrappers import write_wrapper_wcl
@@ -489,7 +490,7 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                 fwdebug(4, "PFWBLOCK_DEBUG", "fullname = %s" % (winst[IW_FILESECT][fname]['fullname']))
 
                 
-                for k in ['filetype', WCL_REQ_META, WCL_OPT_META, SAVE_FILE_ARCHIVE, DIRPAT]:
+                for k in ['filetype', WCL_META_REQ, WCL_META_OPT, SAVE_FILE_ARCHIVE, DIRPAT]:
                     if k in fdict:
                         fwdebug(3, "PFWBLOCK_DEBUG", "%s copying %s" % (fname, k))
                         winst[IW_FILESECT][fname][k] = copy.deepcopy(fdict[k])
@@ -593,9 +594,11 @@ def add_file_metadata(config, modname):
                         filetype = fdict['filetype'].lower()
                         wclsect = "%s.%s" % (IW_FILESECT, fname)
 
-                        meta_specs = filemgmt.get_metadata_specs(filetype, wclsect, updatefits=True)
-                        fwdebug(3, "PFWBLOCK_DEBUG", "meta_specs = %s" % meta_specs)
-                        fwdebug(3, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
+                        print "len(config[FILE_HEADER_INFO]) =", len(config['FILE_HEADER_INFO'])
+                        meta_specs = metautils.get_metadata_specs(filetype, config['FILETYPE_METADATA'], config['FILE_HEADER'], 
+                                                        wclsect, updatefits=True)
+                        fwdebug(0, "PFWBLOCK_DEBUG", "meta_specs = %s" % meta_specs)
+                        fwdebug(0, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
                         fdict.update(meta_specs)
 
              
@@ -606,20 +609,23 @@ def add_file_metadata(config, modname):
                                 if key != WCL_UPDATE_WHICH_HEAD:
                                     valparts = fwsplit(val, '/')
                                     fwdebug(3, "PFWBLOCK_DEBUG", "hdrup: key, valparts = %s, %s" % (key, valparts))
-                                    if len(valparts) == 1:  # wcl specified value, look up rest from config
-                                        newvaldict = pfwutils.create_update_items('V', [key], config['file_header'], header_value={key:val}) 
-                                        hdict.update(newvaldict)
+                                    if len(valparts) == 1:
+                                        if 'COPY{' not in valparts[0]:  # wcl specified value, look up rest from config
+                                            newvaldict = metautils.create_update_items('V', [key], config['file_header'], header_value={key:val}) 
+                                            hdict.update(newvaldict)
                                     elif len(valparts) != 3:  # 3 is valid full spec of update header line
                                         fwdie('Error:  invalid header update line (%s = %s)\nNeeds value[/descript/type]' % (key,val), PF_EXIT_FAILURE)
 
 
                         # add some fields needed by framework for processing output wcl (not stored in database)
-                        if WCL_META_WCL not in fdict[WCL_REQ_META]:
-                            fdict[WCL_REQ_META][WCL_META_WCL] = ''
+                        if WCL_META_WCL not in fdict[WCL_META_REQ]:
+                            fdict[WCL_META_REQ][WCL_META_WCL] = ''
                         else:
-                            fdict[WCL_REQ_META][WCL_META_WCL] += ','
+                            fdict[WCL_META_REQ][WCL_META_WCL] += ','
 
-                        fdict[WCL_REQ_META][WCL_META_WCL] += '%(sect)s.fullname,%(sect)s.sectname' % ({'sect':wclsect})
+                        fdict[WCL_META_REQ][WCL_META_WCL] += '%(sect)s.fullname,%(sect)s.sectname' % ({'sect':wclsect})
+                        #print fdict
+                        #sys.exit(1)
                     else:
                         fwdebug(3, "PFWBLOCK_DEBUG", "output file %s doesn't have definition (%s) " % (k, SW_FILESECT))
 
@@ -1299,44 +1305,6 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     return wrapperwcl
 
 
-# Early version of wrapper code could not handle global variables
-#   So the following code changed all global variables to 
-#       variables in the wrapper section
-#def fix_globalvars(config, wrapperwcl, modname, winst):
-#    fwdebug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
-#
-#    wrappervars = {}
-#    wcltodo = [wrapperwcl]
-#    while len(wcltodo) > 0:
-#        wcl = wcltodo.pop()
-#        for key,val in wcl.items():
-#            if type(val) is dict or type(val) is OrderedDict:
-#                wcltodo.append(val)
-#            else:
-#                print "val = ", val, type(val)
-#                varstr = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
-#                for vstr in varstr:
-#                    if '.' not in vstr:
-#                        oldvar = '\$\{%s\}' % vstr
-#                        newvar = '${wrapper.%s}' % vstr
-#                        print "before val = ", val, 'oldvar =', oldvar, 'newvar = ', newvar
-#                        val = re.sub(oldvar, newvar, val)
-#                        print "after val = ", val
-#                        wrappervars[vstr.lower()] = True
-#
-#                print "final value = ", val
-#                wcl[key] = val
-#
-#    for wk in wrappervars.keys():
-#        wrapperwcl[IW_WRAPSECT][wk] =  config.search(wk,
-#                                {PF_CURRVALS: {'curr_module': modname},
-#                                 'searchobj': winst,
-#                                 'required': True, 
-#                                 'interpolate': True})[1]
-#    fwdebug(1, "PFWBLOCK_DEBUG", "END\n\n")
-#               
-
-
 # translate sw terms to iw terms in values if needed
 def translate_sw_iw(config, wrapperwcl, modname, winst):
     fwdebug(1, "PFWBLOCK_DEBUG", "BEG %s" % modname)
@@ -1436,54 +1404,6 @@ def divide_into_jobs(config, modname, wrapinst, joblist):
     fwdebug(0, "PFWBLOCK_DEBUG", "\tkeys = %s " % ','.join(joblist.keys()))
     fwdebug(0, "PFWBLOCK_DEBUG", "END\n")
             
-
-
-#######################################################################
-#def create_wrapper_wcl(config, wrapinst):
-#    """ Create wcl for single wrapper instance """
-#    fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
-#    print "wrapinst.keys = ", wrapinst.keys()
-#    modulelist = fwsplit(config[SW_MODULELIST].lower())
-#    tasks = []
-#
-#    os.mkdir('wcl')
-#    for modname in modulelist:
-#        print "Creating wrapper wcl for module '%s'" % modname
-#        if modname not in config[SW_MODULESECT]:
-#            raise Exception("Error: Could not find module description for module %s\n" % (modname))
-#
-#        if modname not in wrapinst:
-#            print "Error: module not in wrapinst"
-#            print wrapinst.keys()
-#
-#        for inst in wrapinst[modname].values():
-#            wrapperwcl = create_single_wrapper_wcl(config, modname, inst)
-#            #(found, inputwcl) = config.search('inputwcl',
-#            #        {PF_CURRVALS: {'curr_module': modname}, 'searchobj': inst,
-#            #        'required': True, 'interpolate': True})
-#
-#            (found, wrappername) = config.search('wrappername',
-#                    {PF_CURRVALS: {'curr_module': modname}, 'searchobj': inst,
-#                    'required': True, 'interpolate': True})
-#
-#            (found, logfile) = config.search('log',
-#                    {PF_CURRVALS: {'curr_module': modname}, 'searchobj': inst,
-#                    'required': True, 'interpolate': True})
-#
-#            inputwcl = inst['inputwcl']
-#            wrappername = inst['wrappername']
-#            logfile = inst['log']
-#
-#            #fix_globalvars(config, wrapperwcl, modname, inst)
-#            add_needed_values(config, modname, inst, wrapperwcl)
-#
-#            write_wrapper_wcl(config, inputwcl, wrapperwcl) 
-#
-#            # Add this wrapper execution to list
-#            tasks.append((wrappername, inputwcl, logfile))
-#    fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
-#    return tasks
-
 
 def write_runjob_script(config):
     fwdebug(0, "PFWBLOCK_DEBUG", "BEG")

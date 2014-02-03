@@ -8,6 +8,7 @@ import re
 import os
 import inspect
 import tarfile
+import errno
 import time
 import subprocess
 from collections import OrderedDict

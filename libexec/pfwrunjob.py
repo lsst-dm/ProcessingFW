@@ -196,11 +196,12 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info):
 
     fileinfo_archive = filemgmt.get_file_archive_info(files2get, archive_info['name'], FM_PREFER_UNCOMPRESSED)
 
-    archroot = archive_info['root']
+    #archroot = archive_info['root']
     transinfo = {}
     for name, info in fileinfo_archive.items():
         transinfo[name] = copy.deepcopy(info)
-        transinfo[name]['src'] = '%s/%s' % (archroot, info['rel_filename'])
+        #transinfo[name]['src'] = '%s/%s' % (archroot, info['rel_filename'])
+        transinfo[name]['src'] = info['rel_filename']
         transinfo[name]['dst'] = jobfiles[name]
 
     fwdebug(3, "PFWRUNJOB_DEBUG", "END")
@@ -517,9 +518,10 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
     archive_info = wcl['%s_archive_info' % dest.lower()]
        
     # make archive full paths for transfer
-    arroot = archive_info['root']
+    #arroot = archive_info['root']
     for fdict in putinfo.values():
-        fdict['dst'] = "%s/%s/%s" % (arroot, fdict['path'], os.path.basename(fdict['src']))
+        #fdict['dst'] = "%s/%s/%s" % (arroot, fdict['path'], os.path.basename(fdict['src']))
+        fdict['dst'] = "%s/%s" % (fdict['path'], os.path.basename(fdict['src']))
 
     # dynamically load class for job_file_mvmt
     if 'job_file_mvmt' not in wcl:

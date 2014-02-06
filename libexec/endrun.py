@@ -27,8 +27,8 @@ def endrun(configfile):
             return(PF_EXIT_FAILURE)
 
 
-        filelist = [config[OPS_RUN_DIR]]
-        print "filelist =", filelist
+        archpath = config.interpolate(config[OPS_RUN_DIR])
+        print "archpath =", archpath
 
             
         # call archive transfer for target archive to home archive
@@ -43,7 +43,7 @@ def endrun(configfile):
                 print "Error:  cannot determine info for target archive"
                 return(PF_EXIT_FAILURE)
         else:
-            print "Error:  Asked to transfer outputs at end of block, but not using target archive"
+            print "Error:  Asked to transfer outputs at end of run, but not using target archive"
             return(PF_EXIT_FAILURE)
 
         home_info = None
@@ -52,7 +52,7 @@ def endrun(configfile):
             home_info = config['archive'][config[HOME_ARCHIVE]]
 
         # call transfer
-        archive_transfer_utils.archive_copy(target_info, home_info, config['archive_transfer'], filelist, config)
+        archive_transfer_utils.archive_copy_dir(target_info, home_info, config['archive_transfer'], archpath, config)
 
     fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % PF_EXIT_SUCCESS)
     return(PF_EXIT_SUCCESS)

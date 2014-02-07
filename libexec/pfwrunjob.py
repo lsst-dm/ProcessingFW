@@ -47,8 +47,17 @@ def transfer_job_to_archives(pfw_dbh, wcl, putinfo, tasktype, tasklabel):
                    
 
 ######################################################################
-def ingest_file_metadata(pfw_dbh, wcl, archive_info, file_metadata, tasktype, tasklabel):
+def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
     fwdebug(3, "PFWRUNJOB_DEBUG", "BEG (%s, %s)" % (tasktype, tasklabel))
+
+
+    archive_info = None
+    if USE_HOME_ARCHIVE_OUTPUT in wcl and wcl[USE_HOME_ARCHIVE_OUTPUT].lower() != 'never':
+        archive_info = wcl['home_archive_info']
+    elif USE_TARGET_ARCHIVE_OUTPUT in wcl and checkTrue(wcl[USE_TARGET_ARCHIVE_OUTPUT]):
+        archive_info = wcl['target_archive_info']
+    else:
+        raise Exception('Error: Could not determine archive for output files');
 
     starttime = time.time()
     if pfw_dbh is not None:
@@ -166,7 +175,7 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
                  if 'err' in finfo:
                      problemfiles[f] = finfo
 
-            files2get = list(set(files2get) - set(transinfo.keys()))
+            files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
                 print "Warning: had problems getting input files from home archive"
                 print "\t", problemfiles
@@ -244,8 +253,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
             pfw_file_metadata['file_%d' % (cnt)] = {'filename': parse_fullname(ldict['fullname'], CU_PARSE_FILENAME),
                                                     'filetype': 'list'}
 
-        ingest_file_metadata(pfw_dbh, wcl, wcl['target_archive_info'], pfw_file_metadata, 
-                             'job_wrapper', 'ingest-metadata_lists')
+        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'job_wrapper', 'ingest-metadata_lists')
 
     
     # make directories for output files, get input files from targetnode
@@ -593,8 +601,7 @@ def save_log_file(pfw_dbh, wcl, logfile):
         # Register log file
         pfw_file_metadata = {}
         pfw_file_metadata['file_1'] = {'filename' : parse_fullname(logfile, CU_PARSE_FILENAME), 'filetype' : 'log'}
-        ingest_file_metadata(pfw_dbh, wcl, wcl['target_archive_info'], pfw_file_metadata, 
-                             'job_wrapper', 'ingest-metadata_logfile')
+        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'job_wrapper', 'ingest-metadata_logfile')
 
         # since able to register log file, save as not junk file
         wcl['outfullnames'].append(logfile) 
@@ -705,8 +712,7 @@ def postwrapper(wcl, logfile, exitcode):
                         del fdict['fullname']  # deleting because not needed by later ingest_file_metadata
                     #wclutils.write_wcl(finfo)
 
-                    ingest_file_metadata(pfw_dbh, wcl, wcl['target_archive_info'], 
-                                         outputwcl[OW_METASECT], 'job_wrapper', 
+                    ingest_file_metadata(pfw_dbh, wcl, outputwcl[OW_METASECT], 'job_wrapper', 
                                          'ingest-metadata_wrapper-outputs')
 
                     copy_output_to_archive(pfw_dbh, wcl, finfo)
@@ -948,8 +954,7 @@ def create_junk_tarball(pfw_dbh, wcl):
         pfw_file_metadata = {}
         pfw_file_metadata['file_1'] = {'filename' : wcl['junktar'],
                                        'filetype' : 'junk_tar'}
-        ingest_file_metadata(pfw_dbh, wcl, wcl['target_archive_info'], 
-                             pfw_file_metadata, 'job', 'ingest-metadata_junktar')
+        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'job', 'ingest-metadata_junktar')
     
 
         # gather "disk" metadata about tarball

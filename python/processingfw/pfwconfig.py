@@ -590,6 +590,19 @@ class PfwConfig:
                     self.config['list_target_archives'] += ',' + archive
             else:
                 self.config['list_target_archives'] = archive
+        elif ((USE_HOME_ARCHIVE_INPUT in self and convertBool(self[USE_TARGET_ARCHIVE_INPUT])) or
+            (USE_HOME_ARCHIVE_OUTPUT in self and self[USE_HOME_ARCHIVE_OUTPUT] != 'never')):
+            (exists, archive) = self.search(HOME_ARCHIVE)
+            if not exists:
+                fwdie("Error: Cannot determine home_archive value.   \n\tEither set home_archive or set correctly both %s and %s" % (USE_HOME_ARCHIVE_INPUT, USE_HOME_ARCHIVE_OUTPUT), PF_EXIT_FAILURE)
+    
+            archive = archive.lower()
+            if archive not in self.config['archive']:
+                print "Error: invalid home_archive value (%s)" % archive
+                print "\tarchive contains: ", self.config['archive']
+                fwdie("Error: Invalid home_archive value (%s)" % archive, PF_EXIT_FAILURE)
+    
+            curdict['curr_archive'] = archive
         else:
             curdict['curr_archive'] = None    # make sure to reset curr_archive from possible prev block value
     

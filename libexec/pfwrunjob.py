@@ -205,6 +205,10 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info):
 
     fileinfo_archive = filemgmt.get_file_archive_info(files2get, archive_info['name'], FM_PREFER_UNCOMPRESSED)
 
+    if len(files2get) != 0 and len(fileinfo_archive) == 0:
+        print "Info: 0 files found on %s" % archive_info['name']
+        print "\tfilemgmt = %s" % archive_info['filemgmt']
+
     #archroot = archive_info['root']
     transinfo = {}
     for name, info in fileinfo_archive.items():
@@ -683,7 +687,7 @@ def postwrapper(wcl, logfile, exitcode):
         except Exception as err:
             warnmsg = "Warning:  Could not append output wcl file to tarball: %s" % err
             if pfw_dbh is not None:
-                pfw_dbh.insert_message(wcl, 'wrapper', pfwdb.PFW_MSG_WARNING, warnmsg)
+                pfw_dbh.insert_message(wcl, 'wrapper', pfwdb.PFW_MSG_WARN, warnmsg)
             print warnmsg
             print "\tContinuing job"
 

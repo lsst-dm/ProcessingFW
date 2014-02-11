@@ -48,7 +48,7 @@ def logpost(argv = None):
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
     if convertBool(config[PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         #dbh.update_blktask_end(config, "", subblock, retval)
 
     # now that have more information, rename output file

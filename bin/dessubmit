@@ -106,7 +106,7 @@ def main(args):
                 print 'Inserting run into PFW tables...',
                 sys.stdout.flush()
                 import processingfw.pfwdb as pfwdb   # import late 
-                dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+                dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
                 dbh.insert_run(config)
                 dbh.insert_attempt_label(config)
                 print 'DONE'
@@ -162,7 +162,7 @@ def main(args):
                 condorid is not None):
                 print "Saving run's condorid into PFW tables...",
                 import processingfw.pfwdb as pfwdb
-                dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+                dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
                 dbh.update_attempt_cid(config, condorid)
                 print 'DONE'
     except Exception:

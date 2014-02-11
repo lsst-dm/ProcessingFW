@@ -38,14 +38,14 @@ def begblock(argv):
     #sys.stdout = debugfh
     #sys.stderr = debugfh
 
-    if 'des_services' in config and config['des_services'] is not None:
-        os.environ['DES_SERVICES'] = config['des_services']
-    if 'des_db_section' in config:
-        os.environ['DES_DB_SECTION'] = config['des_db_section']
+    if 'submit_des_services' in config and config['submit_des_services'] is not None:
+        os.environ['DES_SERVICES'] = config['submit_des_services']
+    if 'submit_des_db_section' in config:
+        os.environ['submit_DES_DB_SECTION'] = config['submit_des_db_section']
 
     fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[PF_BLKNUM]))
     if convertBool(config[PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
 
 #   Moved insert_block into blockpre
 #        dbh.insert_block(config)
@@ -92,7 +92,7 @@ def begblock(argv):
         fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
         jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])
         jobdict['inputwcltar'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'], jobdict['inlist'])
-        (jobdict['jobwclfile'], jobdict['outputwcltar']) = pfwblock.write_jobwcl(config, jobkey, jobdict['jobnum'], len(jobdict['tasks']), jobdict['wrapinputs'])
+        (jobdict['jobwclfile'], jobdict['outputwcltar'], jobdict['envfile']) = pfwblock.write_jobwcl(config, jobkey, jobdict['jobnum'], len(jobdict['tasks']), jobdict['wrapinputs'])
     fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - END")
 
     numjobs = len(joblist)

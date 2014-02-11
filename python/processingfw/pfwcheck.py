@@ -53,20 +53,32 @@ def check_globals(config, indent=''):
 
     if PF_USE_DB_IN in config:
         if convertBool(config[PF_USE_DB_IN]):
-            if 'des_db_section' not in config:
-                print "%s    Error:  using DB (%s), but missing des_db_section" % (indent, PF_USE_DB_IN)
+            if 'submit_des_db_section' not in config:
+                print "%s    Error:  using DB (%s), but missing submit_des_db_section" % (indent, PF_USE_DB_IN)
                 cnts[ERRCNT_POS] += 1
-            if 'des_services' not in config:
-                print "%s    Error:  using DB (%s), but missing des_services" % (indent, PF_USE_DB_IN)
+            if 'submit_des_services' not in config:
+                print "%s    Error:  using DB (%s), but missing submit_des_services" % (indent, PF_USE_DB_IN)
                 cnts[ERRCNT_POS] += 1
 
+            if 'target_des_db_section' not in config:
+                print "%s    Error:  using DB (%s), but missing target_des_db_section" % (indent, PF_USE_DB_IN)
+                cnts[ERRCNT_POS] += 1
+            if 'target_des_services' not in config:
+                print "%s    Error:  using DB (%s), but missing target_des_services" % (indent, PF_USE_DB_IN)
+                cnts[ERRCNT_POS] += 1
     if PF_USE_DB_OUT in config:
         if convertBool(config[PF_USE_DB_OUT]):
-            if 'des_db_section' not in config:
-                print "%s    Error:  using DB (%s), but missing des_db_section" % (indent, PF_USE_DB_OUT)
+            if 'submit_des_db_section' not in config:
+                print "%s    Error:  using DB (%s), but missing submit_des_db_section" % (indent, PF_USE_DB_OUT)
                 cnts[ERRCNT_POS] += 1
-            if 'des_services' not in config:
-                print "%s    Error:  using DB (%s), but missing des_services" % (indent, PF_USE_DB_OUT)
+            if 'submit_des_services' not in config:
+                print "%s    Error:  using DB (%s), but missing submit_des_services" % (indent, PF_USE_DB_OUT)
+                cnts[ERRCNT_POS] += 1
+            if 'target_des_db_section' not in config:
+                print "%s    Error:  using DB (%s), but missing target_des_db_section" % (indent, PF_USE_DB_OUT)
+                cnts[ERRCNT_POS] += 1
+            if 'target_des_services' not in config:
+                print "%s    Error:  using DB (%s), but missing target_des_services" % (indent, PF_USE_DB_OUT)
                 cnts[ERRCNT_POS] += 1
 
     # if using QCF must also be writing run info into DB

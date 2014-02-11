@@ -654,6 +654,14 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
     jobwclfile = config.get_filename('jobwcl', {PF_CURRVALS: {PF_JOBNUM: jobnum}, 'required': True, 'interpolate': True})
     outputwcltar = config.get_filename('outputwcltar', {PF_CURRVALS:{'jobnum': jobnum}, 'required': True, 'interpolate': True})
 
+    #      Since wcl's variable syntax matches shell variable syntax and 
+    #      underscores are used to separate name parts, have to use place 
+    #      holder for jobnum and replace later with shell variable
+    #      Otherwise, get_filename fails to substitute for padjnum
+    #envfile = config.get_filename('envfile', {PF_CURRVALS: {PF_JOBNUM:"9999"}})
+    #envfile = envfile.replace("j9999", "j${padjnum}")
+    envfile = config.get_filename('envfile')
+
     jobwcl = {REQNUM: config.search(REQNUM, { 'required': True,
                                     'interpolate': True})[1], 
               UNITNAME:config.search(UNITNAME, { 'required': True,
@@ -675,6 +683,7 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
               'jobkeys': jobkey[1:].replace('_',','),
               'archive': config['archive'],
               'output_wcl_tar': outputwcltar,
+              'envfile': envfile,
               'junktar': config.get_filename('junktar', {PF_CURRVALS:{'jobnum': jobnum}}),
               'junktar_archive_path': config.get_filepath('ops', 'junktar', {PF_CURRVALS:{'jobnum': jobnum}})
             }
@@ -772,9 +781,9 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
 
 
     if convertBool(config[PF_USE_DB_OUT]):
-        if 'des_services' in config and config['des_services'] is not None: 
-            jobwcl['des_services'] = config['des_services']
-        jobwcl['des_db_section'] = config['des_db_section']
+        if 'target_des_services' in config and config['target_des_services'] is not None: 
+            jobwcl['des_services'] = config['target_des_services']
+        jobwcl['des_db_section'] = config['target_des_db_section']
 
 
     jobwcl['filetype_metadata'] = config['filetype_metadata']
@@ -787,7 +796,7 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
 
     fwdebug(3, "PFWBLOCK_DEBUG", "END\n\n")
-    return (jobwclfile, outputwcltar)
+    return (jobwclfile, outputwcltar, envfile)
     
 
 #######################################################################
@@ -1411,10 +1420,17 @@ def write_runjob_script(config):
     jobdir = config.get_filepath('runtime', 'jobdir', {PF_CURRVALS: {PF_JOBNUM:"$padjnum"}})
     print "The jobdir =", jobdir
 
+    #      Since wcl's variable syntax matches shell variable syntax and 
+    #      underscores are used to separate name parts, have to use place 
+    #      holder for jobnum and replace later with shell variable
+    #      Otherwise, get_filename fails to substitute for padjnum
+    envfile = config.get_filename('envfile', {PF_CURRVALS: {PF_JOBNUM:"9999"}})
+    envfile = envfile.replace("j9999", "j${padjnum}")
+
     scriptstr = """#!/bin/sh
 echo "Current args: $@";
-if [ $# -ne 4 ]; then
-    echo "Usage: <jobnum> <input tar> <job wcl> <tasklist> ";
+if [ $# -ne 6 ]; then
+    echo "Usage: <jobnum> <input tar> <job wcl> <tasklist> <env file> <output tar>";
     exit 1;
 fi
 jobnum=$1
@@ -1422,6 +1438,8 @@ padjnum=`/usr/bin/printf %04d $jobnum`
 intar=$2
 jobwcl=$3
 tasklist=$4
+envfile=$5
+outputtar=$6
 initdir=`/bin/pwd`
 """
 
@@ -1437,6 +1455,10 @@ echo "Initial condor job directory = " $initdir
 echo "Files copied over by condor:"
 ls -l
 echo ""
+
+echo "Creating empty job output files to guarantee condor job nice exit"
+touch $envfile
+tar -cvf $outputtar --files-from /dev/null
 
 echo "Sourcing script to set up EUPS (%(eups)s)"
 source %(eups)s 
@@ -1465,17 +1487,13 @@ fi
 
 
     # print start of job information 
-    #      Since wcl's variable syntax matches shell variable syntax and 
-    #      underscores are used to separate name parts, have to use place 
-    #      holder for jobnum and replace later with shell variable
-    #      Otherwise, get_filename fails to substitute for padjnum
-    envfile = config.get_filename('envfile', {PF_CURRVALS: {PF_JOBNUM:"9999"}})
-    envfile = envfile.replace("j9999", "j${padjnum}")
 
     scriptstr +="""
-echo "Saving environment after setting up meta package to %s"
-env > %s
-""" % (envfile, envfile)
+echo "Saving environment after setting up meta package to $envfile"
+env | sort > $envfile
+pwd
+ls -l $envfile
+""" 
    
     if SW_JOB_BASE_DIR in config and config[SW_JOB_BASE_DIR] is not None:
         full_job_dir = config[SW_JOB_BASE_DIR] + '/' + jobdir
@@ -1553,6 +1571,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
     pfwdir = config['processingfw_dir']
     blockname = config['curr_block']
 
+
     with open("../%s/%s" % (blockname, dagfile), 'w') as dagfh:
         for jobkey,jobdict in joblist.items(): 
             jobnum = jobdict['jobnum']
@@ -1561,8 +1580,9 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write('JOB %s %s\n' % (tjpad, condorfile))
             dagfh.write('VARS %s jobnum="%s"\n' % (tjpad, tjpad))
             dagfh.write('VARS %s exec="%s"\n' % (tjpad, scriptfile))
-            dagfh.write('VARS %s args="%s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
+            dagfh.write('VARS %s args="%s %s %s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile'], jobdict['envfile'], jobdict['outputwcltar']))
             dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
+            dagfh.write('VARS %s transoutput="%s,%s"\n' % (tjpad, jobdict['outputwcltar'], jobdict['envfile']))
             # no pre script for job.   Job inserted into DB at beginning of job running
 #jobpost.py configfile block jobnum inputtar outputtar retval
             dagfh.write('SCRIPT post %s %s/libexec/jobpost.py config.des %s $JOB %s %s $RETURN\n' % (tjpad, pfwdir, blockname, jobdict['inputwcltar'], jobdict['outputwcltar'])) 
@@ -1676,6 +1696,7 @@ def create_runjob_condorfile(config, scriptfile):
         jobattribs['grid_resource'] = pfwcondor.create_resource(targetinfo)
         jobattribs['stream_output'] = 'False'
         jobattribs['stream_error'] = 'False'
+        jobattribs['transfer_output_files'] = '$(transoutput)'
         globus_rsl = pfwcondor.create_rsl(targetinfo)
         if len(globus_rsl) > 0:
             jobattribs['globus_rsl'] = globus_rsl

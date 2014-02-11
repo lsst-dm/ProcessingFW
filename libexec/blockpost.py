@@ -76,7 +76,7 @@ def blockpost(argv = None):
     if convertBool(config[PF_USE_DB_OUT]): 
         try:
             print "\n\nChecking job status from pfw_job table in DB (%s is success)" % PF_EXIT_SUCCESS
-            dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+            dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
             jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
             wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
             dbh.close()
@@ -118,7 +118,7 @@ def blockpost(argv = None):
         if convertBool(config[PF_USE_QCF]): 
             try:
                 import qcframework.qcfdb as qcfdb
-                dbh = qcfdb.QCFDB(config['des_services'], config['des_db_section'])
+                dbh = qcfdb.QCFDB(config['submit_des_services'], config['submit_des_db_section'])
                 print "lastwraps = ", lastwraps
                 wrapmsg = dbh.get_qcf_messages_for_wrappers(lastwraps)
                 print "wrapmsg = ", wrapmsg
@@ -196,7 +196,7 @@ def blockpost(argv = None):
     # Store values in DB and hist file 
     dbh = None
     if convertBool(config[PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.update_block_end(config, retval)
     #logEvent(config, blockname, 'mngr', 'j', 'posttask', retval)
 

@@ -48,23 +48,23 @@ class PfwConfig:
             except Exception as err:
                 fwdie("Error: Problem reading wcl file '%s' : %s" % (args['wclfile'], err), PF_EXIT_FAILURE)
 
-        if 'des_services' in args and args['des_services'] is not None:
-            wcldict['des_services'] = args['des_services']
-        elif 'des_services' not in wcldict:
+        if 'submit_des_services' in args and args['submit_des_services'] is not None:
+            wcldict['submit_des_services'] = args['submit_des_services']
+        elif 'submit_des_services' not in wcldict:
             if 'DES_SERVICES' in os.environ:
-                wcldict['des_services'] = os.environ['DES_SERVICES']
+                wcldict['submit_des_services'] = os.environ['DES_SERVICES']
             else:
                 # let it default to $HOME/.desservices.init    
-                wcldict['des_services'] = None
+                wcldict['submit_des_services'] = None
 
-        if 'des_db_section' in args and args['des_db_section'] is not None:
-            wcldict['des_db_section'] = args['des_db_section']
-        elif 'des_db_section' not in wcldict:
+        if 'submit_des_db_section' in args and args['submit_des_db_section'] is not None:
+            wcldict['submit_des_db_section'] = args['submit_des_db_section']
+        elif 'submit_des_db_section' not in wcldict:
             if 'DES_DB_SECTION' in os.environ:
-                wcldict['des_db_section'] = os.environ['DES_DB_SECTION']
+                wcldict['submit_des_db_section'] = os.environ['DES_DB_SECTION']
             else:
                 # let DB connection code print error message
-                wcldict['des_db_section'] = None
+                wcldict['submit_des_db_section'] = None
         #else:
         #    print "des_db_section in wcldict"
 
@@ -89,7 +89,7 @@ class PfwConfig:
             print "\tGetting defaults from DB...",
             sys.stdout.flush()
             starttime = time.time()
-            dbh = pfwdb.PFWDB(wcldict['des_services'], wcldict['des_db_section'])
+            dbh = pfwdb.PFWDB(wcldict['submit_des_services'], wcldict['submit_des_db_section'])
             print "DONE (%0.2f secs)" % (time.time()-starttime)
             wclutils.updateDict(self.config, dbh.get_database_defaults())
 
@@ -132,8 +132,8 @@ class PfwConfig:
     def save_file(self, filename):
         """Saves configuration in WCL format"""
         fh = open(filename, "w")
-        if 'des_services' in self.config and self.config['des_services'] == None:
-            del self.config['des_services']
+        if 'submit_des_services' in self.config and self.config['submit_des_services'] == None:
+            del self.config['submit_des_services']
         wclutils.write_wcl(self.config, fh, True, 4)  # save it sorted
 #        wclutils.write_wcl(self.config['_config'], fh, True, 4)  # save it sorted
 #        wclutils.write_wcl(self.config['current'], fh, True, 4)  # save it sorted
@@ -605,6 +605,10 @@ class PfwConfig:
             curdict['curr_archive'] = archive
         else:
             curdict['curr_archive'] = None    # make sure to reset curr_archive from possible prev block value
+
+
+        self.config['des_services'] = self.config['submit_des_services']
+        self.config['des_db_section'] = self.config['submit_des_db_section']
     
         fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
 

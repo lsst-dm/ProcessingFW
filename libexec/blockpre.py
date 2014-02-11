@@ -106,7 +106,7 @@ def blockpre(argv = None):
     os.symlink("../%s/%s" % (blockname, blocktaskfile), "../uberctrl/%s" % blocktaskfile)
     
     if convertBool(config[PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.insert_block(config)
     
     log_pfw_event(config, blockname, 'blockpre', 'j', ['pretask'])

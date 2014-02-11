@@ -36,7 +36,7 @@ def logpre(argv = None):
     config = pfwconfig.PfwConfig({'wclfile': configfile})
 
     if convertBool(config[PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['des_services'], config['des_db_section'])
+        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         #dbh.insert_blktask(config, "", subblock)
 
     # now that have more information, can rename output file

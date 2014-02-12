@@ -607,8 +607,11 @@ class PfwConfig:
             curdict['curr_archive'] = None    # make sure to reset curr_archive from possible prev block value
 
 
-        self.config['des_services'] = self.config['submit_des_services']
-        self.config['des_db_section'] = self.config['submit_des_db_section']
+        if 'submit_des_services' in self.config:
+            self.config['des_services'] = self.config['submit_des_services']
+
+        if 'submit_des_db_section' in self.config:
+            self.config['des_db_section'] = self.config['submit_des_db_section']
     
         fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
 

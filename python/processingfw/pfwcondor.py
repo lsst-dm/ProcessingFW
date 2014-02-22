@@ -7,6 +7,7 @@
 """ Utilities for interactions with Condor """
 
 import subprocess
+import shlex
 import os
 import re
 
@@ -376,7 +377,7 @@ def condor_q(args_str=''):
 
     args_str = str(args_str)
     condorq_cmd = ['condor_q', '-l']
-    condorq_cmd.extend(args_str.split())
+    condorq_cmd.extend(shlex.split(args_str))
     
     try:
         process = subprocess.Popen(condorq_cmd, 

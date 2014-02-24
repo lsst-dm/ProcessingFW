@@ -57,7 +57,9 @@ def status_target_jobs(job, qjobs):
 
     chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'ERR': 0}
     for childjob in qjobs[job]['children']:
-        chstat[pfwcondor.get_job_status_str(childjob, qjobs)] += 1
+        jobstat = pfwcondor.get_job_status_str(childjob, qjobs)
+        if jobstat in chstat:  # ignore other status, e.g. DONE
+            chstat[jobstat] += 1
     status = "(%s/%s/%s/%s)" % (chstat['ERR'], 
                                 chstat['PEND'] + chstat['UNSUB'], 
                                 chstat['RUN'], 

@@ -55,9 +55,6 @@ def jobpost(argv = None):
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
-    if convertBool(config[PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        #dbh.update_blktask_end(config, "", subblock, retval)
 
 
     # now that have more information, rename output file
@@ -77,6 +74,24 @@ def jobpost(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
     
+
+    if convertBool(config[PF_USE_DB_OUT]): 
+        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+        #dbh.update_blktask_end(config, "", subblock, retval)
+    
+        # Search for DB connection error messages and insert them
+        jobbase = config.get_filename('job', {PF_CURRVALS: {PF_JOBNUM:jobnum, 
+                                                            'flabel': 'runjob', 
+                                                            'fsuffix':''}})
+        # grep files for ORA
+        for f in ['%sout'%jobbase, '%serr'%jobbase]:
+            with open(f, 'r') as jobfh:
+                for line in jobfh:
+                    if 'ORA-' in line:
+                        # insert into DB 
+                        dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
+                        
+        
     
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])
 
@@ -95,6 +110,9 @@ def jobpost(argv = None):
         os.unlink(outputtar)
     else:
         print "Could not find outputtar: %s" % outputtar
+
+
+    
 
     
     # In order to continue, make pipelines dagman jobs exit with success status

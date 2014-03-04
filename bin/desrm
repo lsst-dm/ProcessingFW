@@ -47,7 +47,7 @@ def main(argv=None):
         run = masterjob[givcondorid][runkey]
         #print "Converted condor id to run", run
             
-    m = re.match("([^_]+)_r(\d)p(\d+)", run)
+    m = re.match("([^_]+)_r(\d+)p(\d+)", run)
     if not m:
         print "Error: run is not correct format (<unitname>_r<reqnum>p<attnum>).  Not deleting run"
         return(1)
@@ -87,7 +87,7 @@ def main(argv=None):
 
     pfwcondor.condor_rm(condorid)
     dbh = pfwdb.PFWDB()
-    dbh.update_attempt_end(reqnum, unitname, attnum, PF_OPDELETE)
+    dbh.update_attempt_end_vals(reqnum, unitname, attnum, PF_EXIT_OPDELETE)
     return(0)
 
 if __name__ == "__main__":

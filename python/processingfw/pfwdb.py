@@ -253,6 +253,12 @@ class PFWDB (coreutils.DesDbi):
     def update_attempt_end (self, config, exitcode):
         """ update row in pfw_attempt with end of attempt info """
 
+        update_attempt_end_vals(self, config[REQNUM], config[UNITNAME], config[ATTNUM], exitcode)
+        
+
+    def update_attempt_end_vals (self, reqnum, unitname, attnum, exitcode):
+        """ update row in pfw_attempt with end of attempt info """
+
         #self.end_timing(config, 'attempt', config['submit_run'], exitcode)
 
         updatevals = {}
@@ -260,9 +266,9 @@ class PFWDB (coreutils.DesDbi):
         updatevals['status'] = exitcode
 
         wherevals = {}
-        wherevals['reqnum'] = config[REQNUM]
-        wherevals['unitname'] = config[UNITNAME]
-        wherevals['attnum'] = config[ATTNUM]
+        wherevals['reqnum'] = reqnum
+        wherevals['unitname'] = unitname
+        wherevals['attnum'] = attnum
         
         self.update_PFW_row ('PFW_ATTEMPT', wherevals, updatevals)
 
@@ -602,6 +608,7 @@ class PFWDB (coreutils.DesDbi):
         row['msglevel'] = msglevel 
         row['msg'] = msg 
         self.insert_PFW_row('PFW_MESSAGE', row)
+
 
 
     ##### WRAPPER #####

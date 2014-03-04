@@ -1546,6 +1546,8 @@ echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist"
 d1=`/bin/date "+%s"`
 ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist
 rjstat=$?
+echo ""
+echo ""
 d2=`/bin/date "+%s"`
 echo "DESDMTIME: pfwrunjob.py $((d2-d1))"
 shd2=`/bin/date "+%s"`

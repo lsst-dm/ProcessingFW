@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+""" Print information from database about runs 
+
+    (Alpha version assumes the following per attempt
+     1 label, 1 target site, 1 target pipeprod, 1 target pipever)
+
+"""
+
+
+
 # $Id$
 # $Rev::                                  $:  # Revision of last commit.
 # $LastChangedBy::                        $:  # Author of last commit. 
@@ -7,98 +16,352 @@
 
 import argparse
 import sys
-import processingfw.pfwdb as pfwdb
+import coreutils.desdbi
+import ConfigParser
+from datetime import datetime
+from datetime import timedelta
 from coreutils.miscutils import fwsplit
+from processingfw.pfwdefs import *
 from time import strftime
 
 
-def printInfo(curs, tabletype='text'):
-    """ print information retrieved from pfw_attempt in a table """
+ADD_COLS = ['run' , 'qwait', 'wallclock', 'numexpblk', 'lastblk', 'lastmod-l', 'lastmod-h', 'target_site', 'pipeline', 'pipeprod', 'pipever']
+#DEF_COLS = 'reqnum,unitname,attnum,operator,qwait,wallclock,status,label'
+DEF_COLS = 'run,status,operator,wallclock,blkcnt,lastblk,lastmod,label'
+
+def getColNames(dbh, table):
+    curs = dbh.cursor()
+    curs.execute("SELECT * FROM %s where 0=1" % table)
+    colnames = [d[0].lower() for d in curs.description]
+    curs.close()
+    return colnames
+
+
+def printInfo(attempts, printopts, maxwidths):
+    """ print information about processing attempts in a table format """
+
+
+    printcols = printopts['cols'].split(',')
+    format = printopts['format'].lower()
+
+    # width of column is max of column name or values
+    for col in printcols:
+        if col not in maxwidths or len(col) > maxwidths[col]:
+            maxwidths[col] = len(col)
+
+    # if not suppressing header, print column names and a dashed line
+    if not printopts['suppresshead']:
+        hdr = ""
+        for col in printcols:
+            fmt = "%%%ds  " % maxwidths[col]
+            hdr += fmt % col
+        print hdr
+
+        if format == 'text':
+            print '-'*(len(hdr)+1)
+
+
+    for attdict in sorted(attempts.values(), key=lambda x:x[printopts['sort'].lower()]):
+        line = ""
+        for col in printcols:
+            fmt = "%%%ds  " % maxwidths[col]
+            if col in attdict and attdict[col] is not None:
+                line += fmt % attdict[col]
+            else:
+                line += fmt % ' '
+        print line
+
+
+def convertStatus(st):
+    stlabel = ''
+    if st is None:
+        stlabel = 'U'
+    elif st == PF_EXIT_OPDELETE:
+        stlabel = 'A'
+    elif st != 0:
+        stlabel = 'F'
+    else:
+        stlabel = 'P'
+    return stlabel
+    
+
+def massageInfo(attempts):
+    """ Add extra information calculated from database results """
+
+    maxwidths = {}
+
+    for attd in attempts.values():
+        # attempt qwait doesn't really make sense, maybe should sum up indiv job qwaits
+        #if ('starttime' in attd and attd['starttime'] is not None and
+        #   'submittime' in attd and attd['submittime'] is not None): 
+        #    attd['qwait'] = attd['starttime'] - attd['submittime']
+        #else:
+        #    attd['qwait'] = 'UNK'
+
+        if 'starttime' in attd and attd['starttime'] is not None: 
+            if 'endtime' in attd and attd['endtime'] is not None: 
+                attd['wallclock'] = attd['endtime'] - attd['starttime']
+            else:
+                attd['wallclock'] = datetime.now() - attd['starttime']
+        else:
+            attd['wallclock'] = 'UNK'
+    
+        attd['status'] = convertStatus(attd['status'])
+        attd['run'] = '%s_r%dp%02d' % (attd['unitname'], int(attd['reqnum']), int(attd['attnum']))
+
+
+        # Information from last block run: name as lastblk, numblkrun/numexpblk as blkcnt
+        # Information from any wrapper from last block: lastmod
+        # Information from any job from last block: pipeprod, pipever, exechost
+        if 'blocks' in attd:
+            lastblkdict = attd['blocks'][max(attd['blocks'].keys())]
+            attd['lastblk'] = lastblkdict['name']
+            attd['blkcnt'] = '%s/%s' % (lastblkdict['blknum'], attd['numexpblk'])
+            attd['target_site'] = lastblkdict['target_site']
+
+            if 'job' in lastblkdict:
+                firstjob = lastblkdict['job'].values()[0]
+                attd['pipeprod'] = firstjob['pipeprod']
+                attd['pipever'] = firstjob['pipever']
+                if 'target_site' not in attd or attd['target_site'] is None:
+                    attd['target_site'] = firstjob['exechost']  
+
+                jobstat = {'U':0, 'A':0, 'F':0, 'P':0}
+                for jdict in lastblkdict['job'].values():
+                    st = convertStatus(jdict['status'])
+                    jobstat[st] += 1 
+
+                numexpjobs = 0
+                if 'numexpjobs' in lastblkdict and lastblkdict['numexpjobs'] is not None:
+                    numexpjobs = lastblkdict['numexpjobs']
+                attd['jobstat'] = "T%02d/P%02d/F%02d/A%02d/U%02d" % (numexpjobs, jobstat['P'], jobstat['F'], jobstat['A'], jobstat['U'])
+            
+
+           
+            lastwrap_l = 9999   # track shortest job end
+            statwrap_l = 0      # status is fail if any failed
+            lastwrap_h = 0      # track longest job end
+            statwrap_h = 0      # status is fail if any failed
+            if 'wrappers' in lastblkdict:
+                for j in lastblkdict['wrappers']['byjobnum'].keys():
+                        
+                    jlastwrap = max(lastblkdict['wrappers']['byjobnum'][j].keys())
+    
+                    if jlastwrap < lastwrap_l:
+                        lastwrap_l = jlastwrap
+                        lwld = lastblkdict['wrappers']['bywrapnum'][lastwrap_l]
+                        statwrap_l = lwld['status']
+                        
+                    if jlastwrap > lastwrap_h:
+                        lastwrap_h = jlastwrap
+                        lwhd = lastblkdict['wrappers']['bywrapnum'][lastwrap_h]
+                        statwrap_h = lwhd['status']
+
+
+            attd['lastmod-l'] = "%s:%s" % (lwld['modname'], convertStatus(statwrap_l))
+            attd['lastmod-h'] = "%s:%s" % (lwhd['modname'], convertStatus(statwrap_h))
+
+        
+
+
+        # convert all data to strings and update width of column
+        for k in attd:
+            if k not in maxwidths:
+                maxwidths[k]  = 0
+            if attd[k] is None:
+                attd[k] = ''
+            elif type(attd[k]) is datetime:
+                attd[k] = attd[k].strftime("%02m/%02d/%Y %02H:%02M:%02S")
+            elif type(attd[k]) is timedelta:
+                attd[k] = str(timedelta(seconds=attd[k].seconds))
+            else:
+                attd[k] = str(attd[k])
+
+            if len(attd[k]) > maxwidths[k]:
+                maxwidths[k] = len(attd[k])
+
+    return maxwidths
+
+            
+
+
+def queryAttempt(dbh, colnames, argsdict):
+
+    whereclauses = []
+    for table in colnames.keys():
+        for col in colnames[table]:
+            argkey = col.replace('time', 'date')
+            
+            if argkey in argsdict and argsdict[argkey] is not None:
+                val = argsdict[argkey]
+                if 'time' in col:
+                    if ',' in val:    # times can have date range
+                        (begdate,enddate) = fwsplit(val)
+                    else:
+                        begdate = val
+                        enddate = val
+                    whereclauses.append("%s.%s >= to_date('%s', 'MM/DD/YYYY')" % (table,col, begdate))
+                    whereclauses.append("%s.%s < to_date('%s', 'MM/DD/YYYY') + 1" % (table,col, enddate))
+                else:
+                    whereclauses.append("%s.%s=%s" % (table, col, dbh.quote(str(val))))
+    
+
+    clause = ""
+    if len(whereclauses) > 0:
+        clause = "AND %s" % (' AND '.join(whereclauses))
+        
+        
+    sql = "select pfw_request.*,pfw_attempt.*,pfw_attempt_label.label from pfw_request, pfw_attempt, pfw_attempt_label where pfw_request.reqnum=pfw_attempt.reqnum and pfw_attempt_label.reqnum=pfw_attempt.reqnum and pfw_attempt_label.unitname=pfw_attempt.unitname and pfw_attempt_label.attnum=pfw_attempt.attnum %s" % (clause)
+    #print sql
+    curs = dbh.cursor()
+    curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
     
-    if tabletype is None:
-        tabletype = 'text'
-
-    if tabletype.lower() == 'text':
-        fmtstr = "%8s %20s %2s %8s %20s %20s %20s %4s" 
-    elif tabletype.lower() == 'csv':
-        fmtstr = "%s,%s,%s,%s,%s,%s,%s,%s"
-    else:
-        print "Warning:  unknown tabletype.   Defaulting to text."
-        fmtstr = "%8s %20s %2s %8s %20s %20s %20s %4s" 
-
-    print fmtstr % ('REQNUM', 'UNITNAME', 'P', 'OPER', 'SUBMITTIME', 'STARTTIME', 'ENDTIME', 'STAT')
-
-    if tabletype.lower() == 'text':
-        print '-'*120
-
+    attempts = {}
     for line in curs:
         d = dict(zip(desc, line))
-
-        # convert format of dates to not show decimal seconds
-        # replace None with empty string
-        for col in d:
-            if d[col] is None:
-                d[col] = ''
-            elif 'time' in col:
-                d[col] = d[col].strftime("%02m/%02d/%Y %02H:%02M:%02S")
-
-        print fmtstr % (d['reqnum'], d['unitname'], d['attnum'], d['operator'], 
-                       d['submittime'], d['starttime'], d['endtime'], d['status'])
-    
+        key = '%s_%s_%s' % (d['unitname'], d['reqnum'], d['attnum'])
+        attempts[key] = d
+    return attempts
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description='desstat')
 
-    dbh = pfwdb.PFWDB()
+def queryDetails(dbh, attempts):
 
-    # get column names from pfw_attempt table to create command-line arguments
+    # insert reqnum,unitname,attnum into global temp table to do joins in queries
+    rows = []
+    for attd in attempts.values():
+        arow = {'reqnum': attd['reqnum'], 'unitname': attd['unitname'], 'attnum': attd['attnum']}
+        rows.append(arow)
+    dbh.insert_many('gtt_attempt', ['REQNUM', 'UNITNAME', 'ATTNUM'], rows)
+
+    # get block information
     curs = dbh.cursor()
-    curs.execute("SELECT * FROM pfw_attempt where 0=1")
-    colnames = [d[0].lower() for d in curs.description]
+    sql = 'select pfw_block.* from pfw_block,gtt_attempt where pfw_block.reqnum = gtt_attempt.reqnum and pfw_block.unitname=gtt_attempt.unitname and pfw_block.attnum = gtt_attempt.attnum'
+    curs.execute(sql)
+    desc = [d[0].lower() for d in curs.description]
+    for line in curs:
+        d = dict(zip(desc, line))
+        attkey = '%s_%s_%s' % (d['unitname'], d['reqnum'], d['attnum'])
+        if 'blocks' not in attempts[attkey]:
+            attempts[attkey]['blocks'] = {}
+        attempts[attkey]['blocks'][d['blknum']] = d 
+    curs.close()
+
+    # get job information
+    curs = dbh.cursor()
+    sql = 'select pfw_job.* from pfw_job,gtt_attempt where pfw_job.reqnum = gtt_attempt.reqnum and pfw_job.unitname=gtt_attempt.unitname and pfw_job.attnum = gtt_attempt.attnum'
+    curs.execute(sql)
+    desc = [d[0].lower() for d in curs.description]
+    for line in curs:
+        d = dict(zip(desc, line))
+        attkey = '%s_%s_%s' % (d['unitname'], d['reqnum'], d['attnum'])
+        if 'job' not in attempts[attkey]['blocks'][d['blknum']]: 
+            attempts[attkey]['blocks'][d['blknum']]['job'] = {}
+        attempts[attkey]['blocks'][d['blknum']]['job'][d['jobnum']] = d
+    curs.close()
+
+    # get wrapper information
+    curs = dbh.cursor()
+    sql = 'select pfw_wrapper.* from pfw_wrapper,gtt_attempt where pfw_wrapper.reqnum = gtt_attempt.reqnum and pfw_wrapper.unitname=gtt_attempt.unitname and pfw_wrapper.attnum = gtt_attempt.attnum'
+    curs.execute(sql)
+    desc = [d[0].lower() for d in curs.description]
+    for line in curs:
+        d = dict(zip(desc, line))
+        attkey = '%s_%s_%s' % (d['unitname'], d['reqnum'], d['attnum'])
+        if 'wrappers' not in attempts[attkey]['blocks'][d['blknum']]: 
+            attempts[attkey]['blocks'][d['blknum']]['wrappers'] = {'bywrapnum':{}, 'byjobnum':{}}
+        attwrap = attempts[attkey]['blocks'][d['blknum']]['wrappers']
+        attwrap['bywrapnum'][d['wrapnum']] = d
+        if d['jobnum'] not in attwrap['byjobnum']:
+            attwrap['byjobnum'][d['jobnum']] = {}
+        attwrap['byjobnum'][d['jobnum']][d['wrapnum']] = d
+    curs.close()
+
+
+
+def create_and_parse_args():
+    parser = argparse.ArgumentParser(description=__doc__, add_help=False)
+    parser.add_argument('--des_services', action='store', help='')
+    parser.add_argument('--section', action='store', help='Must be specified if not set in environment')
+    args, unknownargs = parser.parse_known_args(sys.argv[1:])
+    args = vars(args)  # make a dictionary
+
+    # add help late so we make it to second parsing of arguments to get full help
+    parser.add_argument('-h', '--help', action='help', 
+                        help='show this help message and exit')
+    parser.add_argument('-H', '--noheader', action="store_true", default=False,
+                        help="suppress printing of header", dest='suppresshead')
+    parser.add_argument('--format', action='store', default='text',
+                        help='format of output: text, csv')
+    parser.add_argument('--cols', action='store', default=DEF_COLS,
+                        help='comma-separated list of columns to output')
+    parser.add_argument('--sort', action='store', default='submittime',
+                        help='sort by given column name')
+    desservices = None
+    if 'desservices' in args:
+        desservices = args['desservices']
+
+    section = None
+    if 'section' in args:
+        section = args['section']
+
+    colnames = None
+    try:
+        dbh = coreutils.DesDbi(desservices, section)
+    except ConfigParser.NoSectionError:
+        print "Error: must be able to connect to database."
+        print "\tCannot determine section for credential wallet."
+        print "\tEither use --section or set env var DES_DB_SECTION"
+        print "\tIf set, double check valid section name\n\n"
+        parser.print_help()
+        print "More options will be printed once can connect to DB"
+        sys.exit(1)
+    except Exception:
+        print "Error: must be able to connect to database"
+        parser.print_help()
+        print "More options will be printed once can connect to DB"
+        raise
+
+    colnames={}
+    # get column names from pfw_attempt table to create command-line arguments
+    colnames['pfw_attempt'] = getColNames(dbh, 'pfw_attempt')
+
+    # add unique columns from pfw_request table
+    colnames['pfw_request'] = getColNames(dbh, 'pfw_request')
+    
+    # add unique columns from pfw_request table
+    colnames['pfw_attempt_label'] = getColNames(dbh, 'pfw_attempt_label')
+
+    colargs = list(set(colnames['pfw_attempt'] + colnames['pfw_request'] + colnames['pfw_attempt_label'])) 
 
     # for time columns, going with date granularity so modify argument to match
-    for col in colnames:
+    for col in colargs:
         col = col.replace('time', 'date')
         parser.add_argument('--%s'%col, action='store', default=None)
 
-    parser.add_argument('--tabletype', action='store', default=None)
-
-    args = parser.parse_args(argv)
+    args = parser.parse_args(unknownargs)
     argsdict = vars(args)     # convert args Namespace to dict
 
-    tabletype = 'text'
-    if 'tabletype' in argsdict:
-        tabletype = argsdict['tabletype']
-        del argsdict['tabletype']
-        
-    whereclauses = []
-    for col in colnames:
-        argkey = col.replace('time', 'date')
-        if argkey in argsdict and argsdict[argkey] is not None:
-            val = argsdict[argkey]
-            if 'time' in col:
-                if ',' in val:    # times can have date range
-                    (begdate,enddate) = fwsplit(val)
-                else:
-                    begdate = val
-                    enddate = val
-                whereclauses.append("%s >= to_date('%s', 'MM/DD/YYYY')" % (col, begdate))
-                whereclauses.append("%s < to_date('%s', 'MM/DD/YYYY') + 1" % (col, enddate))
-            else:
-                whereclauses.append("%s=%s" % (col, dbh.quote(str(val))))
-    
-    if len(whereclauses) == 0:
-        print "Must specify at least 1 option to restrict query"
-        parser.print_help()
-        return(1)
-        
-    sql = "select * from pfw_attempt where %s" % (' AND '.join(whereclauses))
-    curs.execute(sql)
-    printInfo(curs, tabletype)
 
-    return(0)
+    # pull out args that are print options
+    printopts_keys = ['cols', 'format', 'sort', 'suppresshead']
+    printopts = {}
+    
+    for k in printopts_keys:
+        if k in argsdict:
+            printopts[k] = argsdict[k]
+            del argsdict[k]
+
+    return dbh, colnames, argsdict, printopts
+
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    dbh, colnames, queryopts, printopts = create_and_parse_args()
+    attempts = queryAttempt(dbh, colnames, queryopts)
+    if len(attempts) == 0:
+        print "0 attempts fit given criteria"
+    else:
+        queryDetails(dbh,attempts)
+        maxwidths = massageInfo(attempts)
+        printInfo(attempts, printopts, maxwidths)

@@ -1451,6 +1451,12 @@ echo ""
 echo "Cmdline given: " $@
 echo ""
 echo ""
+echo -n "job shell script starttime: " 
+/bin/date
+echo -n "job exec host: "
+/bin/hostname
+echo ""
+echo ""
 echo "Initial condor job directory = " $initdir
 echo "Files copied over by condor:"
 ls -l

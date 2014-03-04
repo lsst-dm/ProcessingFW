@@ -214,7 +214,8 @@ class PFWDB (coreutils.DesDbi):
         row['attnum'] = config[ATTNUM]
 
         if SW_LABEL in config:
-            labels = fwsplit(config[SW_LABEL],',')
+            labels = config.search(SW_LABEL, {'interpolate': True})[1]
+            labels = fwsplit(labels,',')
             for label in labels:
                 row['label'] = label
                 self.insert_PFW_row('PFW_ATTEMPT_LABEL', row)
@@ -392,6 +393,7 @@ class PFWDB (coreutils.DesDbi):
         row['attnum'] = config[ATTNUM]
         row['blknum'] = blknum
         row['name'] = config.search('blockname', {'interpolate': True})[1]
+        row['target_site'] = config.search('target_site', {'interpolate': True})[1]
         row['modulelist'] = config.search(SW_MODULELIST, {'interpolate': True})[1]
         row['starttime'] = self.get_current_timestamp_str()
         self.insert_PFW_row('PFW_BLOCK', row)

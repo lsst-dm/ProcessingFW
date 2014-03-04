@@ -83,7 +83,7 @@ def summary(argv = None):
     attnum = config.search(ATTNUM, {'interpolate': True})[1]
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        dbh.update_attempt_end(reqnum, unitname, attnum, status)
+        dbh.update_attempt_end_vals(reqnum, unitname, attnum, status)
     print "summary: status = '%s'" % status
     print "summary:", msg1
     print "summary: End"

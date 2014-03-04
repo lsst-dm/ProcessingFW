@@ -74,6 +74,8 @@ if __name__=='__main__':
             m = re.search("SUBMIT_CONDORID=(\d+)", jdict['env'])
             if m:
                 submit_condorid = m.group(1)
+        if submit_condorid == "":  # not a framework job, so skip
+            continue
     
         remotehost = ""
         if 'remotehost' in jdict:
@@ -88,11 +90,11 @@ if __name__=='__main__':
             wallclock = str(timedelta(seconds=wallclock.seconds))
     
         # try to print a string that describes the job in framework terms
-        m = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
-        if m:
-            label = os.path.basename(m.group(1)).replace('job_','')
-        else:
-            label = ""
+        label = ""
+        if 'transferinput' in jdict:
+            m = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
+            if m:
+                label = os.path.basename(m.group(1)).replace('job_','')
     
         print "%10s %20s %5s %20s  %15s %10s %10s %35s" % (j, 
             name, pfwcondor.get_job_status_str(j, jobs), 

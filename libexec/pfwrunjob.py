@@ -109,7 +109,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
         fwdebug(3, "PFWRUNJOB_DEBUG", "\tCalling target2job on %s files" % len(transinfo))
         starttime = time.time()
         if pfw_dbh is not None:
-            pfw_dbh.insert_job_wrapper_task(wcl, 'target2job')
+            pfw_dbh.insert_job_wrapper_task(wcl, '%s2job' % dest)
 
         jobfilemvmt = None
         try:
@@ -151,11 +151,16 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
             for f, finfo in results.items():
                 if 'err' in finfo:
                     problemfiles[f] = finfo
+                    msg = "Warning: Error trying to get file %s from target archive: %s" % (f, finfo['err'])
+                    print msg
+                    if pfw_dbh:
+                        pfw_dbh.insert_message(wcl, 'job_wrapper_task', pfwdb.PFW_MSG_WARN, msg)
 
             files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
                 print "Warning: had problems getting input files from target archive"
-                print "\t", problemfiles
+                #print "\t", problemfiles
+                print "\t", problemfiles.keys()
                 files2get += problemfiles.keys()
         else:
             print "Warning: had problems getting input files from target archive."
@@ -174,11 +179,16 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
             for f, finfo in results.items():
                  if 'err' in finfo:
                      problemfiles[f] = finfo
+                     msg = "Warning: Error trying to get file %s from home archive: %s" % (f, finfo['err'])
+                     print msg
+                     if pfw_dbh:
+                        pfw_dbh.insert_message(wcl, 'job_wrapper_task', pfwdb.PFW_MSG_WARN, msg)
 
             files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
                 print "Warning: had problems getting input files from home archive"
-                print "\t", problemfiles
+                print "\t", problemfiles.keys()
+                #print "\t", problemfiles
                 files2get += problemfiles.keys()
         else:
             print "Warning: had problems getting input files from home archive."
@@ -337,10 +347,25 @@ def setup_wrapper(wcl, iwfilename, logfilename):
             # check if still missing input files
             if len(files2get) > 0:
                 print "******************************"
-                print "Error: input files needed that were not retrieved from target or home archives\n(%s)" % files2get
                 for f in files2get:
-                    print "\t%s" % f
+                    msg="Error: input file needed that was not retrieved from target or home archives\n(%s)" % f
+                    print msg
+                    if pfw_dbh is not None:
+                        pfw_dbh.insert_message(wcl, 'job', pfwdb.PFW_MSG_ERROR, msg)
                 raise Exception("Error:  Cannot find all input files in an archive")
+
+            # double-check: check that files are now on filesystem
+            errcnt = 0
+            for infile in wcl['infullnames']:
+                if not os.path.exists(infile) and not infile in outfiles and \
+                   not parse_fullname(infile, CU_PARSE_FILENAME) in files2get:
+                    msg= "Error: input file doesn't exist despite transfer success (%s)" % infile
+                    print msg
+                    if pfw_dbh is not None:
+                        pfw_dbh.insert_message(wcl, 'job', pfwdb.PFW_MSG_ERROR, msg)
+                    errcnt += 1
+            if errcnt > 0:
+                raise Exception("Error:  Cannot find all input files after transfer.")
         else:
             print "\tInfo: all %s input file(s) already in job directory." % \
                     len(wcl['wrapinputs'][wcl[PF_WRAPNUM]].values())
@@ -350,93 +375,6 @@ def setup_wrapper(wcl, iwfilename, logfilename):
     wcl['execnames'] = ','.join(execnamesarr)
 
     fwdebug(3, "PFWRUNJOB_DEBUG", "END")
-
-
-#def run_wrapper(wrappercmd, logfilename, wrapperid, execnames, wcl, 
-#                bufsize=5000, useDB=False, useQCF=False):
-#    """ Execute the wrapper piping stdout/stderr to log and QCF """
-#    fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
-#    print "\nrun_wrapper:"
-#    print "\twrappercmd = ", wrappercmd
-#    print "\tlogfilename = ", logfilename
-#    print "\tuseQCF = ", useQCF
-#
-#    logfh = open(logfilename, 'w', 0)
-#
-#    processWrap = subprocess.Popen(wrappercmd.split(),
-#                                   shell=False,
-#                                   stdout=subprocess.PIPE,
-#                                   stderr=subprocess.STDOUT)
-#    if useQCF:
-#        cmdQCF = "qcf_controller.pl -wrapperInstanceId %s -execnames %s" % (wrapperid, execnames)
-#        processQCF = subprocess.Popen(cmdQCF.split(),
-#                                      shell=False,
-#                                      stdin=subprocess.PIPE,
-#                                      stderr=subprocess.STDOUT)
-#
-#    try:
-#        buf = os.read(processWrap.stdout.fileno(), bufsize)
-#        while processWrap.poll() == None or len(buf) != 0:
-#            filtered_string = buf.replace("[1A", "")     # remove special characters present in AstrOmatic outputs
-#            filtered_string = filtered_string.replace(chr(27), "")  
-#            filtered_string = filtered_string.replace("[1M", "")
-#            filtered_string = filtered_string.replace("[7m", "")
-#
-#            logfh.write(filtered_string)   # write to log file
-#            if useQCF:
-#                processQCF.stdin.write(filtered_string) # pass to QCF
-#            buf = os.read(processWrap.stdout.fileno(), bufsize)
-#
-#        logfh.close()
-#        if useQCF:
-#            processQCF.stdin.close()
-#            while processQCF.poll() == None:
-#                time.sleep(1)
-#            if processQCF.returncode != 0:
-#                if pfw_dbh is not None:
-#                    pfw_dbh.insert_message(wcl, 'job_wrapper_task', pfwdb.PFW_MSG_WARNING,
-#                                           "QCF returned non-zero exit code")
-#                print "\tQCF returned non-zero exit code"
-#    except IOError as e:
-#        print "\tI/O error({0}): {1}".format(e.errno, e.strerror)
-#        if useQCF:
-#            qcfpoll = processQCF.poll()
-#            if qcfpoll != None and qcfpoll != 0:
-#                if processWrap.poll() == None:
-#                    buf = os.read(processWrap.stdout.fileno(), bufsize)
-#                    while processWrap.poll() == None or len(buf) != 0:
-#                        logfh.write(buf)
-#                        buf = os.read(processWrap.stdout.fileno(), bufsize)
-#
-#                    logfh.close()
-#            else:
-#                (type, value, traceback) = sys.exc_info()
-#                print "\tError: Unexpected error: %s" % value
-#                if pfw_dbh is not None:
-#                    pfw_dbh.update_job_wrapper_task_end(wcl, PF_EXIT_FAILURE)
-#                    pfw_dbh.insert_message(wcl, 'job_wrapper_task', pfwdb.PFW_MSG_ERROR, str(value))
-#                    pfw_dbh.close()
-#                raise
-#                
-#    except:
-#        (type, value, traceback) = sys.exc_info()
-#        print "\tError: Unexpected error: %s" % value
-#        if pfw_dbh is not None:
-#            pfw_dbh.update_job_wrapper_task_end(wcl, PF_EXIT_FAILURE)
-#            pfw_dbh.insert_message(wcl, 'job_wrapper_task', pfwdb.PFW_MSG_ERROR, str(value))
-#            pfw_dbh.close()
-#        raise
-#
-#    if processWrap.returncode != 0:
-#        print "\tError: wrapper returned non-zero exit code (%s)" % processWrap.returncode
-#    else:
-#        print "\tInfo: wrapper exited with exit code = 0"
-#
-#    print resource.getrusage(resource.RUSAGE_CHILDREN)
-#
-#
-#    fwdebug(3, "PFWRUNJOB_DEBUG", "END")
-#    return processWrap.returncode
 
 
 
@@ -571,7 +509,11 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
     problemfiles = {}
     for f, finfo in results.items():
         if 'err' in finfo:
-            problemfiles[f] = finfo 
+            problemfiles[f] = finfo
+            msg = "Warning: Error trying to copy file %s to %s archive: %s" % (f, dest, finfo['err'])
+            print msg
+            if pfw_dbh:
+                pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_WARN, msg)
         else:
             files2register[f] = finfo
     fwdebug(3, "PFWRUNJOB_DEBUG", "Registering %s file(s) in archive..." % len(files2register))
@@ -586,8 +528,9 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
 
     if len(problemfiles) > 0:
         print "ERROR\n\n\nError: putting %d files into archive %s" % (len(problemfiles), archive_info['name'])
-        for file in problemfiles:
-            print file, problemfiles[file]
+        print "\t", problemfiles.keys()
+        #for file in problemfiles:
+        #    print file, problemfiles[file]
         raise Exception("Error: problems putting %d files into archive %s" % 
                         (len(problemfiles), archive_info['name']))
 
@@ -768,7 +711,7 @@ def run_tasks(taskfile, jobwcl={}):
                 return(1)
 
             wrappercmd = "%s --input=%s --debug=%s" % (wrapname, wclfile, wrapdebug)
-            print "%04d:" % (int(wrapnum))
+            print "\n\n%04d: %s" % (int(wrapnum), wrappercmd)
 
             if not os.path.exists(wclfile):
                 print "Error: input wcl file does not exist (%s)" % wclfile
@@ -897,7 +840,7 @@ def run_job(args):
         pfw_dbh.update_job_end(wcl, exitcode)
         pfw_dbh.close()
     else:
-        print "DESDMTIME: pfwrun_job %0.3f" % (time.time()-jobstart)
+        print "\nDESDMTIME: pfwrun_job %0.3f" % (time.time()-jobstart)
 
     return exitcode
 

@@ -253,7 +253,7 @@ class PFWDB (coreutils.DesDbi):
     def update_attempt_end (self, config, exitcode):
         """ update row in pfw_attempt with end of attempt info """
 
-        update_attempt_end_vals(self, config[REQNUM], config[UNITNAME], config[ATTNUM], exitcode)
+        self.update_attempt_end_vals(config[REQNUM], config[UNITNAME], config[ATTNUM], exitcode)
         
 
     def update_attempt_end_vals (self, reqnum, unitname, attnum, exitcode):

@@ -3,6 +3,7 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+when_to_email = run
 wrapper_debug = 1
 use_qcf = False
 use_db_in = True

@@ -148,50 +148,56 @@ def blockpost(argv = None):
                 print "%s: %s" % (e.__class__.__name__,str(e))
 
     if retval:
-        #print "Block failed\nAlready sent email"
-        print "Sending block failed email\n";
-        msg1 = "%s:  block %s has failed." % (run, blockname)
+        if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
+            print "Sending block failed email\n";
+            msg1 = "%s:  block %s has failed." % (run, blockname)
 
-        send_email(config, blockname, retval, "", msg1, msg2)
+            send_email(config, blockname, retval, "", msg1, msg2)
     elif convertBool(dryrun):
-        print "dryrun = ", dryrun
-        print "Sending dryrun email"
-        msg1 = "%s:  In dryrun mode, block %s has finished successfully." % (run, blockname)
-        msg2 = ""
-        send_email(config, blockname, PF_EXIT_SUCCESS, "[DRYRUN]", msg1, msg2)
+        if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
+            print "dryrun = ", dryrun
+            print "Sending dryrun email"
+            msg1 = "%s:  In dryrun mode, block %s has finished successfully." % (run, blockname)
+            msg2 = ""
+            send_email(config, blockname, PF_EXIT_SUCCESS, "[DRYRUN]", msg1, msg2)
         retval = PF_EXIT_DRYRUN
-    elif os.path.isfile(warningfile):
-        print "JOBS_WARNINGS.txt exists.  Sending warning email"
-        msg1 = "%s:  At least one job in block %s has status4 messages." % (run, blockname)
-        msg2 = ""
-
-        fh.open(warningfile, "r")
-        lines = fh.readlines()
-        fh.close()
-
-        jobid = {}
-        for j in lines:
-            jobid[j.strip()] = True
-        msg2 += "Check the following jobs:"
-        for j in sorted(jobid.keys()):
-            msg2 += "\t%s\n" % (j)
-        fh.close()
-        msg2 += "\n\n".getJobInfo(blockname)
-
-        send_email(config, blockname, PF_WARNINGS, "[WARNINGS]", msg1, msg2)
-        retval = PF_EXIT_SUCCESS
+#    elif os.path.isfile(warningfile):
+#        print "JOBS_WARNINGS.txt exists.  Sending warning email"
+#        msg1 = "%s:  At least one job in block %s has status4 messages." % (run, blockname)
+#        msg2 = ""
+#
+#        fh.open(warningfile, "r")
+#        lines = fh.readlines()
+#        fh.close()
+#
+#        jobid = {}
+#        for j in lines:
+#            jobid[j.strip()] = True
+#        msg2 += "Check the following jobs:"
+#        for j in sorted(jobid.keys()):
+#            msg2 += "\t%s\n" % (j)
+#        fh.close()
+#        msg2 += "\n\n".getJobInfo(blockname)
+#
+#        send_email(config, blockname, PF_WARNINGS, "[WARNINGS]", msg1, msg2)
+#        retval = PF_EXIT_SUCCESS
     elif retval == PF_EXIT_SUCCESS:
-        print "Sending success email\n";
-        msg1 = "%s:  block %s has finished successfully." % (run, blockname)
-        #msg2 = "\n\n" + getJobInfo(blockname)
-        msg2 = ""
+        if ('when_to_email' in config and 
+           (config['when_to_email'].lower() == 'block' or
+           (config['when_to_email'].lower() == 'run' and int(config[PF_BLKNUM]) == int(config['num_blocks'])))):
+            print "Sending success email\n";
+            if config['when_to_email'].lower() == 'run':
+                msg1 = "%s:  run has finished successfully." % (run)
+            else:
+                msg1 = "%s:  block %s has finished successfully." % (run, blockname)
+            msg2 = ""
 
-        send_email(config, blockname, retval, "", msg1, msg2)
+            send_email(config, blockname, retval, "", msg1, msg2)
     else:
-        print "Not sending block email"
+        print "Not sending email"
         print "retval = ", retval
-        if os.path.isfile(failedfile):
-            print "%s exists, so email should have already been sent" % (failedfile)
+#        if os.path.isfile(failedfile):
+#            print "%s exists, so email should have already been sent" % (failedfile)
 
     # Store values in DB and hist file 
     dbh = None

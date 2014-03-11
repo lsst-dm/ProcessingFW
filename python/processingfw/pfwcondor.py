@@ -10,6 +10,7 @@ import subprocess
 import shlex
 import os
 import re
+from coreutils.miscutils import *
 
 class CondorException(Exception):
     "class for Condor exceptions"
@@ -378,6 +379,7 @@ def condor_q(args_str=''):
     args_str = str(args_str)
     condorq_cmd = ['condor_q', '-l']
     condorq_cmd.extend(shlex.split(args_str))
+    fwdebug(0, "PFWCONDOR_DEBUG", "condorq_cmd  = %s" % buf)
     
     try:
         process = subprocess.Popen(condorq_cmd, 
@@ -386,9 +388,12 @@ def condor_q(args_str=''):
                                    stderr=subprocess.PIPE)
         out = ""
         buf = os.read(process.stdout.fileno(), 5000)
+        fwdebug(0, "PFWCONDOR_DEBUG", buf)
         while process.poll() == None or len(buf) != 0:
             out += buf
             buf = os.read(process.stdout.fileno(), 5000)
+            fwdebug(0, "PFWCONDOR_DEBUG", buf)
+            
 
         if process.returncode != 0:
             print "Cmd = ", condorq_cmd
@@ -570,20 +575,38 @@ def check_condor(minver):
         process = subprocess.Popen(cmd.split(), shell=False,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
+        fwdebug(1, "PFWCONDOR_DEBUG", "\t\tTrying %s" % cmd)
         process.wait()
-    except:
+    except OSError as e:
         raise CondorException('Could not find condor_submit\n' + \
-               'Make sure Condor binaries are in your path')
+               'Make sure Condor binaries are in your path (%s)' % str(e))
+
+    fwdebug(1, "PFWCONDOR_DEBUG", "\t\tFinished %s" % cmd)
 
     # checking running on this machine
     cmd = 'condor_q'
-    process = subprocess.Popen(cmd.split(), shell=False,
+    try:
+        process = subprocess.Popen(cmd.split(), shell=False,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.STDOUT)
-    process.wait()
-#    if process.returncode:
-#        raise CondorException('Condor is not running on this machine' + \
-#                              'Contact your condor administrator')
+        fwdebug(1, "PFWCONDOR_DEBUG", "\t\tTrying %s" % cmd)
+
+        # must read from pipe or process hangs when condor_q output is long
+        out = ""
+        buf = os.read(process.stdout.fileno(), 5000)
+        fwdebug(6, "PFWCONDOR_DEBUG", buf)
+        while process.poll() == None or len(buf) != 0:
+            out += buf
+            buf = os.read(process.stdout.fileno(), 5000)
+            fwdebug(6, "PFWCONDOR_DEBUG", buf)
+        if process.returncode:
+            raise CondorException('Problems running condor_q.   Condor might not be running on this machine.   ' + \
+                                  'Contact your condor administrator.')
+    except OSError as e:
+        raise CondorException('Could not find condor_q\n' + \
+               'Make sure Condor binaries are in your path (%s)' % str(e))
+    
+    fwdebug(1, "PFWCONDOR_DEBUG", "\t\tFinished %s" % cmd)
 
     # check have new enough version of condor
     if compare_condor_version(minver) < 0:

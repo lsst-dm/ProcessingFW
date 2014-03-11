@@ -23,11 +23,11 @@ def jobpost(argv = None):
 
     debugfh = tempfile.NamedTemporaryFile(prefix='jobpost_', dir='.', delete=False)
     tmpfn = debugfh.name
-    fwdebug(0, 'PFWPOST_DEBUG', "temp log name = %s" % tmpfn)
-    print 'cmd>',' '.join(argv)  # print command line for debugging
-    
     sys.stdout = debugfh
     sys.stderr = debugfh
+
+    fwdebug(0, 'PFWPOST_DEBUG', "temp log name = %s" % tmpfn)
+    print 'cmd>',' '.join(argv)  # print command line for debugging
 
     if len(argv) < 7:
         # open file to catch error messages about command line
@@ -75,22 +75,43 @@ def jobpost(argv = None):
     sys.stderr = debugfh
     
 
+    dbh = None
     if convertBool(config[PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        #dbh.update_blktask_end(config, "", subblock, retval)
     
-        # Search for DB connection error messages and insert them
-        jobbase = config.get_filename('job', {PF_CURRVALS: {PF_JOBNUM:jobnum, 
-                                                            'flabel': 'runjob', 
-                                                            'fsuffix':''}})
-        # grep files for ORA
-        for f in ['%sout'%jobbase, '%serr'%jobbase]:
-            with open(f, 'r') as jobfh:
-                for line in jobfh:
-                    if 'ORA-' in line:
-                        # insert into DB 
+    # Search for eups setup or DB connection error messages and insert them into db
+    jobbase = config.get_filename('job', {PF_CURRVALS: {PF_JOBNUM:jobnum, 
+                                                        'flabel': 'runjob', 
+                                                        'fsuffix':''}})
+
+    # grep job stdout|stderr files for failures not caught elsewhere
+    for f in ['%sout'%jobbase, '%serr'%jobbase]:
+        with open(f, 'r') as jobfh:
+            for line in jobfh:
+                line = line.strip()
+                if 'ORA-' in line:
+                    print "Found:", line
+                    print "Setting retval to failure"
+                    retval = PF_EXIT_FAILURE
+                    if dbh:
                         dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
-                        
+                elif 'Error: eups setup had non-zero exit code' in line:
+                    print "Found:", line
+                    print "Setting retval to failure"
+                    retval = PF_EXIT_FAILURE
+                    if dbh:
+                        dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
+                elif 'Exiting with status' in line:
+                    m = re.search('Exiting with status (\d+)', line)
+                    if m:
+                        if int(m.group(1)) != 0 and retval == 0:
+                            print "Found:", line
+                            msg = "Info:  Job exit status was %s, but retval was %s.   Setting retval to failure." % (m.group(1), retval)
+                            print msg
+                            retval = PF_EXIT_FAILURE
+                            if dbh:
+                                dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, msg, config['blknum'], jobnum)
+                    
         
     
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])

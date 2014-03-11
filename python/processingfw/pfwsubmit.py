@@ -20,6 +20,29 @@ import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb
 
 
+######################################################################
+def min_wcl_checks(config):
+    MAX_LABEL_LENGTH = 30    # todo: figure out how to get length from DB
+
+    # check that reqnum and unitname exist
+    if REQNUM not in config:
+        fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % REQNUM, PF_EXIT_FAILURE) 
+
+    (exists, labelstr) = config.search(UNITNAME, {'interpolate': True})
+    if not exists:
+        fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % UNITNAME, PF_EXIT_FAILURE) 
+
+    # check that any given labels are short enough
+    (exists, labelstr) = config.search(SW_LABEL, {'interpolate': True})
+    if exists:
+        labels = fwsplit(labelstr,',')
+        for lab in labels:
+            if len(lab) > MAX_LABEL_LENGTH:
+                fwdie("ERROR\nError: label %s is longer (%s) than allowed (%s).  Aborting submission." % \
+                      (lab, len(lab), MAX_LABEL_LENGTH), PF_EXIT_FAILURE) 
+
+
+######################################################################
 def create_common_vars(config, jobname):
     attribs = config.get_condor_attributes(jobname)
     varstr = ""

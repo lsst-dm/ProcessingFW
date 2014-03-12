@@ -379,7 +379,7 @@ def condor_q(args_str=''):
     args_str = str(args_str)
     condorq_cmd = ['condor_q', '-l']
     condorq_cmd.extend(shlex.split(args_str))
-    fwdebug(0, "PFWCONDOR_DEBUG", "condorq_cmd  = %s" % buf)
+    fwdebug(1, "PFWCONDOR_DEBUG", "condorq_cmd  = %s" % condorq_cmd)
     
     try:
         process = subprocess.Popen(condorq_cmd, 
@@ -388,11 +388,11 @@ def condor_q(args_str=''):
                                    stderr=subprocess.PIPE)
         out = ""
         buf = os.read(process.stdout.fileno(), 5000)
-        fwdebug(0, "PFWCONDOR_DEBUG", buf)
+        fwdebug(6, "PFWCONDOR_DEBUG", buf)
         while process.poll() == None or len(buf) != 0:
             out += buf
             buf = os.read(process.stdout.fileno(), 5000)
-            fwdebug(0, "PFWCONDOR_DEBUG", buf)
+            fwdebug(6, "PFWCONDOR_DEBUG", buf)
             
 
         if process.returncode != 0:

@@ -60,12 +60,6 @@ def check_globals(config, indent=''):
                 print "%s    Error:  using DB (%s), but missing submit_des_services" % (indent, PF_USE_DB_IN)
                 cnts[ERRCNT_POS] += 1
 
-            if 'target_des_db_section' not in config:
-                print "%s    Error:  using DB (%s), but missing target_des_db_section" % (indent, PF_USE_DB_IN)
-                cnts[ERRCNT_POS] += 1
-            if 'target_des_services' not in config:
-                print "%s    Error:  using DB (%s), but missing target_des_services" % (indent, PF_USE_DB_IN)
-                cnts[ERRCNT_POS] += 1
     if PF_USE_DB_OUT in config:
         if convertBool(config[PF_USE_DB_OUT]):
             if 'submit_des_db_section' not in config:
@@ -73,12 +67,6 @@ def check_globals(config, indent=''):
                 cnts[ERRCNT_POS] += 1
             if 'submit_des_services' not in config:
                 print "%s    Error:  using DB (%s), but missing submit_des_services" % (indent, PF_USE_DB_OUT)
-                cnts[ERRCNT_POS] += 1
-            if 'target_des_db_section' not in config:
-                print "%s    Error:  using DB (%s), but missing target_des_db_section" % (indent, PF_USE_DB_OUT)
-                cnts[ERRCNT_POS] += 1
-            if 'target_des_services' not in config:
-                print "%s    Error:  using DB (%s), but missing target_des_services" % (indent, PF_USE_DB_OUT)
                 cnts[ERRCNT_POS] += 1
 
     # if using QCF must also be writing run info into DB
@@ -106,13 +94,38 @@ def check_globals(config, indent=''):
 
 ########################################################################### 
 def check_block(config, indent=''):
-    """ check that blocks/mods in block/mod list have defs """ 
+    """ check blocks level defs """ 
 
     cnts = [0 for i in range(0,NUMCNTS)]
 
     blocklist = fwsplit(config[SW_BLOCKLIST].lower(),',')
     for blockname in blocklist:
         print "%sChecking block %s..." % (indent, blockname)
+        config.set_block_info()
+
+        if (PF_USE_DB_IN in config and convertBool(config[PF_USE_DB_IN])):
+            (found, val) = config.search('target_des_db_section')
+            if not found:
+                print "%s    Error:  using DB (%s), but missing target_des_db_section" % (indent, PF_USE_DB_IN)
+                cnts[ERRCNT_POS] += 1
+
+            (found, val) = config.search('target_des_services')
+            if not found:
+                print "%s    Error:  using DB (%s), but missing target_des_services" % (indent, PF_USE_DB_IN)
+                cnts[ERRCNT_POS] += 1
+
+        if (PF_USE_DB_OUT in config and convertBool(config[PF_USE_DB_OUT])):
+            (found, val) = config.search('target_des_db_section')
+            if not found:
+                print "%s    Error:  using DB (%s), but missing target_des_db_section" % (indent, PF_USE_DB_OUT)
+                cnts[ERRCNT_POS] += 1
+
+            (found, val) = config.search('target_des_services')
+            if not found:
+                print "%s    Error:  using DB (%s), but missing target_des_services" % (indent, PF_USE_DB_OUT)
+                cnts[ERRCNT_POS] += 1
+
+        # check modules
         block = config[SW_BLOCKSECT][blockname]
         if SW_MODULELIST in block:
             modulelist = fwsplit(block[SW_MODULELIST].lower(), ',')
@@ -129,6 +142,10 @@ def check_block(config, indent=''):
         else:
             print "%s    Error: block %s - missing %s value" % (indent, blockname, SW_MODULESECT)
             cnts[ERRCNT_POS] += 1
+    
+        config.inc_blknum()
+
+    config.reset_blknum()
 
     return cnts
     
@@ -143,25 +160,47 @@ def check_target_archive(config, indent=''):
     print "%sChecking target_archive..." % (indent)
     blocklist = fwsplit(config[SW_BLOCKLIST].lower(),',')
     for blockname in blocklist:
+        config.set_block_info()
         block = config[SW_BLOCKSECT][blockname]
 
         (found_input, use_target_archive_input) = config.search(USE_TARGET_ARCHIVE_INPUT, {PF_CURRVALS: {'curr_block': blockname}})
         (found_output, use_target_archive_output) = config.search(USE_TARGET_ARCHIVE_OUTPUT, {PF_CURRVALS: {'curr_block': blockname}})
         (found_archive, target_archive) = config.search(TARGET_ARCHIVE, {PF_CURRVALS: {'curr_block': blockname}})
 
-        if convertBool(use_target_archive_input) or convertBool(use_target_archive_output):
+        if not found_input:
+            print "%s    Error: block %s - Could not determine %s" % (indent, blockname, USE_TARGET_ARCHIVE_INPUT)
+            cnts[ERRCNT_POS] += 1
+        elif use_target_archive_input.lower() not in VALID_TARGET_ARCHIVE_INPUT:
+            print "%s    Error: block %s - Invalid %s value" % (indent, blockname, USE_TARGET_ARCHIVE_INPUT)
+            cnts[ERRCNT_POS] += 1
+        
+        if not found_output:
+            print "%s    Error: block %s - Could not determine %s" % (indent, blockname, USE_TARGET_ARCHIVE_OUTPUT)
+            cnts[ERRCNT_POS] += 1
+        elif use_target_archive_output.lower() not in VALID_TARGET_ARCHIVE_OUTPUT:
+            print "%s    Error: block %s - Invalid %s value" % (indent, blockname, USE_TARGET_ARCHIVE_OUTPUT)
+            cnts[ERRCNT_POS] += 1
+
+        # if need to use a target_archive for this block
+        if ((found_input and use_target_archive_input.lower() != 'never') or
+            (found_output and use_target_archive_output.lower() != 'never')):
             if not found_archive:
-                print "%s    Error: block %s - Could not determine target_archive" % (indent, blockname)
+                print "%s    Error: block %s - Missing %s value" % (indent, blockname, TARGET_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
             elif 'archive' not in config:
                 print "%s    Error: block %s - Needs archive section which doesn't exist" % (indent, blockname)
                 cnts[ERRCNT_POS] += 1
             elif target_archive not in config['archive']:
-                print "%s    Error: block %s - Invalid target_archive name %s" % (indent, blockname, target_archive)
+                print "%s    Error: block %s - Invalid %s value" % (indent, blockname, TARGET_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
             else:
-                # todo - check that we have all archive req values 
-                pass 
+                # check that we have all archive req values exist
+                pass
+
+        config.inc_blknum()
+
+    config.reset_blknum()
+
 
     return cnts
 
@@ -175,6 +214,7 @@ def check_home_archive(config, indent=''):
     print "%sChecking home archive..." % (indent)
     blocklist = fwsplit(config[SW_BLOCKLIST].lower(),',')
     for blockname in blocklist:
+        config.set_block_info()
         block = config[SW_BLOCKSECT][blockname]
 
         (found_input, use_home_archive_input) = config.search(USE_HOME_ARCHIVE_INPUT, {PF_CURRVALS: {'curr_block': blockname}})
@@ -210,6 +250,11 @@ def check_home_archive(config, indent=''):
             else:
                 # check that we have all archive req values exist
                 pass
+    
+        config.inc_blknum()
+
+    config.reset_blknum()
+
     return cnts
 
 
@@ -605,6 +650,18 @@ def check(config, indent=''):
         print "%sAborting test" % (indent)
         return cnts
     
+    cnts2 = check_target_archive(config, indent) 
+    cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    #if cnts[ERRCNT_POS] > 0:
+    #    print "%sAborting test" % (indent)
+    #    return cnts
+
+    cnts2 = check_home_archive(config, indent) 
+    cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    #if cnts[ERRCNT_POS] > 0:
+    #    print "%sAborting test" % (indent)
+    #    return cnts
+
     return cnts
 
 

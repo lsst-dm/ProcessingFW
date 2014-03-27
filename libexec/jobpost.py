@@ -85,34 +85,42 @@ def jobpost(argv = None):
                                                         'fsuffix':''}})
 
     # grep job stdout|stderr files for failures not caught elsewhere
+    submit_id = None
+    target_id = None
     for f in ['%sout'%jobbase, '%serr'%jobbase]:
-        with open(f, 'r') as jobfh:
-            for line in jobfh:
-                line = line.strip()
-                if 'ORA-' in line:
-                    print "Found:", line
-                    print "Setting retval to failure"
-                    retval = PF_EXIT_FAILURE
-                    if dbh:
-                        dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
-                elif 'Error: eups setup had non-zero exit code' in line:
-                    print "Found:", line
-                    print "Setting retval to failure"
-                    retval = PF_EXIT_FAILURE
-                    if dbh:
-                        dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
-                elif 'Exiting with status' in line:
-                    m = re.search('Exiting with status (\d+)', line)
-                    if m:
-                        if int(m.group(1)) != 0 and retval == 0:
-                            print "Found:", line
-                            msg = "Info:  Job exit status was %s, but retval was %s.   Setting retval to failure." % (m.group(1), retval)
-                            print msg
-                            retval = PF_EXIT_FAILURE
-                            if dbh:
-                                dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, msg, config['blknum'], jobnum)
-                    
-        
+        if os.path.exists(f):
+            with open(f, 'r') as jobfh:
+                for line in jobfh:
+                    line = line.strip()
+                    if line.startswith('PFW: batchid'):
+                        target_id = line.replace('PFW: batchid','').strip()
+                    elif line.startswith('PFW: condorid'):
+                        submit_id = line.replace('PFW: condorid','').strip()
+                    elif 'ORA-' in line:
+                        print "Found:", line
+                        print "Setting retval to failure"
+                        retval = PF_EXIT_FAILURE
+                        if dbh:
+                            dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
+                    elif 'Error: eups setup had non-zero exit code' in line:
+                        print "Found:", line
+                        print "Setting retval to failure"
+                        retval = PF_EXIT_FAILURE
+                        if dbh:
+                            dbh.update_job_batchids(config, jobnum, submit_id, target_id)
+                            dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
+                    elif 'Exiting with status' in line:
+                        m = re.search('Exiting with status (\d+)', line)
+                        if m:
+                            if int(m.group(1)) != 0 and retval == 0:
+                                print "Found:", line
+                                msg = "Info:  Job exit status was %s, but retval was %s.   Setting retval to failure." % (m.group(1), retval)
+                                print msg
+                                retval = PF_EXIT_FAILURE
+                                if dbh:
+                                    dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, msg, config['blknum'], jobnum)
+                        
+            
     
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])
 
@@ -125,15 +133,22 @@ def jobpost(argv = None):
         print "Could not find inputtar: %s" % inputtar
 
     # untar output wcl tar and delete tar
-    if os.path.exists(outputtar):
-        print "found outputtar: %s" % outputtar
-        pfwutils.untar_dir(outputtar, '.')
-        os.unlink(outputtar)
+    if os.path.exists(outputtar): 
+        if os.path.getsize(outputtar) > 0:
+            print "found outputtar: %s" % outputtar
+            pfwutils.untar_dir(outputtar, '.')
+            os.unlink(outputtar)
+        else:
+            msg = "Warn: outputwcl tarball (%s) is 0 bytes." % outputtar
+            print msg
+            if dbh:
+                  dbh.insert_message(config, 'job', pfwdb.PFW_MSG_WARN, msg, config['blknum'], jobnum)
     else:
-        print "Could not find outputtar: %s" % outputtar
+        msg = "Warn: outputwcl tarball (%s) does not exist." % outputtar
+        print msg
+        if dbh:
+              dbh.insert_message(config, 'job', pfwdb.PFW_MSG_WARN, msg, config['blknum'], jobnum)
 
-
-    
 
     
     # In order to continue, make pipelines dagman jobs exit with success status

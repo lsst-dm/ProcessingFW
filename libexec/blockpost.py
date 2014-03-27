@@ -12,6 +12,7 @@ from processingfw.pfwutils import *
 from coreutils.miscutils import *
 
 import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 from processingfw.pfwemail import send_email
@@ -36,7 +37,7 @@ def blockpost(argv = None):
     retval = int(argv[2])
 
     fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
-    fwdebug(3, 'PFWPOST_DEBUG', "retval = %s" % retval)
+    fwdebug(0, 'PFWPOST_DEBUG', "retval = %s" % retval)
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
@@ -73,80 +74,109 @@ def blockpost(argv = None):
 
     msg2 = ""
     dbh = None
+    lastwraps = []
+    job_byblk = {}
+    wrap_byjob = {}
+    wrap_bymod = {}
     if convertBool(config[PF_USE_DB_OUT]): 
-        try:
-            print "\n\nChecking job status from pfw_job table in DB (%s is success)" % PF_EXIT_SUCCESS
-            dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-            jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
-            wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
-            dbh.close()
-    
-            job_byblk = index_job_info(jobinfo)
-            print job_byblk
-            wrap_byjob, wrap_bymod = index_wrapper_info(wrapinfo)
+        logfilename = 'runjob.log'
+        if os.path.exists(logfilename):   # if made it to submitting/running jobs
+            try:
+                # update job info in DB from condor log
+                print "Updating job info in DB from condor log"
+                jobinfo = pfwcondor.parse_condor_user_log(logfilename)
+                dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+                for j in sorted(jobinfo.keys()):
+                    dbh.update_job_info(config, int(jobinfo[j]['jobname']), jobinfo[j])
+            except Exception as e:
+                (extype, value, traceback) = sys.exc_info()
+                print traceback
 
+            try:
+                print "\n\nChecking job status from pfw_job table in DB (%s is success)" % PF_EXIT_SUCCESS
+                dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+                jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
+                wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
+                dbh.close()
     
-            lastwraps = []
-            for jobnum,jobdict in sorted(job_byblk[blknum].items()):
-                if jobnum not in wrap_byjob:
-                    print "\t%06d No wrapper instances" % jobnum
-                #print "wrapnum in job =", wrap_byjob[jobnum].keys()
-                maxwrap = max(wrap_byjob[jobnum].keys())
-                modname = wrap_byjob[jobnum][maxwrap]['modname']
-                jobkeys = ""
-                if jobdict['jobkeys'] is not None:
-                    jobkeys = jobdict['jobkeys']
-                    print jobkeys, type(jobkeys)
+                job_byblk = index_job_info(jobinfo)
+                #print "job_byblk:", job_byblk
+                wrap_byjob, wrap_bymod = index_wrapper_info(wrapinfo)
+                #print "wrap_byjob:", wrap_byjob
+                #print "wrap_bymod:", wrap_bymod
 
-                msg2 += "\t%04d %d/%d  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['numexpwrap'], modname, jobkeys)
-                if jobdict['status'] is None:
-                    msg2 += " FAIL - NULL status"
-                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
-                    retval = PF_EXIT_FAILURE
-                elif jobdict['status'] != PF_EXIT_SUCCESS:
-                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
-                    msg2 += " FAIL"
-                    retval = PF_EXIT_FAILURE
+                for jobnum,jobdict in sorted(job_byblk[blknum].items()):
+                    if jobnum not in wrap_byjob:
+                        print "\t%06d No wrapper instances" % jobnum
+                        continue
+                    #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+                    maxwrap = max(wrap_byjob[jobnum].keys())
+                    #print "maxwrap =", maxwrap
+                    modname = wrap_byjob[jobnum][maxwrap]['modname']
+                    #print "modname =", modname
+                    jobkeys = ""
+                    if jobdict['jobkeys'] is not None:
+                        jobkeys = jobdict['jobkeys']
+                        #print "jobkeys = ",jobkeys, type(jobkeys)
+
+                    #print "wrap_byjob[jobnum][maxwrap]['id']=",wrap_byjob[jobnum][maxwrap]['id']
+                    msg2 += "\t%04d %d/%s  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['numexpwrap'], modname, jobkeys)
+                    if jobdict['status'] is None:
+                        msg2 += " FAIL - NULL status"
+                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
+                        retval = PF_EXIT_FAILURE
+                    elif jobdict['status'] != PF_EXIT_SUCCESS:
+                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
+                        msg2 += " FAIL"
+                        retval = PF_EXIT_FAILURE
 
                 msg2 += '\n'
-        except Exception, e:
-            msg2 += "\n\nEncountered error trying to gather job/wrapper status for email.  Check output for blockpost for further details."
-            print "\n\nEncountered error trying to gather job/wrapper status for email"
-            print "%s: %s" % (e.__class__.__name__,str(e))
-            retval = PF_EXIT_FAILURE
-
-        if convertBool(config[PF_USE_QCF]): 
-            try:
-                import qcframework.qcfdb as qcfdb
-                dbh = qcfdb.QCFDB(config['submit_des_services'], config['submit_des_db_section'])
-                print "lastwraps = ", lastwraps
-                wrapmsg = dbh.get_qcf_messages_for_wrappers(lastwraps)
-                print "wrapmsg = ", wrapmsg
-                dbh.close() 
-
-                MAXMESG = 3
-                msg2 += "\n\n\nDetails\n"
-                for jobnum in sorted(job_byblk[blknum].keys()):
-                    maxwrap = max(wrap_byjob[jobnum].keys())
-                    maxwrapid = wrap_byjob[jobnum][maxwrap]['id']
-                    modname = wrap_byjob[jobnum][maxwrap]['modname']
-                    if jobdict['status'] != PF_EXIT_SUCCESS:
-                        msg2 += "\t%04d %s\n" % (jobnum, modname)
-                        if maxwrapid in wrapmsg:
-                            if len(wrapmsg[maxwrapid]) > MAXMESG:
-                                msg2 += "\t\tOnly printing last %d messages\n" % MAXMESG
-                                for mesgrow in wrapmsg[maxwrapid][-MAXMESG:]:
-                                    msg2 += "\t\t%s\n" % mesgrow['message']
-                            else:
-                                for mesgrow in wrapmsg[maxwrapid]:
-                                    msg2 += "\t\t%s\n" % mesgrow['message']
-                        else:
-                            msg2 += "\t\tNo QCF messages\n"
             except Exception, e:
-                msg2 += "\n\nEncountered error trying to gather QCF info for email.  Check output for blockpost for further details."
-                print "\n\nEncountered error trying to gather QCF info status for email"
+                msg2 += "\n\nEncountered error trying to gather job/wrapper status for email.  Check output for blockpost for further details."
+                print "\n\nEncountered error trying to gather job/wrapper status for email"
                 print "%s: %s" % (e.__class__.__name__,str(e))
+                (extype, value, traceback) = sys.exc_info()
+                print traceback
+                retval = PF_EXIT_FAILURE
 
+            print "lastwraps = ", lastwraps
+            if convertBool(config[PF_USE_QCF]) and len(lastwraps) > 0: 
+                try:
+                    import qcframework.qcfdb as qcfdb
+                    dbh = qcfdb.QCFDB(config['submit_des_services'], config['submit_des_db_section'])
+                    wrapmsg = dbh.get_qcf_messages_for_wrappers(lastwraps)
+                    print "wrapmsg = ", wrapmsg
+                    dbh.close() 
+    
+                    MAXMESG = 3
+                    msg2 += "\n\n\nDetails\n"
+                    for jobnum in sorted(job_byblk[blknum].keys()):
+                        maxwrap = max(wrap_byjob[jobnum].keys())
+                        maxwrapid = wrap_byjob[jobnum][maxwrap]['id']
+                        modname = wrap_byjob[jobnum][maxwrap]['modname']
+                        if jobdict['status'] != PF_EXIT_SUCCESS:
+                            msg2 += "\t%04d %s\n" % (jobnum, modname)
+                            if maxwrapid in wrapmsg:
+                                if len(wrapmsg[maxwrapid]) > MAXMESG:
+                                    msg2 += "\t\tOnly printing last %d messages\n" % MAXMESG
+                                    for mesgrow in wrapmsg[maxwrapid][-MAXMESG:]:
+                                        msg2 += "\t\t%s\n" % mesgrow['message']
+                                else:
+                                    for mesgrow in wrapmsg[maxwrapid]:
+                                        msg2 += "\t\t%s\n" % mesgrow['message']
+                            else:
+                                msg2 += "\t\tNo QCF messages\n"
+                except Exception, e:
+                    msg2 += "\n\nEncountered error trying to gather QCF info for email.  Check output for blockpost for further details."
+                    print "\n\nEncountered error trying to gather QCF info status for email"
+                    print "%s: %s" % (e.__class__.__name__,str(e))
+                    (extype, value, traceback) = sys.exc_info()
+                    print traceback
+        else:
+            print "\nNo condor job log file.   Skipping updating job table and gathering QCF messages."
+
+    print "retval =", retval
+    
     if retval:
         if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
             print "Sending block failed email\n";

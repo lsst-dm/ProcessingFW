@@ -34,9 +34,7 @@ def endrun(configfile):
         # call archive transfer for target archive to home archive
         # check if using target archive
         target_info = None
-        print config[USE_TARGET_ARCHIVE_OUTPUT]
-        if USE_TARGET_ARCHIVE_OUTPUT in config and convertBool(config[USE_TARGET_ARCHIVE_OUTPUT]):
-            print config[TARGET_ARCHIVE]
+        if USE_TARGET_ARCHIVE_OUTPUT in config and config[USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
             if TARGET_ARCHIVE in config and config[TARGET_ARCHIVE] in config['archive']:
                 target_info = config['archive'][config[TARGET_ARCHIVE]]
             else:

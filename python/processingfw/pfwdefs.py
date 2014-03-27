@@ -30,17 +30,22 @@ USE_HOME_ARCHIVE_INPUT = 'use_home_archive_input'
 USE_HOME_ARCHIVE_OUTPUT = 'use_home_archive_output'
 VALID_HOME_ARCHIVE_INPUT = ['target_archive', 'job', 'all', 'never']
 VALID_HOME_ARCHIVE_OUTPUT = ['wrapper', 'job', 'block', 'run', 'never']
-CREATE_JUNK_TARBALL = 'create_junk_tarball'
 
 
 TARGET_ARCHIVE = 'target_archive'
 USE_TARGET_ARCHIVE_INPUT =  'use_target_archive_input'
 USE_TARGET_ARCHIVE_OUTPUT = 'use_target_archive_output'
+VALID_TARGET_ARCHIVE_INPUT = ['job', 'never']
+VALID_TARGET_ARCHIVE_OUTPUT = ['wrapper', 'job', 'never']
 
 
+CREATE_JUNK_TARBALL = 'create_junk_tarball'
 STAGE_FILES = 'stagefiles'
-SAVE_FILE_ARCHIVE = 'savefiles'
 
+SAVE_FILE_ARCHIVE = 'savefiles'  # true/false
+MASTER_SAVE_FILE = 'master_savefiles'
+VALID_MASTER_SAVE_FILE = ['always', 'failure', 'file', 'never']   # + rand_##
+MASTER_SAVE_FILE_DEFAULT = 'file'
 
 
 DIRPAT = 'dirpat'

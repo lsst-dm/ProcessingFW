@@ -65,11 +65,12 @@ def begblock(argv):
         if modname not in config[SW_MODULESECT]:
             fwdie("Error: Could not find module description for module %s\n" % (modname), PF_EXIT_FAILURE)
 
+        tasknum = -1
         if convertBool(config[PF_USE_DB_OUT]): 
-            dbh.insert_block_task(config, "runqueries_%s" % modname)
+            tasknum = dbh.insert_block_task(config, "runqueries_%s" % modname)
         runqueries(config, modname, modules_prev_in_list)
         if convertBool(config[PF_USE_DB_OUT]): 
-            dbh.update_block_task_end(config, PF_EXIT_SUCCESS)
+            dbh.update_block_task_end(config, tasknum, PF_EXIT_SUCCESS)
         pfwblock.read_master_lists(config, modname, modules_prev_in_list)
         pfwblock.create_fullnames(config, modname)
         pfwblock.add_file_metadata(config, modname)

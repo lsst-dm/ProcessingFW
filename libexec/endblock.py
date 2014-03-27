@@ -24,20 +24,16 @@ def endblock(configfile):
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     os.chdir('../%s' % config['blockname'])
 
-    if USE_HOME_ARCHIVE_OUTPUT in config and config[USE_HOME_ARCHIVE_OUTPUT].lower() == 'block':
-        if os.path.exists('potential_outputfiles.list'):
-            filelist = []
-            with open('potential_outputfiles.list') as fh:
-                for line in fh:
-                    filelist.append(line.strip())
+    if USE_HOME_ARCHIVE_OUTPUT in config and \
+        config[USE_HOME_ARCHIVE_OUTPUT].lower() == 'block':
             
-        # call archive transfer for target archive to home archive
         # check if using target archive
         target_info = None
-        print config[USE_TARGET_ARCHIVE_OUTPUT]
-        if USE_TARGET_ARCHIVE_OUTPUT in config and convertBool(config[USE_TARGET_ARCHIVE_OUTPUT]):
+        if USE_TARGET_ARCHIVE_OUTPUT in config and \
+            config[USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
             print config[TARGET_ARCHIVE]
-            if TARGET_ARCHIVE in config and config[TARGET_ARCHIVE] in config['archive']:
+            if TARGET_ARCHIVE in config and \
+                config[TARGET_ARCHIVE] in config['archive']:
                 target_info = config['archive'][config[TARGET_ARCHIVE]]
             else:
                 print "Error:  cannot determine info for target archive"
@@ -50,6 +46,16 @@ def endblock(configfile):
         print config[HOME_ARCHIVE]
         if HOME_ARCHIVE in config and config[HOME_ARCHIVE] in config['archive']:
             home_info = config['archive'][config[HOME_ARCHIVE]]
+
+        # get file list of files to transfer
+        if PF_USE_DB_OUT in config and convertBool(config[PF_USE_DB_OUT]):
+            dbh = pfwdb.PFWDB()
+            filelist = dbh.get_run_filelist(config[REQNUM], config[UNITNAME],
+                        config[ATTNUM], config[PF_BLKNUM], config[TARGET_ARCHIVE])
+        else:
+            print "Error:  Asked to transfer outputs at end of block, but not using database.   Currently not supported." 
+            return(PF_EXIT_FAILURE)
+            
 
         # call transfer
         archive_transfer_utils.archive_copy(target_info, home_info, config['archive_transfer'], filelist, config)

@@ -7,6 +7,7 @@
 """ Utilities for interactions with Condor """
 
 import subprocess
+import time, datetime
 import shlex
 import os
 import re
@@ -268,6 +269,10 @@ def parse_condor_user_log(logfilename):
     lines = log.read().split('\n...\n') 
     log.close()
 
+    logmdate = datetime.datetime.fromtimestamp((os.path.getmtime(logfilename)))
+    logmonth = logmdate.month
+    logyear = logmdate.year
+
     jobinfo = {}
     for line in lines:
         if re.search('\S', line):
@@ -276,7 +281,13 @@ def parse_condor_user_log(logfilename):
             if result:
                 code = result.group(1)
                 jobnum = result.group(2)
-                time = result.group(3)
+                eventtime = result.group(3)
+                eventdate = datetime.datetime.strptime(eventtime, '%m/%d %H:%M:%S')
+                if eventdate.month == logmonth:
+                    eventdate = eventdate.replace(year=logyear)
+                else:
+                    eventdate = eventdate.replace(year=logyear-1)
+
                 #desc = result.group(4)
     
                 if code == '000':
@@ -284,15 +295,15 @@ def parse_condor_user_log(logfilename):
                                         'clusterid':jobnum,
                                         'machine':'',
                                         'jobstat':'UNSUB',
-                                        'submittime':time,
-                                        'csubmittime':time }
+                                        'submittime':eventdate,
+                                        'csubmittime':eventdate }
                     if len(splitline) > 1:
                         result = re.match('\s*DAG Node:\s+(\S+)\s*', splitline[1])
                         if result:
                             jobinfo[jobnum]['jobname'] = result.group(1)
                 elif code == '001':
                     jobinfo[jobnum]['jobstat'] = 'RUN'
-                    jobinfo[jobnum]['starttime'] = time
+                    jobinfo[jobnum]['starttime'] = eventdate
                 #elif code == '002':
                 #    pass  # Error in executable
                 #elif code == '003':
@@ -301,7 +312,7 @@ def parse_condor_user_log(logfilename):
                 #    pass  # Job evicted from machine
                 elif code == '005':
                     jobinfo[jobnum]['jobstat'] = 'DONE'
-                    jobinfo[jobnum]['endtime'] = time
+                    jobinfo[jobnum]['endtime'] = eventdate
                     result = re.search('return value (\d+)', splitline[1]) 
                     if result:
                         jobinfo[jobnum]['retval'] = result.group(1)
@@ -313,7 +324,7 @@ def parse_condor_user_log(logfilename):
                 #    pass  # Generic Log Event
                 elif code == '009':
                     jobinfo[jobnum]['jobstat'] = 'FAIL'
-                    jobinfo[jobnum]['endtime'] = time
+                    jobinfo[jobnum]['endtime'] = eventdate
                 #elif code == '010':
                 #    pass  # Job was suspended
                 #elif code == '011': 
@@ -334,7 +345,7 @@ def parse_condor_user_log(logfilename):
              #        (1) Normal termination (return value 100)
              #    DAG Node: fail
              #...
-                    jobinfo[jobnum]['endtime'] = time
+                    jobinfo[jobnum]['endtime'] = eventdate
                     result = re.search('return value (\d+)', splitline[1]) 
                     if result:
                         retval = result.group(1)
@@ -345,7 +356,7 @@ def parse_condor_user_log(logfilename):
                 elif code == '017':  #  Job submitted to Globus
                     #  Beware of out of order log entries
                     if ('starttime' not in jobinfo[jobnum] or 
-                        (jobinfo[jobnum]['starttime'] != time)):
+                        (jobinfo[jobnum]['starttime'] != eventdate)):
                         jobinfo[jobnum]['jobstat'] = 'PEND'
                     result = re.search('RM-Contact:\s+(\S+)', splitline[1])
                     if result:
@@ -359,7 +370,7 @@ def parse_condor_user_log(logfilename):
                 #elif code == '021': 
                 #    pass  # Remote Error
                 elif code == '027': 
-                    jobinfo[jobnum]['gsubmittime'] = time
+                    jobinfo[jobnum]['gsubmittime'] = eventdate
                 else: 
                     jobinfo[jobnum]['jobstat'] = 'U%s' % (code)
             else:

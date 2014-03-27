@@ -509,9 +509,11 @@ def finish_wrapper_inst(config, modname, wrapperinst):
 
                 # save OPS path for archive
                 fwdebug(4, "PFWBLOCK_DEBUG", "Is fname (%s) in outputfiles? %s" % (fname, fname in outputfiles))
-                fwdebug(4, "PFWBLOCK_DEBUG", "Is save_file_archive true? %s" % (checkTrue(SAVE_FILE_ARCHIVE, fdict, True)))
-                if checkTrue(SAVE_FILE_ARCHIVE, fdict, True) and fname in outputfiles: 
-                    winst[IW_FILESECT][fname][SAVE_FILE_ARCHIVE] = True   # canonicalize
+                filesave = checkTrue(SAVE_FILE_ARCHIVE, fdict, True)
+                fwdebug(4, "PFWBLOCK_DEBUG", "Is save_file_archive true? %s" % (filesave))
+                mastersave = config[MASTER_SAVE_FILE]
+                if fname in outputfiles:
+                    winst[IW_FILESECT][fname][SAVE_FILE_ARCHIVE] = filesave  # canonicalize
                     if DIRPAT not in fdict:
                         print "Warning: Could not find %s in %s's section" % (DIRPAT,fname)
                     else:
@@ -520,8 +522,6 @@ def finish_wrapper_inst(config, modname, wrapperinst):
                         searchopts['searchobj'] = searchobj
                         winst[IW_FILESECT][fname]['archivepath'] = config.get_filepath('ops', 
                                                                         fdict[DIRPAT], searchopts)
-                else:
-                    winst[IW_FILESECT][fname][SAVE_FILE_ARCHIVE] = False   # canonicalize
 
             fwdebug(4, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
             fwdebug(4, "PFWBLOCK_DEBUG", "winst[%s] = %s" % (IW_FILESECT,  winst[IW_FILESECT]))
@@ -644,6 +644,26 @@ def add_file_metadata(config, modname):
                 
 
 
+#######################################################################
+def init_use_archive_info(config, jobwcl, which_use_input, which_use_output, which_archive):
+    if which_use_input in config:
+        jobwcl[which_use_input] = config[which_use_input].lower()
+    else:
+        jobwcl[which_use_input] = 'never'
+
+    if which_use_output in config:
+        jobwcl[which_use_output] = config[which_use_output].lower()
+    else:
+        jobwcl[which_use_output] = 'never'
+    
+    if jobwcl[which_use_input] != 'never' or jobwcl[which_use_output] != 'never':
+        jobwcl[which_archive] = config[which_archive]
+        archive = jobwcl[which_archive]
+    else:
+        jobwcl[which_archive] = None
+        archive = 'no_archive'
+
+    return archive
 
 
 #######################################################################
@@ -694,48 +714,23 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
         jobwcl[CREATE_JUNK_TARBALL] = False
 
 
-    if not USE_TARGET_ARCHIVE_INPUT in config or convertBool(config[USE_TARGET_ARCHIVE_INPUT]):
-        jobwcl[USE_TARGET_ARCHIVE_INPUT] = True
+    if MASTER_SAVE_FILE in config:
+        jobwcl[MASTER_SAVE_FILE] = config[MASTER_SAVE_FILE]
     else:
-        jobwcl[USE_TARGET_ARCHIVE_INPUT] = False
+        jobwcl[MASTER_SAVE_FILE] = MASTER_SAVE_FILE_DEFAULT
 
+    target_archive = init_use_archive_info(config, jobwcl, USE_TARGET_ARCHIVE_INPUT, 
+                                           USE_TARGET_ARCHIVE_OUTPUT, TARGET_ARCHIVE)
+    home_archive = init_use_archive_info(config, jobwcl, USE_HOME_ARCHIVE_INPUT, 
+                                           USE_HOME_ARCHIVE_OUTPUT, HOME_ARCHIVE)
 
-    if not USE_TARGET_ARCHIVE_OUTPUT in config or convertBool(config[USE_TARGET_ARCHIVE_OUTPUT]):
-        jobwcl[USE_TARGET_ARCHIVE_OUTPUT] = True
-    else:
-        jobwcl[USE_TARGET_ARCHIVE_OUTPUT] = False
-
-
-    if jobwcl[USE_TARGET_ARCHIVE_INPUT] or jobwcl[USE_TARGET_ARCHIVE_OUTPUT]: 
-        jobwcl[TARGET_ARCHIVE] = config[TARGET_ARCHIVE]
-        target_archive = config[TARGET_ARCHIVE]
-    else:
-        jobwcl[TARGET_ARCHIVE] = None
-        target_archive = 'no_archive'
-
-
-    if USE_HOME_ARCHIVE_INPUT in config:
-        jobwcl[USE_HOME_ARCHIVE_INPUT] = config[USE_HOME_ARCHIVE_INPUT].lower()
-    else:
-        jobwcl[USE_HOME_ARCHIVE_INPUT] = 'never'
-
-    if USE_HOME_ARCHIVE_OUTPUT in config:
-        jobwcl[USE_HOME_ARCHIVE_OUTPUT] = config[USE_HOME_ARCHIVE_OUTPUT].lower()
-    else:
-        jobwcl[USE_HOME_ARCHIVE_OUTPUT] = 'never'
-    
-
-    if jobwcl[USE_HOME_ARCHIVE_INPUT] != 'never' or jobwcl[USE_HOME_ARCHIVE_OUTPUT] != 'never':
-        jobwcl[HOME_ARCHIVE] = config[HOME_ARCHIVE]
-        home_archive = config[HOME_ARCHIVE]
-    else:
-        jobwcl[HOME_ARCHIVE] = None
-        home_archive = 'no_archive'
-
+    print "target_archive = ", target_archive
+    print "home_archive = ", home_archive
 
 
     # include variables needed by target archive's file mgmt class
     if jobwcl[TARGET_ARCHIVE] is not None:
+        print "jobwcl[TARGET_ARCHIVE] = ", jobwcl[TARGET_ARCHIVE]
         try:
             filemgmt_class = dynamically_load_class(config['archive'][target_archive]['filemgmt'])
             valDict = config.get_param_info(filemgmt_class.requested_config_vals())
@@ -746,6 +741,7 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
 
     # include variables needed by home archive's file mgmt class
     if jobwcl[HOME_ARCHIVE] is not None:
+        print "jobwcl[HOME_ARCHIVE] = ", jobwcl[HOME_ARCHIVE]
         try:
             filemgmt_class = dynamically_load_class(config['archive'][home_archive]['filemgmt'])
             valDict = config.get_param_info(filemgmt_class.requested_config_vals(),
@@ -1420,6 +1416,8 @@ def write_runjob_script(config):
     jobdir = config.get_filepath('runtime', 'jobdir', {PF_CURRVALS: {PF_JOBNUM:"$padjnum"}})
     print "The jobdir =", jobdir
 
+    scriptfile = config.get_filename('runjob') 
+
     #      Since wcl's variable syntax matches shell variable syntax and 
     #      underscores are used to separate name parts, have to use place 
     #      holder for jobnum and replace later with shell variable
@@ -1428,9 +1426,9 @@ def write_runjob_script(config):
     envfile = envfile.replace("j9999", "j${padjnum}")
 
     scriptstr = """#!/bin/sh
-echo "Current args: $@";
+echo "PFW: job_shell_script cmd: $0 $@";
 if [ $# -ne 6 ]; then
-    echo "Usage: <jobnum> <input tar> <job wcl> <tasklist> <env file> <output tar>";
+    echo "Usage: $0 <jobnum> <input tar> <job wcl> <tasklist> <env file> <output tar>";
     exit 1;
 fi
 jobnum=$1
@@ -1447,21 +1445,43 @@ initdir=`/bin/pwd`
     scriptstr += """
 export SHELL=/bin/bash    # needed for setup to work in Condor environment
 shd1=`/bin/date "+%%s"`
-echo ""
-echo "Cmdline given: " $@
-echo ""
-echo ""
-echo -n "job shell script starttime: " 
+echo -n "PFW: job_shell_script starttime: " 
 /bin/date
-echo -n "job exec host: "
+echo -n "PFW: job_shell_script exechost: "
 /bin/hostname
+echo ""
+
+BATCHID=""
+if /usr/bin/test -n "$SUBMIT_CONDORID"; then
+    echo "PFW: condorid $SUBMIT_CONDORID"
+    BATCHID=$SUBMIT_CONDORID
+fi
+
+### Output batch jobid for record keeping
+### specific to batch scheduler
+if /usr/bin/test -n "$PBS_JOBID"; then
+   BATCHID=`echo $PBS_JOBID | /bin/cut -d'.' -f1`
+   NP=`/bin/awk 'END {print NR}' $PBS_NODEFILE`
+fi
+if /usr/bin/test -n "$LSB_JOBID"; then
+   BATCHID=$LSB_JOBID
+fi
+if /usr/bin/test -n "$LOADL_STEP_ID"; then
+   BATCHID=`echo $LOADL_STEP_ID | /bin/awk -F "." '{ print $(NF-1) "." $(NF) }'`
+fi
+if /usr/bin/test -n "$CONDOR_ID"; then
+   BATCHID=$CONDOR_ID
+fi
+if /usr/bin/test -n "$BATCHID"; then
+    echo "PFW: batchid $BATCHID"
+fi
+
 echo ""
 echo ""
 echo "Initial condor job directory = " $initdir
 echo "Files copied over by condor:"
 ls -l
 echo ""
-
 echo "Creating empty job output files to guarantee condor job nice exit"
 touch $envfile
 tar -cvf $outputtar --files-from /dev/null
@@ -1478,7 +1498,7 @@ echo "\t$((d2-d1)) secs"
 echo "DESDMTIME: eups_setup $((d2-d1))"
 if [ $mystat != 0 ]; then
     echo "Error: eups setup had non-zero exit code ($mystat)"
-    exit $mystat 
+    exit $mystat    # note exit code not passed back through grid universe jobs
 fi
 """ % ({'eups': config['setupeups'], 
         'pipe':config['pipeprod'],
@@ -1557,7 +1577,6 @@ exit $rjstat
 """ 
 
     # write shell script to file
-    scriptfile = config.get_filename('runjob') 
     with open(scriptfile, 'w') as scriptfh:
         scriptfh.write(scriptstr)
 
@@ -1591,8 +1610,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write('VARS %s args="%s %s %s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile'], jobdict['envfile'], jobdict['outputwcltar']))
             dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
             dagfh.write('VARS %s transoutput="%s,%s"\n' % (tjpad, jobdict['outputwcltar'], jobdict['envfile']))
-            # no pre script for job.   Job inserted into DB at beginning of job running
-#jobpost.py configfile block jobnum inputtar outputtar retval
+            dagfh.write('SCRIPT pre %s %s/libexec/jobpre.py config.des $JOB\n' % (tjpad, pfwdir)) 
             dagfh.write('SCRIPT post %s %s/libexec/jobpost.py config.des %s $JOB %s %s $RETURN\n' % (tjpad, pfwdir, blockname, jobdict['inputwcltar'], jobdict['outputwcltar'])) 
 
     uberdagfile = "../uberctrl/%s" % (dagfile)

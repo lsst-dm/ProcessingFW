@@ -285,9 +285,10 @@ class PFWDB (coreutils.DesDbi):
         row['taskname'] = taskname
         row['starttime'] = self.get_current_timestamp_str()
         self.insert_PFW_row('PFW_BLOCK_TASK', row)
+        return row['tasknum']
 
 
-    def update_attempt_task_end (self, config, exitcode):
+    def update_attempt_task_end (self, config, tasknum, exitcode):
         """ update row in pfw_attempt_task with end of task info """
 
         #self.end_timing(config, 'attempt', config['submit_run'], exitcode)
@@ -300,85 +301,9 @@ class PFWDB (coreutils.DesDbi):
         wherevals['reqnum'] = config[REQNUM]
         wherevals['unitname'] = config[UNITNAME]
         wherevals['attnum'] = config[ATTNUM]
-        wherevals['tasknum'] = config['tasknums']['attempt']
+        wherevals['tasknum'] = tasknum
 
         self.update_PFW_row ('PFW_ATTEMPT_TASK', wherevals, updatevals)
-
-
-#    def start_timing (self, config, timetype, name, **kwargs):
-#        row = {}
-#        row['reqnum'] = config[REQNUM]
-#        row['unitname'] = config[UNITNAME]
-#        row['attnum'] = config[ATTNUM]
-#        row['timetype'] = timetype
-#        row['name'] = name
-#        row['starttime'] = self.get_current_timestamp_str() 
-#        
-#
-#        if timetype == 'runtask':
-#            row['tasknum'] = kwargs['tasknum']
-#        elif timetype == 'block':
-#            row['blknum'] = kwargs['blknum'] 
-#        elif timetype == 'blktask':
-#            row['blknum'] = kwargs['blknum'] 
-#            row['tasknum'] = kwargs['tasknum'] 
-#        elif timetype == 'job':
-#            row['blknum'] = kwargs['blknum'] 
-#            row['jobnum'] = kwargs['jobnum'] 
-#        elif timetype == 'jobtask':
-#            row['blknum'] = kwargs['blknum'] 
-#            row['jobnum'] = kwargs['jobnum'] 
-#            row['tasknum'] = kwargs['tasknum'] 
-#        elif timetype == 'wrapper':
-#            row['blknum'] = kwargs['blknum'] 
-#            row['jobnum'] = kwargs['jobnum'] 
-#            row['wrapnum'] = kwargs['wrapnum'] 
-#        elif timetype == 'wraptask':
-#            row['blknum'] = kwargs['blknum'] 
-#            row['jobnum'] = kwargs['jobnum'] 
-#            row['wrapnum'] = kwargs['wrapnum'] 
-#            row['tasknum'] = kwargs['tasknum'] 
-#
-#        self.insert_PFW_row('pfw_timing', row)
-#
-#    def end_timing (self, config, timetype, name, status, **kwargs):
-#        updatevals = {}
-#        updatevals['endtime'] = self.get_current_timestamp_str() 
-#        updatevals['status'] = status
-#        
-#
-#        wherevals = {}
-#        wherevals['reqnum'] = config[REQNUM]
-#        wherevals['unitname'] = config[UNITNAME]
-#        wherevals['attnum'] = config[ATTNUM]
-#        wherevals['timetype'] = timetype
-#        wherevals['name'] = name
-#
-#        if timetype == 'runtask':
-#            wherevals['tasknum'] = kwargs['tasknum']
-#        elif timetype == 'block':
-#            wherevals['blknum'] = kwargs['blknum'] 
-#        elif timetype == 'blktask':
-#            wherevals['blknum'] = kwargs['blknum'] 
-#            wherevals['tasknum'] = kwargs['tasknum'] 
-#        elif timetype == 'job':
-#            wherevals['blknum'] = kwargs['blknum'] 
-#            wherevals['jobnum'] = kwargs['jobnum'] 
-#        elif timetype == 'jobtask':
-#            wherevals['blknum'] = kwargs['blknum'] 
-#            wherevals['jobnum'] = kwargs['jobnum'] 
-#            wherevals['tasknum'] = kwargs['tasknum'] 
-#        elif timetype == 'wrapper':
-#            wherevals['blknum'] = kwargs['blknum'] 
-#            wherevals['jobnum'] = kwargs['jobnum'] 
-#            wherevals['wrapnum'] = kwargs['wrapnum'] 
-#        elif timetype == 'wraptask':
-#            wherevals['blknum'] = kwargs['blknum'] 
-#            wherevals['jobnum'] = kwargs['jobnum'] 
-#            wherevals['wrapnum'] = kwargs['wrapnum'] 
-#            wherevals['tasknum'] = kwargs['tasknum'] 
-#
-#        self.update_pfw_row('pfw_timing', wherevals, updatevals)
 
 
     ##### BLOCK #####
@@ -448,9 +373,10 @@ class PFWDB (coreutils.DesDbi):
         row['taskname'] = taskname
         row['starttime'] = self.get_current_timestamp_str()
         self.insert_PFW_row('PFW_BLOCK_TASK', row)
+        return row['tasknum']
 
         
-    def update_block_task_end (self, config, status):
+    def update_block_task_end (self, config, tasknum, status):
         """ update row in pfw_block with end of block info"""
 
         updatevals = {}
@@ -462,14 +388,14 @@ class PFWDB (coreutils.DesDbi):
         wherevals['unitname'] = config[UNITNAME]
         wherevals['attnum'] = config[ATTNUM]
         wherevals['blknum'] = config[PF_BLKNUM]
-        wherevals['tasknum'] = config['tasknums']['block']
+        wherevals['tasknum'] = tasknum
 
         self.update_PFW_row ('PFW_BLOCK_TASK', wherevals, updatevals)
 
 
 
     ##### JOB #####
-    def insert_job (self, wcl):
+    def insert_job (self, wcl, jobnum):
         """ Insert an entry into the pfw_job table """
         fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
 
@@ -480,7 +406,7 @@ class PFWDB (coreutils.DesDbi):
         row['unitname'] = wcl[UNITNAME]
         row['attnum'] = wcl[ATTNUM]
         row['blknum'] = wcl[PF_BLKNUM]
-        row['jobnum'] = wcl[PF_JOBNUM]
+        row['jobnum'] = jobnum
         row['starttime'] = self.get_current_timestamp_str()
         row['numexpwrap'] = wcl['numexpwrap']
         row['exechost'] = socket.gethostname()
@@ -489,22 +415,28 @@ class PFWDB (coreutils.DesDbi):
 
         if 'jobkeys' in wcl:
             row['jobkeys'] = wcl['jobkeys']
+        self.insert_PFW_row('PFW_JOB', row)
             
 
-        # batchid 
-        if "PBS_JOBID" in os.environ:
-            row['batchid'] = os.environ['PBS_JOBID'].split('.')[0]
-        elif 'LSB_JOBID' in os.environ:
-            row['batchid'] = os.environ['LSB_JOBID'] 
-        elif 'LOADL_STEP_ID' in os.environ:
-            row['batchid'] = os.environ['LOADL_STEP_ID'].split('.').pop()
-        elif 'SUBMIT_CONDORID' in os.environ:
-            row['batchid'] = os.environ['SUBMIT_CONDORID']
+    def update_job_batchids (self, wcl, jobnum, submit_condor_id = None, target_batch_id = None):
 
-        if 'SUBMIT_CONDORID' in os.environ:
-            row['condorid'] = os.environ['SUBMIT_CONDORID']
+        updatevals = {}
+        # batchid 
+        if submit_condor_id is not None:
+            updatevals['condorid'] = float(submit_condor_id)
+
+        if target_batch_id is not None:
+            updatevals['batchid'] = target_batch_id
+
+        wherevals = {}
+        wherevals['reqnum'] = wcl[REQNUM]
+        wherevals['unitname'] = wcl[UNITNAME]
+        wherevals['attnum'] = wcl[ATTNUM]
+        wherevals['jobnum'] = wcl[PF_JOBNUM]
+
         
-        self.insert_PFW_row('PFW_JOB', row)
+        if len(updatevals) > 0:
+            self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
 
 
     def update_job_junktar (self, wcl, junktar=None):
@@ -541,6 +473,44 @@ class PFWDB (coreutils.DesDbi):
 
         self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
 
+
+
+    def update_job_info (self, wcl, jobnum, jobinfo):
+        """ update row in pfw_job with information gathered post job from condor log """
+
+        fwdebug(1, 'PFWDB_DEBUG', "Updating job information post job (%s)" % jobnum)
+        fwdebug(3, 'PFWDB_DEBUG', "jobinfo=%s"%jobinfo)
+
+        updatevals = {}
+        if 'gsubmittime' in jobinfo:
+            updatevals['glsubmit'] = jobinfo['gsubmittime']
+        if 'csubmittime' in jobinfo:
+            updatevals['submittime'] = jobinfo['csubmittime']
+        if 'starttime' in jobinfo:
+            updatevals['starttime'] = jobinfo['starttime']
+        if 'endtime' in jobinfo:
+            updatevals['endtime'] = jobinfo['endtime']
+        if 'retval' in jobinfo:
+            updatevals['status'] = jobinfo['retval']
+        if 'clusterid' in jobinfo:
+            updatevals['condorid'] = jobinfo['clusterid']
+        
+        fwdebug(3, 'PFWDB_DEBUG', "updatevals = %s" %(updatevals))
+
+        wherevals = {}
+        wherevals['reqnum'] = wcl[REQNUM]
+        wherevals['unitname'] = wcl[UNITNAME]
+        wherevals['attnum'] = wcl[ATTNUM]
+        wherevals['jobnum'] = jobnum
+        fwdebug(3, 'PFWDB_DEBUG', "wherevals = %s" %(wherevals))
+
+        if len(updatevals) > 0:
+            self.update_PFW_row ('PFW_JOB', wherevals, updatevals)
+        else:
+            fwdebug(3, 'PFWDB_DEBUG', "Found 0 values to update (%s)" % (wherevals))
+            fwdebug(6, 'PFWDB_DEBUG', "\tjobnum = %s, jobinfo = %s" % (jobnum, jobinfo))
+
+
     
     ### JOB_TASK
     def insert_job_task (self, wcl, taskname):
@@ -556,9 +526,10 @@ class PFWDB (coreutils.DesDbi):
         row['starttime'] = self.get_current_timestamp_str()
 
         self.insert_PFW_row('PFW_JOB_TASK', row)
+        return row['tasknum']
 
 
-    def update_job_task_end (self, wcl, exitcode):
+    def update_job_task_end (self, wcl, tasknum, exitcode):
         """ update row in pfw_job_task with end of task info"""
 
         updatevals = {}
@@ -570,7 +541,7 @@ class PFWDB (coreutils.DesDbi):
         wherevals['unitname'] = wcl[UNITNAME]
         wherevals['attnum'] = wcl[ATTNUM]
         wherevals['jobnum'] = wcl[PF_JOBNUM]
-        wherevals['tasknum'] = wcl['tasknums']['job']
+        wherevals['tasknum'] = tasknum
 
         self.update_PFW_row ('PFW_JOB_TASK', wherevals, updatevals)
 
@@ -674,9 +645,10 @@ class PFWDB (coreutils.DesDbi):
         row['starttime'] = self.get_current_timestamp_str()
 
         self.insert_PFW_row('PFW_JOB_WRAPPER_TASK', row)
+        return row['tasknum']
 
 
-    def update_job_wrapper_task_end (self, wcl, exitcode):
+    def update_job_wrapper_task_end (self, wcl, tasknum, exitcode):
         """ update row in pfw_job_wrapper_task with end of task info """
 
         updatevals = {}
@@ -689,7 +661,7 @@ class PFWDB (coreutils.DesDbi):
         wherevals['attnum'] = wcl[ATTNUM]
         wherevals['jobnum'] = wcl[PF_JOBNUM]
         wherevals['wrapnum'] = wcl[PF_WRAPNUM]
-        wherevals['tasknum'] = wcl['tasknums']['job_wrapper']
+        wherevals['tasknum'] = tasknum
 
         self.update_PFW_row ('PFW_JOB_WRAPPER_TASK', wherevals, updatevals)
 
@@ -762,50 +734,55 @@ class PFWDB (coreutils.DesDbi):
 
         self.insert_PFW_row('PFW_JOB_EXEC_TASK', row)
         fwdebug(3, 'PFWDB_DEBUG', "end")
+        return row['tasknum']
 
     ##### 
     def insert_task (self, wcl, tasktype, taskname, **kwargs):
         """ call correct insert task function """
         fwdebug(3, 'PFWDB_DEBUG', "BEG (%s, %s)" % (tasktype, taskname))
 
+        tasknum = -1
         if tasktype == 'job':
-            self.insert_job_task(wcl, taskname)
+            tasknum = self.insert_job_task(wcl, taskname)
         elif tasktype == 'job_wrapper':
-            self.insert_job_wrapper_task(wcl, taskname)
+            tasknum = self.insert_job_wrapper_task(wcl, taskname)
         elif tasktype == 'job_exec': 
-            self.insert_job_exec_task(wcl, kwargs['execnum'], taskname)
+            tasknum = self.insert_job_exec_task(wcl, kwargs['execnum'], taskname)
         else:
             fwdie("Error: invalid tasktype (%s)" % (tasktype), PF_EXIT_FAILURE, 2)
 
         fwdebug(3, 'PFWDB_DEBUG', "end")
+        return tasknum
 
 
-    def update_job_exec_task_end (self, wcl, execnum, exitcode):
+    def update_job_exec_task_end (self, wcl, execnum, tasknum, exitcode):
         """ update row in pfw_job_exec_task with end of task info """
 
-        updatevals = {}
-        updatevals['endtime'] = self.get_current_timestamp_str()
-        updatevals['status'] = exitcode
+        if tasknum > 0:
+            updatevals = {}
+            updatevals['endtime'] = self.get_current_timestamp_str()
+            updatevals['status'] = exitcode
 
-        wherevals = {}
-        wherevals['reqnum'] = wcl[REQNUM]
-        wherevals['unitname'] = wcl[UNITNAME]
-        wherevals['attnum'] = wcl[ATTNUM]
-        wherevals['wrapnum'] = wcl[PF_WRAPNUM]
-        wherevals['execnum'] = execnum
+            wherevals = {}
+            wherevals['reqnum'] = wcl[REQNUM]
+            wherevals['unitname'] = wcl[UNITNAME]
+            wherevals['attnum'] = wcl[ATTNUM]
+            wherevals['wrapnum'] = wcl[PF_WRAPNUM]
+            wherevals['execnum'] = execnum
+            wherevals['tasknum'] = tasknum
 
-        self.update_PFW_row ('PFW_JOB_EXEC_TASK', wherevals, updatevals)
+            self.update_PFW_row ('PFW_JOB_EXEC_TASK', wherevals, updatevals)
 
 
-    def update_task_end(self, wcl, tasktype, status, **kwargs):
+    def update_task_end(self, wcl, tasktype, tasknum, status, **kwargs):
         """ call correct update task function """
 
         if tasktype == 'job':
-            self.update_job_task_end(wcl, status)
+            self.update_job_task_end(wcl, tasknum, status)
         elif tasktype == 'job_wrapper':
-            self.update_job_wrapper_task_end(wcl, status)
+            self.update_job_wrapper_task_end(wcl, tasknum, status)
         elif tasktype == 'job_exec': 
-            self.update_job_exec_task_end(wcl, kwargs['execnum'], status)
+            self.update_job_exec_task_end(wcl, kwargs['execnum'], tasknum, status)
         fwdebug(3, 'PFWDB_DEBUG', "end")
 
     
@@ -934,328 +911,6 @@ class PFWDB (coreutils.DesDbi):
         self.commit()
 
 
-#M     def get_required_metadata_headers (self, filetypes = None):
-#M         """
-#M         Return the metadata headers for the indicated filetype(s).
-#M 
-#M         The filetypes argument may be None (or omitted) to retrieve headers for
-#M         all types, a string containing a single filetype, or a sequence of
-#M         filetypes.  Filetypes are case insensitive.
-#M 
-#M         In all (successful) cases, the return value is a dictionary with the
-#M         following structure:
-#M             {<str:filetype>: {'filename_pattern'    : <str:filename pattern>,
-#M                               'ops_dir_pattern'     : <str:dir pattern>,
-#M                               'derived_header_names': [<str:name>...],
-#M                               'other_header_names'  : [<str:name>...]
-#M                              }
-#M             }
-#M         Note that either of the derived_header_names or other_header_names
-#M         lists may be empty, but filetypes that have neither will not be
-#M         retrieved from the database.
-#M 
-#M         """
-#M 
-#M         bindstr = self.get_positional_bind_string ()
-#M 
-#M         if filetypes is None:
-#M             args  = []
-#M             where = ''
-#M         elif type (filetypes) in (str, unicode):
-#M             args  = [ filetypes.lower () ]
-#M             where = 'WHERE LOWER (r.filetype) = ' + bindstr
-#M         else: # Allow any sort of sequence
-#M             args  = [ f.lower () for f in filetypes ]
-#M             s     = ','.join ([bindstr for b in args])
-#M             where = 'WHERE LOWER (r.filetype) IN (' + s + ')'
-#M 
-#M         # Note that ORDER BY isn't really necessary here, but it stablizes
-#M         # the header name lists so that callers will operate consistently.
-#M         stmt = ("SELECT t.filetype, t.filename_pattern, t.ops_dir_pattern,"
-#M                 "       file_header_name, m.derived "
-#M                 "FROM   filetype t"
-#M                 "       JOIN required_metadata r ON r.filetype = t.filetype"
-#M                 "       JOIN metadata m USING (file_header_name) "
-#M                 ) + where + " ORDER BY t.filetype, file_header_name"
-#M 
-#M         cursor = self.cursor ()
-#M 
-#M         cursor.execute (stmt, args)
-#M 
-#M         retval = OrderedDict()
-#M         for row in cursor.fetchall ():
-#M             ftype = row [0]
-#M             if ftype not in retval:
-#M                 retval [ftype] = {'filename_pattern'    : row [1],
-#M                                   'ops_dir_pattern'     : row [2],
-#M                                   'derived_header_names': [],
-#M                                   'other_header_names'  : []
-#M                                  }
-#M 
-#M             if row [4] == 1:
-#M                 retval [ftype] ['derived_header_names'].append (row [3])
-#M             else:
-#M                 retval [ftype] ['other_header_names'].append (row [3])
-#M 
-#M         cursor.close ()
-#M 
-#M         # The file_header_name column is case sensitive in the database, but
-#M         # header names are meant to be case insensitive; this can lead to
-#M         # duplicate header names in the database.  In addition, various mis-
-#M         # configuration of the metadata mapping tables could lead to duplicate
-#M         # rows returned from the query above.  Check for this problem.
-#M 
-#M         for ftype in retval:
-#M             hdrs = {hdr for hdr in retval [ftype]['derived_header_names'] +
-#M                                    retval [ftype]['other_header_names']}
-#M             if len ({hdr.lower () for hdr in hdrs}) != len (hdrs):
-#M                 raise DuplicateDBHeaderError ()
-#M 
-#M         # The filetype column in the filetype table is case sensitive in the
-#M         # database, but this method forces case insensitive matching.  This
-#M         # could lead to multiple filetypes being returned for a single
-#M         # requested filetype.  Check for this.
-#M 
-#M         if len ({ftype.lower () for ftype in retval}) != len (retval):
-#M             raise DuplicateDBFiletypeError ()
-#M 
-#M         return retval
-#M 
-#M     def get_metadata_id_from_filename (self, filename):
-#M         """
-#M         Create a unique identifier for the metadata row for the specified file.
-#M 
-#M         The current implementation extracts the next value from the
-#M         location_seq sequence in the database; however, a standalone algorithm
-#M         taking the filename as input is expected and will ultimately replace
-#M         this implementation.
-#M         """
-#M 
-#M         return self.get_seq_next_value ('location_seq')
-#M 
-#M     def get_filetype_metadata_map (self, filetype):
-#M         """
-#M         Retrieve the metadata to table and column mapping for a filetype.
-#M 
-#M         The returned dictionary contains two keys:
-#M             table       value is name of the database table for the filetype
-#M             id_column   value is name of id column for the table
-#M             hdr_to_col  value is a dictionary mapping metadata header name to
-#M                         database column name
-#M         """
-#M 
-#M         tab, idcol = self.get_filetype_metadata_table (filetype)
-#M 
-#M         fmap = {'table': tab, 'id_column': idcol, 'hdr_to_col': {}}
-#M 
-#M         cursor = self.cursor ()
-#M         bindstr = self.get_positional_bind_string ()
-#M 
-#M         stmt = ("SELECT file_header_name, m.column_name "
-#M                 "FROM   metadata m "
-#M                 "       JOIN required_metadata r USING (file_header_name) "
-#M                 "WHERE  LOWER (r.filetype) = " + bindstr)
-#M 
-#M         cursor.execute (stmt, (filetype.lower (), ))
-#M 
-#M         for row in cursor:
-#M             fmap ['hdr_to_col'][row [0]] = row [1]
-#M 
-#M         return fmap
-#M 
-#M     def get_filetype_metadata_table (self, filetype):
-#M         """
-#M         Retrieve the metadata table name and id column name for the specified
-#M         filetype.
-#M  
-#M         Filetypes are considered case insensitive, but may appear multiple
-#M         times with different case in the database.  This condition is detected
-#M         and reported.  Other mis-configurations of the metadata mapping tables
-#M         may lead to this report as well, however.
-#M         """
-#M 
-#M         cursor  = self.cursor ()
-#M         bindstr = self.get_positional_bind_string ()
-#M 
-#M         stmt = ("SELECT f.metadata_table, LOWER (m.id_column) "
-#M                 "FROM   filetype f "
-#M                 "       JOIN metadata_table m "
-#M                 "           ON m.table_name = f.metadata_table "
-#M                 "WHERE  LOWER (f.filetype) = " + bindstr)
-#M 
-#M         try:
-#M             cursor.execute (stmt, (filetype.lower (), ))
-#M             res = cursor.fetchall ()
-#M         finally:
-#M             cursor.close ()
-#M 
-#M         if len (res) == 1:
-#M             return res [0][0], res [0][1]
-#M         elif len (res) == 0:
-#M             return None, None
-#M         else:
-#M             raise DuplicateDBFiletypeError ()
-#M 
-#M     def metadata_ingest (self, filetype, metadata_by_filename):
-#M         """
-#M         Insert metadata from files of a particular type.
-#M 
-#M         The filetype argument is case insensitive.
-#M 
-#M         The metadata_by_filename argument is a dictionary of metadata indexed
-#M         by source filename.  The filename will be used to generate a primary
-#M         key for the file's metadata row.  The metadata for each file is
-#M         specified as a dictionary indexed by metadata header.  The header names
-#M         are case insensitive.
-#M 
-#M         The return value is a dictionary identifying certain types of problems
-#M         with the following keys:
-#M             bad_filetypes   list of bad filetypes (at most one).
-#M             bad_file_ids    list of filenames for which ids could not be made
-#M             missing_hdrs    dict of lists of missing headers per filename
-#M             extra_hdrs      dict of lists of extra headers per filename
-#M             duplicate_hdrs  dict of lists of duplicate headers per filename
-#M         The keys are always present, but the values are non-empty only for the
-#M         indicated conditions.
-#M 
-#M         Headers are considered duplicate if they are different only by case, so
-#M         such duplication can exist in the metadata_by_filename parameter and is
-#M         reported when detected.
-#M 
-#M         Metadata is not ingested for any files listed in bad_file_ids or
-#M         duplicate_hdrs.  No metadata was ingested if bad_filetypes is not
-#M         empty.
-#M         """
-#M 
-#M         retval = {'bad_filetypes' : [],
-#M                   'bad_file_ids'  : [],
-#M                   'missing_hdrs'  : {},
-#M                   'extra_hdrs'    : {},
-#M                   'duplicate_hdrs': {}
-#M                  }
-#M 
-#M         if not hasattr (self, 'md_map_cache'):
-#M             # Create a cache so that information for a file type need by
-#M             # collected from the database only once.
-#M             self.md_map_cache = {}
-#M 
-#M         if filetype not in self.md_map_cache:
-#M             # Haven't seen the filetype yet; get its map.
-#M             fmap = self.get_filetype_metadata_map (filetype)
-#M             self.md_map_cache [filetype] = fmap
-#M 
-#M         fmap = self.md_map_cache [filetype]
-#M 
-#M         if not fmap ['table']:
-#M             # Specified filetype doesn't exist or doesn't have a table; punt
-#M             retval ['bad_filetypes'].append (filetype)
-#M             return retval
-#M 
-#M         # Using positional bind strings means that the columns and values need
-#M         # to be in the same order, so construct a list of columns and and a
-#M         # list of headers that are in the same order.  Start with "id" since
-#M         # that must be added, but shouldn't be in the database.
-#M         columns  = [fmap ['id_column']]
-#M         hdr_list = ['id']
-#M         for hdr, col in fmap ['hdr_to_col'].items ():
-#M             columns.append (col)
-#M             h = hdr.lower()
-#M             if h == 'id':
-#M                 raise IdMetadataHeaderError ()
-#M             hdr_list.append (h)
-#M 
-#M         # Make a set of expected headers for easy comparison to provided
-#M         # headers.
-#M         expected_hdrs = {h for h in hdr_list}
-#M 
-#M         if len (expected_hdrs) != len (hdr_list):
-#M             raise DuplicateDBHeaderError ()
-#M 
-#M         expected_hdrs.discard ('id')
-#M 
-#M         # Loop through the provided files, adding a row for each.
-#M 
-#M         rows = []
-#M 
-#M         for filename, metadata in metadata_by_filename.items ():
-#M             # Construct a copy of the metadata for this filename that uses
-#M             # lowercase keys to implement case insenstive matching.
-#M 
-#M             mdLow         = {k.lower (): v for k, v in metadata.items ()}
-#M             provided_hdrs = {hdr for hdr in mdLow}
-#M 
-#M             if len (provided_hdrs) != len (metadata):
-#M                 # Construct a list of tuples which identify the duplicated
-#M                 # headers.
-#M                 lowToGiven = {hdr: [] for hdr in provided_hdrs}
-#M                 for hdr in metadata:
-#M                     lowToGiven [hdr.lower ()].append (hdr)
-#M 
-#M                 duphdrs = []
-#M                 for val in lowToGiven.values ():
-#M                     if len(val) > 1:
-#M                         duphdrs.append (tuple (sorted (val)))
-#M 
-#M                 retval ['duplicate_hdrs'][filename] = duphdrs
-#M                 continue
-#M 
-#M             # Record any issues with this file.
-#M 
-#M             extra_hdrs    = provided_hdrs - expected_hdrs
-#M             missing_hdrs  = expected_hdrs - provided_hdrs
-#M 
-#M             if extra_hdrs:
-#M                 retval ['extra_hdrs'][filename] = sorted (list (extra_hdrs))
-#M             if missing_hdrs:
-#M                 retval ['missing_hdrs'][filename] = sorted (list (missing_hdrs))
-#M 
-#M             fid = self.get_metadata_id_from_filename (filename)
-#M 
-#M             if fid is None:
-#M                 retval ['bad_file_ids'].append (filename)
-#M             else:
-#M                 # Construct a row for this file and add to the list of rows.
-#M 
-#M                 row = [fid if h == 'id' else mdLow.get (h) for h in hdr_list]
-#M 
-#M                 rows.append (row)
-#M 
-#M         # If there're any rows, insert them.
-#M         if rows:
-#M             self.insert_many (fmap ['table'], columns, rows)
-#M 
-#M         return retval
-#M 
-#M     def get_required_headers(self, filetypeDict):
-#M         """
-#M         For use by ingest_file_metadata. Collects the list of required header values.
-#M         """
-#M         REQUIRED = "r"
-#M         allReqHeaders = set()
-#M         for category,catDict in filetypeDict[REQUIRED].iteritems():
-#M             allReqHeaders = allReqHeaders.union(catDict.keys())
-#M         return allReqHeaders
-#M 
-#M 
-#M     def get_column_map(self, filetypeDict):
-#M         """
-#M         For use by ingest_file_metadata. Creates a lookup from column to header.
-#M         """
-#M         columnMap = OrderedDict()
-#M         for statusDict in filetypeDict.values():
-#M             if type(statusDict) in (OrderedDict,dict):
-#M                 for catDict in statusDict.values():
-#M                     for header, columns in catDict.iteritems():
-#M                         collist = columns.split(',')
-#M                         for position, column in enumerate(collist):
-#M                             if len(collist) > 1:
-#M                                 columnMap[column] = header + ":" + str(position)
-#M                             else:
-#M                                 columnMap[column] = header
-#M         return columnMap
-#M 
-#M 
-#M 
     def getFilenameIdMap(self, prov):
         DELIM = ","
         USED  = "used"
@@ -1431,3 +1086,75 @@ class PFWDB (coreutils.DesDbi):
             wrappers[d['wrapnum']] = d
 
         return wrappers
+
+
+    def get_run_filelist(self, reqnum, unitname, attnum, 
+                         blknum = None, archive=None):
+
+        # store filenames in dictionary just to ensure don't get filename multiple times
+        filedict = {} 
+
+        # setup up common where clauses and params
+        wherevals = {'reqnum': reqnum, 'unitname':unitname, 'attnum': attnum}
+        if blknum is not None:
+            wherevals['blknum'] = blknum
+
+        whclause = []
+        for k in wherevals.keys():
+            whclause.append("%s=%s" % (k, self.get_named_bind_string(k)))
+
+
+        # search for output files
+        sql = "select wgb.filename from wgb where %s" % (' and '.join(whclause))
+
+        fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
+        fwdebug(3, 'PFWDB_DEBUG', "params> %s" % wherevals)
+        
+        curs = self.cursor()
+        curs.execute(sql, wherevals)
+
+        for row in curs:
+            filedict[row[0]] = True
+
+
+        # search for logs 
+        # (not all logs show up in wgb, example ingestions which don't have output file)
+        sql = "select log from pfw_wrapper where log is not NULL and %s" % (' and '.join(whclause))
+
+        fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
+        fwdebug(3, 'PFWDB_DEBUG', "params> %s" % wherevals)
+        
+        curs = self.cursor()
+        curs.execute(sql, wherevals)
+
+        for row in curs:
+            filedict[row[0]] = True
+
+        # search for junk tarball
+        sql = "select junktar from pfw_job where junktar is not NULL and %s" % (' and '.join(whclause))
+
+        fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
+        fwdebug(3, 'PFWDB_DEBUG', "params> %s" % wherevals)
+        
+        curs = self.cursor()
+        curs.execute(sql, wherevals)
+
+        for row in curs:
+            filedict[row[0]] = True
+
+        
+        # convert dictionary to list
+        filelist = filedict.keys()
+        fwdebug(3, 'PFWDB_DEBUG', "filelist = %s" % filelist)
+
+        if archive is not None:   # limit to files on a specified archive
+            gtt_name = self.load_filename_gtt(filelist)
+            sqlstr = "SELECT f.filename FROM file_archive_info a, %s f WHERE a.filename=f.filename and a.archive_name=%s" % (gtt_name, self.get_named_bind_string('archive'))
+            cursor = self.cursor()
+            cursor.execute(sqlstr, {'archive':archive})
+            results = cursor.fetchall()
+            cursor.close()
+            self.empty_gtt(gtt_name)
+            filelist = [x[0] for x in results]
+
+        return filelist

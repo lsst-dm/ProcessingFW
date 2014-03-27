@@ -235,7 +235,6 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
 
     useQCF = convertBool(useQCF)
 
-    starttime = time.time()
     logfh = open(logfilename, 'w', 0)
 
     sys.stdout.flush()
@@ -321,7 +320,6 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
     else:
         fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with exit code = 0")
 
-    print "DESDMTIME: run_cmd_qcf %0.3f" % (time.time()-starttime)
 
     fwdebug(3, "PFWUTILS_DEBUG", "END")
     return processWrap.returncode
@@ -356,3 +354,16 @@ def index_wrapper_info(wrapinfo):
         wrap_bymod[wrap['modname']][wrap['wrapnum']] = wrap
 
     return wrap_byjob, wrap_bymod
+
+#######################################################################
+def should_save_file(mastersave, filesave, exitcode):      
+    msave = mastersave.lower()
+
+    if msave == 'failure':
+        if exitcode != 0:
+            msave = 'always'
+        else:
+            msave = 'file'
+
+    retval = ((msave == 'always') or (msave == 'file' and filesave))
+    return retval

@@ -13,6 +13,7 @@ import copy
 import re
 import os
 import time
+import random
 
 from processingfw.pfwdefs import *
 from processingfw.pfwutils import *
@@ -534,6 +535,23 @@ class PfwConfig:
                    '_' + submit_time
         self.config['work_dir'] = work_dir
         self.config['uberctrl_dir'] = work_dir + "/runtime/uberctrl"
+
+        if MASTER_SAVE_FILE in self.config:
+            if self.config[MASTER_SAVE_FILE] not in VALID_MASTER_SAVE_FILE:
+                m = re.match('rand_(\d\d)', self.config[MASTER_SAVE_FILE].lower())
+                if m:
+                    if random.randrange(100) <= int(m.group(1)):
+                        fwdebug(2, 'PFWCONFIG_DEBUG', 'Changing %s to %s' % (MASTER_SAVE_FILE, 'always'))
+                        self.config[MASTER_SAVE_FILE] = 'always' 
+                    else:
+                        fwdebug(2, 'PFWCONFIG_DEBUG', 'Changing %s to %s' % (MASTER_SAVE_FILE, 'file'))
+                        self.config[MASTER_SAVE_FILE] = 'file' 
+                else:
+                    fwdie("Error:  Invalid value for %s (%s)" % (MASTER_SAVE_FILE, self.config[MASTER_SAVE_FILE]), PF_EXIT_FAILURE)
+        else:
+            self.config[MASTER_SAVE_FILE] = MASTER_SAVE_FILE_DEFAULT
+
+
     
     
     ###########################################################################

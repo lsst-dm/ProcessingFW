@@ -17,6 +17,7 @@ import time
 from processingfw.pfwdefs import *
 from filemgmt.filemgmt_defs import *
 from coreutils.miscutils import *
+import coreutils.dbsemaphore as dbsem
 import filemgmt.archive_transfer_utils as archive_transfer_utils
 import intgutils.wclutils as wclutils
 import intgutils.metautils as metautils
@@ -1751,10 +1752,16 @@ def stage_inputs(config, inputfiles):
         fwdebug(0, "PFWBLOCK_DEBUG", "home_archive = %s" % config[HOME_ARCHIVE])
         fwdebug(0, "PFWBLOCK_DEBUG", "target_archive = %s" % config[TARGET_ARCHIVE])
         sys.stdout.flush()
+        sem = None
+        if wcl['use_db']:
+            sem = dbsem.DBSemaphore('filetrans')
+            print "Semaphore info:\n", sem
         archive_transfer_utils.archive_copy(config['archive'][config[HOME_ARCHIVE]], 
                                             config['archive'][config[TARGET_ARCHIVE]],
                                             config['archive_transfer'],
                                             inputfiles, config)
+        if sem is not None:
+            del sem
 
     fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
 

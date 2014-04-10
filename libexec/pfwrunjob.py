@@ -23,6 +23,7 @@ import filemgmt.utils as fmutils
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
 import intgutils.wclutils as wclutils
+import coreutils.dbsemaphore as dbsem
 
 
 VERSION = '$Rev$'
@@ -138,10 +139,16 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
                 pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, str(value))
             raise
 
+        sem = None
+        if wcl['use_db']:
+            sem = dbsem.DBSemaphore('filetrans')
+            print "Semaphore info:\n", sem
         if dest.lower() == 'target':
             results = jobfilemvmt.target2job(transinfo)
         else:
             results = jobfilemvmt.home2job(transinfo)
+        if sem is not None:
+            del sem
 
         if pfw_dbh is not None:
             pfw_dbh.update_job_wrapper_task_end(wcl, tasknum, PF_EXIT_SUCCESS)
@@ -525,10 +532,16 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
     # tranfer files to archive
     #pretty_print_dict(putinfo)
     starttime = time.time()
+    sem = None
+    if wcl['use_db']:
+        sem = dbsem.DBSemaphore('filetrans')
+        print "Semaphore info:\n", sem
     if dest.lower() == 'target':
         results = jobfilemvmt.job2target(saveinfo)
     else:
         results = jobfilemvmt.job2home(saveinfo)
+    if sem is not None:
+        del sem
     
     if pfw_dbh is None:
         print "DESDMTIME: %s-filemvmt %0.3f" % (tasklabel, time.time()-starttime)
@@ -771,14 +784,13 @@ def gather_inwcl_fullnames(taskfile, wcl):
             task = None
             try:
                 task = parse_run_task_line(line, linecnt)
-                print "task = ", task
                 wcl['infullnames'].append(task['wclfile'])
             except Exception as e:
                 print "Error: parsing task file line %s (%s)" % (linecnt, str(e)) 
                 return(1)
             line = tasksfh.readline()
 
-    print wcl['infullnames']
+    #print wcl['infullnames']
 
 def run_tasks(taskfile, jobwcl={}):
     # run each wrapper execution sequentially

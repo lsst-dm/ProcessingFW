@@ -24,6 +24,7 @@ ATTNUM = 'attnum'
 UNITNAME = 'unitname'
 ATTRIB_PREFIX='des_'
 
+SUBMIT_RUN_DIR = 'submit_run_dir'
 
 HOME_ARCHIVE = 'home_archive'
 USE_HOME_ARCHIVE_INPUT = 'use_home_archive_input'

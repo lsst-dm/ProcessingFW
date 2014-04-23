@@ -35,8 +35,7 @@ def create_dags(config, logfh):
     maindag = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'mainmngr'}})
 
     try:
-        blockdag = pfwsubmit.write_block_dag(config)
-        pfwsubmit.write_main_dag(config, maindag, blockdag)
+        pfwsubmit.write_main_dag(config, maindag)
     except:
         sys.stdout = realstdout
         sys.stderr = realstderr

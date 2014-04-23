@@ -17,7 +17,6 @@ __version__ = "$Rev$"
 
 import os
 import sys
-import socket
 import traceback
 from collections import OrderedDict
 
@@ -108,7 +107,19 @@ class PFWDB (coreutils.DesDbi):
         allparams['jiraid'] = config.search('jira_id', {'interpolate': True})[1]
         allparams['pipeline'] = config.search('pipeline', {'interpolate': True})[1]
         allparams['operator'] =  config.search('operator', {'interpolate': True})[1]
+        allparams['numexpblk'] = len(fwsplit(config[SW_BLOCKLIST]))
+        (exists, value) = config.search('basket', {'interpolate': True})
+        if exists:
+            allparams['basket'] = value
+        else:
+            allparams['basket'] = None
+        (exists, value) = config.search('group_submit_id', {'interpolate': True})
+        if exists:
+            allparams['group_submit_id'] = value
+        else:
+            allparams['group_submit_id'] = None
 
+        # create named bind strings for all parameters
         namebinds = {}
         for k in allparams.keys():
             namebinds[k] = self.get_named_bind_string(k)
@@ -149,8 +160,6 @@ class PFWDB (coreutils.DesDbi):
 
                 # pfw_attempt
                 fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_attempt table\n")
-                operator = config.search('operator', {'interpolate': True})[1]
-
                 ## get current max attnum and try next value
                 sql = "select max(attnum) from pfw_attempt where reqnum=%s and unitname=%s" % (namebinds['reqnum'], namebinds['unitname'])
                 fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
@@ -170,15 +179,16 @@ class PFWDB (coreutils.DesDbi):
                 fwdebug(3, 'PFWDB_DEBUG', "maxatt = %s" % maxatt)
                 allparams['attnum'] = maxatt + 1
                 namebinds['attnum'] = self.get_named_bind_string('attnum')
-                allparams['numexpblk'] = len(fwsplit(config[SW_BLOCKLIST]))
-                namebinds['numexpblk'] = self.get_named_bind_string('numexpblk')
 
-                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime, numexpblk) select %s, %s, %s, %s, %s, %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname=%s and attnum=%s)" % (namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'], namebinds['operator'], self.get_current_timestamp_str(), namebinds['numexpblk'], from_dual, namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'])
-                fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                # execute will fail if extra params
                 params = {}
-                for k in ['reqnum', 'unitname', 'attnum', 'operator', 'numexpblk']:
+                for k in ['reqnum', 'unitname', 'attnum', 'operator', 'numexpblk', 'basket', 'group_submit_id']:
                     params[k]=allparams[k]
                 fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % params)
+
+                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime, numexpblk, basket, group_submit_id) select %s, %s, %s, %s, %s, %s, %s, %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname=%s and attnum=%s)" % (namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'], namebinds['operator'], self.get_current_timestamp_str(), namebinds['numexpblk'], namebinds['basket'], namebinds['group_submit_id'], from_dual, namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'])
+                fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+
                 curs.execute(sql, params)
 
                 config[ATTNUM] = allparams['attnum']
@@ -409,7 +419,6 @@ class PFWDB (coreutils.DesDbi):
         row['jobnum'] = jobnum
         row['starttime'] = self.get_current_timestamp_str()
         row['numexpwrap'] = wcl['numexpwrap']
-        row['exechost'] = socket.gethostname()
         row['pipeprod'] = wcl['pipeprod']
         row['pipever'] = wcl['pipever']
 
@@ -418,9 +427,12 @@ class PFWDB (coreutils.DesDbi):
         self.insert_PFW_row('PFW_JOB', row)
             
 
-    def update_job_batchids (self, wcl, jobnum, submit_condor_id = None, target_batch_id = None):
+    def update_job_batchids (self, wcl, jobnum, submit_condor_id = None, target_batch_id = None, exechost=None):
 
         updatevals = {}
+        if exechost is not None:
+            updatevals['exechost'] = exechost
+
         # batchid 
         if submit_condor_id is not None:
             updatevals['condorid'] = float(submit_condor_id)

@@ -23,6 +23,7 @@ def jobpre(argv = None):
     sys.stderr = debugfh
     
     print ' '.join(sys.argv) # command line for debugging
+    print os.getcwd()
     
     if len(argv) < 3:
         print 'Usage: jobpre configfile jobnum'
@@ -35,13 +36,15 @@ def jobpre(argv = None):
     # read wcl file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     blockname = config['blockname']
+    blkdir = config['block_dir']
+    tjpad = "%04d" % int(jobnum)
 
     # now that have more information, can rename output file
     fwdebug(0, 'PFWJOBPRE_DEBUG', "getting new_log_name")
     new_log_name = config.get_filename('job', {PF_CURRVALS: {PF_JOBNUM:jobnum,
                                                         'flabel': 'jobpre',
                                                         'fsuffix':'out'}})
-    new_log_name = "../%s/%s" % (blockname, new_log_name)
+    new_log_name = "%s/%s/%s" % (blkdir, tjpad, new_log_name)
     fwdebug(0, 'PFWJOBPRE_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()

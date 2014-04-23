@@ -24,7 +24,8 @@ def begblock(argv):
     config = pfwconfig.PfwConfig({'wclfile': configfile}) 
     config.set_block_info()
 
-    os.chdir('../%s' % config['blockname'])
+    blkdir = config['block_dir']
+    os.chdir(blkdir)
 
     # now that have more information, can rename output file
     #fwdebug(0, 'PFWBLOCK_DEBUG', "getting new_log_name")

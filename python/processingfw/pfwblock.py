@@ -49,7 +49,7 @@ def create_simple_list(config, lname, ldict, currvals):
  
     listdir = os.path.dirname(listname)
     if len(listdir) > 0 and not os.path.exists(listdir):
-        os.mkdir(listdir)
+        coremakedirs(listdir)
 
     with open(listname, 'w', 0) as listfh:
         listfh.write(listcontents+"\n")
@@ -789,7 +789,9 @@ def write_jobwcl(config, jobkey, jobnum, numexpwrap, wrapinputs):
 
     fwdebug(3, "PFWBLOCK_DEBUG", "jobwcl.keys() = %s" % jobwcl.keys())
    
-    with open(jobwclfile, 'w') as wclfh:
+    tjpad = "%04d" % (int(jobnum))
+    coremakedirs(tjpad)
+    with open("%s/%s" % (tjpad, jobwclfile), 'w') as wclfh:
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
 
     fwdebug(3, "PFWBLOCK_DEBUG", "END\n\n")
@@ -1496,7 +1498,7 @@ setup --nolock %(pipe)s %(ver)s
 mystat=$?
 d2=`/bin/date "+%%s"` 
 echo "\t$((d2-d1)) secs"
-echo "DESDMTIME: eups_setup $((d2-d1))"
+echo "DESDMTIME: eups_setup $((d2-d1)) secs"
 if [ $mystat != 0 ]; then
     echo "Error: eups setup had non-zero exit code ($mystat)"
     exit $mystat    # note exit code not passed back through grid universe jobs
@@ -1544,7 +1546,7 @@ d1=`/bin/date "+%s"`
 tar -xzf $initdir/$intar
 d2=`/bin/date "+%s"` 
 echo "\t$((d2-d1)) secs"
-echo "DESDMTIME: untar_input_tar $((d2-d1))"
+echo "DESDMTIME: untar_input_tar $((d2-d1)) secs"
 """
 
     # copy files so can test by hand after job
@@ -1555,7 +1557,7 @@ d1=`/bin/date "+%s"`
 cp $initdir/$jobwcl $jobwcl
 cp $initdir/$tasklist $tasklist
 d2=`/bin/date "+%s"`
-echo "DESDMTIME: copy_jobwcl_tasklist $((d2-d1))"
+echo "DESDMTIME: copy_jobwcl_tasklist $((d2-d1)) secs"
 echo "condor_job_init_dir = " $initdir >> $jobwcl
 """
 
@@ -1570,9 +1572,9 @@ rjstat=$?
 echo ""
 echo ""
 d2=`/bin/date "+%s"`
-echo "DESDMTIME: pfwrunjob.py $((d2-d1))"
+echo "DESDMTIME: pfwrunjob.py $((d2-d1)) secs"
 shd2=`/bin/date "+%s"`
-echo "DESDMTIME: job_shell_script $((shd2-shd1))"
+echo "DESDMTIME: job_shell_script $((shd2-shd1)) secs"
 echo "Exiting with status $rjstat"
 exit $rjstat
 """ 
@@ -1598,36 +1600,41 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
 
     pfwdir = config['processingfw_dir']
     blockname = config['curr_block']
+    blkdir = config['block_dir']
 
 
-    with open("../%s/%s" % (blockname, dagfile), 'w') as dagfh:
+    with open("%s/%s" % (blkdir, dagfile), 'w') as dagfh:
         for jobkey,jobdict in joblist.items(): 
             jobnum = jobdict['jobnum']
             tjpad = "%04d" % (int(jobnum))
 
             dagfh.write('JOB %s %s\n' % (tjpad, condorfile))
             dagfh.write('VARS %s jobnum="%s"\n' % (tjpad, tjpad))
-            dagfh.write('VARS %s exec="%s"\n' % (tjpad, scriptfile))
+            dagfh.write('VARS %s exec="../%s"\n' % (tjpad, scriptfile))
             dagfh.write('VARS %s args="%s %s %s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile'], jobdict['envfile'], jobdict['outputwcltar']))
             dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
             dagfh.write('VARS %s transoutput="%s,%s"\n' % (tjpad, jobdict['outputwcltar'], jobdict['envfile']))
-            dagfh.write('SCRIPT pre %s %s/libexec/jobpre.py config.des $JOB\n' % (tjpad, pfwdir)) 
-            dagfh.write('SCRIPT post %s %s/libexec/jobpost.py config.des %s $JOB %s %s $RETURN\n' % (tjpad, pfwdir, blockname, jobdict['inputwcltar'], jobdict['outputwcltar'])) 
+            dagfh.write('SCRIPT pre %s %s/libexec/jobpre.py ../uberctrl/config.des $JOB\n' % (tjpad, pfwdir)) 
+            dagfh.write('SCRIPT post %s %s/libexec/jobpost.py ../uberctrl/config.des %s $JOB %s %s $RETURN\n' % (tjpad, pfwdir, blockname, jobdict['inputwcltar'], jobdict['outputwcltar'])) 
 
-    uberdagfile = "../uberctrl/%s" % (dagfile)
-    if os.path.exists(uberdagfile):
-        os.unlink(uberdagfile)
-    os.symlink("../%s/%s" % (blockname, dagfile), uberdagfile)
+    #uberdagfile = "../uberctrl/%s" % (dagfile)
+    #if os.path.exists(uberdagfile):
+    #    os.unlink(uberdagfile)
+    #os.symlink("%s/%s" % (blkdir, dagfile), uberdagfile)
 
 #    pfwcondor.add2dag(dagfile, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), None, sys.stdout)
     fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
+
 
 
 #######################################################################
 def tar_inputfiles(config, jobnum, inlist):
     """ Tar the input wcl files for a single job """
     inputtar = config.get_filename('inputwcltar', {PF_CURRVALS:{'jobnum': jobnum}})
-    pfwutils.tar_list(inputtar, inlist)
+    tjpad = "%04d" % (int(jobnum))
+    coremakedirs(tjpad)
+    
+    pfwutils.tar_list("%s/%s" % (tjpad, inputtar), inlist)
     return inputtar
 
 
@@ -1638,15 +1645,15 @@ def create_runjob_condorfile(config, scriptfile):
 
     blockbase = config.get_filename('block', {PF_CURRVALS: {'flabel': 'runjob', 'fsuffix':''}})
 #    initialdir = "../%s_tjobs" % config['blockname']
-    initialdir = "../%s" % config['blockname']
+    initialdir = "%s/%s" % (config['block_dir'], '$(jobnum)')
 #    condorfile = '%s/%scondor' % (initialdir, condorbase)
 
     #condorfile = '%scondor' % (blockbase)
-    condorfile = '../%s/%scondor' % (config['blockname'], blockbase)
+    condorfile = '%s/%scondor' % (config['block_dir'], blockbase)
     
     jobbase = config.get_filename('job', {PF_CURRVALS: {PF_JOBNUM:'$(jobnum)', 'flabel': 'runjob', 'fsuffix':''}})
     jobattribs = { 
-                'executable':'../%s/%s' % (config['blockname'], scriptfile), 
+                'executable':'%s/%s' % (config['block_dir'], scriptfile), 
                 'arguments':'$(args)',
 #               'remote_initialdir':remote_initialdir, 
                 'initialdir':initialdir,

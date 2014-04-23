@@ -22,7 +22,8 @@ def endblock(configfile):
     fwdebug(0, 'PFWBLOCK_DEBUG', "BEG")
 
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    os.chdir('../%s' % config['blockname'])
+    blkdir = config['block_dir']
+    os.chdir(blkdir)
 
     if USE_HOME_ARCHIVE_OUTPUT in config and \
         config[USE_HOME_ARCHIVE_OUTPUT].lower() == 'block':

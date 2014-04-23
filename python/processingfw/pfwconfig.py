@@ -530,11 +530,19 @@ class PfwConfig:
         self.config['submit_run'] = self.interpolate("${unitname}_r${reqnum}p${attnum:2}")
         self.config['run'] = self.config['submit_run']
     
-        work_dir = self.config['submit_dir'] + '/' + \
-                   os.path.splitext(self.config['submitwcl'])[0] + \
+
+        work_dir = ''
+        if SUBMIT_RUN_DIR in self.config:
+            work_dir = self.interpolate(self.config[SUBMIT_RUN_DIR])
+        else:
+            work_dir = self.config['submit_dir'] 
+
+        work_dir +=  '/' + os.path.splitext(self.config['submitwcl'])[0] + \
                    '_' + submit_time
+
         self.config['work_dir'] = work_dir
-        self.config['uberctrl_dir'] = work_dir + "/runtime/uberctrl"
+        #self.config['uberctrl_dir'] = work_dir + "/runtime/uberctrl"
+        self.config['uberctrl_dir'] = work_dir + "/uberctrl"
 
         if MASTER_SAVE_FILE in self.config:
             if self.config[MASTER_SAVE_FILE] not in VALID_MASTER_SAVE_FILE:
@@ -570,6 +578,8 @@ class PfwConfig:
         if not blockname:
             fwdie("Error: Cannot determine block name value for blknum=%s" % blknum, PF_EXIT_FAILURE)
         curdict['curr_block'] = blockname
+
+        self.config['block_dir'] = '../B%02d-%s' % (int(blknum), blockname)
     
         # update current target site name
         (exists, site) = self.search('target_site')

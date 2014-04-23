@@ -14,6 +14,7 @@ import tarfile
 import copy
 import traceback
 import resource
+import socket
 
 from coreutils.miscutils import *
 from processingfw.pfwdefs import *
@@ -135,18 +136,33 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
         except Exception as err:
             print "ERROR\nError: creating job_file_mvmt object\n%s" % err
             if pfw_dbh is not None:
-                pfw_dbh.update_job_wrapper_task_end(wcl, tasknum, F_EXIT_FAILURE)
+                pfw_dbh.update_job_wrapper_task_end(wcl, tasknum, PF_EXIT_FAILURE)
                 pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, str(value))
             raise
 
         sem = None
-        if wcl['use_db']:
-            sem = dbsem.DBSemaphore('filetrans')
-            print "Semaphore info:\n", sem
+        if wcl['use_db'] and 'transfer_semname' in wcl:
+            sem = dbsem.DBSemaphore(wcl['transfer_semname'])
+            fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
+
+        tstats = None
+        if 'transfer_stats' in wcl:
+            try:
+                tstats_class = dynamically_load_class(wcl['transfer_stats'])
+                valDict = fmutils.get_config_vals(None, wcl, tstats_class.requested_config_vals())
+                tstats = tstats_class(valDict)
+            except Exception as err:
+                print "ERROR\nError: creating transfer_stats object\n%s" % err
+                if pfw_dbh is not None:
+                    pfw_dbh.update_job_wrapper_task_end(wcl, tasknum, PF_EXIT_FAILURE)
+                    pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, str(value))
+                raise
+            
+
         if dest.lower() == 'target':
-            results = jobfilemvmt.target2job(transinfo)
+            results = jobfilemvmt.target2job(transinfo, tstats, tlogger)
         else:
-            results = jobfilemvmt.home2job(transinfo)
+            results = jobfilemvmt.home2job(transinfo, tstats, tlogger)
         if sem is not None:
             del sem
 
@@ -535,7 +551,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
     sem = None
     if wcl['use_db']:
         sem = dbsem.DBSemaphore('filetrans')
-        print "Semaphore info:\n", sem
+        fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
     if dest.lower() == 'target':
         results = jobfilemvmt.job2target(saveinfo)
     else:
@@ -905,7 +921,7 @@ def run_job(args):
 
         # update job batch/condor ids
         pfw_dbh = pfwdb.PFWDB()
-        pfw_dbh.update_job_batchids(wcl, wcl[PF_JOBNUM], condor_id, batch_id)
+        pfw_dbh.update_job_batchids(wcl, wcl[PF_JOBNUM], condor_id, batch_id, socket.gethostname())
         pfw_dbh.close()    # in case job is long running, will reopen connection elsewhere in job
         pfw_dbh = None
 

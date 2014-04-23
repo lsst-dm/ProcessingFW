@@ -43,6 +43,7 @@ def blockpost(argv = None):
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
     blockname = config['blockname']
+    blkdir = config['block_dir']
     
 
     # now that have more information, can rename output file
@@ -50,7 +51,7 @@ def blockpost(argv = None):
     new_log_name = config.get_filename('block', {PF_CURRVALS:
                                                   {'flabel': 'blockpost',
                                                    'fsuffix':'out'}})
-    new_log_name = "../%s/%s" % (blockname, new_log_name)
+    new_log_name = "%s/%s" % (blkdir, new_log_name)
     fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
@@ -59,7 +60,7 @@ def blockpost(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    os.chdir("../%s" % blockname)
+    os.chdir(blkdir)
     
     log_pfw_event(config, blockname, 'blockpost', 'j', ['posttask', retval])
 
@@ -242,14 +243,15 @@ def blockpost(argv = None):
         config.save_file(configfile)
         print "new blknum = ", config[PF_BLKNUM]
         print "number of blocks = ", len(config.block_array)
-        if int(config[PF_BLKNUM]) <= len(config.block_array):   # blknum is 1-based
-            retval = PF_EXIT_NEXTBLOCK
-            print "modified retval to %s" % retval
+        #if int(config[PF_BLKNUM]) <= len(config.block_array):   # blknum is 1-based
+        #    retval = PF_EXIT_NEXTBLOCK
+        #    print "modified retval to %s" % retval
     else:
         retval = PF_EXIT_FAILURE
 
     if convertBool(config[PF_USE_DB_OUT]): 
-        if retval != PF_EXIT_NEXTBLOCK:
+        #MMGif retval != PF_EXIT_NEXTBLOCK:
+        if config[PF_BLKNUM] > len(config.block_array):
             fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
             dbh.update_attempt_end(config, retval)
         else:

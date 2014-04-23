@@ -60,7 +60,10 @@ def jobpost(argv = None):
     # now that have more information, rename output file
     fwdebug(3, 'PFWPOST_DEBUG', "before get_filename")
     blockname = config['blockname']
-    os.chdir('../%s' % blockname)
+    blkdir = config['block_dir']
+    tjpad = "%04d" % int(jobnum)
+
+    os.chdir("%s/%s" % (blkdir,tjpad))
     new_log_name = config.get_filename('job', {PF_CURRVALS: 
                                               {'flabel': 'jobpost', 
                                                 PF_JOBNUM: jobnum,
@@ -87,6 +90,7 @@ def jobpost(argv = None):
     # grep job stdout|stderr files for failures not caught elsewhere
     submit_id = None
     target_id = None
+    exechost = None
     for f in ['%sout'%jobbase, '%serr'%jobbase]:
         if os.path.exists(f):
             with open(f, 'r') as jobfh:
@@ -96,6 +100,8 @@ def jobpost(argv = None):
                         target_id = line.replace('PFW: batchid','').strip()
                     elif line.startswith('PFW: condorid'):
                         submit_id = line.replace('PFW: condorid','').strip()
+                    elif line.startswith('job_shell_script exechost'):
+                        exechost = line.replace('job_shell_script exechost','').strip()
                     elif 'ORA-' in line:
                         print "Found:", line
                         print "Setting retval to failure"
@@ -107,7 +113,7 @@ def jobpost(argv = None):
                         print "Setting retval to failure"
                         retval = PF_EXIT_FAILURE
                         if dbh:
-                            dbh.update_job_batchids(config, jobnum, submit_id, target_id)
+                            dbh.update_job_batchids(config, jobnum, submit_id, target_id, exechost)
                             dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
                     elif 'Exiting with status' in line:
                         m = re.search('Exiting with status (\d+)', line)
@@ -136,7 +142,7 @@ def jobpost(argv = None):
     if os.path.exists(outputtar): 
         if os.path.getsize(outputtar) > 0:
             print "found outputtar: %s" % outputtar
-            pfwutils.untar_dir(outputtar, '.')
+            pfwutils.untar_dir(outputtar, '..')
             os.unlink(outputtar)
         else:
             msg = "Warn: outputwcl tarball (%s) is 0 bytes." % outputtar

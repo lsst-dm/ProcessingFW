@@ -66,8 +66,6 @@ class PfwConfig:
             else:
                 # let DB connection code print error message
                 wcldict['submit_des_db_section'] = None
-        #else:
-        #    print "des_db_section in wcldict"
 
         # for values passed in on command line, set top-level config 
         for var in (PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF):
@@ -136,14 +134,8 @@ class PfwConfig:
         if 'submit_des_services' in self.config and self.config['submit_des_services'] == None:
             del self.config['submit_des_services']
         wclutils.write_wcl(self.config, fh, True, 4)  # save it sorted
-#        wclutils.write_wcl(self.config['_config'], fh, True, 4)  # save it sorted
-#        wclutils.write_wcl(self.config['current'], fh, True, 4)  # save it sorted
         fh.close()
 
-    ###########################################################################
-    #def has_key(self, key, opts=None):
-    #    (found, value) = self.search(key, opts)
-    #    return found
 
     ###########################################################################
     def __contains__(self, key, opts=None):
@@ -263,245 +255,6 @@ class PfwConfig:
         fwdebug(8, 'PFWCONFIG_DEBUG', "\tEND")
         return (found, value)
     
-
-#    ########################################################################### 
-#    def check(self, cleanup=False):
-#        """ Check for missing data """
-#    
-#        # initialize counters
-#        errcnt = 0
-#        warncnt = 0
-#        changecnt = 0
-#        cleancnt = 0
-#        
-#        # just abort the check if do not have major sections of config
-#        #if 'archive' not in self.config:
-#        #    fwdie("Error: Could not find archive section", PF_EXIT_FAILURE)
-#        if SW_BLOCKSECT not in self.config:
-#            fwdie("Error: Could not find block section", PF_EXIT_FAILURE)
-#        if SW_MODULESECT not in self.config:
-#            fwdie("Error: Could not find module section", PF_EXIT_FAILURE)
-#    
-#        # make sure project is all uppercase
-#        # self.config['project'] = self['project'].upper()
-#
-#        if PF_USE_DB_IN in self.config:
-#            if convertBool(self.config[PF_USE_DB_IN]):
-#                if 'des_db_section' not in self.config:
-#                    print "Error:  using DB (%s), but missing des_db_section" % (PF_USE_DB_IN)
-#                    errcnt += 1
-#                if 'des_services' not in self.config:
-#                    print "Error:  using DB (%s), but missing des_services" % (PF_USE_DB_IN)
-#                    errcnt += 1
-#    
-#        if PF_USE_DB_OUT in self.config:
-#            if convertBool(self.config[PF_USE_DB_OUT]):
-#                if 'des_db_section' not in self.config:
-#                    print "Error:  using DB (%s), but missing des_db_section" % PF_USE_DB_OUT
-#                    errcnt += 1
-#                if 'des_services' not in self.config:
-#                    print "Error:  using DB (%s), but missing des_services" % PF_USE_DB_OUT
-#                    errcnt += 1
-#
-#        # if using QCF must also be writing run info into DB
-#        if PF_USE_QCF in self.config and convertBool(self.config[PF_USE_QCF]) and \
-#            (PF_USE_DB_OUT in self.config and not convertBool(self.config[PF_USE_DB_OUT])):
-#            print "Error: if %s is true, %s must also be set to true" % (PF_USE_QCF, PF_USE_DB_OUT)
-#            errcnt += 1
-#
-#        if 'operator' not in self.config:
-#            print 'Warning:  Must specify operator'
-#            print 'Using your Unix login for this submission.  Please fix in your submit file.'
-#            self.config['operator'] = getpass.getuser() 
-#            changecnt += 1
-#        elif self.config['operator'] == 'bcs':
-#            print 'Warning:  Operator cannot be shared login bcs.'
-#            print 'Using your Unix login for this submission.  Please fix in your submit file.'
-#            self.config['operator'] = getpass.getuser()
-#            changecnt += 1
-#    
-#        if 'project' not in self.config:
-#            print "Error: missing project"
-#            errcnt += 1
-#
-#        if 'pipeline' not in self.config:
-#            print "Error: missing pipeline"
-#            errcnt += 1
-#
-#        if 'pipever' not in self.config:
-#            print "Error: missing pipever"
-#            errcnt += 1
-#
-#        if REQNUM not in self.config:
-#            print "Error: missing reqnum"
-#            errcnt += 1
-#
-#        if ATTNUM not in self.config:
-#            print "Error: missing attnum"
-#            errcnt += 1
-#
-#        if UNITNAME not in self.config:
-#            print "Error: missing unitname"
-#            errcnt += 1
-#
-#        # submitnode must be set globally
-#        submitnode = None
-#        if 'submitnode' not in self.config:
-#            print 'Error: submitnode is not specified.'
-#            errcnt += 1
-#        elif self.config['submitnode'] not in self.config['archive']:
-#            print 'Error:  Could not find archive information for submit node %s' % self.config['submitnode']
-#            errcnt += 1
-#        elif 'archive_root' not in self.config['archive'][self.config['submitnode']]:
-#            print 'Error:  archive_root not specified for submit node %s' % self.config['submitnode']
-#            errcnt += 1
-#        elif 'site_id' not in self.config['archive'][self.config['submitnode']]:
-#            print 'Error: site_id not specified for submit node %s' % self.config['submitnode']
-#            errcnt += 1
-#        else:
-#            submitnode = self.config['submitnode']
-#            archiveroot = self.config['archive'][submitnode]['archive_root']
-#            if not os.path.exists(archiveroot):
-#                print 'Warning: archive_root (%s) from submitnode does not exist on disk' % archiveroot
-#                warncnt += 1
-#    
-#            submit_siteid = self.config['archive'][submitnode]['site_id']
-#            if submit_siteid not in self.siteid2name:
-#                print 'Error: Could not find site information for site %s from submit node info.' % submit_siteid
-#                errcnt += 1
-#                submit_siteid = None
-#            elif 'loginhost' not in self.config['site'][self.siteid2name[submit_siteid]]:
-#                print 'Error:  loginhost is not defined for submit site %s (%s).\n' % (self.siteid2name[submit_siteid], submit_siteid)
-#                errcnt += 1
-#            elif os.uname()[1] != self.config['site'][self.siteid2name[submit_siteid]]['loginhost']:
-#                print 'Error:  submit node %s (%s) does not match submit host (%s).' % (submitnode, self.config['site'][self.siteid2name[submit_siteid]]['loginhost'], os.uname()[1])
-#                print 'Debugging tips: '
-#                print '\tCheck submitnode value, '
-#                print '                Check correct site_id defined for submitnode,'
-#                print '\tcheck loginhost defined for site linked to submitnode'
-#                   errcnt += 1
-#    
-#    
-#        # Check block definitions for simple single module blocks.
-#        # Also check all blocks in blocklist have definitions as well as all modules in their modulelists
-#        if SW_BLOCKLIST not in self.config:
-#            print "Error: missing %s" % SW_BLOCKLIST 
-#        else:
-#            self.config[SW_BLOCKLIST] = re.sub(r"\s+", '', self.config[SW_BLOCKLIST].lower())
-#            blocklist = self.config[SW_BLOCKLIST].split(',')
-#    
-#            for blockname in blocklist:
-#                print "\tChecking block:", blockname
-#                block = None
-#                if blockname in self.config[SW_BLOCKSECT]:
-#                    block = self.config[SW_BLOCKSECT][blockname]
-#                    if SW_MODULELIST in block:
-#                        block[SW_MODULELIST] = re.sub(r"\s+", '', block[SW_MODULELIST].lower())
-#                        modulelist = block[SW_MODULELIST].split(',')
-#
-#                        for modulename in modulelist:
-#                            if modulename not in self.config[SW_MODULESECT]:
-#                                print "\tError: missing definition for module %s from block %s" % (modulename, blockname)
-#                                errcnt += 1
-#                    elif blockname in self.config[SW_MODULESECT]:
-#                        print "\tWarning: Missing modulelist definition for block %s" % (blockname)
-#                        if cleanup:
-#                            print "\t         Defaulting to modulelist=%s" % (blockname)
-#                        block[SW_MODULELIST] = blockname
-#                    else:
-#                        print "\tError: missing modulelist definition for block %s" % (blockname)
-#                        errcnt += 1
-#                else:
-#                    if blockname in self.config[SW_MODULESECT]:
-#                        print "\tWarning: Missing block definition for %s" % blockname
-#                        if cleanup:
-#                            print "\t         Creating new block definition with modulelist=%s" % (blockname)
-#                            self.config[SW_BLOCKSECT][blockname] = { SW_MODULELIST: blockname }
-#                            block = self.config[SW_BLOCKSECT][blockname]
-#                    else:
-#                        print "\tError: missing definition for block %s" % (blockname)
-#                        errcnt += 1
-#    
-#                if block: 
-#                    target_archive = None
-#                    if TARGET_ARCHIVE in block:
-#                        target_archive = block[TARGET_ARCHIVE]
-#                    elif TARGET_ARCHIVE in self.config:
-#                        target_archive = self.config[TARGET_ARCHIVE]
-#                    else:
-#                        print "\tError: Could not determine target_archive for block %s" % (blockname)
-#                        errcnt += 1
-#    
-#                    target_sitename = None
-#                    if target_archive not in self.config['archive']:
-#                        print "\tError: missing definition for target_archive %s from block %s" % (target_archive, blockname)
-#                        errcnt += 1
-#                    elif 'site' not in self.config['archive'][target_archive]:
-#                        print "\tError: missing site for target_archive %s from block %s" % (target_archive, blockname)
-#                        errcnt += 1
-#
-#
-#                    if USE_HOME_ARCHIVE_INPUT in block:
-#                        home_archive_input = block[USE_HOME_ARCHIVE_INPUT]
-#                    elif USE_HOME_ARCHIVE_INPUT in self.config:
-#                        home_archive_input = self.config[USE_HOME_ARCHIVE_INPUT]
-#                    else:
-#                        home_archive_input = None
-#
-#                    if home_archive_input is not None:
-#                        if home_archive_input.lower() not in VALID_HOME_ARCHIVE_INPUT:
-#                            print "\tError: Invalid value for %s from block %s" % (USE_HOME_ARCHIVE_INPUT, blockname)
-#                            errcnt += 1
-#
-#                        
-#                        if home_archive_input.lower() != 'never':
-#                            if HOME_ARCHIVE in block:
-#                                home_archive = block[HOME_ARCHIVE]
-#                            elif HOME_ARCHIVE in self.config:
-#                                home_archive = self.config[HOME_ARCHIVE]
-#                            else:
-#                                home_archive = None
-#
-#                            if home_archive is None:
-#                                print "\tError: Missing value for %s from block %s" % (HOME_ARCHIVE, blockname)
-#                                errcnt += 1
-#                            elif home_archive not in self.config['archive']:
-#                                print "\tError: Invalid value for %s from block %s" % (HOME_ARCHIVE, blockname)
-#                                errcnt += 1
-#                    
-#        
-#
-#                    if USE_HOME_ARCHIVE_OUTPUT in block:
-#                        home_archive_output = block[USE_HOME_ARCHIVE_OUTPUT]
-#                    elif USE_HOME_ARCHIVE_OUTPUT in self.config:
-#                        home_archive_output = self.config[USE_HOME_ARCHIVE_OUTPUT]
-#                    else:
-#                        home_archive_output = None
-#
-#                    if home_archive_output is not None:
-#                        if home_archive_output.lower() not in VALID_HOME_ARCHIVE_OUTPUT:
-#                            print "\tError: Invalid value for %s from block %s" % (USE_HOME_ARCHIVE_OUTPUT, blockname)
-#                            errcnt += 1
-#
-#                        if home_archive_output.lower() != 'never':
-#                            if HOME_ARCHIVE in block:
-#                                home_archive = block[HOME_ARCHIVE]
-#                            elif HOME_ARCHIVE in self.config:
-#                                home_archive = self.config[HOME_ARCHIVE]
-#                            else:
-#                                home_archive = None
-#
-#                            if home_archive is None:
-#                                print "\tError: Missing value for %s from block %s" % (HOME_ARCHIVE, blockname)
-#                                errcnt += 1
-#                            elif home_archive not in self.config['archive']:
-#                                print "\tError: Invalid value for %s from block %s" % (HOME_ARCHIVE, blockname)
-#                                errcnt += 1
-#                    
-#
-#    
-#            return (errcnt, warncnt, cleancnt)
-    
     
     
     ###########################################################################
@@ -541,7 +294,6 @@ class PfwConfig:
                    '_' + submit_time
 
         self.config['work_dir'] = work_dir
-        #self.config['uberctrl_dir'] = work_dir + "/runtime/uberctrl"
         self.config['uberctrl_dir'] = work_dir + "/uberctrl"
 
         if MASTER_SAVE_FILE in self.config:
@@ -648,13 +400,11 @@ class PfwConfig:
         """ increment the block number """
         # note config stores numbers as strings
         self.config[PF_BLKNUM] = str(int(self.config[PF_BLKNUM]) + 1)
-#        self.config[PF_TASKNUM] = '0'
 
     ###########################################################################
     def reset_blknum(self):
         """ reset block number to 1 """
         self.config[PF_BLKNUM] = '1'
-#        self.config[PF_TASKNUM] = '0'
     
     ###########################################################################
     def inc_jobnum(self, inc=1):

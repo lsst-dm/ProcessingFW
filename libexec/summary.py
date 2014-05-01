@@ -46,35 +46,24 @@ def summary(argv = None):
     log_pfw_event(config, 'process', 'mngr', 'j', ['posttask', status])
     
     msgstr = ""
-#    msgstr = "End of run tasks (replicating data, ingesting submit runtime, etc) are starting."
     
     msg1 = ""
     subject = ""
     if not status:
         msg1 = "Processing finished with unknown results.\n%s" % msgstr
-        subject = "[Unknown]"
-#MMG        status = orch.dbutils.update_run_status(config, PF_EXIT_FAILURE)
     elif SW_DRYRUN in config and convertBool(config[SW_DRYRUN]):
         msg1 = "Processing ended after DRYRUN\n%s" % msgstr
-#        subject = "[DRYRUN]"
-#MMG        status = orch.dbutils.update_run_status(config, PF_DRYRUN)
-    else:
-#MMG        status = orch.dbutils.update_run_status(config, status)
     
         if int(status) == PF_EXIT_SUCCESS:
-#            msg1 = "Processing is complete.\nEnd of run tasks (replicating data, ingesting submit runtime, etc) are starting."
             msg1 = "Processing has successfully completed.\n"
-#            subject = ""
+            subject = ""
         else:
             print "status = '%s'" % status
             print "type(status) =", type(status)
             print "SUCCESS = '%s'" % PF_EXIT_SUCCESS
             print "type(SUCCESS) =", type(PF_EXIT_SUCCESS)
             msg1 = "Processing aborted with status %s.\n" % (status) 
-#            subject = "[FAILED]"
     
-    #my $RunID = config->getValueReq("runid");
-    #my $msg2 = `$DESHome/bin/desstat -l $Nite $RunID 2>&1`;
     subject = ""
     pfwemail.send_email(config, "processing", status, subject, msg1, '')
     

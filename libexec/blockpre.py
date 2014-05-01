@@ -7,8 +7,8 @@
 import sys
 import os
 
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
+import processingfw.pfwdefs as pfwdefs
+import coreutils.miscutils as coremisc
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -53,14 +53,14 @@ def blockpre(argv = None):
     if len(argv) < 2 or len(argv) > 3:
         print 'Usage: blockpre configfile [retry]'
         debugfh.close()
-        return(PF_EXIT_FAILURE)
+        return(pfwdefs.PF_EXIT_FAILURE)
 
     configfile = sys.argv[1]
 
     retry = 0
     if len(argv) == 3:
         retry = sys.argv[2]
-    fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
     
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
@@ -69,31 +69,23 @@ def blockpre(argv = None):
     config.set_block_info()
     config.save_file(configfile)
 
-    fwdebug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[PF_BLKNUM])
-    fwdebug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])
-    fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
-    if int(retry) != int(config[PF_BLKNUM]):
-        fwdebug(0, 'PFWPOST_DEBUG', "WARNING: blknum != retry")
-
-#    with open("/tmp/mmgpredebug_%s" % os.getpid(), 'w') as fh:
-#        fh.write("blknum = %s\n" % config[PF_BLKNUM])
-#        fh.write("blockname = %s\n" % config['blockname'])
-#        fh.write("retry = %s\n" % retry)
-        
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[pfwdefs.PF_BLKNUM])
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
+    if int(retry) != int(config[pfwdefs.PF_BLKNUM]):
+        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "WARNING: blknum != retry")
 
     blockname = config['blockname']
     blkdir = config['block_dir']
-    #MMG if not os.path.exists('../%s' % blockname):
-    #MMG    os.mkdir('../%s' % blockname)
 
 
     # now that have more information, can rename output file
-    fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
-    new_log_name = config.get_filename('block', {PF_CURRVALS:
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
                                                   {'flabel': 'blockpre',
                                                    'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.rename(DEFAULT_LOG, new_log_name)
@@ -101,13 +93,10 @@ def blockpre(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
+
     blocktaskfile = write_block_condor(config)
-    #MMG uberblocktask = "../uberctrl/%s" % blocktaskfile
-    #MMG if os.path.exists(uberblocktask):
-    #MMG     os.unlink(uberblocktask)
-    #MMG os.symlink("../%s/%s" % (blockname, blocktaskfile), "../uberctrl/%s" % blocktaskfile)
     
-    if convertBool(config[PF_USE_DB_OUT]): 
+    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.insert_block(config)
     
@@ -116,7 +105,7 @@ def blockpre(argv = None):
     print "blockpre done\n"
     debugfh.close()
 
-    return(PF_EXIT_SUCCESS)
+    return(pfwdefs.PF_EXIT_SUCCESS)
 
 if __name__ == "__main__":
     sys.exit(blockpre(sys.argv))

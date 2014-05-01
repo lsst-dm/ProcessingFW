@@ -7,8 +7,8 @@
 import sys
 import os
 import tempfile
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
+import processingfw.pfwdefs as pfwdefs
+import coreutils.miscutils as coremisc
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -28,7 +28,7 @@ def jobpre(argv = None):
     if len(argv) < 3:
         print 'Usage: jobpre configfile jobnum'
         debugfh.close()
-        return(PF_EXIT_FAILURE)
+        return(pfwdefs.PF_EXIT_FAILURE)
 
     configfile = sys.argv[1]
     jobnum = sys.argv[2]    # could also be uberctrl
@@ -40,12 +40,12 @@ def jobpre(argv = None):
     tjpad = "%04d" % int(jobnum)
 
     # now that have more information, can rename output file
-    fwdebug(0, 'PFWJOBPRE_DEBUG', "getting new_log_name")
-    new_log_name = config.get_filename('job', {PF_CURRVALS: {PF_JOBNUM:jobnum,
+    coremisc.fwdebug(0, 'PFWJOBPRE_DEBUG', "getting new_log_name")
+    new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum,
                                                         'flabel': 'jobpre',
                                                         'fsuffix':'out'}})
     new_log_name = "%s/%s/%s" % (blkdir, tjpad, new_log_name)
-    fwdebug(0, 'PFWJOBPRE_DEBUG', "new_log_name = %s" % new_log_name)
+    coremisc.fwdebug(0, 'PFWJOBPRE_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.rename(tmpfn, new_log_name)
@@ -53,15 +53,16 @@ def jobpre(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
     
-    if convertBool(config[PF_USE_DB_OUT]): 
+    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        dbh.insert_job(config, jobnum)
+        ctstr = dbh.get_current_timestamp_str()
+        dbh.update_job_info(config, jobnum, {'condor_submit_time': ctstr, 'target_submit_time': ctstr} )
 
     log_pfw_event(config, blockname, jobnum, 'j', ['pretask'])
 
-    fwdebug(0, 'PFWJOBPRE_DEBUG', "DONE")
+    coremisc.fwdebug(0, 'PFWJOBPRE_DEBUG', "DONE")
     debugfh.close()
-    return(PF_EXIT_SUCCESS)
+    return(pfwdefs.PF_EXIT_SUCCESS)
 
 if __name__ == "__main__":
     sys.exit(jobpre(sys.argv))

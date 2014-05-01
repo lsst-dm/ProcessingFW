@@ -29,7 +29,7 @@ SUBMIT_RUN_DIR = 'submit_run_dir'
 HOME_ARCHIVE = 'home_archive'
 USE_HOME_ARCHIVE_INPUT = 'use_home_archive_input'
 USE_HOME_ARCHIVE_OUTPUT = 'use_home_archive_output'
-VALID_HOME_ARCHIVE_INPUT = ['target_archive', 'job', 'all', 'never']
+VALID_HOME_ARCHIVE_INPUT = ['target_archive', 'wrapper', 'all', 'never']
 VALID_HOME_ARCHIVE_OUTPUT = ['wrapper', 'job', 'block', 'run', 'never']
 
 

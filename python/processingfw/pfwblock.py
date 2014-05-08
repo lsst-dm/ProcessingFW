@@ -698,6 +698,9 @@ def write_jobwcl(config, jobkey, jobdict):
     if 'transfer_stats' in config:
         jobwcl['transfer_stats'] = config['transfer_stats']
 
+    if 'transfer_semname' in config:
+        jobwcl['transfer_semname'] = config['transfer_semname']
+
     if pfwdefs.MASTER_SAVE_FILE in config:
         jobwcl[pfwdefs.MASTER_SAVE_FILE] = config[pfwdefs.MASTER_SAVE_FILE]
     else:

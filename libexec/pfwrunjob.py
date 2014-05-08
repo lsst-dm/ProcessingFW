@@ -65,8 +65,6 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
 
     starttime = time.time()
     tasknum = -1
-    if pfw_dbh is not None:
-        tasknum = pfw_dbh.insert_task(wcl, tasktype, tasklabel)
 
     archive_info = None
     if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() != 'never':
@@ -74,10 +72,10 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
     elif pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
         archive_info = wcl['target_archive_info']
     else:
-        if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_FAILURE)
         raise Exception('Error: Could not determine archive for output files');
 
+    if pfw_dbh is not None:
+        pfw_task_id = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_fm_meta')
     filemgmt = None
     try:
         filemgmt_class = coremisc.dynamically_load_class(archive_info['filemgmt'])
@@ -88,10 +86,15 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
         msg = "Error: creating filemgmt object %s" % value
         print "\n%s" % msg
         if pfw_dbh is not None:
+            pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
             pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_FAILURE)
             pfw_dbh.insert_message(wcl, '%s_task' % tasktype, pfwdb.PFW_MSG_ERROR, msg)
         raise
+    if pfw_dbh is not None:
+        pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
 
+    if pfw_dbh is not None:
+        tasknum = pfw_dbh.insert_task(wcl, tasktype, tasklabel)
     try:
         filemgmt.ingest_file_metadata(file_metadata)
         filemgmt.commit()
@@ -123,6 +126,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
 
     results = None
     transinfo = get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info)
+    
 
     if len(transinfo) > 0:
         coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "\tCalling target2job on %s files" % len(transinfo))
@@ -134,6 +138,8 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
 
         tstats = None
         if 'transfer_stats' in wcl:
+            if pfw_dbh is not None:
+                pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "dynclass_stats_" + tasktype)
             try:
                 tstats_class = coremisc.dynamically_load_class(wcl['transfer_stats'])
                 valDict = fmutils.get_config_vals(None, wcl, tstats_class.requested_config_vals())
@@ -142,9 +148,14 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
                 print "ERROR\nError: creating transfer_stats object\n%s" % err
                 if pfw_dbh is not None:
                     pfw_dbh.update_job_wrapper_task_end(wcl, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
+                    pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
                     pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, str(err))
                 raise
+            if pfw_dbh is not None:
+                pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
             
+        if pfw_dbh is not None:
+            pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "dynclass_jobfmv_" + tasktype)
         jobfilemvmt = None
         try:
             jobfilemvmt_class = coremisc.dynamically_load_class(wcl['job_file_mvmt']['mvmtclass'])
@@ -154,9 +165,12 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
         except Exception as err:
             print "ERROR\nError: creating job_file_mvmt object\n%s" % err
             if pfw_dbh is not None:
+                pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
                 pfw_dbh.update_job_wrapper_task_end(wcl, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
                 pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, str(err))
             raise
+        if pfw_dbh is not None:
+            pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
 
         sem = None
         if wcl['use_db'] and 'transfer_semname' in wcl:
@@ -168,6 +182,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
         else:
             results = jobfilemvmt.home2job(transinfo)
         if sem is not None:
+            coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Releasing lock")
             del sem
 
         if pfw_dbh is not None:
@@ -245,6 +260,8 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info):
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "archive_info = %s" % archive_info)
 
     
+    if pfw_dbh is not None:
+        pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "dynclass_fm_query")
     # dynamically load class for archive file mgmt to find location of files in archive
     filemgmt = None
     try:
@@ -254,9 +271,17 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info):
     except:
         (type, value, traceback) = sys.exc_info()
         print "ERROR\nError: creating filemgmt object\n%s" % value
+        if pfw_dbh is not None:
+            pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
         raise
+    if pfw_dbh is not None:
+        pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
 
+    if pfw_dbh is not None:
+        pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "query_fileArchInfo")
     fileinfo_archive = filemgmt.get_file_archive_info(files2get, archive_info['name'], fmdefs.FM_PREFER_UNCOMPRESSED)
+    if pfw_dbh is not None:
+        pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
 
     if len(files2get) != 0 and len(fileinfo_archive) == 0:
         print "Info: 0 files found on %s" % archive_info['name']
@@ -476,7 +501,7 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, tasktype, ta
 
     tasknum = -1
     if pfw_dbh is not None:
-        tasknum = pfw_dbh.insert_task(wcl, tasktype, tasklabel)
+        tasknum = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_fm_register')
 
     # load file management class
     filemgmt = None
@@ -492,7 +517,11 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, tasktype, ta
             pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_FAILURE)
             pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
         raise
+    if pfw_dbh is not None:
+        pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_SUCCESS)
 
+    if pfw_dbh is not None:
+        tasknum = pfw_dbh.insert_task(wcl, tasktype, tasklabel)
 
     # call function to do the register
     try:
@@ -515,7 +544,6 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, tasktype, ta
 def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, tasklabel, exitcode):
     """ Handle the transfer of files from the job directory to a single archive """
 
-    # dynamically load class for filemgmt
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "TRANSFER JOB TO ARCHIVE SECTION")
     tasknum = -1
     if pfw_dbh is not None:
@@ -546,6 +574,8 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
 
     tstats = None
     if 'transfer_stats' in wcl:
+        if pfw_dbh is not None:
+            pfw_task_id = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_stats_' + tasklabel)
         try:
             tstats_class = coremisc.dynamically_load_class(wcl['transfer_stats'])
             valDict = fmutils.get_config_vals(None, wcl, tstats_class.requested_config_vals())
@@ -554,11 +584,16 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
             msg = "Error: creating transfer_stats object\n%s" % err
             print "ERROR\n%s" % msg
             if pfw_dbh is not None:
-                pfw_dbh.update_job_wrapper_task_end(wcl, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
+                pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
+                pfw_dbh.update_task_end(wcl, tasktype, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
                 pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
             raise
+        if pfw_dbh is not None:
+            pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
             
 
+    if pfw_dbh is not None:
+        pfw_task_id = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_jobfmv_' + tasklabel)
     jobfilemvmt = None
     try:
         jobfilemvmt_class = coremisc.dynamically_load_class(wcl['job_file_mvmt']['mvmtclass'])
@@ -569,22 +604,26 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
         msg = "Error: creating job_file_mvmt object\n%s" % err
         print "ERROR\n%s" % msg
         if pfw_dbh is not None:
+            pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
             pfw_dbh.update_task_end(wcl, tasktype, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
             pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
         raise
+    if pfw_dbh is not None:
+        pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
 
     # tranfer files to archive
     #pretty_print_dict(putinfo)
     starttime = time.time()
     sem = None
-    if wcl['use_db']:
-        sem = dbsem.DBSemaphore('filetrans', pfw_trans_task_id)
+    if wcl['use_db'] and 'transfer_semname' in wcl:
+        sem = dbsem.DBSemaphore(wcl['transfer_semname'], pfw_trans_task_id)
         coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
     if dest.lower() == 'target':
         results = jobfilemvmt.job2target(saveinfo)
     else:
         results = jobfilemvmt.job2home(saveinfo)
     if sem is not None:
+        coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Releasing lock")
         del sem
     
     if pfw_dbh is None:

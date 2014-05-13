@@ -54,13 +54,13 @@ def parse_job_output(config, jobnum, dbh=None):
                     elif 'ORA-' in line:
                         print "Found:", line
                         print "Setting retval to failure"
-                        retval = pfwdefs.PF_EXIT_FAILURE
+                        tjobinfo['target_status'] = pfwdefs.PF_EXIT_FAILURE
                         if dbh:
                             dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
                     elif 'Error: eups setup had non-zero exit code' in line:
                         print "Found:", line
                         print "Setting retval to failure"
-                        retval = pfwdefs.PF_EXIT_FAILURE
+                        tjobinfo['target_status'] = pfwdefs.PF_EXIT_EUPS_FAILURE
                         if dbh:
                             dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
                     elif 'Exiting with status' in line:
@@ -70,7 +70,7 @@ def parse_job_output(config, jobnum, dbh=None):
                                 print "Found:", line
                                 msg = "Info:  Job exit status was %s, but retval was %s.   Setting retval to failure." % (m.group(1), retval)
                                 print msg
-                                retval = pfwdefs.PF_EXIT_FAILURE
+                        	tjobinfo['target_status'] = pfwdefs.PF_EXIT_FAILURE
                                 if dbh:
                                     dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, msg, config['blknum'], jobnum)
     return tjobinfo
@@ -138,6 +138,7 @@ def jobpost(argv = None):
     coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
      
     debugfh.close()
+    os.chmod(tmpfn, 0666)
     os.rename(tmpfn, new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

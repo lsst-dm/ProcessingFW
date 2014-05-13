@@ -1465,12 +1465,13 @@ if [ $mystat != 0 ]; then
     echo "Error: eups setup had non-zero exit code ($mystat)"
     shd2=`/bin/date "+%%s"`
     echo "PFW: job_shell_script endtime: $shd2" 
-    echo "PFW: job_shell_script exit_status: $mystat" 
+    echo "PFW: job_shell_script exit_status: %(eupsfail)s" 
     exit $mystat    # note exit code not passed back through grid universe jobs
 fi
 """ % ({'eups': config['setupeups'], 
         'pipe':config['pipeprod'],
-        'ver':config['pipever']})
+        'ver':config['pipever'],
+        'eupsfail': pfwdefs.PF_EXIT_EUPS_FAILURE})
 
     if not usedb:
         scriptstr += 'echo "DESDMTIME: eups_setup $((d2-d1)) secs"'

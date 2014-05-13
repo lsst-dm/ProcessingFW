@@ -88,6 +88,7 @@ def blockpre(argv = None):
     coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
+    os.chmod(DEFAULT_LOG, 0666)
     os.rename(DEFAULT_LOG, new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

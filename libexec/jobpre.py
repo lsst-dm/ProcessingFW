@@ -48,6 +48,7 @@ def jobpre(argv = None):
     coremisc.fwdebug(0, 'PFWJOBPRE_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
+    os.chmod(tmpfn, 0666)
     os.rename(tmpfn, new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

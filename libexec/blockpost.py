@@ -56,6 +56,7 @@ def blockpost(argv = None):
     coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
+    os.chmod('blockpost.out', 0666)
     os.rename('blockpost.out', new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
@@ -95,6 +96,16 @@ def blockpost(argv = None):
             #print "wrap_bymod:", wrap_bymod
 
             for jobnum,jobdict in sorted(job_byblk[blknum].items()):
+                jobkeys = ""
+                if jobdict['jobkeys'] is not None:
+                    jobkeys = jobdict['jobkeys']
+                    #print "jobkeys = ",jobkeys, type(jobkeys)
+
+		if jobdict['target_status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
+                    msg2 += "\t%04d (%s)" % (jobnum, jobkeys)
+                    msg2 += " FAIL - EUPS setup failure"
+                    retval = pfwdefs.PF_EXIT_FAILURE
+
                 if jobnum not in wrap_byjob:
                     print "\t%06d No wrapper instances" % jobnum
                     continue
@@ -103,10 +114,6 @@ def blockpost(argv = None):
                 #print "maxwrap =", maxwrap
                 modname = wrap_byjob[jobnum][maxwrap]['modname']
                 #print "modname =", modname
-                jobkeys = ""
-                if jobdict['jobkeys'] is not None:
-                    jobkeys = jobdict['jobkeys']
-                    #print "jobkeys = ",jobkeys, type(jobkeys)
 
                 #print "wrap_byjob[jobnum][maxwrap]['id']=",wrap_byjob[jobnum][maxwrap]['id']
                 msg2 += "\t%04d %d/%s  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['expect_num_wrap'], modname, jobkeys)

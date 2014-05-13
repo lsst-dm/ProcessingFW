@@ -63,6 +63,7 @@ def logpost(argv = None):
     fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
      
     debugfh.close()
+    os.chmod('logpost.out', 0666)
     os.rename('logpost.out', new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

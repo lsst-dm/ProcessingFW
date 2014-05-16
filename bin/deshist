@@ -53,8 +53,13 @@ def printInfo(attempts, printopts, maxwidths):
     if not printopts['suppresshead']:
         hdr = ""
         for col in printcols:
-            fmt = "%%%ds  " % maxwidths[col]
+            if format == 'csv':
+                fmt = "%s,"
+            else:
+                fmt = "%%%ds  " % maxwidths[col]
             hdr += fmt % col
+        if format == 'csv':
+            hdr = hdr[:-1]
         print hdr
 
         if format == 'text':
@@ -64,11 +69,16 @@ def printInfo(attempts, printopts, maxwidths):
     for attdict in sorted(attempts.values(), key=lambda x:x[printopts['sort'].lower()]):
         line = ""
         for col in printcols:
-            fmt = "%%%ds  " % maxwidths[col]
+            if format == 'csv':
+                fmt = "%s,"
+            else:
+                fmt = "%%%ds  " % maxwidths[col]
             if col in attdict and attdict[col] is not None:
                 line += fmt % attdict[col]
             else:
                 line += fmt % ' '
+        if format == 'csv':
+            line = line[:-1]
         print line
 
 
@@ -158,8 +168,9 @@ def massageInfo(attempts):
                         statwrap_h = lwhd['status']
 
 
-            attd['lastmod-l'] = "%s:%s" % (lwld['modname'], convertStatus(statwrap_l))
-            attd['lastmod-h'] = "%s:%s" % (lwhd['modname'], convertStatus(statwrap_h))
+                attd['lastmod-l'] = "%s:%s" % (lwld['modname'], convertStatus(statwrap_l))
+                attd['lastmod-h'] = "%s:%s" % (lwhd['modname'], convertStatus(statwrap_h))
+            
 
         
 

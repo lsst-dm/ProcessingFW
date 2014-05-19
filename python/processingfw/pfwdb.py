@@ -648,8 +648,8 @@ class PFWDB (desdbi.DesDbi):
         row['starttime'] = self.get_current_timestamp_str()
         row['task_id'] =  self.create_task(taskname, 'pfw_job_wrapper_task')
 
-        self.insert_PFW_row('PFW_JOB_WRAPPER_TASK', row)
         self.begin_task(row['task_id'])
+        self.insert_PFW_row('PFW_JOB_WRAPPER_TASK', row)
 
         return row['task_id']
 

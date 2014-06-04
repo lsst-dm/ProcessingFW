@@ -895,14 +895,14 @@ class PFWDB (desdbi.DesDbi):
         USED  = "used"
         WGB   = "was_generated_by"
         WDF   = "was_derived_from"
-        OPM_PROCESS_ID = "OPM_PROCESS_ID"
+        TASK_ID = "TASK_ID"
         OPM_ARTIFACT_ID = "OPM_ARTIFACT_ID"
         PARENT_OPM_ARTIFACT_ID = "PARENT_OPM_ARTIFACT_ID"
         CHILD_OPM_ARTIFACT_ID  = "CHILD_OPM_ARTIFACT_ID"
         USED_TABLE = "OPM_USED"
         WGB_TABLE  = "OPM_WAS_GENERATED_BY"
         WDF_TABLE  = "OPM_WAS_DERIVED_FROM"
-        COLMAP_USED_WGB = [OPM_PROCESS_ID,OPM_ARTIFACT_ID]
+        COLMAP_USED_WGB = [TASK_ID,OPM_ARTIFACT_ID]
         COLMAP_WDF = [PARENT_OPM_ARTIFACT_ID,CHILD_OPM_ARTIFACT_ID]
         PARENTS = "parents"
         CHILDREN = "children"
@@ -924,7 +924,9 @@ class PFWDB (desdbi.DesDbi):
                     rowdata.append(execids[execname])
                     rowdata.append(filemap[file.strip()])
                     data.append(rowdata)
-            execSQL = insertSQL % (USED_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), USED_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
+            execSQL = insertSQL % (USED_TABLE, TASK_ID + "," + OPM_ARTIFACT_ID, 
+                bindStr, bindStr,self.from_dual(), USED_TABLE, TASK_ID, bindStr, 
+                OPM_ARTIFACT_ID, bindStr)
             cursor.executemany(execSQL, data)
             data = []
         
@@ -937,7 +939,9 @@ class PFWDB (desdbi.DesDbi):
                     rowdata.append(execids[execname])
                     rowdata.append(filemap[file.strip()])
                     data.append(rowdata)
-            execSQL = insertSQL % (WGB_TABLE,OPM_PROCESS_ID + "," + OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WGB_TABLE, OPM_PROCESS_ID,bindStr,OPM_ARTIFACT_ID,bindStr)
+            execSQL = insertSQL % (WGB_TABLE, TASK_ID + "," + OPM_ARTIFACT_ID, 
+                bindStr, bindStr, self.from_dual(), WGB_TABLE, TASK_ID, bindStr,
+                OPM_ARTIFACT_ID, bindStr)
             cursor.executemany(execSQL, data)
             data = []
         
@@ -951,7 +955,10 @@ class PFWDB (desdbi.DesDbi):
                         rowdata.append(filemap[parentfile.strip()])
                         rowdata.append(filemap[childfile.strip()])
                         data.append(rowdata)
-            execSQL = insertSQL % (WDF_TABLE,PARENT_OPM_ARTIFACT_ID + "," + CHILD_OPM_ARTIFACT_ID, bindStr, bindStr,self.from_dual(), WDF_TABLE, PARENT_OPM_ARTIFACT_ID,bindStr,CHILD_OPM_ARTIFACT_ID,bindStr)
+            execSQL = insertSQL % (WDF_TABLE, PARENT_OPM_ARTIFACT_ID + "," + 
+                CHILD_OPM_ARTIFACT_ID, bindStr, bindStr, self.from_dual(), 
+                WDF_TABLE, PARENT_OPM_ARTIFACT_ID, bindStr, CHILD_OPM_ARTIFACT_ID,
+                bindStr)
             cursor.executemany(execSQL, data)
             self.commit()
     #end_ingest_provenance

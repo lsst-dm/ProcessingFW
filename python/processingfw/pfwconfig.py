@@ -287,11 +287,8 @@ class PfwConfig:
         work_dir = ''
         if SUBMIT_RUN_DIR in self.config:
             work_dir = self.interpolate(self.config[SUBMIT_RUN_DIR])
-        else:
-            work_dir = self.config['submit_dir'] 
-
-        work_dir +=  '/' + os.path.splitext(self.config['submitwcl'])[0] + \
-                   '_' + submit_time
+        else:  # make a timestamp-based directory in cwd
+            work_dir = self.config['submit_dir'] + '/' + os.path.splitext(self.config['submitwcl'])[0] + '_' + submit_time
 
         self.config['work_dir'] = work_dir
         self.config['uberctrl_dir'] = work_dir + "/uberctrl"

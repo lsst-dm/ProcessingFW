@@ -97,9 +97,9 @@ def blockpre(argv = None):
 
     blocktaskfile = write_block_condor(config)
     
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        dbh.insert_block(config)
+    #if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    #    dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+    #    dbh.insert_block(config)
     
     log_pfw_event(config, blockname, 'blockpre', 'j', ['pretask'])
     

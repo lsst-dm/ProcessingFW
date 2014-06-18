@@ -18,6 +18,9 @@ from coreutils.miscutils import *
 import intgutils.wclutils as wclutils
 
 """ Miscellaneous support functions for processing framework """
+#######################################################################
+def pad_jobnum(jobnum):
+    return "%04d" % int(jobnum)
 
 #######################################################################
 def get_exec_sections(wcl, prefix):

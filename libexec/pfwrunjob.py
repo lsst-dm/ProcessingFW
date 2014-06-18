@@ -29,11 +29,34 @@ import coreutils.dbsemaphore as dbsem
 
 VERSION = '$Rev$'
 
+######################################################################
+def determine_exec_task_id(pfw_dbh, wcl):
+    exec_ids=[]
+    execs = pfwutils.get_exec_sections(wcl, pfwdefs.IW_EXECPREFIX)
+    execlist = sorted(execs)
+    for sect in execlist:
+        if '(' not in wcl[sect]['execname']:  # if not a wrapper function
+            exec_ids.append(wcl['task_id']['exec'][sect])
+
+    if len(exec_ids) > 1:
+        msg = "Warning: wrapper has more than 1 non-function exec.  Defaulting to first exec."
+        print msg
+        if pfw_dbh is not None:
+            pfw_dbh.insert_message(wcl['task_id']['wrapper'], pfwdb.PFW_MSG_WARN, str(msg))
+
+    if len(exec_ids) == 0: # if no non-function exec, pick first function exec
+        exec_id = wcl['task_id']['exec'][execlist[0]] 
+    else:
+        exec_id = exec_ids[0]
+
+    return exec_id
+
 
 ######################################################################
-def transfer_job_to_archives(pfw_dbh, wcl, putinfo, level, tasktype, tasklabel, exitcode):
+def transfer_job_to_archives(pfw_dbh, wcl, putinfo, level, parent_tid, task_label, exitcode):
     """ Call the appropriate transfers based upon which archives job is using """ 
-    coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG %s %s %s" % (level, tasktype, tasklabel))
+    """ level: current calling point: wrapper or job """
+    coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG %s %s %s" % (level, parent_tid, task_label))
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "len(putinfo) = %d" % len(putinfo))
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "USE_TARGET_ARCHIVE_OUTPUT = %s" % wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower())
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "USE_HOME_ARCHIVE_OUTPUT = %s" % wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower())
@@ -42,10 +65,10 @@ def transfer_job_to_archives(pfw_dbh, wcl, putinfo, level, tasktype, tasklabel, 
 
     if len(putinfo) > 0: 
         if pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and level == wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower():
-            transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, 'target', tasktype, tasklabel, exitcode)
+            transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, 'target', parent_tid, task_label, exitcode)
 
         if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and level == wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower():
-            transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, 'home', tasktype, tasklabel, exitcode)
+            transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, 'home', parent_tid, task_label, exitcode)
 
 
         # if not end of job and transferring at end of job, save file info for later
@@ -59,12 +82,11 @@ def transfer_job_to_archives(pfw_dbh, wcl, putinfo, level, tasktype, tasklabel, 
                    
 
 ######################################################################
-def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
+def ingest_file_metadata(pfw_dbh, wcl, file_metadata, task_label, parent_tid):
     """ Call ingest file metaddata routine after setting up appropriate filemgmt object """ 
-    coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG (%s, %s)" % (tasktype, tasklabel))
+    coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG (%s, %s)" % (task_label, parent_tid))
 
     starttime = time.time()
-    tasknum = -1
 
     archive_info = None
     if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() != 'never':
@@ -74,8 +96,10 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
     else:
         raise Exception('Error: Could not determine archive for output files');
 
+        
+    task_id = -1
     if pfw_dbh is not None:
-        pfw_task_id = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_fm_meta')
+        task_id = pfw_dbh.create_begin_task('dynclass', None, parent_tid, 'fm_meta', True)
     filemgmt = None
     try:
         filemgmt_class = coremisc.dynamically_load_class(archive_info['filemgmt'])
@@ -86,31 +110,33 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
         msg = "Error: creating filemgmt object %s" % value
         print "\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.insert_message(wcl, '%s_task' % tasktype, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
-    if pfw_dbh is not None:
-        pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
 
     if pfw_dbh is not None:
-        tasknum = pfw_dbh.insert_task(wcl, tasktype, tasklabel)
+        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+
+
+
+    if pfw_dbh is not None:
+        task_id = pfw_dbh.create_begin_task('ingest_metadata', None, parent_tid, task_label, True)
     try:
         filemgmt.ingest_file_metadata(file_metadata)
         filemgmt.commit()
         if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_SUCCESS)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
         else:
-            print "DESDMTIME: %s %0.3f" % (tasklabel, time.time()-starttime)
+            print "DESDMTIME: %s %0.3f" % (task_label, time.time()-starttime)
     except:
         if pfw_dbh is None:
-            print "DESDMTIME: %s %0.3f" % (tasklabel, time.time()-starttime)
+            print "DESDMTIME: %s %0.3f" % (task_label, time.time()-starttime)
         (type, value, traceback) = sys.exc_info()
         msg = "Error: Problem ingesting file metadata %s" % value
         print "\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.insert_message(wcl, '%s_task' % tasktype, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.end_task(task_id,  pfwdefs.PF_EXIT_FAILURE, True)
         print "file metadata to ingest:"
         wclutils.write_wcl(file_metadata)
         raise
@@ -118,44 +144,44 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, tasktype, tasklabel):
 
 
 
-def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
+def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, parent_tid):
     """ Handle the transfer of files from a single archive to the job directory """
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     
+    if pfw_dbh is not None:
+        trans_task_id = pfw_dbh.create_begin_task('transfer', None, None, None, True)
+
     archive_info = wcl['%s_archive_info' % dest.lower()]
 
     results = None
-    transinfo = get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info)
+    transinfo = get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, trans_task_id)
     
-
     if len(transinfo) > 0:
         coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "\tCalling target2job on %s files" % len(transinfo))
         starttime = time.time()
         tasktype = '%s2job' % dest
-        tasknum = -1
-        if pfw_dbh is not None:
-            pfw_trans_task_id = pfw_dbh.insert_job_wrapper_task(wcl, tasktype)
+        task_id = -1
 
         tstats = None
         if 'transfer_stats' in wcl:
             if pfw_dbh is not None:
-                pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "dynclass_stats_" + tasktype)
+                task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, 'stats_' + tasktype, True)
             try:
                 tstats_class = coremisc.dynamically_load_class(wcl['transfer_stats'])
                 valDict = fmutils.get_config_vals(None, wcl, tstats_class.requested_config_vals())
-                tstats = tstats_class(pfw_trans_task_id, valDict)
+                tstats = tstats_class(trans_task_id, valDict)
             except Exception as err:
                 print "ERROR\nError: creating transfer_stats object\n%s" % err
                 if pfw_dbh is not None:
-                    pfw_dbh.update_job_wrapper_task_end(wcl, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
-                    pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
-                    pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, str(err))
+                    pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, str(err))
+                    pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+                    pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
                 raise
             if pfw_dbh is not None:
-                pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
+                pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
             
         if pfw_dbh is not None:
-            pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "dynclass_jobfmv_" + tasktype)
+            task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, "jobfmv_" + tasktype, True)
         jobfilemvmt = None
         try:
             jobfilemvmt_class = coremisc.dynamically_load_class(wcl['job_file_mvmt']['mvmtclass'])
@@ -165,16 +191,16 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
         except Exception as err:
             print "ERROR\nError: creating job_file_mvmt object\n%s" % err
             if pfw_dbh is not None:
-                pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
-                pfw_dbh.update_job_wrapper_task_end(wcl, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
-                pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, str(err))
+                pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, str(err))
+                pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+                pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
             raise
         if pfw_dbh is not None:
-            pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
         sem = None
         if wcl['use_db'] and 'transfer_semname' in wcl:
-            sem = dbsem.DBSemaphore(wcl['transfer_semname'], pfw_trans_task_id)
+            sem = dbsem.DBSemaphore(wcl['transfer_semname'], trans_task_id)
             coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
 
         if dest.lower() == 'target':
@@ -185,23 +211,23 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest):
             coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Releasing lock")
             del sem
 
-        if pfw_dbh is not None:
-            pfw_dbh.update_job_wrapper_task_end(wcl, pfw_trans_task_id, pfwdefs.PF_EXIT_SUCCESS)
-        else:
-            print "DESDMTIME: %s2job %0.3f" % (dest.lower(), time.time()-starttime)
+    if pfw_dbh is not None:
+        pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+    else:
+        print "DESDMTIME: %s2job %0.3f" % (dest.lower(), time.time()-starttime)
 
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
     return results
         
 
 
-def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
+def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
     """ Call the appropriate transfers based upon which archives job is using """ 
     # transfer files from target/home archives to job scratch dir
 
     files2get = neededfiles.keys()
     if len(files2get) > 0 and wcl[pfwdefs.USE_TARGET_ARCHIVE_INPUT].lower() != 'never':
-        results = transfer_single_archive_to_job(pfw_dbh, wcl, files2get, neededfiles, 'target')
+        results = transfer_single_archive_to_job(pfw_dbh, wcl, files2get, neededfiles, 'target', parent_tid)
 
         if results is not None and len(results) > 0:
             problemfiles = {}
@@ -211,7 +237,7 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
                     msg = "Warning: Error trying to get file %s from target archive: %s" % (f, finfo['err'])
                     print msg
                     if pfw_dbh:
-                        pfw_dbh.insert_message(wcl, 'job_wrapper_task', pfwdb.PFW_MSG_WARN, msg)
+                        pfw_dbh.insert_message(wcl['task_id']['wrapper'], pfwdb.PFW_MSG_WARN, msg)
 
             files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
@@ -227,7 +253,7 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
     # home archive
     if len(files2get) > 0 and pfwdefs.USE_HOME_ARCHIVE_INPUT in wcl and \
         wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT].lower() == 'wrapper':
-        results = transfer_single_archive_to_job(pfw_dbh, wcl, files2get, neededfiles, 'home')
+        results = transfer_single_archive_to_job(pfw_dbh, wcl, files2get, neededfiles, 'home', parent_tid)
 
         if results is not None and len(results) > 0:
             problemfiles = {}
@@ -237,7 +263,7 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
                      msg = "Warning: Error trying to get file %s from home archive: %s" % (f, finfo['err'])
                      print msg
                      if pfw_dbh:
-                        pfw_dbh.insert_message(wcl, 'job_wrapper_task', pfwdb.PFW_MSG_WARN, msg)
+                        pfw_dbh.insert_message(wcl['task_id']['wrapper'], pfwdb.PFW_MSG_WARN, msg)
 
             files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
@@ -254,14 +280,15 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles):
 
 
 
-def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info):
+def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, parent_tid):
     """ Get information about files in the archive after creating appropriate filemgmt object """
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "archive_info = %s" % archive_info)
 
     
     if pfw_dbh is not None:
-        pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "dynclass_fm_query")
+        task_id = pfw_dbh.create_begin_task('dynclass', None, parent_tid, 'fm_query', True)
+
     # dynamically load class for archive file mgmt to find location of files in archive
     filemgmt = None
     try:
@@ -272,16 +299,15 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info):
         (type, value, traceback) = sys.exc_info()
         print "ERROR\nError: creating filemgmt object\n%s" % value
         if pfw_dbh is not None:
-            pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
     if pfw_dbh is not None:
-        pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
+        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+        task_id = pfw_dbh.create_begin_task('query_fileArchInfo', None, parent_tid, None, True)
 
-    if pfw_dbh is not None:
-        pfw_task_id = pfw_dbh.insert_job_wrapper_task(wcl, "query_fileArchInfo")
     fileinfo_archive = filemgmt.get_file_archive_info(files2get, archive_info['name'], fmdefs.FM_PREFER_UNCOMPRESSED)
     if pfw_dbh is not None:
-        pfw_dbh.update_job_wrapper_task_end(wcl, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
+        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
     if len(files2get) != 0 and len(fileinfo_archive) == 0:
         print "Info: 0 files found on %s" % archive_info['name']
@@ -300,12 +326,10 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info):
 
 
 
-def setup_wrapper(wcl, iwfilename, logfilename):
+def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
     """ Create output directories, get files from archive, and other setup work """
 
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
-
-    #wcl['infullnames'].append(iwfilename)
 
     # make directory for log file
     logdir = os.path.dirname(logfilename)
@@ -316,15 +340,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
     outputwcldir = os.path.dirname(outputwclfile)
     coremisc.coremakedirs(outputwcldir)
 
-    pfw_dbh = None
-    if wcl['use_db']:
-        pfw_dbh = pfwdb.PFWDB()
-        wcl['dbids'] = {}
-        wcl['wrapperid'] = pfw_dbh.insert_wrapper(wcl, iwfilename)
-    else:
-        wcl['wrapperid'] = -1
-        wcl['dbids'] = {}
-
+    wcl['task_id']['exec'] = {}
 
     # register any list files for this wrapper
     cnt = 1
@@ -335,7 +351,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
             pfw_file_metadata['file_%d' % (cnt)] = {'filename': coremisc.parse_fullname(ldict['fullname'], coremisc.CU_PARSE_FILENAME),
                                                     'filetype': 'list'}
 
-        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'job_wrapper', 'ingest-metadata_lists')
+        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'lists', wcl['task_id']['jobwrapper'])
 
     
     # make directories for output files, get input files from targetnode
@@ -360,22 +376,22 @@ def setup_wrapper(wcl, iwfilename, logfilename):
             wcl[sect]['execnum'] = result.group(1)
 
         if pfw_dbh is not None:
-            wcl['dbids'][sect] = pfw_dbh.insert_exec(wcl, sect) 
+            wcl['task_id']['exec'][sect] = pfw_dbh.insert_exec(wcl, sect) 
 
         if pfwdefs.IW_EXEC_DEF in wcl:
-            tasknum = -1
+            task_id = -1
             if pfw_dbh is not None:
-                tasknum = pfw_dbh.insert_job_exec_task(wcl, wcl[sect]['execnum'], 'get_version')
+                task_id = pfw_dbh.create_begin_task('get_version', None, wcl['task_id']['jobwrapper'], sect, True)
             wcl[sect]['version'] = pfwutils.get_version(execname, wcl[pfwdefs.IW_EXEC_DEF])
             if pfw_dbh is not None:
-                pfw_dbh.update_exec_version(wcl['dbids'][sect], wcl[sect]['version']) 
-                pfw_dbh.update_job_exec_task_end(wcl, wcl[sect]['execnum'], tasknum, pfwdefs.PF_EXIT_SUCCESS)
+                pfw_dbh.update_exec_version(wcl['task_id']['exec'][sect], wcl[sect]['version']) 
+                pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
 
         starttime = time.time()
-        tasknum = -1
+        task_id = -1
         if pfw_dbh is not None:
-            tasknum = pfw_dbh.insert_job_exec_task(wcl, wcl[sect]['execnum'], 'make_output_dirs')
+            task_id = pfw_dbh.create_begin_task('make_output_dirs', None, wcl['task_id']['jobwrapper'], sect, True)
         if pfwdefs.IW_OUTPUTS in wcl[sect]:
             for outfile in coremisc.fwsplit(wcl[sect][pfwdefs.IW_OUTPUTS]):
                 outfiles[outfile] = True
@@ -387,7 +403,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
                         pattern = pfwutils.get_wcl_value(m.group(1), wcl)
                     else:
                         if pfw_dbh is not None:
-                            pfw_dbh.update_job_exec_task_end(wcl, wcl[sect]['execnum'], tasknum, pfwdefs.PF_EXIT_FAILURE)
+                            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
                         raise Exception("Could not parse $RNMLST")
                 else:
                     outfile_names = coremisc.fwsplit(fullnames)
@@ -398,7 +414,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
             print "Info: 0 output files (%s) in exec section %s" % (pfwdefs.IW_OUTPUTS, sect)
 
         if pfw_dbh is not None:
-            pfw_dbh.update_job_exec_task_end(wcl, wcl[sect]['execnum'], tasknum, pfwdefs.PF_EXIT_SUCCESS)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
         else:
             print "DESDMTIME: make_output_dirs %0.3f" % (time.time()-starttime)
 
@@ -413,7 +429,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
                 neededinputs[coremisc.parse_fullname(infile, coremisc.CU_PARSE_FILENAME)] = infile
 
         if len(neededinputs) > 0: 
-            files2get = transfer_archives_to_job(pfw_dbh, wcl, neededinputs)
+            files2get = transfer_archives_to_job(pfw_dbh, wcl, neededinputs, wcl['task_id']['jobwrapper'])
 
             # check if still missing input files
             if len(files2get) > 0:
@@ -422,7 +438,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
                     msg="Error: input file needed that was not retrieved from target or home archives\n(%s)" % f
                     print msg
                     if pfw_dbh is not None:
-                        pfw_dbh.insert_message(wcl, 'job', pfwdb.PFW_MSG_ERROR, msg)
+                        pfw_dbh.insert_message(wcl['task_id']['jobwrapper'], pfwdb.PFW_MSG_ERROR, msg)
                 raise Exception("Error:  Cannot find all input files in an archive")
 
             # double-check: check that files are now on filesystem
@@ -433,7 +449,7 @@ def setup_wrapper(wcl, iwfilename, logfilename):
                     msg= "Error: input file doesn't exist despite transfer success (%s)" % infile
                     print msg
                     if pfw_dbh is not None:
-                        pfw_dbh.insert_message(wcl, 'job', pfwdb.PFW_MSG_ERROR, msg)
+                        pfw_dbh.insert_message(wcl['task_id']['jobwrapper'], pfwdb.PFW_MSG_ERROR, msg)
                     errcnt += 1
             if errcnt > 0:
                 raise Exception("Error:  Cannot find all input files after transfer.")
@@ -495,13 +511,13 @@ def compose_path(dirpat, wcl, infdict, fdict):
 
 
 ######################################################################
-def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, tasktype, tasklabel):
+def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, task_label, parent_tid):
     """ Call the method to register files in the archive after creating the appropriate filemgmt object """
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
 
-    tasknum = -1
+    task_id = -1
     if pfw_dbh is not None:
-        tasknum = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_fm_register')
+        task_id = pfw_dbh.create_begin_task('dynclass', None, parent_tid, 'fm_register', True)
 
     # load file management class
     filemgmt = None
@@ -514,14 +530,12 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, tasktype, ta
         msg = "Error: creating filemgmt object %s" % value
         print "ERROR\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
     if pfw_dbh is not None:
-        pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_SUCCESS)
-
-    if pfw_dbh is not None:
-        tasknum = pfw_dbh.insert_task(wcl, tasktype, tasklabel)
+        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+        task_id = pfw_dbh.create_begin_task('register', None, parent_tid, task_label, True)
 
     # call function to do the register
     try:
@@ -532,22 +546,22 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, tasktype, ta
         msg = "Error: creating filemgmt object %s" % value
         print "ERROR\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
-    pfw_dbh.update_task_end(wcl, tasktype, tasknum, pfwdefs.PF_EXIT_SUCCESS)
+    pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
 
 
 
 ######################################################################
-def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, tasklabel, exitcode):
+def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task_label, exitcode):
     """ Handle the transfer of files from the job directory to a single archive """
 
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "TRANSFER JOB TO ARCHIVE SECTION")
     tasknum = -1
     if pfw_dbh is not None:
-        pfw_trans_task_id = pfw_dbh.insert_task(wcl, tasktype, tasklabel)
+        trans_task_id = pfw_dbh.create_begin_task('job2archive', None, parent_tid, task_label, True)
 
     archive_info = wcl['%s_archive_info' % dest.lower()]
     mastersave = wcl[pfwdefs.MASTER_SAVE_FILE].lower()
@@ -557,43 +571,48 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
     for key,fdict in putinfo.items():
         if pfwutils.should_save_file(mastersave, fdict['filesave'], exitcode):
             if 'path' not in fdict:
+                if pfw_dbh is not None:
+                    pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
                 coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Error: Missing path (archivepath) in file definition")
                 print key,fdict
                 sys.exit(1)
             fdict['dst'] = "%s/%s" % (fdict['path'], os.path.basename(fdict['src']))
             saveinfo[key] = fdict
 
-    # dynamically load class for job_file_mvmt
-    if 'job_file_mvmt' not in wcl:
-        msg = "Error:  Missing job_file_mvmt in job wcl"
-        if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
-        raise KeyError(msg)
-
 
     tstats = None
     if 'transfer_stats' in wcl:
         if pfw_dbh is not None:
-            pfw_task_id = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_stats_' + tasklabel)
+            task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, 'stats_' + task_label, True)
         try:
             tstats_class = coremisc.dynamically_load_class(wcl['transfer_stats'])
             valDict = fmutils.get_config_vals(None, wcl, tstats_class.requested_config_vals())
-            tstats = tstats_class(pfw_trans_task_id, valDict)
+            tstats = tstats_class(trans_task_id, valDict)
         except Exception as err:
             msg = "Error: creating transfer_stats object\n%s" % err
             print "ERROR\n%s" % msg
             if pfw_dbh is not None:
-                pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
-                pfw_dbh.update_task_end(wcl, tasktype, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
-                pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
+                pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
+                pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+                pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
             raise
         if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
             
 
     if pfw_dbh is not None:
-        pfw_task_id = pfw_dbh.insert_task(wcl, tasktype, 'dynclass_jobfmv_' + tasklabel)
+        task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, 'jobfmv_'+task_label, True)
+
+    # dynamically load class for job_file_mvmt
+    if 'job_file_mvmt' not in wcl:
+        msg = "Error:  Missing job_file_mvmt in job wcl"
+        if pfw_dbh is not None:
+            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+            pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
+        raise KeyError(msg)
+
+
     jobfilemvmt = None
     try:
         jobfilemvmt_class = coremisc.dynamically_load_class(wcl['job_file_mvmt']['mvmtclass'])
@@ -604,19 +623,19 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
         msg = "Error: creating job_file_mvmt object\n%s" % err
         print "ERROR\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.update_task_end(wcl, tasktype, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
-            pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+            pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
     if pfw_dbh is not None:
-        pfw_dbh.update_task_end(wcl, tasktype, pfw_task_id, pfwdefs.PF_EXIT_SUCCESS)
+        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
     # tranfer files to archive
     #pretty_print_dict(putinfo)
     starttime = time.time()
     sem = None
     if wcl['use_db'] and 'transfer_semname' in wcl:
-        sem = dbsem.DBSemaphore(wcl['transfer_semname'], pfw_trans_task_id)
+        sem = dbsem.DBSemaphore(wcl['transfer_semname'], trans_task_id)
         coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
     if dest.lower() == 'target':
         results = jobfilemvmt.job2target(saveinfo)
@@ -627,7 +646,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
         del sem
     
     if pfw_dbh is None:
-        print "DESDMTIME: %s-filemvmt %0.3f" % (tasklabel, time.time()-starttime)
+        print "DESDMTIME: %s-filemvmt %0.3f" % (task_label, time.time()-starttime)
 
     # register files that we just copied into archive
     files2register = {}
@@ -638,15 +657,15 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
             msg = "Warning: Error trying to copy file %s to %s archive: %s" % (f, dest, finfo['err'])
             print msg
             if pfw_dbh:
-                pfw_dbh.insert_message(wcl, tasktype, pfwdb.PFW_MSG_WARN, msg)
+                pfw_dbh.insert_message(trans_task_id, pfwdb.PFW_MSG_WARN, msg)
         else:
             files2register[f] = finfo
-    coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Registering %s file(s) in archive..." % len(files2register))
 
+    coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Registering %s file(s) in archive..." % len(files2register))
     starttime = time.time()
-    regprobs = register_files_in_archive(pfw_dbh, wcl, archive_info, files2register, tasktype, tasklabel)
+    regprobs = register_files_in_archive(pfw_dbh, wcl, archive_info, files2register, task_label, trans_task_id)
     if pfw_dbh is None:
-        print "DESDMTIME: %s-register_files %0.3f" % (tasklabel, time.time()-starttime)
+        print "DESDMTIME: %s-register_files %0.3f" % (task_label, time.time()-starttime)
 
     if regprobs is not None and len(regprobs) > 0:
         problemfiles.update(regprobs)
@@ -657,21 +676,20 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, tasktype, taskla
         #for file in problemfiles:
         #    print file, problemfiles[file]
         if pfw_dbh is not None: 
-            pfw_dbh.update_task_end(wcl, tasktype, pfw_trans_task_id, pfwdefs.PF_EXIT_FAILURE)
+            pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise Exception("Error: problems putting %d files into archive %s" % 
                         (len(problemfiles), archive_info['name']))
 
     if pfw_dbh is not None: 
-        pfw_dbh.update_task_end(wcl, tasktype, pfw_trans_task_id, pfwdefs.PF_EXIT_SUCCESS)
+        pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
 
 
 ######################################################################
 def save_log_file(pfw_dbh, wcl, logfile):
-    """ Register log file and copy to archive """
+    """ Register log file and prepare for copy to archive """
 
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
-
 
     putinfo = {}
     if logfile is not None and os.path.isfile(logfile):
@@ -679,8 +697,9 @@ def save_log_file(pfw_dbh, wcl, logfile):
 
         # Register log file
         pfw_file_metadata = {}
-        pfw_file_metadata['file_1'] = {'filename' : coremisc.parse_fullname(logfile, coremisc.CU_PARSE_FILENAME), 'filetype' : 'log'}
-        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'job_wrapper', 'ingest-metadata_logfile')
+        pfw_file_metadata['file_1'] = {'filename' : coremisc.parse_fullname(logfile, coremisc.CU_PARSE_FILENAME), 
+                                       'filetype' : 'log'}
+        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'logfile', wcl['task_id']['jobwrapper'])
 
         # since able to register log file, save as not junk file
         wcl['outfullnames'].append(logfile) 
@@ -693,8 +712,6 @@ def save_log_file(pfw_dbh, wcl, logfile):
                              'path': wcl['log_archive_path'],
                              'filesize': os.path.getsize(logfile),
                              'filesave': True}
-    
-        #transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'job_wrapper', 'copy2archive_logfile')
     else:
         coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Warning: log doesn't exist (%s)" % logfile)
 
@@ -736,13 +753,14 @@ def copy_output_to_archive(pfw_dbh, wcl, fileinfo, loginfo, exitcode):
         if 'archivepath' in infdict:
             putinfo[filename]['path'] = infdict['archivepath']
 
-    transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'wrapper', 'job_wrapper', 'save2archive', exitcode)
+    # transfer_job_to_archives(pfw_dbh, wcl, putinfo, level, parent_tid, task_label, exitcode):
+    transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'wrapper', wcl['task_id']['jobwrapper'], 'wrapper_output', exitcode)
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
 
                    
 
 ######################################################################
-def postwrapper(wcl, logfile, exitcode):
+def postwrapper(pfw_dbh, wcl, logfile, exitcode):
     """ Execute tasks after a wrapper is done """
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
 
@@ -754,9 +772,7 @@ def postwrapper(wcl, logfile, exitcode):
     if not os.path.exists(outputwclfile):
         outputwclfile = None
 
-    pfw_dbh = None
-    if wcl['use_db']:
-        pfw_dbh = pfwdb.PFWDB()
+    if pfw_dbh is not None:
         pfw_dbh.update_wrapper_end(wcl, outputwclfile, logfile, exitcode)
 
 
@@ -780,7 +796,7 @@ def postwrapper(wcl, logfile, exitcode):
         except Exception as err:
             warnmsg = "Warning:  Could not append output wcl file to tarball: %s" % err
             if pfw_dbh is not None:
-                pfw_dbh.insert_message(wcl, 'wrapper', pfwdb.PFW_MSG_WARN, warnmsg)
+                pfw_dbh.insert_message(wcl['task_id']['jobwrapper'], pfwdb.PFW_MSG_WARN, warnmsg)
             print warnmsg
             print "\tContinuing job"
 
@@ -790,7 +806,7 @@ def postwrapper(wcl, logfile, exitcode):
             execs = pfwutils.get_exec_sections(outputwcl, pfwdefs.OW_EXECPREFIX)
             for sect in execs:
                 if pfw_dbh is not None:
-                    pfw_dbh.update_exec_end(outputwcl[sect], wcl['dbids'][sect], exitcode)
+                    pfw_dbh.update_exec_end(outputwcl[sect], wcl['task_id']['exec'][sect], exitcode)
                 else:
                     print "DESDMTIME: app_exec %s %0.3f" % (sect, float(outputwcl[sect]['walltime']))
 
@@ -808,22 +824,24 @@ def postwrapper(wcl, logfile, exitcode):
                         del fdict['fullname']  # deleting because not needed by later ingest_file_metadata
                     #wclutils.write_wcl(finfo)
 
-                    ingest_file_metadata(pfw_dbh, wcl, outputwcl[pfwdefs.OW_METASECT], 'job_wrapper', 
-                                         'ingest-metadata_wrapper-outputs')
+                    ingest_file_metadata(pfw_dbh, wcl, outputwcl[pfwdefs.OW_METASECT], 'wrapper-outputs', 
+                                         wcl['task_id']['jobwrapper']) 
 
                     wcl['outfullnames'].extend(wrapoutfullnames)
 
-                if pfwdefs.OW_PROVSECT in outputwcl and len(outputwcl[pfwdefs.OW_PROVSECT].keys()) > 0 and pfw_dbh is not None:
+                if pfwdefs.OW_PROVSECT in outputwcl and \
+                   len(outputwcl[pfwdefs.OW_PROVSECT].keys()) > 0 and \
+                   pfw_dbh is not None:
                     starttime = time.time()
-                    tasknum = -1
+                    task_id = -1
                     try:
+                        task_id = pfw_dbh.create_begin_task('ingest_provenance', 'None', wcl['task_id']['jobwrapper'], None, True) 
+
+                        pfw_dbh.ingest_provenance(outputwcl[pfwdefs.OW_PROVSECT], wcl['task_id']['exec'])
+                        pfw_dbh.commit()
+
                         if pfw_dbh is not None:
-                            tasknum = pfw_dbh.insert_job_wrapper_task(wcl, 'ingest_provenance')
-                        provdbh = pfwdb.PFWDB()
-                        provdbh.ingest_provenance(outputwcl[pfwdefs.OW_PROVSECT], wcl['dbids'])
-                        provdbh.commit()
-                        if pfw_dbh is not None:
-                            pfw_dbh.update_job_wrapper_task_end(wcl, tasknum, pfwdefs.PF_EXIT_SUCCESS)
+                            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
                         else:
                             print "DESDMTIME: ingest_provenance %0.3f" % (time.time()-starttime)
                     except:
@@ -832,7 +850,7 @@ def postwrapper(wcl, logfile, exitcode):
                         print "outputwcl"
                         wclutils.write_wcl(outputwcl[pfwdefs.OW_PROVSECT])
                         if pfw_dbh is not None:
-                            pfw_dbh.update_job_wrapper_task_end(wcl, tasknum, pfwdefs.PF_EXIT_FAILURE)
+                            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
                         else:
                             print "DESDMTIME: ingest_provenance %0.3f" % (time.time()-starttime)
                         raise
@@ -842,55 +860,54 @@ def postwrapper(wcl, logfile, exitcode):
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
     
 
-def parse_run_task_line(line, linecnt):
-    """ Parse a line from the job's task file """
-    task = {}
+
+def parse_wrapper_line(line, linecnt):
+    """ Parse a line from the job's wrapper list """
+    wrapinfo = {}
     lineparts = coremisc.fwsplit(line.strip())
     if len(lineparts) == 5:
-        (task['wrapnum'], task['wrapname'], task['wclfile'], task['wrapdebug'], task['logfile']) = lineparts
+        (wrapinfo['wrapnum'], wrapinfo['wrapname'], wrapinfo['wclfile'], wrapinfo['wrapdebug'], wrapinfo['logfile']) = lineparts
     elif len(lineparts) == 4:
-        (task['wrapnum'], task['wrapname'], task['wclfile'], task['logfile']) = lineparts
-        task['wrapdebug'] = 0  # default wrapdebug 
+        (wrapinfo['wrapnum'], wrapinfo['wrapname'], wrapinfo['wclfile'], wrapinfo['logfile']) = lineparts
+        wrapinfo['wrapdebug'] = 0  # default wrapdebug 
     else:
         print "Error: incorrect number of items in line #%s" % linecnt
         print "\tline: %s" % line
         raise SyntaxError("Error: incorrect number of items in line #%s" % linecnt)
-    return task
+    return wrapinfo
     
 
-def gather_inwcl_fullnames(taskfile, wcl):
+def gather_inwcl_fullnames(workflow, wcl):
     """ save input wcl fullnames in input list so won't appear in junk tarball """
     linecnt = 0
-    with open(taskfile, 'r') as tasksfh:
+    with open(workflow, 'r') as workflowfh:
         # for each task
-        line = tasksfh.readline()
+        line = workflowfh.readline()
         linecnt += 1
         while line:
             task = None
             try:
-                task = parse_run_task_line(line, linecnt)
+                task = parse_wrapper_line(line, linecnt)
                 wcl['infullnames'].append(task['wclfile'])
             except Exception as e:
                 print "Error: parsing task file line %s (%s)" % (linecnt, str(e)) 
                 return(1)
-            line = tasksfh.readline()
+            line = workflowfh.readline()
 
     #print wcl['infullnames']
 
-def run_tasks(taskfile, jobwcl={}):
+
+
+def job_workflow(workflow, jobwcl={}):
     """ Run each wrapper execution sequentially """
+
     linecnt = 0
-    with open(taskfile, 'r') as tasksfh:
-        # for each task
-        line = tasksfh.readline()
+    with open(workflow, 'r') as workflowfh:
+        # for each wrapper execution
+        line = workflowfh.readline()
         linecnt += 1
         while line:
-            task = None
-            try:
-                task = parse_run_task_line(line, linecnt)
-            except Exception as e:
-                print "Error: parsing task file line %s (%s)" % (linecnt, str(e)) 
-                return(1)
+            task = parse_wrapper_line(line, linecnt)
 
             wrappercmd = "%s --input=%s --debug=%s" % (task['wrapname'], task['wclfile'], task['wrapdebug'])
             print "\n\n%04d: %s" % (int(task['wrapnum']), wrappercmd)
@@ -903,24 +920,34 @@ def run_tasks(taskfile, jobwcl={}):
                 wcl = wclutils.read_wcl(wclfh, filename=task['wclfile'])
             wcl.update(jobwcl)
 
-            setup_wrapper(wcl, task['wclfile'], task['logfile'])
-
-            tasknum = -1
+            pfw_dbh = None
             if wcl['use_db']:
                 pfw_dbh = pfwdb.PFWDB() 
-                tasknum = pfw_dbh.insert_job_wrapper_task(wcl, 'run_wrapper')
+                wcl['task_id']['jobwrapper'] = pfw_dbh.create_begin_task('jobwrapper', 'None', 
+                                                       wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], None, True)
+                wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'], wcl['task_id']['jobwrapper'])
+            else:
+                wcl['task_id']['jobwrapper'] = -1
+
+            setup_wrapper(pfw_dbh, wcl, task['wclfile'], task['logfile'])
+            exectid = determine_exec_task_id(pfw_dbh, wcl)
+
+            if pfw_dbh is not None:
+                pfw_dbh.begin_task(wcl['task_id']['wrapper'], True)
                 pfw_dbh.close()
+                pfw_dbh = None
 
             starttime = time.time()
             try:
-                exitcode = pfwutils.run_cmd_qcf(wrappercmd, task['logfile'], wcl['wrapperid'], wcl['execnames'], 
-                                                5000, wcl['use_qcf'])
+                os.putenv("DESDMFW_TASKID", str(exectid))
+                exitcode = pfwutils.run_cmd_qcf(wrappercmd, task['logfile'], wcl['task_id']['wrapper'], 
+                                                wcl['execnames'], 5000, wcl['use_qcf'])
             except:
                 (type, value, trback) = sys.exc_info()
                 print "******************************"
-                if wcl['use_db'] and pfw_dbh is None:   
+                if wcl['use_db']:
                     pfw_dbh = pfwdb.PFWDB()
-                    pfw_dbh.insert_message(wcl, 'job_wrapper', pfwdb.PFW_MSG_ERROR, str(value))
+                    pfw_dbh.insert_message(wcl['task_id']['wrapper'], pfwdb.PFW_MSG_ERROR, str(value))
                 else:
                     print "DESDMTIME: run_cmd_qcf %0.3f" % (time.time()-starttime)
                 traceback.print_exception(type, value, trback, file=sys.stdout)
@@ -933,20 +960,21 @@ def run_tasks(taskfile, jobwcl={}):
                 print " %s/%s" % (wcl['log_archive_path'], wcl['log'])
 
             if wcl['use_db']:
-                pfw_dbh = pfwdb.PFWDB() 
-                pfw_dbh.update_job_wrapper_task_end(wcl, tasknum, exitcode)
-                pfw_dbh.close()
+                if pfw_dbh is None:
+                    pfw_dbh = pfwdb.PFWDB() 
             else:
                 print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
-            postwrapper(wcl, task['logfile'], exitcode) 
+            postwrapper(pfw_dbh, wcl, task['logfile'], exitcode) 
+            pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
 
             sys.stdout.flush()
             sys.stderr.flush()
             if exitcode:
                 print "Aborting due to non-zero exit code"
                 return(exitcode)
-            line = tasksfh.readline()
+            line = workflowfh.readline()
+
     return(0)
 
 
@@ -990,15 +1018,9 @@ def run_job(args):
 
         # update job batch/condor ids
         pfw_dbh = pfwdb.PFWDB()
-        pfw_dbh.update_runjob_target_info(wcl, wcl[pfwdefs.PF_JOBNUM], condor_id, batch_id, socket.gethostname())
-
-        if 'runjob_task_id' in wcl:
-            pfw_dbh.begin_task(wcl['runjob_task_id'])
-            pfw_dbh.commit()
-
+        pfw_dbh.update_job_target_info(wcl, condor_id, batch_id, socket.gethostname())
         pfw_dbh.close()    # in case job is long running, will reopen connection elsewhere in job
         pfw_dbh = None
-
 
     # Save pointers to archive information for quick lookup
     if wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never' or wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never':
@@ -1014,9 +1036,7 @@ def run_job(args):
 
     # used to keep track of all input files and registered output files
     wcl['outfullnames'] = []
-    wcl['infullnames'] = [args.config, args.taskfile]
-
-
+    wcl['infullnames'] = [args.config, args.workflow]
 
 
     wcl['output_putinfo'] = {}  # to be used if transferring at end of job
@@ -1025,14 +1045,14 @@ def run_job(args):
     # run the tasks (i.e., each wrapper execution)
     pfw_dbh = None
     try:
-        exitcode = gather_inwcl_fullnames(args.taskfile, wcl)
-        exitcode = run_tasks(args.taskfile, wcl)
+        exitcode = gather_inwcl_fullnames(args.workflow, wcl)
+        exitcode = job_workflow(args.workflow, wcl)
     except Exception as err:
         (type, value, trback) = sys.exc_info()
         print "******************************"
         if wcl['use_db'] and pfw_dbh is None:   
             pfw_dbh = pfwdb.PFWDB()
-            pfw_dbh.insert_message(wcl, 'job', pfwdb.PFW_MSG_ERROR, str(value))
+            pfw_dbh.insert_message(wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], pfwdb.PFW_MSG_ERROR, str(value))
         traceback.print_exception(type, value, trback, file=sys.stdout)
         exitcode = pfwdefs.PF_EXIT_FAILURE
         print "Aborting rest of wrapper executions.  Continuing to end-of-job tasks\n\n"
@@ -1049,12 +1069,11 @@ def run_job(args):
     # if should transfer at end of job
     if len(wcl['output_putinfo']) > 0:
         print "\n\nCalling file transfer for end of job"
-        transfer_job_to_archives(pfw_dbh, wcl, wcl['output_putinfo'], 'job', 'job', 'save2archive', exitcode)
+        transfer_job_to_archives(pfw_dbh, wcl, wcl['output_putinfo'], 'job', 
+                                 wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], 
+                                 'job_output', exitcode)
 
     if pfw_dbh is not None:
-        if 'runjob_task_id' in wcl:
-            pfw_dbh.end_task(wcl['runjob_task_id'], exitcode)
-            pfw_dbh.commit()
         pfw_dbh.close()
     else:
         print "\nDESDMTIME: pfwrun_job %0.3f" % (time.time()-jobstart)
@@ -1109,19 +1128,23 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
 
     putinfo = {}
     if len(junklist) > 0:
-        tasknum = -1
+        task_id = -1
         if pfw_dbh is not None:
-            tasknum = pfw_dbh.insert_job_task(wcl, 'create_junktar')
+            task_id = pfw_dbh.create_begin_task('create_junktar', None, 
+                              wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], None, True)
+
         pfwutils.tar_list(wcl['junktar'], junklist)
+
         if pfw_dbh is not None:
             pfw_dbh.update_job_junktar(wcl, wcl['junktar'])
-            pfw_dbh.update_job_task_end(wcl, tasknum, pfwdefs.PF_EXIT_SUCCESS)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
         # register junktar with file manager
         pfw_file_metadata = {}
         pfw_file_metadata['file_1'] = {'filename' : wcl['junktar'],
                                        'filetype' : 'junk_tar'}
-        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'job', 'ingest-metadata_junktar')
+        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'junktar', 
+                             wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]])
     
 
         # gather "disk" metadata about tarball
@@ -1133,7 +1156,9 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
                                    'filesave': True}}
          
         # if save setting is wrapper, save here, otherwise save at end of job
-        transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'wrapper', 'job', 'save2archive_junktar', exitcode)
+        transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'wrapper', 
+                                 wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], 
+                                 'junktar', exitcode)
 
     coremisc.fwdebug(1, "PFWRUNJOB_DEBUG", "END\n\n")
     return putinfo
@@ -1145,7 +1170,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description='pfwrun_job.py')
     parser.add_argument('--version', action='store_true', default=False)
     parser.add_argument('--config', action='store')
-    parser.add_argument('taskfile', action='store')
+    parser.add_argument('workflow', action='store')
 
     args = parser.parse_args()
 
@@ -1154,6 +1179,7 @@ def parse_args(argv):
         sys.exit(0)
 
     return args
+
 
 if __name__ == '__main__':
     os.putenv('PYTHONUNBUFFERED', 'true')

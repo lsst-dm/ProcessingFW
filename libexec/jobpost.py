@@ -29,6 +29,7 @@ def parse_job_output(config, jobnum, dbh=None):
                                                         'fsuffix':''}})
 
     tjobinfo = {}
+    tjobinfo_task = {}
     for f in ['%sout'%jobbase, '%serr'%jobbase]:
         if os.path.exists(f):
             with open(f, 'r') as jobfh:
@@ -44,25 +45,28 @@ def parse_job_output(config, jobnum, dbh=None):
                             print "parts[2]", parts[2]
                             print "parts[3]", parts[3]
                             if parts[2] == 'exechost:':
-                                tjobinfo['target_exec_host']= parts[3]
+                                #tjobinfo['target_exec_host']= parts[3]
+                                tjobinfo_task['exec_host']= parts[3]
                             elif parts[2] == 'starttime:':
-                                tjobinfo['target_start_time'] = datetime.datetime.fromtimestamp(float(parts[3]))
+                                #tjobinfo['target_start_time'] = datetime.datetime.fromtimestamp(float(parts[3]))
+                                tjobinfo_task['start_time']= datetime.datetime.fromtimestamp(float(parts[3]))
                             elif parts[2] == 'endtime:':
-                                tjobinfo['target_end_time'] = datetime.datetime.fromtimestamp(float(parts[3]))
+                                #tjobinfo['target_end_time'] = datetime.datetime.fromtimestamp(float(parts[3]))
+                                tjobinfo_task['end_time']= datetime.datetime.fromtimestamp(float(parts[3]))
                             elif parts[2] == 'exit_status:':
-                                tjobinfo['target_status'] = parts[3]
+                                tjobinfo_task['status'] = parts[3]
                     elif 'ORA-' in line:
                         print "Found:", line
                         print "Setting retval to failure"
-                        tjobinfo['target_status'] = pfwdefs.PF_EXIT_FAILURE
+                        tjobinfo_task['status'] = pfwdefs.PF_EXIT_FAILURE
                         if dbh:
-                            dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
+                            dbh.insert_message(config['task_id']['job'][jobnum], pfwdb.PFW_MSG_ERROR, line)
                     elif 'Error: eups setup had non-zero exit code' in line:
                         print "Found:", line
                         print "Setting retval to failure"
-                        tjobinfo['target_status'] = pfwdefs.PF_EXIT_EUPS_FAILURE
+                        tjobinfo_task['status'] = pfwdefs.PF_EXIT_EUPS_FAILURE
                         if dbh:
-                            dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, line, config['blknum'], jobnum)
+                            dbh.insert_message(config['task_id']['job'][jobnum], pfwdb.PFW_MSG_ERROR, line)
                     elif 'Exiting with status' in line:
                         m = re.search('Exiting with status (\d+)', line)
                         if m:
@@ -70,10 +74,10 @@ def parse_job_output(config, jobnum, dbh=None):
                                 print "Found:", line
                                 msg = "Info:  Job exit status was %s, but retval was %s.   Setting retval to failure." % (m.group(1), retval)
                                 print msg
-                        	tjobinfo['target_status'] = pfwdefs.PF_EXIT_FAILURE
+                                tjobinfo['status'] = pfwdefs.PF_EXIT_FAILURE
                                 if dbh:
-                                    dbh.insert_message(config, 'job', pfwdb.PFW_MSG_ERROR, msg, config['blknum'], jobnum)
-    return tjobinfo
+                                    dbh.insert_message(config['task_id']['job'][jobnum], pfwdb.PFW_MSG_ERROR, msg)
+    return (tjobinfo, tjobinfo_task)
 
 
 
@@ -127,7 +131,7 @@ def jobpost(argv = None):
     coremisc.fwdebug(3, 'PFWPOST_DEBUG', "before get_filename")
     blockname = config['blockname']
     blkdir = config['block_dir']
-    tjpad = "%04d" % int(jobnum)
+    tjpad = pfwutils.pad_jobnum(jobnum)
 
     os.chdir("%s/%s" % (blkdir,tjpad))
     new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: 
@@ -149,12 +153,11 @@ def jobpost(argv = None):
     if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
 
+        (tjobinfo, tjobinfo_task) = parse_job_output(config, jobnum, dbh)
 
-    tjobinfo = parse_job_output(config, jobnum, dbh)
-
-    if dbh and len(tjobinfo) > 0:
-        print "tjobinfo: ", tjobinfo
-        dbh.update_job_info(config, jobnum, tjobinfo)
+        if dbh and len(tjobinfo) > 0:
+            print "tjobinfo: ", tjobinfo
+            dbh.update_tjob_info(config, jobnum, tjobinfo, tjobinfo_task)
 
         logfilename = 'runjob.log'
         if os.path.exists(logfilename):   # if made it to submitting/running jobs
@@ -169,12 +172,12 @@ def jobpost(argv = None):
                         if ck in cjobinfo[j]:
                             djobinfo[dk] = cjobinfo[j][ck]
                     print djobinfo
-                    dbh.update_job_info(config, int(cjobinfo[j]['jobname']), djobinfo)
+                    dbh.update_job_info(config, cjobinfo[j]['jobname'], djobinfo)
             except Exception as e:
                 (extype, value, trback) = sys.exc_info()
                 traceback.print_exception(extype, value, trback, file=sys.stdout)
-    
-    
+        
+        
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])
 
 
@@ -195,18 +198,18 @@ def jobpost(argv = None):
             msg = "Warn: outputwcl tarball (%s) is 0 bytes." % outputtar
             print msg
             if dbh:
-                  dbh.insert_message(config, 'job', pfwdb.PFW_MSG_WARN, msg, config['blknum'], jobnum)
+                dbh.insert_message(config['task_id']['job'][jobnum], pfwdb.PFW_MSG_WARN, msg)
     else:
         msg = "Warn: outputwcl tarball (%s) does not exist." % outputtar
         print msg
         if dbh:
-              dbh.insert_message(config, 'job', pfwdb.PFW_MSG_WARN, msg, config['blknum'], jobnum)
+            dbh.insert_message(config['task_id']['job'][jobnum], pfwdb.PFW_MSG_WARN, msg)
 
 
     if retval != pfwdefs.PF_EXIT_SUCCESS:
         coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Setting failure retval")
         retval = pfwdefs.PF_EXIT_FAILURE     
-    
+        
     coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
     coremisc.fwdebug(0, 'PFWPOST_DEBUG', "jobpost done")
     debugfh.close()

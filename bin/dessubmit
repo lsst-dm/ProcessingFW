@@ -110,7 +110,8 @@ def main(args):
                 print 'Inserting run into PFW tables...',
                 import processingfw.pfwdb as pfwdb   # import late 
                 dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-                dbh.insert_run(config)
+                dbh.insert_run(config) 
+                dbh.insert_attempt_val(config)
                 dbh.insert_attempt_label(config)
                 print 'DONE'
             elif ATTNUM not in config:

@@ -580,6 +580,11 @@ def add_file_metadata(config, modname):
                     if m:
                         fname = m.group(1)
                         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "Working on file " + fname)
+                        if fname not in moddict[pfwdefs.SW_FILESECT]:
+                            msg = "Error: file %s listed in %s, but not defined in %s section" % \
+                                (fname, pfwdefs.SW_OUTPUTS, pfwdefs.SW_FILESECT)
+                            coremisc.fwdie(msg, pfwdefs.PF_EXIT_FAILURE)
+
                         fdict = moddict[pfwdefs.SW_FILESECT][fname]
                         filetype = fdict['filetype'].lower()
                         wclsect = "%s.%s" % (pfwdefs.IW_FILESECT, fname)
@@ -587,6 +592,12 @@ def add_file_metadata(config, modname):
                         print "len(config[FILE_HEADER_INFO]) =", len(config['FILE_HEADER_INFO'])
                         meta_specs = metautils.get_metadata_specs(filetype, config['FILETYPE_METADATA'], config['FILE_HEADER'], 
                                                         wclsect, updatefits=True)
+
+                        if meta_specs == None:
+                            msg = "Error: Could not find metadata specs for filetype '%s'" % filetype
+                            print msg
+                            print "Minimum metadata specs for a filetype are defs for filetype and filename." 
+                            coremisc.fwdie("Aborting", pfwdefs.PF_EXIT_FAILURE)
                         coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "meta_specs = %s" % meta_specs)
                         coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "fdict = %s" % fdict)
                         fdict.update(meta_specs)
@@ -687,7 +698,7 @@ def write_jobwcl(config, jobkey, jobdict):
               'envfile': jobdict['envfile'],
               'junktar': config.get_filename('junktar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}}),
               'junktar_archive_path': config.get_filepath('ops', 'junktar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}}),
-              'runjob_task_id': jobdict['runjob_task_id']
+              'task_id': {'job':{jobdict['jobnum']: config['task_id']['job'][jobdict['jobnum']]}}
             }
 
     if pfwdefs.CREATE_JUNK_TARBALL in config and coremisc.convertBool(config[pfwdefs.CREATE_JUNK_TARBALL]):
@@ -775,7 +786,7 @@ def write_jobwcl(config, jobkey, jobdict):
 
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "jobwcl.keys() = %s" % jobwcl.keys())
    
-    tjpad = "%04d" % (int(jobdict['jobnum']))
+    tjpad = pfwutils.pad_jobnum(jobdict['jobnum'])
     coremisc.coremakedirs(tjpad)
     with open("%s/%s" % (tjpad, jobdict['jobwclfile']), 'w') as wclfh:
         wclutils.write_wcl(jobwcl, wclfh, True, 4)
@@ -1457,8 +1468,22 @@ source %(eups)s
 echo "Using eups to setup up %(pipe)s %(ver)s"
 d1=`/bin/date "+%%s"` 
 echo "PFW: eups_setup starttime: $d1" 
-setup --nolock %(pipe)s %(ver)s
-mystat=$?
+cnt=0
+maxtries=3
+mydelay=300
+mystat=1
+while [ $mystat -ne 0 -a $cnt -lt $maxtries ]; do
+    setup --nolock %(pipe)s %(ver)s
+    mystat=$?
+    if [ $mystat -ne 0 ]; then
+        echo "Error: eups setup had non-zero exit code ($mystat)"
+        if [ $cnt -lt $maxtries ]; then
+            echo "Sleeping then retrying..."
+            sleep $mydelay
+        fi
+    fi
+    let cnt=cnt+1
+done
 d2=`/bin/date "+%%s"` 
 echo "PFW: eups_setup endtime: $d2" 
 if [ $mystat != 0 ]; then
@@ -1588,7 +1613,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
     with open("%s/%s" % (blkdir, dagfile), 'w') as dagfh:
         for jobkey,jobdict in joblist.items(): 
             jobnum = jobdict['jobnum']
-            tjpad = "%04d" % (int(jobnum))
+            tjpad = pfwutils.pad_jobnum(jobnum)
 
             dagfh.write('JOB %s %s\n' % (tjpad, condorfile))
             dagfh.write('VARS %s jobnum="%s"\n' % (tjpad, tjpad))
@@ -1607,7 +1632,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
 def tar_inputfiles(config, jobnum, inlist):
     """ Tar the input wcl files for a single job """
     inputtar = config.get_filename('inputwcltar', {pfwdefs.PF_CURRVALS:{'jobnum': jobnum}})
-    tjpad = "%04d" % (int(jobnum))
+    tjpad = pfwutils.pad_jobnum(jobnum)
     coremisc.coremakedirs(tjpad)
     
     pfwutils.tar_list("%s/%s" % (tjpad, inputtar), inlist)

@@ -54,6 +54,7 @@ DIRPATSECT = 'directory_pattern'
 
 
 SW_LABEL = 'label'
+SW_SAVE_RUN_VALS = 'save_run_vals'
 SW_JOB_ENVIRONMENT = 'job_environment'
 SW_DIVIDE_JOBS_BY = 'divide_jobs_by'
 SW_INPUTS = USED
@@ -79,6 +80,8 @@ SW_WRAPPER_DEBUG = 'wrapper_debug'
 SW_OUTPUT_OPTIONAL = 'optional'
 
 SW_JOB_BASE_DIR = 'jobroot'   # must match column name in ops_site
+
+EXEC_TASK_ID = 'exec_task_id'
 
 
 IW_INPUTS = USED

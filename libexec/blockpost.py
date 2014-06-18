@@ -89,6 +89,8 @@ def blockpost(argv = None):
             wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
             dbh.close()
 
+            print "len(jobinfo) = ", len(jobinfo)
+            print "len(wrapinfo) = ", len(wrapinfo)
             job_byblk = pfwutils.index_job_info(jobinfo)
             #print "job_byblk:", job_byblk
             wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
@@ -101,8 +103,8 @@ def blockpost(argv = None):
                     jobkeys = jobdict['jobkeys']
                     #print "jobkeys = ",jobkeys, type(jobkeys)
 
-		if jobdict['target_status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
-                    msg2 += "\t%04d (%s)" % (jobnum, jobkeys)
+                if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
+                    msg2 += "\t%s (%s)" % (pfwutils.pad_jobnum(jobnum), jobkeys)
                     msg2 += " FAIL - EUPS setup failure"
                     retval = pfwdefs.PF_EXIT_FAILURE
 
@@ -116,12 +118,15 @@ def blockpost(argv = None):
                 #print "modname =", modname
 
                 #print "wrap_byjob[jobnum][maxwrap]['id']=",wrap_byjob[jobnum][maxwrap]['id']
-                msg2 += "\t%04d %d/%s  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['expect_num_wrap'], modname, jobkeys)
-                if jobdict['target_status'] is None:
+                msg2 += "\t%s %d/%s  %s (%s)" % (pfwutils.pad_jobnum(jobnum), 
+                                                 len(wrap_byjob[jobnum]), 
+                                                 jobdict['expect_num_wrap'], 
+                                                 modname, jobkeys)
+                if jobdict['status'] is None:
                     msg2 += " FAIL - NULL status"
                     lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
                     retval = pfwdefs.PF_EXIT_FAILURE
-                elif jobdict['target_status'] != pfwdefs.PF_EXIT_SUCCESS:
+                elif jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
                     lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
                     msg2 += " FAIL"
                     retval = pfwdefs.PF_EXIT_FAILURE
@@ -146,12 +151,12 @@ def blockpost(argv = None):
 
                 MAXMESG = 3
                 msg2 += "\n\n\nDetails\n"
-                for jobnum in sorted(job_byblk[blknum].keys()):
+                for jobnum,jobdict in sorted(job_byblk[blknum].items()):
                     maxwrap = max(wrap_byjob[jobnum].keys())
                     maxwrapid = wrap_byjob[jobnum][maxwrap]['id']
                     modname = wrap_byjob[jobnum][maxwrap]['modname']
                     if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                        msg2 += "\t%04d %s\n" % (jobnum, modname)
+                        msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobnum), modname)
                         if maxwrapid in wrapmsg:
                             if len(wrapmsg[maxwrapid]) > MAXMESG:
                                 msg2 += "\t\tOnly printing last %d messages\n" % MAXMESG
@@ -169,7 +174,7 @@ def blockpost(argv = None):
                 (extype, value, trback) = sys.exc_info()
                 traceback.print_exception(extype, value, trback, file=sys.stdout)
 
-    print "retval =", retval
+    print "before email retval =", retval
     
     if retval:
         if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
@@ -205,8 +210,13 @@ def blockpost(argv = None):
     dbh = None
     if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        dbh.update_block_end(config, retval)
+        print "Updating end of block task", config['task_id']['block'][str(blknum)]
+        dbh.end_task(config['task_id']['block'][str(blknum)], retval)
+        if retval != pfwdefs.PF_EXIT_SUCCESS:
+            print "Updating end of attempt", config['task_id']['attempt']
+            dbh.end_task(config['task_id']['attempt'], retval, True)
 
+    print "before next block retval = ", retval
     if retval == pfwdefs.PF_EXIT_SUCCESS:
         # Get ready for next block
         config.inc_blknum()
@@ -216,15 +226,16 @@ def blockpost(argv = None):
     else:
         retval = pfwdefs.PF_EXIT_FAILURE
 
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
-        if config[pfwdefs.PF_BLKNUM] > len(config.block_array):
-            coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
-            dbh.update_attempt_end(config, retval)
-        else:
-            coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Not calling update_attempt_end: use_db_out = %s, retval = %s" % (config[pfwdefs.PF_USE_DB_OUT], retval))
-
-        dbh.commit()
-        dbh.close()
+    # Moved to endrun.py
+    #if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    #    if config[pfwdefs.PF_BLKNUM] > len(config.block_array):
+    #        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
+    #        dbh.update_attempt_end(config, retval)
+    #    else:
+    #        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Not calling update_attempt_end: use_db_out = %s, retval = %s" % (config[pfwdefs.PF_USE_DB_OUT], retval))
+    #
+    #    dbh.commit()
+    #    dbh.close()
     
     coremisc.fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s (%s)" % (retval, type(retval)))
     coremisc.fwdebug(0, 'PFWPOST_DEBUG', "END")

@@ -53,7 +53,7 @@ def print_job_info(run):
     """    """
     
 
-    m = re.search("([^_]+)_r([^p]+)p([^_]+)", run)
+    m = re.search("([\S]+)_r([^p]+)p([^_]+)", run)
     if m is None:
         print "Error:  cannot parse run", run
         sys.exit(1)

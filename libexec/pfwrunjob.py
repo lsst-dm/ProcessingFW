@@ -348,8 +348,11 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
         pfw_file_metadata = {}
         for llabel, ldict in wcl[pfwdefs.IW_LISTSECT].items():
             cnt += 1
-            pfw_file_metadata['file_%d' % (cnt)] = {'filename': coremisc.parse_fullname(ldict['fullname'], coremisc.CU_PARSE_FILENAME),
+            pfw_file_metadata['file_%d' % (cnt)] = {'filename': coremisc.parse_fullname(ldict['fullname'], 
+                                                                              coremisc.CU_PARSE_FILENAME),
                                                     'filetype': 'list'}
+            # add to list of input files so don't go into junk tarball
+            wcl['infullnames'].append(ldict['fullname'])   
 
         ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'lists', wcl['task_id']['jobwrapper'])
 

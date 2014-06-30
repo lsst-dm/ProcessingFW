@@ -454,7 +454,7 @@ class PfwConfig:
                         if 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
                     elif len(parts) > 1:
-                        newval = prpat % int(newval)
+                        newval = prpat % int(self.interpolate(newval, opts))
                 else:
                     newval = ""
                 print "val = %s" % newval
@@ -483,7 +483,7 @@ class PfwConfig:
                         fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
                     elif len(parts) > 1:
                         try:
-                            newval = prpat % int(newval)
+                            newval = prpat % int(self.interpolate(newval, opts))
                         except ValueError as err:
                             print str(err)
                             print "prpat =", prpat

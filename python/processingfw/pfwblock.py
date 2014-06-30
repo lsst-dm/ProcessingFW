@@ -39,7 +39,7 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
                                                  'interpolate': True,
                                                  'expand': True})
 
-    coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "\tpath = %s" % path)
+    coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "\tpath = %s" % path)
 
     #filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
     #                                      'searchobj': finfo,
@@ -56,6 +56,7 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
     else:
         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "Adding path to filename for %s" % filename)
         fullname = ["%s/%s" % (path, filename)]
+    coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "END fullname = %s" % fullname)
     return fullname
 
 
@@ -73,7 +74,8 @@ def create_simple_list(config, lname, ldict, currvals):
                             {pfwdefs.PF_CURRVALS: currvals, 
                              'searchobj': ldict, 
                              'required': True, 
-                             'interpolate': True})[1]
+                             'expand': True,
+                             'interpolate': False})
 
 
     if type(filename) is list:
@@ -266,11 +268,8 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
         elif fname in theoutputs:
             winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = moddict[pfwdefs.SW_FILESECT][fname]['fullname']
     else:
-        print "finfo = ", finfo
-        print "winst = ", winst
         sobj = copy.deepcopy(finfo)
         sobj.update(winst)
-        print "sobj = ", sobj
         if 'filename' in moddict[pfwdefs.SW_FILESECT][fname]:
             winst[pfwdefs.IW_FILESECT][fname]['filename'] = config.search('filename', {pfwdefs.PF_CURRVALS: currvals, 
                                                                           'searchobj': moddict[pfwdefs.SW_FILESECT][fname], 
@@ -281,10 +280,8 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
             coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "creating filename for %s" % fname) 
             winst[pfwdefs.IW_FILESECT][fname]['filename'] = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals, 
                                                                 'searchobj': sobj,
-                                                                'expand': True}) 
-
-        print "fname = ", fname
-        print "filename = ", winst[pfwdefs.IW_FILESECT][fname]['filename']
+                                                                'expand': True,
+                                                                'interpolate': True}) 
 
         # Add runtime path to filename
         fullname = add_runtime_path(config, currvals, fname, sobj, winst[pfwdefs.IW_FILESECT][fname]['filename'])

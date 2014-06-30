@@ -675,7 +675,7 @@ class PfwConfig:
             filenamepat = self.config[SW_FILEPATSECT][filepat]
         else:
             print SW_FILEPATSECT, " keys: ", self.config[SW_FILEPATSECT].keys()
-            fwdie("Error: Could not find filename pattern for %s" % filepat, PF_EXIT_FAILURE)
+            fwdie("Error: Could not find filename pattern for %s" % filepat, PF_EXIT_FAILURE, 2)
 
         if searchopts is not None:
             searchopts['required'] = origreq

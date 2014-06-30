@@ -28,10 +28,12 @@ import processingfw.pfwfilelist as pfwfilelist
 from processingfw.pfwwrappers import write_wrapper_wcl
 
 #######################################################################
-def add_runtime_path(config, currvals, fname, finfo):
+def add_runtime_path(config, currvals, fname, finfo, filename):
     """ Add runtime path to filename """
 
-    coremisc.fwdebug(3,"PFWBLOCK_DEBUG", "creating path for %s" % fname)
+    coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "creating path for %s" % fname)
+    coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "finfo = %s" % finfo)
+
     path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: currvals, 
                                                  'searchobj': finfo,
                                                  'interpolate': True,
@@ -39,10 +41,11 @@ def add_runtime_path(config, currvals, fname, finfo):
 
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "\tpath = %s" % path)
 
-    filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
-                                          'searchobj': finfo,
-                                          'interpolate': True,
-                                          'expand': True})
+    #filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
+    #                                      'searchobj': finfo,
+    #                                      'interpolate': True,
+    #                                      'expand': True})
+
     fullname = None
     if type(filename) is list:
         fullname = []
@@ -108,7 +111,12 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
     fname = filesects.keys()[0]
     finfo = moddict[pfwdefs.SW_FILESECT][fname]
 
-    fullname_list = add_runtime_path(config, currvals, fname, finfo)
+    filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
+                                          'searchobj': finfo,
+                                          'interpolate': True,
+                                          'expand': True})
+
+    fullname_list = add_runtime_path(config, currvals, fname, finfo, filename)
     
 
     # convert to same format as if read from file created by query
@@ -258,6 +266,11 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
         elif fname in theoutputs:
             winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = moddict[pfwdefs.SW_FILESECT][fname]['fullname']
     else:
+        print "finfo = ", finfo
+        print "winst = ", winst
+        sobj = copy.deepcopy(finfo)
+        sobj.update(winst)
+        print "sobj = ", sobj
         if 'filename' in moddict[pfwdefs.SW_FILESECT][fname]:
             winst[pfwdefs.IW_FILESECT][fname]['filename'] = config.search('filename', {pfwdefs.PF_CURRVALS: currvals, 
                                                                           'searchobj': moddict[pfwdefs.SW_FILESECT][fname], 
@@ -266,31 +279,32 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
                                                                           'interpolate':True})[1]
         else:
             coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "creating filename for %s" % fname) 
-            sobj = copy.deepcopy(finfo)
-            sobj.update(winst)
             winst[pfwdefs.IW_FILESECT][fname]['filename'] = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals, 
                                                                 'searchobj': sobj,
                                                                 'expand': True}) 
 
+        print "fname = ", fname
+        print "filename = ", winst[pfwdefs.IW_FILESECT][fname]['filename']
+
         # Add runtime path to filename
-        fullname = add_runtime_path(config, currvals, fname, sobj)
+        fullname = add_runtime_path(config, currvals, fname, sobj, winst[pfwdefs.IW_FILESECT][fname]['filename'])
         if fname in theinputs[pfwdefs.SW_FILESECT]:
             for f in fullname:
-                winst['wrapinputs'][len(winst['wrapinputs'])+1] = fullname
+                winst['wrapinputs'][len(winst['wrapinputs'])+1] = f
         elif fname in theoutputs:
             for f in fullname:
-                winst['wrapoutputs'][len(winst['wrapinputs'])+1] = fullname
+                winst['wrapoutputs'][len(winst['wrapinputs'])+1] = f
 
         winst[pfwdefs.IW_FILESECT][fname]['fullname'] = ','.join(fullname)
         del winst[pfwdefs.IW_FILESECT][fname]['filename']
 
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = %s %s" % (is_iter_obj, finfo))
-    if finfo is not None and is_iter_obj:
-        coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = true")
-        for key,val in finfo.items():
-            if key not in ['fullname','filename']:
-                coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
-                winst[key] = val
+    #if finfo is not None and is_iter_obj:
+    #    coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = true")
+    #    for key,val in finfo.items():
+    #        if key not in ['fullname','filename','dirpat','filetype']:
+    #            coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
+    #            winst[key] = val
         
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "END: Done working on file %s" % fname)
 

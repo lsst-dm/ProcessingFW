@@ -77,6 +77,8 @@ def create_simple_list(config, lname, ldict, currvals):
                              'expand': True,
                              'interpolate': False})
 
+    search_wcl_for_variables(wcl)
+
 
     if type(filename) is list:
         listcontents = '\n'.join(filename)
@@ -104,31 +106,58 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
         for c in columns:
             filesects[c.split('.')[0]] = True
 
-    print filesects, "\n";
-
-
     if len(filesects) > 1:
         coremisc.fwdie('The framework currently does not support multiple file-column lists without query')
 
     fname = filesects.keys()[0]
     finfo = moddict[pfwdefs.SW_FILESECT][fname]
 
-    filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
+    #filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
+    #                                      'searchobj': finfo,
+    #                                      'interpolate': False,
+    #                                      'expand': False})
+
+    searchopts = {pfwdefs.PF_CURRVALS: currvals, 'searchobj': finfo, 'interpolate': False, 'expand': False}
+
+    # first check for filename pattern override
+    (found, filenamepat) = config.search('filename', searchopts)
+    if not found:
+        # get filename pattern from global settings:
+        (found, filepat) = config.search(pfwdefs.SW_FILEPAT, searchopts)
+
+    if not found:
+        fwdie("Error: Could not find file pattern %s" % pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE)
+
+    if pfwdefs.SW_FILEPATSECT not in config:
+        wclutils.write_wcl(config)
+        fwdie("Error: Could not find filename pattern section (%s)" % pfwdefs.SW_FILEPATSECT, pfwdefs.PF_EXIT_FAILURE)
+    elif filepat in config[pfwdefs.SW_FILEPATSECT]:
+        filenamepat = config[pfwdefs.SW_FILEPATSECT][filepat]
+    else:
+        print pfwdefs.SW_FILEPATSECT, " keys: ", config[pfwdefs.SW_FILEPATSECT].keys()
+        fwdie("Error: Could not find filename pattern for %s" % filepat, pfwdefs.PF_EXIT_FAILURE, 2)
+
+    # get list of pairs (filename, filedict) by expanding variables in the filename pattern
+    filepairs = config.interpolateKeep(filenamepat, {pfwdefs.PF_CURRVALS: currvals,
                                           'searchobj': finfo,
                                           'interpolate': True,
                                           'expand': True})
 
-    fullname_list = add_runtime_path(config, currvals, fname, finfo, filename)
-    
-
     # convert to same format as if read from file created by query
     filelist_wcl = None
-    if len(fullname_list) > 0:   
+    if len(filepairs) > 0:   
         filedict_list = []
-        for name in fullname_list:
-            filedict_list.append({'fullname':name})
+        for pair in filepairs:
+            file1 = pair[1]
+            file1['filename'] = pair[0]
+    
+            # merge particular file information with file definition
+            sinfo = copy.deepcopy(finfo)
+            sinfo.update(file1)   
+
+            file1['fullname'] = add_runtime_path(config, currvals, fname, sinfo, pair[0])[0]
+            filedict_list.append(file1)
         filelist_wcl = pfwfilelist.convert_single_files_to_lines(filedict_list)
-    print filelist_wcl
     coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "END")
     return filelist_wcl
 
@@ -345,7 +374,6 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
 
     if sublist is not None:
         for llabel,lldict in sublist['list'][pfwdefs.PF_LISTENTRY].items():
-            print lldict
             for flabel,fdict in lldict['file'].items():
                 winst['wrapinputs'][len(winst['wrapinputs'])+1] = fdict['fullname']
         output_list(config, winst[pfwdefs.IW_LISTSECT][lname]['fullname'], sublist, lname, ldict, currvals)
@@ -446,8 +474,14 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "columns = %s" % columns)
     
 
+    lines = sublist['list'][pfwdefs.PF_LISTENTRY].values()
+    if 'sortkey' in ldict and ldict['sortkey'] is not None:
+        sortkey = ldict['sortkey'].lower()
+        lines = sorted(lines, key=lambda k: get_value_from_line(k, sortkey, None, 1)) 
+        
+
     with open(listname, "w") as listfh:
-        for linenick, linedict in sublist['list'][pfwdefs.PF_LISTENTRY].items():
+        for linedict in lines:
             output_line(listfh, linedict, format, coremisc.fwsplit(columns))
     coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
 

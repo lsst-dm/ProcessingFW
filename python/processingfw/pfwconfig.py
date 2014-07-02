@@ -811,6 +811,157 @@ class PfwConfig:
                     fwdie("Error:  Config does not contain value for %s" % v, PF_EXIT_FAILURE, 2)
 
         return info
+
+    def interpolateKeep(self, value, opts=None):
+        """ Replace variables in given value """
+        fwdebug(5, 'PFWCONFIG_DEBUG', "BEG")
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
+
+        keep = {}
+
+        maxtries = 1000    # avoid infinite loop
+        count = 0
+        done = False
+        while not done and count < maxtries:
+            done = True
+    
+            m = re.search("(?i)\$opt\{([^}]+)\}", value)
+            while m and count < maxtries:
+                count += 1
+                var = m.group(1)
+                print "opt var=",var
+                parts = var.split(':')
+                newvar = parts[0]
+                if len(parts) > 1:
+                    prpat = "%%0%dd" % int(parts[1])
+                (haskey, newval) = self.search(newvar, opts)
+                print "opt: type(newval):", newvar, type(newval) 
+                if haskey:
+                    if '(' in newval or ',' in newval: 
+                        if 'expand' in opts and opts['expand']:
+                            newval = '$LOOP{%s}' % var   # postpone for later expanding
+                    elif len(parts) > 1:
+                        newval = prpat % int(self.interpolate(newval, opts))
+                        keep[newvar] = newval
+                    else:
+                        keep[newvar] = newval
+                else:
+                    newval = ""
+                print "val = %s" % newval
+                value = re.sub("(?i)\$opt{%s}" % var, newval, value)
+                print value
+                done = False
+                m = re.search("(?i)\$opt\{([^}]+)\}", value)
+
+            m = re.search("(?i)\$\{([^}]+)\}", value)
+            while m and count < maxtries:
+                count += 1
+                var = m.group(1)
+                parts = var.split(':')
+                newvar = parts[0]
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
+                if len(parts) > 1:
+                    prpat = "%%0%dd" % int(parts[1])
+                (haskey, newval) = self.search(newvar, opts)
+                fwdebug(6, 'PFWCONFIG_DEBUG', 
+                      "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
+                if haskey:
+                    newval = str(newval)
+                    if '(' in newval or ',' in newval:
+                        if opts is not None and 'expand' in opts and opts['expand']:
+                            newval = '$LOOP{%s}' % var   # postpone for later expanding
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
+                    elif len(parts) > 1:
+                        try:
+                            newval = prpat % int(self.interpolate(newval, opts))
+                            keep[newvar] = newval
+                        except ValueError as err:
+                            print str(err)
+                            print "prpat =", prpat
+                            print "newval =", newval
+                            raise err
+                    else:
+                        keep[newvar] = newval
+
+                    value = re.sub("(?i)\${%s}" % var, newval, value)
+                    done = False
+                else:
+                    fwdie("Error: Could not find value for %s" % newvar, PF_EXIT_FAILURE)
+                m = re.search("(?i)\$\{([^}]+)\}", value)
+
+        print "keep = ", keep
+
+        valpair = (value, keep)
+        valuedone = []
+        if '$LOOP' in value:
+            if opts is not None:
+                opts['required'] = True
+                opts['interpolate'] = False
+            else:
+                opts = {'required': True, 'interpolate': False}
+
+            looptodo = [ valpair ]
+            while len(looptodo) > 0 and count < maxtries:
+                count += 1
+                fwdebug(6, 'PFWCONFIG_DEBUG',
+                        "todo loop: before pop number in looptodo = %s" % len(looptodo))
+                valpair = looptodo.pop() 
+                fwdebug(6, 'PFWCONFIG_DEBUG',
+                        "todo loop: after pop number in looptodo = %s" % len(looptodo))
+
+                fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % valpair[0])
+                m = re.search("(?i)\$LOOP\{([^}]+)\}", valpair[0])
+                var = m.group(1)
+                parts = var.split(':')
+                newvar = parts[0]
+                if len(parts) > 1:
+                    prpat = "%%0%dd" % int(parts[1])
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: newvar= %s" % newvar)
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: opts= %s" % opts)
+                (haskey, newval) = self.search(newvar, opts)
+                if haskey:
+                    fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search results: newva1= %s" % newval)
+                    newvalarr = fwsplit(newval) 
+                    for nv in newvalarr:
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv: nv=%s" % nv)
+                        if len(parts) > 1:
+                            try:
+                                nv = prpat % int(nv)
+                            except ValueError as err:
+                                print str(err)
+                                print "prpat =", prpat
+                                print "nv =", nv
+                                raise err
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
+                        valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, value)
+                        keep = copy.deepcopy(valpair[1])
+                        keep[newvar] = nv
+                        fwdebug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
+                        if '$LOOP{' in valsub:
+                            fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
+                            looptodo.append((valsub, keep))
+                        else:
+                            valuedone.append((valsub, keep))
+                            fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
+                fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
+            fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
+    
+        if count >= maxtries:
+            fwdie("Error: Interpolate function aborting from infinite loop\n. Current string: '%s'" % value, PF_EXIT_FAILURE)
+    
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
+        fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
+        fwdebug(5, 'PFWCONFIG_DEBUG', "END")
+
+        if len(valuedone) > 1:
+            return valuedone
+        elif len(valuedone) == 1:
+            return valuedone[0]
+        else:
+            return valpair
         
 
 

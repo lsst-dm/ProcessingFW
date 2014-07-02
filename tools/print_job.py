@@ -6,7 +6,8 @@
 
 import coreutils
 import processingfw.pfwdb as pfwdb
-from processingfw.pfwutils import *
+#from processingfw.pfwutils import *
+import processingfw.pfwutils as pfwutils
 import re
 import sys
 
@@ -79,7 +80,7 @@ def print_job_info(run):
     # get job info
     jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname':unitname, 'attnum':attnum})
     # index jobinfo by blknum
-    job_byblk = index_job_info(jobinfo)
+    job_byblk = pfwutils.index_job_info(jobinfo)
 
     #print job_byblk.keys()
     #for b in job_byblk.keys():
@@ -88,7 +89,7 @@ def print_job_info(run):
 
     # get wrapper instance information
     wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum)
-    wrap_byjob, wrap_bymod = index_wrapper_info(wrapinfo)
+    wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
     verbose = 3
 

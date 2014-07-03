@@ -75,11 +75,13 @@ def begblock(argv):
         coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - BEG")
         for jobkey,jobdict in sorted(joblist.items()):
             jobdict['jobnum'] = pfwutils.pad_jobnum(config.inc_jobnum())
+            jobdict['jobkeys'] = jobkey
+            jobdict['numexpwrap'] = len(jobdict['tasks'])
             coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
             jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])
             jobdict['inputwcltar'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'], jobdict['inlist'])
             if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
-                dbh.insert_job(config, jobdict['jobnum'])
+                dbh.insert_job(config, jobdict)
             #(jobdict['jobwclfile'], jobdict['outputwcltar'], jobdict['envfile']) = pfwblock.write_jobwcl(config, jobkey, jobdict['jobnum'], len(jobdict['tasks']), jobdict['wrapinputs'])
             pfwblock.write_jobwcl(config, jobkey, jobdict)
         coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - END")

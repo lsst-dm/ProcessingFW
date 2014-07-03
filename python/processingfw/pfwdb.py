@@ -370,7 +370,7 @@ class PFWDB (desdbi.DesDbi):
 
         
     ##### JOB #####
-    def insert_job (self, wcl, jobnum):
+    def insert_job (self, wcl, jobdict):
         """ Insert an entry into the pfw_job table """
         coremisc.fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
 
@@ -379,15 +379,15 @@ class PFWDB (desdbi.DesDbi):
         row['unitname'] = wcl[pfwdefs.UNITNAME]
         row['attnum'] = wcl[pfwdefs.ATTNUM]
         row['blknum'] = wcl[pfwdefs.PF_BLKNUM]
-        row['jobnum'] = int(jobnum)
-        row['expect_num_wrap'] = wcl['numexpwrap']
+        row['jobnum'] = int(jobdict['jobnum'])
+        row['expect_num_wrap'] = jobdict['numexpwrap']
         row['pipeprod'] = wcl['pipeprod']
         row['pipever'] = wcl['pipever']
         row['task_id'] =  self.create_task('job', 'pfw_job', wcl['task_id']['block'][row['blknum']], None, False)
-        wcl['task_id']['job'][jobnum] = row['task_id']
+        wcl['task_id']['job'][jobdict['jobnum']] = row['task_id']
 
-        if 'jobkeys' in wcl:
-            row['jobkeys'] = wcl['jobkeys']
+        if 'jobkeys' in jobdict:
+            row['jobkeys'] = jobdict['jobkeys']
         self.insert_PFW_row('PFW_JOB', row)
             
 

@@ -28,17 +28,24 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
         print "\tNo jobs for this block"
     else:
         for jobnum,jobdict in job_byblk[blknum].items():
+            maxwrap = None
+            modname = None
             if jobnum not in wrap_byjob:
                 print "\t%s No wrapper instances" % pfwutils.pad_jobnum(jobnum)
-            #print "wrapnum in job =", wrap_byjob[jobnum].keys()
-            maxwrap = max(wrap_byjob[jobnum].keys())
-            modname = wrap_byjob[jobnum][maxwrap]['modname']    
+            else:
+                #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+                maxwrap = max(wrap_byjob[jobnum].keys())
+                modname = wrap_byjob[jobnum][maxwrap]['modname']    
             
             jobkeys = ""
             if jobdict['jobkeys'] is not None:
                 jobkeys = jobdict['jobkeys']
+
+            expnumwrap = 0
+            if 'expect_num_wrap' in jobdict and jobdict['expect_num_wrap'] is not None:
+                expnumwrap = jobdict['expect_num_wrap']
             
-            print "\t%s %d/%d  %s (%s)" % (pfwutils.pad_jobnum(jobnum), len(wrap_byjob[jobnum]), jobdict['numexpwrap'], modname, jobkeys),
+            print "\t%s %d/%d  %s (%s)" % (pfwutils.pad_jobnum(jobnum), len(wrap_byjob[jobnum]), expnumwrap, modname, jobkeys),
             if 'endtime' in jobdict and jobdict['endtime'] is not None:
                 if jobdict['status'] == 0:
                     print "done"

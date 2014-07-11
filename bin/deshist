@@ -222,7 +222,7 @@ def queryAttempt(dbh, colnames, argsdict):
         clause = "AND %s" % (' AND '.join(whereclauses))
         
         
-    sql = "select pfw_request.*,pfw_attempt.*,pfw_attempt_label.label from pfw_request, pfw_attempt, pfw_attempt_label where pfw_request.reqnum=pfw_attempt.reqnum and pfw_attempt_label.reqnum=pfw_attempt.reqnum and pfw_attempt_label.unitname=pfw_attempt.unitname and pfw_attempt_label.attnum=pfw_attempt.attnum %s" % (clause)
+    sql = "select r.*,a.*,t.*,l.label from pfw_request r, pfw_attempt a, task t, pfw_attempt_label l where r.reqnum=a.reqnum and l.reqnum=a.reqnum and l.unitname=a.unitname and l.attnum=a.attnum and t.id = a.task_id %s" % (clause)
     #print sql
     curs = dbh.cursor()
     curs.execute(sql)
@@ -233,6 +233,8 @@ def queryAttempt(dbh, colnames, argsdict):
         d = dict(zip(desc, line))
         key = '%s_%s_%s' % (d['unitname'], d['reqnum'], d['attnum'])
         attempts[key] = d
+
+    #print attempts
     return attempts
 
 
@@ -248,7 +250,7 @@ def queryDetails(dbh, attempts):
 
     # get block information
     curs = dbh.cursor()
-    sql = 'select pfw_block.* from pfw_block,gtt_attempt where pfw_block.reqnum = gtt_attempt.reqnum and pfw_block.unitname=gtt_attempt.unitname and pfw_block.attnum = gtt_attempt.attnum'
+    sql = 'select b.*, t.* from pfw_block b, task t,gtt_attempt where b.reqnum = gtt_attempt.reqnum and b.unitname=gtt_attempt.unitname and b.attnum = gtt_attempt.attnum and t.id = b.task_id'
     curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
     for line in curs:
@@ -261,7 +263,7 @@ def queryDetails(dbh, attempts):
 
     # get job information
     curs = dbh.cursor()
-    sql = 'select pfw_job.* from pfw_job,gtt_attempt where pfw_job.reqnum = gtt_attempt.reqnum and pfw_job.unitname=gtt_attempt.unitname and pfw_job.attnum = gtt_attempt.attnum'
+    sql = 'select j.*, t.* from pfw_job j, task t,gtt_attempt where j.reqnum = gtt_attempt.reqnum and j.unitname=gtt_attempt.unitname and j.attnum = gtt_attempt.attnum and t.id = j.task_id'
     curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
     for line in curs:
@@ -272,9 +274,10 @@ def queryDetails(dbh, attempts):
         attempts[attkey]['blocks'][d['blknum']]['job'][d['jobnum']] = d
     curs.close()
 
+    
     # get wrapper information
     curs = dbh.cursor()
-    sql = 'select pfw_wrapper.* from pfw_wrapper,gtt_attempt where pfw_wrapper.reqnum = gtt_attempt.reqnum and pfw_wrapper.unitname=gtt_attempt.unitname and pfw_wrapper.attnum = gtt_attempt.attnum'
+    sql = 'select w.*, t.* from pfw_wrapper w, task t,gtt_attempt where w.reqnum = gtt_attempt.reqnum and w.unitname=gtt_attempt.unitname and w.attnum = gtt_attempt.attnum and w.task_id=t.id'
     curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
     for line in curs:
@@ -336,15 +339,18 @@ def create_and_parse_args():
 
     colnames={}
     # get column names from pfw_attempt table to create command-line arguments
-    colnames['pfw_attempt'] = getColNames(dbh, 'pfw_attempt')
+    colnames['a'] = getColNames(dbh, 'pfw_attempt')
 
     # add unique columns from pfw_request table
-    colnames['pfw_request'] = getColNames(dbh, 'pfw_request')
+    colnames['r'] = getColNames(dbh, 'pfw_request')
     
     # add unique columns from pfw_request table
-    colnames['pfw_attempt_label'] = getColNames(dbh, 'pfw_attempt_label')
+    colnames['l'] = getColNames(dbh, 'pfw_attempt_label')
 
-    colargs = list(set(colnames['pfw_attempt'] + colnames['pfw_request'] + colnames['pfw_attempt_label'])) 
+    # add unique columns from pfw_request table
+    colnames['t'] = getColNames(dbh, 'task')
+
+    colargs = list(set(colnames['a'] + colnames['r'] + colnames['l'] + colnames['t'])) 
 
     # for time columns, going with date granularity so modify argument to match
     for col in colargs:

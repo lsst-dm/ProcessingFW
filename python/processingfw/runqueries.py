@@ -25,7 +25,6 @@ def create_master_list(config, modname, moddict,
         search_name, search_dict, search_type):
     fwdebug(0, "RUNQUERIES_DEBUG", "BEG")
 
-
     if 'qouttype' in search_dict:
         qouttype = search_dict['qouttype']
     else:
@@ -77,6 +76,7 @@ def create_master_list(config, modname, moddict,
                               'qoutfile':qoutfile}, 
                               'searchobj':search_dict})
 
+    
 
     # get version for query code
     query_version = None
@@ -91,13 +91,13 @@ def create_master_list(config, modname, moddict,
         datatype = 'F'
     else:
         datatype = search_type[0].upper()
-    
+
     # call code
-    queryid = None
+    query_tid = None
     if config[PF_USE_DB_OUT]:
         pfw_dbh = pfwdb.PFWDB()
-        queryid = pfw_dbh.insert_data_query(config, modname, datatype, search_name,
-                                       prog, args, query_version)
+        query_tid = pfw_dbh.insert_data_query(config, modname, datatype, search_name,
+                                              prog, args, query_version)
         pfw_dbh.close()
     
 
@@ -113,7 +113,7 @@ def create_master_list(config, modname, moddict,
     cmd = "%s %s" % (prog, args)
     exitcode = None
     try:
-        exitcode = run_cmd_qcf(cmd, qlog, queryid, os.path.basename(prog), 5000, config[PF_USE_QCF])
+        exitcode = run_cmd_qcf(cmd, qlog, query_tid, os.path.basename(prog), 5000, config[PF_USE_QCF])
     except:
         print "******************************"
         print "Error: "
@@ -126,11 +126,11 @@ def create_master_list(config, modname, moddict,
     sys.stdout.flush()
     if config[PF_USE_DB_OUT]:
         pfw_dbh = pfwdb.PFWDB()
-        pfw_dbh.update_data_query_end(queryid, exitcode)
+        pfw_dbh.end_task(query_tid, exitcode, True)
         pfw_dbh.close()
 
     if exitcode != 0:
-        fwdie("Error: problem creating master list\n%s" % (cmd), PF_EXIT_FAILURE)
+        raise Exception("Error: problem creating master list\n%s" % (cmd))
     
     fwdebug(0, "RUNQUERIES_DEBUG", "END")
 

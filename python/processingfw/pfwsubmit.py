@@ -57,7 +57,7 @@ def create_common_vars(config, jobname):
     
 
 ######################################################################
-def write_block_dag(config, debugfh=None):
+def write_block_dag(config, blkdir, blockname, debugfh=None):
     """  writes block dag file """
 
     if not debugfh:
@@ -65,18 +65,15 @@ def write_block_dag(config, debugfh=None):
     
     debugfh.write('write_block_dag pwd: %s\n' % os.getcwd())
 
-    block = config['blockname']
     pfwdir = config['processingfw_dir']
+    cwd = os.getcwd()
 
-#    if not os.path.exists('../%s' % block):
-#        os.mkdir('../%s' % block)
-#    os.chdir('../%s' % block)
+    coremakedirs(blkdir)
+    os.chdir(blkdir)
     print "curr dir = ", os.getcwd()
 
-
-    jobmngr = write_stub_jobmngr_dag(config, block, debugfh)
+    jobmngr = write_stub_jobmngr_dag(config, blockname, blkdir, debugfh)
     dag = config.get_filename('blockdag')
-
 
     dagfh = open(dag, 'w')
 
@@ -85,13 +82,13 @@ def write_block_dag(config, debugfh=None):
     dagfh.write('VARS begblock args="../uberctrl/config.des"\n')
     varstr = create_common_vars(config, 'begblock')
     dagfh.write('%s\n' % varstr)
-    dagfh.write('SCRIPT pre begblock %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, block))
-    dagfh.write('SCRIPT post begblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, block))  
+    dagfh.write('SCRIPT pre begblock %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, blockname))
+    dagfh.write('SCRIPT post begblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, blockname))  
 
     dagfh.write('\n')
     dagfh.write('JOB jobmngr %s.condor.sub\n' % jobmngr)
-    dagfh.write('SCRIPT pre jobmngr %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, block))
-    dagfh.write('SCRIPT post jobmngr %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, block))
+    dagfh.write('SCRIPT pre jobmngr %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, blockname))
+    dagfh.write('SCRIPT post jobmngr %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, blockname))
 
     dagfh.write('\n')
     dagfh.write('JOB endblock blocktask.condor\n')
@@ -99,19 +96,19 @@ def write_block_dag(config, debugfh=None):
     dagfh.write('VARS endblock args="../uberctrl/config.des"\n')
     varstr = create_common_vars(config, 'endblock')
     dagfh.write('%s\n' % varstr)
-    dagfh.write('SCRIPT pre endblock %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, block))
-    dagfh.write('SCRIPT post endblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, block))  
+    dagfh.write('SCRIPT pre endblock %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, blockname))
+    dagfh.write('SCRIPT post endblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, blockname))  
 
     dagfh.write('\nPARENT begblock CHILD jobmngr\n')
     dagfh.write('PARENT jobmngr CHILD endblock\n')
     dagfh.close()
-    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("blockmngr"), None, debugfh)
-#    os.chdir('../uberctrl')
+    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("blockmngr"), blkdir, debugfh)
+    os.chdir(cwd)
     return dag
 
 
 ######################################################################
-def write_stub_jobmngr_dag(config, block, debugfh=None):
+def write_stub_jobmngr_dag(config, block, blkdir, debugfh=None):
     """  writes stub jobmngr dag file to be overwritten during block """
 
     if not debugfh:
@@ -128,15 +125,14 @@ def write_stub_jobmngr_dag(config, block, debugfh=None):
     dagfh.write('SCRIPT post 0001 %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN' % (pfwdir, block))
     dagfh.close()
 
-#    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), "../%s" % block, debugfh)
-    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), None, debugfh)
+    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), blkdir, debugfh)
+    #pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), None, debugfh)
 
     os.unlink(dag)
     return dag
 
-
 ######################################################################
-def write_main_dag(config, maindag, blockdag):
+def write_main_dag(config, maindag):
     """ Writes main manager dag input file """
     pfwdir = config['processingfw_dir']
 
@@ -150,14 +146,20 @@ VARS begrun arguments="../uberctrl/config.des"
     varstr = create_common_vars(config, 'begrun')
     dagfh.write('%s\n' % varstr)
 
-    dagfh.write("""
-JOB blockmngr %s.condor.sub
-SCRIPT pre blockmngr %s/libexec/blockpre.py ../uberctrl/config.des 
-SCRIPT post blockmngr %s/libexec/blockpost.py ../uberctrl/config.des $RETURN
-RETRY blockmngr %s UNLESS-EXIT %s
-""" % (blockdag, pfwdir, pfwdir, config['num_blocks'], PF_EXIT_FAILURE))
-    varstr = create_common_vars(config, 'blockmngr')
-    dagfh.write('%s\n' % varstr)
+    blocklist = fwsplit(config[SW_BLOCKLIST].lower(),',')
+    for i in range(len(blocklist)):
+        blockname = blocklist[i] 
+        blockdir = "../B%02d-%s" % (i+1,blockname)
+        cjobname = "B%02d-%s" % (i+1,blockname)
+        blockdag = write_block_dag(config, blockdir, blockname)
+        dagfh.write("""
+JOB %(cjob)s %(bdir)s/%(bdag)s.condor.sub
+SCRIPT pre %(cjob)s %(pdir)s/libexec/blockpre.py ../uberctrl/config.des 
+SCRIPT post %(cjob)s %(pdir)s/libexec/blockpost.py ../uberctrl/config.des $RETURN
+
+""" % {'cjob':cjobname, 'bdir':blockdir, 'bdag':blockdag, 'pdir':pfwdir})
+        varstr = create_common_vars(config, cjobname)
+        dagfh.write('%s\n' % varstr)
 
     dagfh.write("""
 JOB endrun %s/share/condor/runtask.condor
@@ -167,11 +169,13 @@ VARS endrun arguments="../uberctrl/config.des"
     varstr = create_common_vars(config, 'endrun')
     dagfh.write('%s\n' % varstr)
 
-    dagfh.write("""
-PARENT begrun CHILD blockmngr
-PARENT blockmngr CHILD endrun
-""")
-
+    child = "B%02d-%s" % (1,blocklist[0])
+    dagfh.write("PARENT begrun CHILD %s\n" % child)
+    for i in range(1,len(blocklist)):
+        parent = child
+        child = "B%02d-%s" % (i+1,blocklist[i])
+        dagfh.write("PARENT %s CHILD %s\n" % (parent,child))
+    dagfh.write("PARENT %s CHILD endrun\n" % child)
 
     dagfh.close()
     pfwcondor.add2dag(maindag, config.get_dag_cmd_opts(), config.get_condor_attributes("mainmngr"), None, sys.stdout)

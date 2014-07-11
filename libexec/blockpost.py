@@ -6,10 +6,11 @@
 
 import sys
 import os
+import traceback
 
-from processingfw.pfwdefs import *
-from processingfw.pfwutils import *
-from coreutils.miscutils import *
+import processingfw.pfwdefs as pfwdefs
+import processingfw.pfwutils as pfwutils
+import coreutils.miscutils as coremisc
 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwcondor as pfwcondor
@@ -31,46 +32,48 @@ def blockpost(argv = None):
     if len(argv) != 3:
         print 'Usage: blockpost.py configfile retval'
         debugfh.close()
-        return(PF_EXIT_FAILURE)
+        return(pfwdefs.PF_EXIT_FAILURE)
 
     configfile = argv[1]
     retval = int(argv[2])
 
-    fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
-    fwdebug(0, 'PFWPOST_DEBUG', "retval = %s" % retval)
+    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "retval = %s" % retval)
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
+    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
     blockname = config['blockname']
+    blkdir = config['block_dir']
     
 
     # now that have more information, can rename output file
-    fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
-    new_log_name = config.get_filename('block', {PF_CURRVALS:
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
                                                   {'flabel': 'blockpost',
                                                    'fsuffix':'out'}})
-    new_log_name = "../%s/%s" % (blockname, new_log_name)
-    fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    new_log_name = "%s/%s" % (blkdir, new_log_name)
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
+    os.chmod('blockpost.out', 0666)
     os.rename('blockpost.out', new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    os.chdir("../%s" % blockname)
+    os.chdir(blkdir)
     
     log_pfw_event(config, blockname, 'blockpost', 'j', ['posttask', retval])
 
-    dryrun = config[PF_DRYRUN]
+    dryrun = config[pfwdefs.PF_DRYRUN]
     warningfile = config['warningfile']
     failedfile = config['failedfile']
     run = config['run']
-    reqnum = config.search(REQNUM, {'interpolate': True})[1]
-    unitname = config.search(UNITNAME, {'interpolate': True})[1]
-    attnum = config.search(ATTNUM, {'interpolate': True})[1]
-    blknum = int(config.search(PF_BLKNUM, {'interpolate': True})[1])
+    reqnum = config.search(pfwdefs.REQNUM, {'interpolate': True})[1]
+    unitname = config.search(pfwdefs.UNITNAME, {'interpolate': True})[1]
+    attnum = config.search(pfwdefs.ATTNUM, {'interpolate': True})[1]
+    blknum = int(config.search(pfwdefs.PF_BLKNUM, {'interpolate': True})[1])
 
     msg2 = ""
     dbh = None
@@ -78,104 +81,100 @@ def blockpost(argv = None):
     job_byblk = {}
     wrap_byjob = {}
     wrap_bymod = {}
-    if convertBool(config[PF_USE_DB_OUT]): 
-        logfilename = 'runjob.log'
-        if os.path.exists(logfilename):   # if made it to submitting/running jobs
-            try:
-                # update job info in DB from condor log
-                print "Updating job info in DB from condor log"
-                jobinfo = pfwcondor.parse_condor_user_log(logfilename)
-                dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-                for j in sorted(jobinfo.keys()):
-                    dbh.update_job_info(config, int(jobinfo[j]['jobname']), jobinfo[j])
-            except Exception as e:
-                (extype, value, traceback) = sys.exc_info()
-                print traceback
+    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+        try:
+            print "\n\nChecking job status from pfw_job table in DB (%s is success)" % pfwdefs.PF_EXIT_SUCCESS
+            dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+            jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
+            wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
+            dbh.close()
 
-            try:
-                print "\n\nChecking job status from pfw_job table in DB (%s is success)" % PF_EXIT_SUCCESS
-                dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-                jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
-                wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
-                dbh.close()
-    
-                job_byblk = index_job_info(jobinfo)
-                #print "job_byblk:", job_byblk
-                wrap_byjob, wrap_bymod = index_wrapper_info(wrapinfo)
-                #print "wrap_byjob:", wrap_byjob
-                #print "wrap_bymod:", wrap_bymod
+            print "len(jobinfo) = ", len(jobinfo)
+            print "len(wrapinfo) = ", len(wrapinfo)
+            job_byblk = pfwutils.index_job_info(jobinfo)
+            #print "job_byblk:", job_byblk
+            wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
+            #print "wrap_byjob:", wrap_byjob
+            #print "wrap_bymod:", wrap_bymod
 
+            for jobnum,jobdict in sorted(job_byblk[blknum].items()):
+                jobkeys = ""
+                if jobdict['jobkeys'] is not None:
+                    jobkeys = jobdict['jobkeys']
+                    #print "jobkeys = ",jobkeys, type(jobkeys)
+
+                if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
+                    msg2 += "\t%s (%s)" % (pfwutils.pad_jobnum(jobnum), jobkeys)
+                    msg2 += " FAIL - EUPS setup failure"
+                    retval = pfwdefs.PF_EXIT_FAILURE
+
+                if jobnum not in wrap_byjob:
+                    print "\t%06d No wrapper instances" % jobnum
+                    continue
+                #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+                maxwrap = max(wrap_byjob[jobnum].keys())
+                #print "maxwrap =", maxwrap
+                modname = wrap_byjob[jobnum][maxwrap]['modname']
+                #print "modname =", modname
+
+                #print "wrap_byjob[jobnum][maxwrap]['id']=",wrap_byjob[jobnum][maxwrap]['id']
+                msg2 += "\t%s %d/%s  %s (%s)" % (pfwutils.pad_jobnum(jobnum), 
+                                                 len(wrap_byjob[jobnum]), 
+                                                 jobdict['expect_num_wrap'], 
+                                                 modname, jobkeys)
+                if jobdict['status'] is None:
+                    msg2 += " FAIL - NULL status"
+                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
+                    retval = pfwdefs.PF_EXIT_FAILURE
+                elif jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
+                    msg2 += " FAIL"
+                    retval = pfwdefs.PF_EXIT_FAILURE
+
+            msg2 += '\n'
+        except Exception, e:
+            msg2 += "\n\nEncountered error trying to gather job/wrapper status for email.  Check output for blockpost for further details."
+            print "\n\nEncountered error trying to gather job/wrapper status for email"
+            print "%s: %s" % (e.__class__.__name__,str(e))
+            (extype, value, trback) = sys.exc_info()
+            traceback.print_exception(extype, value, trback, file=sys.stdout)
+            retval = pfwdefs.PF_EXIT_FAILURE
+
+        print "lastwraps = ", lastwraps
+        if coremisc.convertBool(config[pfwdefs.PF_USE_QCF]) and len(lastwraps) > 0: 
+            try:
+                import qcframework.qcfdb as qcfdb
+                dbh = qcfdb.QCFDB(config['submit_des_services'], config['submit_des_db_section'])
+                wrapmsg = dbh.get_qcf_messages_for_wrappers(lastwraps)
+                print "wrapmsg = ", wrapmsg
+                dbh.close() 
+
+                MAXMESG = 3
+                msg2 += "\n\n\nDetails\n"
                 for jobnum,jobdict in sorted(job_byblk[blknum].items()):
-                    if jobnum not in wrap_byjob:
-                        print "\t%06d No wrapper instances" % jobnum
-                        continue
-                    #print "wrapnum in job =", wrap_byjob[jobnum].keys()
                     maxwrap = max(wrap_byjob[jobnum].keys())
-                    #print "maxwrap =", maxwrap
+                    maxwrapid = wrap_byjob[jobnum][maxwrap]['id']
                     modname = wrap_byjob[jobnum][maxwrap]['modname']
-                    #print "modname =", modname
-                    jobkeys = ""
-                    if jobdict['jobkeys'] is not None:
-                        jobkeys = jobdict['jobkeys']
-                        #print "jobkeys = ",jobkeys, type(jobkeys)
-
-                    #print "wrap_byjob[jobnum][maxwrap]['id']=",wrap_byjob[jobnum][maxwrap]['id']
-                    msg2 += "\t%04d %d/%s  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['numexpwrap'], modname, jobkeys)
-                    if jobdict['status'] is None:
-                        msg2 += " FAIL - NULL status"
-                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
-                        retval = PF_EXIT_FAILURE
-                    elif jobdict['status'] != PF_EXIT_SUCCESS:
-                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
-                        msg2 += " FAIL"
-                        retval = PF_EXIT_FAILURE
-
-                msg2 += '\n'
-            except Exception, e:
-                msg2 += "\n\nEncountered error trying to gather job/wrapper status for email.  Check output for blockpost for further details."
-                print "\n\nEncountered error trying to gather job/wrapper status for email"
-                print "%s: %s" % (e.__class__.__name__,str(e))
-                (extype, value, traceback) = sys.exc_info()
-                print traceback
-                retval = PF_EXIT_FAILURE
-
-            print "lastwraps = ", lastwraps
-            if convertBool(config[PF_USE_QCF]) and len(lastwraps) > 0: 
-                try:
-                    import qcframework.qcfdb as qcfdb
-                    dbh = qcfdb.QCFDB(config['submit_des_services'], config['submit_des_db_section'])
-                    wrapmsg = dbh.get_qcf_messages_for_wrappers(lastwraps)
-                    print "wrapmsg = ", wrapmsg
-                    dbh.close() 
-    
-                    MAXMESG = 3
-                    msg2 += "\n\n\nDetails\n"
-                    for jobnum in sorted(job_byblk[blknum].keys()):
-                        maxwrap = max(wrap_byjob[jobnum].keys())
-                        maxwrapid = wrap_byjob[jobnum][maxwrap]['id']
-                        modname = wrap_byjob[jobnum][maxwrap]['modname']
-                        if jobdict['status'] != PF_EXIT_SUCCESS:
-                            msg2 += "\t%04d %s\n" % (jobnum, modname)
-                            if maxwrapid in wrapmsg:
-                                if len(wrapmsg[maxwrapid]) > MAXMESG:
-                                    msg2 += "\t\tOnly printing last %d messages\n" % MAXMESG
-                                    for mesgrow in wrapmsg[maxwrapid][-MAXMESG:]:
-                                        msg2 += "\t\t%s\n" % mesgrow['message']
-                                else:
-                                    for mesgrow in wrapmsg[maxwrapid]:
-                                        msg2 += "\t\t%s\n" % mesgrow['message']
+                    if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                        msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobnum), modname)
+                        if maxwrapid in wrapmsg:
+                            if len(wrapmsg[maxwrapid]) > MAXMESG:
+                                msg2 += "\t\tOnly printing last %d messages\n" % MAXMESG
+                                for mesgrow in wrapmsg[maxwrapid][-MAXMESG:]:
+                                    msg2 += "\t\t%s\n" % mesgrow['message']
                             else:
-                                msg2 += "\t\tNo QCF messages\n"
-                except Exception, e:
-                    msg2 += "\n\nEncountered error trying to gather QCF info for email.  Check output for blockpost for further details."
-                    print "\n\nEncountered error trying to gather QCF info status for email"
-                    print "%s: %s" % (e.__class__.__name__,str(e))
-                    (extype, value, traceback) = sys.exc_info()
-                    print traceback
-        else:
-            print "\nNo condor job log file.   Skipping updating job table and gathering QCF messages."
+                                for mesgrow in wrapmsg[maxwrapid]:
+                                    msg2 += "\t\t%s\n" % mesgrow['message']
+                        else:
+                            msg2 += "\t\tNo QCF messages\n"
+            except Exception, e:
+                msg2 += "\n\nEncountered error trying to gather QCF info for email.  Check output for blockpost for further details."
+                print "\n\nEncountered error trying to gather QCF info status for email"
+                print "%s: %s" % (e.__class__.__name__,str(e))
+                (extype, value, trback) = sys.exc_info()
+                traceback.print_exception(extype, value, trback, file=sys.stdout)
 
-    print "retval =", retval
+    print "before email retval =", retval
     
     if retval:
         if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
@@ -183,38 +182,18 @@ def blockpost(argv = None):
             msg1 = "%s:  block %s has failed." % (run, blockname)
 
             send_email(config, blockname, retval, "", msg1, msg2)
-    elif convertBool(dryrun):
+    elif coremisc.convertBool(dryrun):
         if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
             print "dryrun = ", dryrun
             print "Sending dryrun email"
             msg1 = "%s:  In dryrun mode, block %s has finished successfully." % (run, blockname)
             msg2 = ""
-            send_email(config, blockname, PF_EXIT_SUCCESS, "[DRYRUN]", msg1, msg2)
-        retval = PF_EXIT_DRYRUN
-#    elif os.path.isfile(warningfile):
-#        print "JOBS_WARNINGS.txt exists.  Sending warning email"
-#        msg1 = "%s:  At least one job in block %s has status4 messages." % (run, blockname)
-#        msg2 = ""
-#
-#        fh.open(warningfile, "r")
-#        lines = fh.readlines()
-#        fh.close()
-#
-#        jobid = {}
-#        for j in lines:
-#            jobid[j.strip()] = True
-#        msg2 += "Check the following jobs:"
-#        for j in sorted(jobid.keys()):
-#            msg2 += "\t%s\n" % (j)
-#        fh.close()
-#        msg2 += "\n\n".getJobInfo(blockname)
-#
-#        send_email(config, blockname, PF_WARNINGS, "[WARNINGS]", msg1, msg2)
-#        retval = PF_EXIT_SUCCESS
-    elif retval == PF_EXIT_SUCCESS:
+            send_email(config, blockname, pfwdefs.PF_EXIT_SUCCESS, "[DRYRUN]", msg1, msg2)
+        retval = pfwdefs.PF_EXIT_DRYRUN
+    elif retval == pfwdefs.PF_EXIT_SUCCESS:
         if ('when_to_email' in config and 
            (config['when_to_email'].lower() == 'block' or
-           (config['when_to_email'].lower() == 'run' and int(config[PF_BLKNUM]) == int(config['num_blocks'])))):
+           (config['when_to_email'].lower() == 'run' and int(config[pfwdefs.PF_BLKNUM]) == int(config['num_blocks'])))):
             print "Sending success email\n";
             if config['when_to_email'].lower() == 'run':
                 msg1 = "%s:  run has finished successfully." % (run)
@@ -226,40 +205,40 @@ def blockpost(argv = None):
     else:
         print "Not sending email"
         print "retval = ", retval
-#        if os.path.isfile(failedfile):
-#            print "%s exists, so email should have already been sent" % (failedfile)
 
     # Store values in DB and hist file 
     dbh = None
-    if convertBool(config[PF_USE_DB_OUT]): 
+    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        dbh.update_block_end(config, retval)
-    #logEvent(config, blockname, 'mngr', 'j', 'posttask', retval)
+        print "Updating end of block task", config['task_id']['block'][str(blknum)]
+        dbh.end_task(config['task_id']['block'][str(blknum)], retval)
+        if retval != pfwdefs.PF_EXIT_SUCCESS:
+            print "Updating end of attempt", config['task_id']['attempt']
+            dbh.end_task(config['task_id']['attempt'], retval, True)
 
-    if retval == PF_EXIT_SUCCESS:
+    print "before next block retval = ", retval
+    if retval == pfwdefs.PF_EXIT_SUCCESS:
         # Get ready for next block
         config.inc_blknum()
         config.save_file(configfile)
-        print "new blknum = ", config[PF_BLKNUM]
+        print "new blknum = ", config[pfwdefs.PF_BLKNUM]
         print "number of blocks = ", len(config.block_array)
-        if int(config[PF_BLKNUM]) <= len(config.block_array):   # blknum is 1-based
-            retval = PF_EXIT_NEXTBLOCK
-            print "modified retval to %s" % retval
     else:
-        retval = PF_EXIT_FAILURE
+        retval = pfwdefs.PF_EXIT_FAILURE
 
-    if convertBool(config[PF_USE_DB_OUT]): 
-        if retval != PF_EXIT_NEXTBLOCK:
-            fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
-            dbh.update_attempt_end(config, retval)
-        else:
-            fwdebug(0, 'PFWPOST_DEBUG', "Not calling update_attempt_end: use_db_out = %s, retval = %s" % (config[PF_USE_DB_OUT], retval))
-
-        dbh.commit()
-        dbh.close()
+    # Moved to endrun.py
+    #if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    #    if config[pfwdefs.PF_BLKNUM] > len(config.block_array):
+    #        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
+    #        dbh.update_attempt_end(config, retval)
+    #    else:
+    #        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Not calling update_attempt_end: use_db_out = %s, retval = %s" % (config[pfwdefs.PF_USE_DB_OUT], retval))
+    #
+    #    dbh.commit()
+    #    dbh.close()
     
-    fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s (%s)" % (retval, type(retval)))
-    fwdebug(0, 'PFWPOST_DEBUG', "END")
+    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s (%s)" % (retval, type(retval)))
+    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "END")
     debugfh.close()
     return(int(retval))
 
@@ -269,6 +248,6 @@ if __name__ == "__main__":
     exitcode = blockpost(sys.argv)
     sys.stdout = realstdout
     sys.stderr = realstderr
-    fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
-    fwdebug(3, 'PFWPOST_DEBUG', "type of exitcode = %s" % type(exitcode))
+    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
+    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "type of exitcode = %s" % type(exitcode))
     sys.exit(exitcode)

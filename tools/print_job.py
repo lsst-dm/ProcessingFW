@@ -6,7 +6,8 @@
 
 import coreutils
 import processingfw.pfwdb as pfwdb
-from processingfw.pfwutils import *
+#from processingfw.pfwutils import *
+import processingfw.pfwutils as pfwutils
 import re
 import sys
 
@@ -27,17 +28,27 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
         print "\tNo jobs for this block"
     else:
         for jobnum,jobdict in job_byblk[blknum].items():
-            if jobnum not in wrap_byjob:
-                print "\t%04d No wrapper instances"
-            #print "wrapnum in job =", wrap_byjob[jobnum].keys()
-            maxwrap = max(wrap_byjob[jobnum].keys())
-            modname = wrap_byjob[jobnum][maxwrap]['modname']    
+            maxwrap = None
+            modname = None
+            if jobnum in wrap_byjob:
+                #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+                maxwrap = max(wrap_byjob[jobnum].keys())
+                modname = wrap_byjob[jobnum][maxwrap]['modname']    
             
             jobkeys = ""
             if jobdict['jobkeys'] is not None:
                 jobkeys = jobdict['jobkeys']
+
+            expnumwrap = 0
+            if 'expect_num_wrap' in jobdict and jobdict['expect_num_wrap'] is not None:
+                expnumwrap = jobdict['expect_num_wrap']
+
+            numwraps = 0
+            if jobnum in wrap_byjob and wrap_byjob[jobnum] is not None:
+                numwraps = len(wrap_byjob[jobnum])
+    
             
-            print "\t%04d %d/%d  %s (%s)" % (jobnum, len(wrap_byjob[jobnum]), jobdict['numexpwrap'], modname, jobkeys),
+            print "\t%s %d/%d  %s (%s)" % (pfwutils.pad_jobnum(jobnum), numwraps, expnumwrap, modname, jobkeys),
             if 'endtime' in jobdict and jobdict['endtime'] is not None:
                 if jobdict['status'] == 0:
                     print "done"
@@ -53,7 +64,7 @@ def print_job_info(run):
     """    """
     
 
-    m = re.search("([^_]+)_r([^p]+)p([^_]+)", run)
+    m = re.search("([\S]+)_r([^p]+)p([^_]+)", run)
     if m is None:
         print "Error:  cannot parse run", run
         sys.exit(1)
@@ -79,7 +90,7 @@ def print_job_info(run):
     # get job info
     jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname':unitname, 'attnum':attnum})
     # index jobinfo by blknum
-    job_byblk = index_job_info(jobinfo)
+    job_byblk = pfwutils.index_job_info(jobinfo)
 
     #print job_byblk.keys()
     #for b in job_byblk.keys():
@@ -88,7 +99,7 @@ def print_job_info(run):
 
     # get wrapper instance information
     wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum)
-    wrap_byjob, wrap_bymod = index_wrapper_info(wrapinfo)
+    wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
     verbose = 3
 

@@ -42,15 +42,18 @@ def logpre(argv = None):
     # now that have more information, can rename output file
     fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
     blockname = config['blockname']
+    blkdir = config['block_dir']
     new_log_name = config.get_filename('block', {PF_CURRVALS:
                                                     {'flabel': '${subblock}_logpre',
                                                      'subblock': subblock,
                                                      'fsuffix':'out'}})
-    new_log_name = "../%s/%s" % (blockname, new_log_name)
+    new_log_name = "%s/%s" % (blkdir, new_log_name)
     fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
     debugfh.close()
 
+    os.chmod('logpre.out', 0666)
     os.rename('logpre.out', new_log_name)
+
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh

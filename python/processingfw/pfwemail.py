@@ -41,11 +41,13 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("pipeline = %s\n" % config['pipeline'])
     mailfh.write("project = %s\n" % project)
     mailfh.write("run = %s\n" % run)
-    if HOME_ARCHIVE in config:
-        mailfh.write("%s = %s\n" % (HOME_ARCHIVE.lower(), config[HOME_ARCHIVE]))
-    if 'event_tag' in config:
-        mailfh.write("run name = %s\n" % config['event_tag'])
     mailfh.write("\n")
+
+    if HOME_ARCHIVE in config:
+        mailfh.write("Home Archive:\n")
+        mailfh.write("\t%s = %s\n" % (HOME_ARCHIVE.lower(), config[HOME_ARCHIVE]))
+        mailfh.write("\tArchive directory = %s/%s\n" % (config['root'], config.interpolate(config[OPS_RUN_DIR])))
+        mailfh.write("\n")
 
 
     mailfh.write("Submit:\n")
@@ -61,8 +63,10 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("\tsite = %s\n" % config['target_site'])
     if TARGET_ARCHIVE in config:
         mailfh.write("\t%s = %s\n" % (TARGET_ARCHIVE.lower(), config[TARGET_ARCHIVE]))
-    mailfh.write("\tdirectory = %s/%s\n" % (config['root'], config.interpolate(config[OPS_RUN_DIR])))
     mailfh.write("\tmetapackage = %s %s\n" % (config['pipeprod'], config['pipever']))
+    mailfh.write("\tjobroot = %s\n" % (config[SW_JOB_BASE_DIR]))
+    mailfh.write("\n\n")
+
     mailfh.write("\n\n")
     mailfh.write("------------------------------\n")
 

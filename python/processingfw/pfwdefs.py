@@ -24,11 +24,12 @@ ATTNUM = 'attnum'
 UNITNAME = 'unitname'
 ATTRIB_PREFIX='des_'
 
+SUBMIT_RUN_DIR = 'submit_run_dir'
 
 HOME_ARCHIVE = 'home_archive'
 USE_HOME_ARCHIVE_INPUT = 'use_home_archive_input'
 USE_HOME_ARCHIVE_OUTPUT = 'use_home_archive_output'
-VALID_HOME_ARCHIVE_INPUT = ['target_archive', 'job', 'all', 'never']
+VALID_HOME_ARCHIVE_INPUT = ['target_archive', 'wrapper', 'all', 'never']
 VALID_HOME_ARCHIVE_OUTPUT = ['wrapper', 'job', 'block', 'run', 'never']
 
 
@@ -53,6 +54,7 @@ DIRPATSECT = 'directory_pattern'
 
 
 SW_LABEL = 'label'
+SW_SAVE_RUN_VALS = 'save_run_vals'
 SW_JOB_ENVIRONMENT = 'job_environment'
 SW_DIVIDE_JOBS_BY = 'divide_jobs_by'
 SW_INPUTS = USED
@@ -78,6 +80,8 @@ SW_WRAPPER_DEBUG = 'wrapper_debug'
 SW_OUTPUT_OPTIONAL = 'optional'
 
 SW_JOB_BASE_DIR = 'jobroot'   # must match column name in ops_site
+
+EXEC_TASK_ID = 'exec_task_id'
 
 
 IW_INPUTS = USED
@@ -126,6 +130,7 @@ PF_EXIT_SUCCESS = 0
 PF_EXIT_NEXTBLOCK = 100
 PF_EXIT_FAILURE = 1
 PF_EXIT_OPDELETE = 5
+PF_EXIT_EUPS_FAILURE = 8
 PF_EXIT_DRYRUN = 2
 PF_EXIT_WARNINGS = 3
 PF_BLKNUM = 'blknum'

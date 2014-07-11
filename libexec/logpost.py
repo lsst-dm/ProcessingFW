@@ -54,14 +54,16 @@ def logpost(argv = None):
     # now that have more information, rename output file
     fwdebug(3, 'PFWPOST_DEBUG', "before get_filename")
     blockname = config['blockname']
+    blkdir = config['block_dir']
     new_log_name = config.get_filename('block', {PF_CURRVALS: 
                                                   {'flabel': '${subblock}_logpost', 
                                                    'subblock': subblock,
                                                    'fsuffix':'out'}})
-    new_log_name = "../%s/%s" % (blockname, new_log_name)
+    new_log_name = "%s/%s" % (blkdir, new_log_name)
     fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
      
     debugfh.close()
+    os.chmod('logpost.out', 0666)
     os.rename('logpost.out', new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

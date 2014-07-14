@@ -956,12 +956,10 @@ class PfwConfig:
         fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
         fwdebug(5, 'PFWCONFIG_DEBUG', "END")
 
-        if len(valuedone) > 1:
+        if len(valuedone) >= 1:
             return valuedone
-        elif len(valuedone) == 1:
-            return valuedone[0]
         else:
-            return valpair
+            return [valpair]
         
 
 

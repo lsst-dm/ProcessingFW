@@ -146,8 +146,10 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
     # convert to same format as if read from file created by query
     filelist_wcl = None
     if len(filepairs) > 0:   
+        coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "filepairs = %s" % str(filepairs))
         filedict_list = []
         for pair in filepairs:
+            coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "pair = %s" % str(pair))
             file1 = pair[1]
             file1['filename'] = pair[0]
     

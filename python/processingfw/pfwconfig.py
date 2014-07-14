@@ -959,7 +959,7 @@ class PfwConfig:
         if len(valuedone) >= 1:
             return valuedone
         else:
-            return valpair
+            return [valpair]
         
 
 

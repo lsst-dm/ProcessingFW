@@ -99,7 +99,13 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, task_label, parent_tid):
         
     task_id = -1
     if pfw_dbh is not None:
-        task_id = pfw_dbh.create_begin_task('dynclass', None, parent_tid, 'fm_meta', True)
+        task_id = pfw_dbh.create_task(name = 'dynclass', 
+                                      info_table = None,
+                                      parent_task_id = parent_tid,
+                                      root_task_id = wcl['task_id']['attempt'],
+                                      label = 'fm_meta',
+                                      do_begin = True,
+                                      do_commit = True)
     filemgmt = None
     try:
         filemgmt_class = coremisc.dynamically_load_class(archive_info['filemgmt'])
@@ -120,7 +126,13 @@ def ingest_file_metadata(pfw_dbh, wcl, file_metadata, task_label, parent_tid):
 
 
     if pfw_dbh is not None:
-        task_id = pfw_dbh.create_begin_task('ingest_metadata', None, parent_tid, task_label, True)
+        task_id = pfw_dbh.create_task(name = 'ingest_metadata',
+                                      info_table = None,
+                                      parent_task_id = parent_tid,
+                                      root_task_id = wcl['task_id']['attempt'],
+                                      label = task_label,
+                                      do_begin = True,
+                                      do_commit = True)
     try:
         filemgmt.ingest_file_metadata(file_metadata)
         filemgmt.commit()
@@ -149,7 +161,13 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     
     if pfw_dbh is not None:
-        trans_task_id = pfw_dbh.create_begin_task('transfer', None, None, None, True)
+        trans_task_id = pfw_dbh.create_task(name = 'transfer', 
+                                            info_table = None,
+                                            parent_task_id = parent_tid,
+                                            root_task_id = wcl['task_id']['attempt'],
+                                            label = None,
+                                            do_begin = True,
+                                            do_commit = True)
 
     archive_info = wcl['%s_archive_info' % dest.lower()]
 
@@ -165,11 +183,17 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
         tstats = None
         if 'transfer_stats' in wcl:
             if pfw_dbh is not None:
-                task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, 'stats_' + tasktype, True)
+                task_id = pfw_dbh.create_task(name = 'dynclass', 
+                                              info_table = None,
+                                              parent_task_id = trans_task_id,
+                                              root_task_id = wcl['task_id']['attempt'],
+                                              label = 'stats_' + tasktype,
+                                              do_begin = True,
+                                              do_commit = True)
             try:
                 tstats_class = coremisc.dynamically_load_class(wcl['transfer_stats'])
                 valDict = fmutils.get_config_vals(None, wcl, tstats_class.requested_config_vals())
-                tstats = tstats_class(trans_task_id, valDict)
+                tstats = tstats_class(trans_task_id, wcl['task_id']['attempt'], valDict)
             except Exception as err:
                 print "ERROR\nError: creating transfer_stats object\n%s" % err
                 if pfw_dbh is not None:
@@ -181,7 +205,13 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
                 pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
             
         if pfw_dbh is not None:
-            task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, "jobfmv_" + tasktype, True)
+            task_id = pfw_dbh.create_task(name = 'dynclass',
+                                          info_table = None,
+                                          parent_task_id = trans_task_id,
+                                          root_task_id = wcl['task_id']['attempt'],
+                                          label = 'jobfmv_' + tasktype,
+                                          do_begin = True,
+                                          do_commit = True)
         jobfilemvmt = None
         try:
             jobfilemvmt_class = coremisc.dynamically_load_class(wcl['job_file_mvmt']['mvmtclass'])
@@ -287,7 +317,13 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, paren
 
     
     if pfw_dbh is not None:
-        task_id = pfw_dbh.create_begin_task('dynclass', None, parent_tid, 'fm_query', True)
+        task_id = pfw_dbh.create_task(name = 'dynclass', 
+                                      info_table = None,
+                                      parent_task_id = parent_tid,
+                                      root_task_id = wcl['task_id']['attempt'],
+                                      label = 'fm_query',
+                                      do_begin = True,
+                                      do_commit = True)
 
     # dynamically load class for archive file mgmt to find location of files in archive
     filemgmt = None
@@ -303,7 +339,14 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, paren
         raise
     if pfw_dbh is not None:
         pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
-        task_id = pfw_dbh.create_begin_task('query_fileArchInfo', None, parent_tid, None, True)
+        task_id = pfw_dbh.create_task(name = 'query_fileArchInfo', 
+                                      info_table = None,
+                                      parent_task_id = parent_tid,
+                                      root_task_id = wcl['task_id']['attempt'],
+                                      label = None,
+                                      do_begin = True,
+                                      do_commit = True)
+
 
     fileinfo_archive = filemgmt.get_file_archive_info(files2get, archive_info['name'], fmdefs.FM_PREFER_UNCOMPRESSED)
     if pfw_dbh is not None:
@@ -384,7 +427,13 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
         if pfwdefs.IW_EXEC_DEF in wcl:
             task_id = -1
             if pfw_dbh is not None:
-                task_id = pfw_dbh.create_begin_task('get_version', None, wcl['task_id']['jobwrapper'], sect, True)
+                task_id = pfw_dbh.create_task(name = 'get_version', 
+                                              info_table = None,
+                                              parent_task_id = wcl['task_id']['jobwrapper'],
+                                              root_task_id = wcl['task_id']['attempt'],
+                                              label = sect,
+                                              do_begin = True,
+                                              do_commit = True)
             wcl[sect]['version'] = pfwutils.get_version(execname, wcl[pfwdefs.IW_EXEC_DEF])
             if pfw_dbh is not None:
                 pfw_dbh.update_exec_version(wcl['task_id']['exec'][sect], wcl[sect]['version']) 
@@ -394,7 +443,13 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
         starttime = time.time()
         task_id = -1
         if pfw_dbh is not None:
-            task_id = pfw_dbh.create_begin_task('make_output_dirs', None, wcl['task_id']['jobwrapper'], sect, True)
+            task_id = pfw_dbh.create_task(name = 'make_output_dirs',
+                                          info_table = None,
+                                          parent_task_id = wcl['task_id']['jobwrapper'],
+                                          root_task_id = wcl['task_id']['attempt'],
+                                          label = sect,
+                                          do_begin = True,
+                                          do_commit = True)
         if pfwdefs.IW_OUTPUTS in wcl[sect]:
             for outfile in coremisc.fwsplit(wcl[sect][pfwdefs.IW_OUTPUTS]):
                 outfiles[outfile] = True
@@ -520,7 +575,13 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, task_label, 
 
     task_id = -1
     if pfw_dbh is not None:
-        task_id = pfw_dbh.create_begin_task('dynclass', None, parent_tid, 'fm_register', True)
+        task_id = pfw_dbh.create_task(name = 'dynclass', 
+                                      info_table = None,
+                                      parent_task_id = parent_tid,
+                                      root_task_id = wcl['task_id']['attempt'],
+                                      label = 'fm_register',
+                                      do_begin = True,
+                                      do_commit = True)
 
     # load file management class
     filemgmt = None
@@ -538,7 +599,13 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, task_label, 
         raise
     if pfw_dbh is not None:
         pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
-        task_id = pfw_dbh.create_begin_task('register', None, parent_tid, task_label, True)
+        task_id = pfw_dbh.create_task(name = 'register',
+                                      info_table = None,
+                                      parent_task_id = parent_tid,
+                                      root_task_id = wcl['task_id']['attempt'],
+                                      label = task_label,
+                                      do_begin = True,
+                                      do_commit = True)
 
     # call function to do the register
     try:
@@ -564,7 +631,14 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "TRANSFER JOB TO ARCHIVE SECTION")
     tasknum = -1
     if pfw_dbh is not None:
-        trans_task_id = pfw_dbh.create_begin_task('job2archive', None, parent_tid, task_label, True)
+        trans_task_id = pfw_dbh.create_task(name = 'job2archive',
+                                            info_table = None,
+                                            parent_task_id = parent_tid,
+                                            root_task_id = wcl['task_id']['attempt'],
+                                            label = task_label,
+                                            do_begin = True,
+                                            do_commit = True)
+
 
     archive_info = wcl['%s_archive_info' % dest.lower()]
     mastersave = wcl[pfwdefs.MASTER_SAVE_FILE].lower()
@@ -586,11 +660,17 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     tstats = None
     if 'transfer_stats' in wcl:
         if pfw_dbh is not None:
-            task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, 'stats_' + task_label, True)
+            task_id = pfw_dbh.create_task(name = 'dynclass', 
+                                          info_table = None,
+                                          parent_task_id = trans_task_id,
+                                          root_task_id = wcl['task_id']['attempt'],
+                                          label = 'stats_' + task_label,
+                                          do_begin = True,
+                                          do_commit = True)
         try:
             tstats_class = coremisc.dynamically_load_class(wcl['transfer_stats'])
             valDict = fmutils.get_config_vals(None, wcl, tstats_class.requested_config_vals())
-            tstats = tstats_class(trans_task_id, valDict)
+            tstats = tstats_class(trans_task_id, wcl['task_id']['attempt'], valDict)
         except Exception as err:
             msg = "Error: creating transfer_stats object\n%s" % err
             print "ERROR\n%s" % msg
@@ -604,7 +684,13 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
             
 
     if pfw_dbh is not None:
-        task_id = pfw_dbh.create_begin_task('dynclass', None, trans_task_id, 'jobfmv_'+task_label, True)
+        task_id = pfw_dbh.create_task(name = 'dynclass', 
+                                      info_table = None,
+                                      parent_task_id = trans_task_id,
+                                      root_task_id = wcl['task_id']['attempt'],
+                                      label = 'jobfmv_' + task_label,
+                                      do_begin = True,
+                                      do_commit = True)
 
     # dynamically load class for job_file_mvmt
     if 'job_file_mvmt' not in wcl:
@@ -838,7 +924,14 @@ def postwrapper(pfw_dbh, wcl, logfile, exitcode):
                     starttime = time.time()
                     task_id = -1
                     try:
-                        task_id = pfw_dbh.create_begin_task('ingest_provenance', 'None', wcl['task_id']['jobwrapper'], None, True) 
+                        task_id = pfw_dbh.create_task(name = 'ingest_provenance', 
+                                                      info_table = None,
+                                                      parent_task_id = wcl['task_id']['jobwrapper'],
+                                                      root_task_id = wcl['task_id']['attempt'],
+                                                      label = None,
+                                                      do_begin = True,
+                                                      do_commit = True)
+
 
                         pfw_dbh.ingest_provenance(outputwcl[pfwdefs.OW_PROVSECT], wcl['task_id']['exec'])
                         pfw_dbh.commit()
@@ -923,11 +1016,19 @@ def job_workflow(workflow, jobwcl={}):
                 wcl = wclutils.read_wcl(wclfh, filename=task['wclfile'])
             wcl.update(jobwcl)
 
+            job_task_id = wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]] 
+
             pfw_dbh = None
             if wcl['use_db']:
                 pfw_dbh = pfwdb.PFWDB() 
-                wcl['task_id']['jobwrapper'] = pfw_dbh.create_begin_task('jobwrapper', 'None', 
-                                                       wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], None, True)
+                wcl['task_id']['jobwrapper'] = pfw_dbh.create_task(
+                                                            name ='jobwrapper', 
+                                                            info_table = None,
+                                                            parent_task_id = job_task_id,
+                                                            root_task_id = wcl['task_id']['attempt'],
+                                                            label = None,
+                                                            do_begin = True,
+                                                            do_commit = True)
                 wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'], wcl['task_id']['jobwrapper'])
             else:
                 wcl['task_id']['jobwrapper'] = -1
@@ -1045,6 +1146,8 @@ def run_job(args):
     wcl['output_putinfo'] = {}  # to be used if transferring at end of job
     
 
+    job_task_id = wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]] 
+
     # run the tasks (i.e., each wrapper execution)
     pfw_dbh = None
     try:
@@ -1055,7 +1158,7 @@ def run_job(args):
         print "******************************"
         if wcl['use_db'] and pfw_dbh is None:   
             pfw_dbh = pfwdb.PFWDB()
-            pfw_dbh.insert_message(wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], pfwdb.PFW_MSG_ERROR, str(value))
+            pfw_dbh.insert_message(job_task_id, pfwdb.PFW_MSG_ERROR, str(value))
         traceback.print_exception(type, value, trback, file=sys.stdout)
         exitcode = pfwdefs.PF_EXIT_FAILURE
         print "Aborting rest of wrapper executions.  Continuing to end-of-job tasks\n\n"
@@ -1073,8 +1176,7 @@ def run_job(args):
     if len(wcl['output_putinfo']) > 0:
         print "\n\nCalling file transfer for end of job"
         transfer_job_to_archives(pfw_dbh, wcl, wcl['output_putinfo'], 'job', 
-                                 wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], 
-                                 'job_output', exitcode)
+                                 job_task_id, 'job_output', exitcode)
 
     if pfw_dbh is not None:
         pfw_dbh.close()
@@ -1096,6 +1198,7 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "infullnames = %s" % wcl['infullnames'])
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "outfullnames = %s" % wcl['outfullnames'])
 
+    job_task_id = wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]] 
 
     junklist = []
 
@@ -1133,8 +1236,13 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
     if len(junklist) > 0:
         task_id = -1
         if pfw_dbh is not None:
-            task_id = pfw_dbh.create_begin_task('create_junktar', None, 
-                              wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], None, True)
+            task_id = pfw_dbh.create_task(name = 'create_junktar', 
+                                          info_table = None,
+                                          parent_task_id = job_task_id,
+                                          root_task_id = wcl['task_id']['attempt'],
+                                          label = None,
+                                          do_begin = True,
+                                          do_commit = True)
 
         pfwutils.tar_list(wcl['junktar'], junklist)
 
@@ -1146,8 +1254,7 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
         pfw_file_metadata = {}
         pfw_file_metadata['file_1'] = {'filename' : wcl['junktar'],
                                        'filetype' : 'junk_tar'}
-        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'junktar', 
-                             wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]])
+        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'junktar', job_task_id) 
     
 
         # gather "disk" metadata about tarball
@@ -1159,8 +1266,7 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
                                    'filesave': True}}
          
         # if save setting is wrapper, save here, otherwise save at end of job
-        transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'wrapper', 
-                                 wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]], 
+        transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'wrapper', job_task_id, 
                                  'junktar', exitcode)
 
     coremisc.fwdebug(1, "PFWRUNJOB_DEBUG", "END\n\n")

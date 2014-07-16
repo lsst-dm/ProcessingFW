@@ -102,7 +102,13 @@ class PFWDB (desdbi.DesDbi):
 
 
         allparams = {}
-        allparams['task_id'] =  self.create_task('attempt', 'pfw_attempt', None, None, False)
+        allparams['task_id'] =  self.create_task(name = 'attempt', 
+                                                 info_table = 'pfw_attempt', 
+                                                 parent_task_id = None, 
+                                                 root_task_id = None, 
+                                                 label = None, 
+                                                 i_am_root = True,
+                                                 do_commit = False)
         allparams['reqnum'] = config[pfwdefs.REQNUM]
         allparams['unitname'] =  config.search(pfwdefs.UNITNAME, {'interpolate': True})[1]
         allparams['project'] = config.search('project', {'interpolate': True})[1]
@@ -347,7 +353,12 @@ class PFWDB (desdbi.DesDbi):
         row['name'] = config.search('blockname', {'interpolate': True})[1]
         row['target_site'] = config.search('target_site', {'interpolate': True})[1]
         row['modulelist'] = config.search(pfwdefs.SW_MODULELIST, {'interpolate': True})[1]
-        row['task_id'] =  self.create_task('block', 'pfw_block', int(config['task_id']['attempt']), None, False)
+        row['task_id'] =  self.create_task(name = 'block', 
+                                           info_table = 'pfw_block', 
+                                           parent_task_id = int(config['task_id']['attempt']), 
+                                           root_task_id = int(config['task_id']['attempt']), 
+                                           label = None, 
+                                           do_commit = False)
         self.begin_task(row['task_id'])
         self.insert_PFW_row('PFW_BLOCK', row)
 
@@ -383,7 +394,12 @@ class PFWDB (desdbi.DesDbi):
         row['expect_num_wrap'] = jobdict['numexpwrap']
         row['pipeprod'] = wcl['pipeprod']
         row['pipever'] = wcl['pipever']
-        row['task_id'] =  self.create_task('job', 'pfw_job', wcl['task_id']['block'][row['blknum']], None, False)
+        row['task_id'] =  self.create_task(name = 'job', 
+                                           info_table = 'pfw_job', 
+                                           parent_task_id = wcl['task_id']['block'][row['blknum']], 
+                                           root_task_id = int(wcl['task_id']['attempt']), 
+                                           label = None, 
+                                           do_commit = False)
         wcl['task_id']['job'][jobdict['jobnum']] = row['task_id']
 
         if 'jobkeys' in jobdict:
@@ -487,7 +503,12 @@ class PFWDB (desdbi.DesDbi):
         row['wrapnum'] = wcl[pfwdefs.PF_WRAPNUM]
         row['modname'] = wcl['modname']
         row['name'] = wcl['wrapper']['wrappername']
-        row['task_id'] = self.create_task('wrapper', 'pfw_wrapper', parent_tid, None, True)
+        row['task_id'] = self.create_task(name = 'wrapper', 
+                                          info_table = 'pfw_wrapper', 
+                                          parent_task_id = parent_tid,
+                                          root_task_id = int(wcl['task_id']['attempt']), 
+                                          label = None, 
+                                          do_commit = True)
         row['blknum'] = wcl[pfwdefs.PF_BLKNUM]
         row['jobnum'] = wcl[pfwdefs.PF_JOBNUM]
         row['inputwcl'] = os.path.split(iwfilename)[-1]
@@ -526,7 +547,12 @@ class PFWDB (desdbi.DesDbi):
         row['wrapnum'] = wcl[pfwdefs.PF_WRAPNUM]
         row['execnum'] = wcl[sect]['execnum']
         row['name'] = wcl[sect]['execname']
-        row['task_id'] =  self.create_task(sect, 'pfw_exec', wcl['task_id']['wrapper'], None, True)
+        row['task_id'] =  self.create_task(name = sect, 
+                                           info_table ='pfw_exec', 
+                                           parent_task_id = wcl['task_id']['wrapper'], 
+                                           root_task_id = int(wcl['task_id']['attempt']), 
+                                           label=None, 
+                                           do_commit=True)
         if 'version' in wcl[sect] and wcl[sect]['version'] is not None:
             row['version'] = wcl[sect]['version']
 
@@ -575,7 +601,7 @@ class PFWDB (desdbi.DesDbi):
         """ insert row into pfw_data_query table """
         coremisc.fwdebug(3, 'PFWDB_DEBUG', "BEG")
 
-        parent_task_id = wcl['task_id']['block'][wcl[pfwdefs.PF_BLKNUM]]
+        parent_tid = wcl['task_id']['block'][wcl[pfwdefs.PF_BLKNUM]]
 
         row = {}
         row['reqnum'] = wcl[pfwdefs.REQNUM] 
@@ -585,7 +611,13 @@ class PFWDB (desdbi.DesDbi):
         row['modname'] =  modname
         row['datatype'] = datatype   # file, list
         row['dataname'] = dataname
-        row['task_id'] = self.create_begin_task('dataquery', 'PFW_DATA_QUERY', parent_task_id, None, True)
+        row['task_id'] = self.create_task(name = 'dataquery', 
+                                          info_table = 'PFW_DATA_QUERY', 
+                                          parent_task_id = parent_tid,
+                                          root_task_id = int(wcl['task_id']['attempt']), 
+                                          label = None, 
+                                          do_begin = True,
+                                          do_commit = True)
         row['execname'] = os.path.basename(execname)
         row['cmdargs'] = cmdargs
         row['version'] = version

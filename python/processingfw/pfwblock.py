@@ -809,7 +809,8 @@ def write_jobwcl(config, jobkey, jobdict):
               'envfile': jobdict['envfile'],
               'junktar': config.get_filename('junktar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}}),
               'junktar_archive_path': config.get_filepath('ops', 'junktar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}}),
-              'task_id': {'job':{jobdict['jobnum']: config['task_id']['job'][jobdict['jobnum']]}}
+              'task_id': {'attempt': config['task_id']['attempt'],
+                          'job':{jobdict['jobnum']: config['task_id']['job'][jobdict['jobnum']]}}
             }
 
     if pfwdefs.CREATE_JUNK_TARBALL in config and coremisc.convertBool(config[pfwdefs.CREATE_JUNK_TARBALL]):

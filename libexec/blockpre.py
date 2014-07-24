@@ -21,7 +21,7 @@ def write_block_condor(config):
     filename = 'blocktask.condor'
 
     with open("%s/%s" % (blkdir,filename), 'w') as fh:
-        fh.write("""universe=local
+        fh.write("""universe=vanilla
 executable= $(exec)
 arguments = $(args)
 getenv=true

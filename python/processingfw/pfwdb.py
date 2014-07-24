@@ -309,11 +309,11 @@ class PFWDB (desdbi.DesDbi):
     #    self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
 
 
-    def update_attempt_end (self, config, exitcode):
-        """ update row in pfw_attempt with end of attempt info """
-
-        self.update_attempt_end_vals(config[pfwdefs.REQNUM], config[pfwdefs.UNITNAME], 
-                                     config[pfwdefs.ATTNUM], exitcode)
+    #def update_attempt_end (self, config, exitcode):
+    #    """ update row in pfw_attempt with end of attempt info """
+    #
+    #    self.update_attempt_end_vals(config[pfwdefs.REQNUM], config[pfwdefs.UNITNAME], 
+    #                                 config[pfwdefs.ATTNUM], exitcode)
         
 
     def update_attempt_end_vals (self, reqnum, unitname, attnum, exitcode):

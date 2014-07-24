@@ -311,9 +311,30 @@ def parse_wcl_objname(objname):
 
 
 ########################################################################### 
+def check_filepat_valid(config, filepat, blockname, modname, objname, objdict, indent=''):
+    cnts = [0 for i in range(0,NUMCNTS)]
+
+    if SW_FILEPATSECT not in config:
+        print "%sError: Missing filename pattern definition section (%s)" % (SW_FILEPATSECT)
+        cnts[ERRCNT_POS] += 1
+    elif filepat not in config[SW_FILEPATSECT]:
+        print "%sError: block %s, module %s, %s - Missing definition for %s '%s'" % (indent, blockname, modname, objname, SW_FILEPAT, filepat)
+        cnts[ERRCNT_POS] += 1
+
+    # todo: if pattern, check that all needed values exist
+
+    return cnts
+
+
+########################################################################### 
 def check_file_valid_input(config, blockname, modname, fname, fdict, indent=''):
     cnts = [0 for i in range(0,NUMCNTS)]
 
+    # check that any given filename pattern has a definition
+    if SW_FILEPAT in fdict:
+        cnts2 = check_filepat_valid(config, fdict[SW_FILEPAT], blockname, modname, fname, fdict, indent+'    ')
+        cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    
     # check that it has filepat, filename, or query code (required)
     # if filename is a pattern, can I check that all needed values exist?
     if (('listonly' not in fdict or not convertBool(fdict['listonly'])) and 
@@ -422,8 +443,11 @@ def check_file_valid_output(config, blockname, modname, fname, fdict, indent='')
         print "%sError: block %s, module %s, %s, %s - Missing terms needed to determine output filename" % (indent, blockname, modname, SW_OUTPUTS, fname)
         cnts[ERRCNT_POS] += 1
     else:
-        # todo: if pattern, check that all needed values exist
-        pass
+
+        # check that any given filename pattern has a definition
+        if SW_FILEPAT in fdict:
+            cnts2 = check_filepat_valid(config, fdict[SW_FILEPAT], blockname, modname, fname, fdict, indent + '    ')
+            cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
     # check that it has filetype :    err
     if FILETYPE not in fdict:

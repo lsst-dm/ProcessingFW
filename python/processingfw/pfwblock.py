@@ -1635,11 +1635,12 @@ ls -l $envfile
         print "full_job_dir =", full_job_dir
         scriptstr += """
 echo ""
-echo "Making target job's directory (%(full_job_dir)s)"
-if [ ! -e %(full_job_dir)s ]; then
-    mkdir -p %(full_job_dir)s
+jobdir=%(full_job_dir)s
+echo "Making target job's directory ($jobdir)"
+if [ ! -e $jobdir ]; then
+    mkdir -p $jobdir
 fi
-cd %(full_job_dir)s
+cd $jobdir
         """ % ({'full_job_dir': full_job_dir})
     else:
         print "%s wasn't specified.   Running job in condor job directory" % pfwdefs.SW_JOB_BASE_DIR

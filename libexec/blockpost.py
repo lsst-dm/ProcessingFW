@@ -117,17 +117,17 @@ def blockpost(argv = None):
                 modname = wrap_byjob[jobnum][maxwrap]['modname']
                 #print "modname =", modname
 
-                #print "wrap_byjob[jobnum][maxwrap]['id']=",wrap_byjob[jobnum][maxwrap]['id']
+                #print "wrap_byjob[jobnum][maxwrap]['task_id']=",wrap_byjob[jobnum][maxwrap]['task_id']
                 msg2 += "\t%s %d/%s  %s (%s)" % (pfwutils.pad_jobnum(jobnum), 
                                                  len(wrap_byjob[jobnum]), 
                                                  jobdict['expect_num_wrap'], 
                                                  modname, jobkeys)
                 if jobdict['status'] is None:
                     msg2 += " FAIL - NULL status"
-                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
+                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
                     retval = pfwdefs.PF_EXIT_FAILURE
                 elif jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['id'])
+                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
                     msg2 += " FAIL"
                     retval = pfwdefs.PF_EXIT_FAILURE
 
@@ -153,7 +153,7 @@ def blockpost(argv = None):
                 msg2 += "\n\n\nDetails\n"
                 for jobnum,jobdict in sorted(job_byblk[blknum].items()):
                     maxwrap = max(wrap_byjob[jobnum].keys())
-                    maxwrapid = wrap_byjob[jobnum][maxwrap]['id']
+                    maxwrapid = wrap_byjob[jobnum][maxwrap]['task_id']
                     modname = wrap_byjob[jobnum][maxwrap]['modname']
                     if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
                         msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobnum), modname)
@@ -211,7 +211,7 @@ def blockpost(argv = None):
     if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         print "Updating end of block task", config['task_id']['block'][str(blknum)]
-        dbh.end_task(config['task_id']['block'][str(blknum)], retval)
+        dbh.end_task(config['task_id']['block'][str(blknum)], retval, True)
         if retval != pfwdefs.PF_EXIT_SUCCESS:
             print "Updating end of attempt", config['task_id']['attempt']
             dbh.end_task(config['task_id']['attempt'], retval, True)

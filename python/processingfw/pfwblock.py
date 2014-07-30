@@ -299,8 +299,8 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
         elif fname in theoutputs:
             winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = moddict[pfwdefs.SW_FILESECT][fname]['fullname']
     else:
-        sobj = copy.deepcopy(finfo)
-        sobj.update(winst)
+        sobj = copy.deepcopy(winst)
+        sobj.update(finfo)   # order matters file values must override winst values
         if 'filename' in moddict[pfwdefs.SW_FILESECT][fname]:
             winst[pfwdefs.IW_FILESECT][fname]['filename'] = config.search('filename', {pfwdefs.PF_CURRVALS: currvals, 
                                                                           'searchobj': moddict[pfwdefs.SW_FILESECT][fname], 
@@ -327,12 +327,12 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
         del winst[pfwdefs.IW_FILESECT][fname]['filename']
 
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = %s %s" % (is_iter_obj, finfo))
-    #if finfo is not None and is_iter_obj:
-    #    coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = true")
-    #    for key,val in finfo.items():
-    #        if key not in ['fullname','filename','dirpat','filetype']:
-    #            coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
-    #            winst[key] = val
+    if finfo is not None and is_iter_obj:
+        coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = true")
+        for key,val in finfo.items():
+            if key not in ['fullname','filename','dirpat','filetype']:
+                coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
+                winst[key] = val
         
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "END: Done working on file %s" % fname)
 
@@ -1521,13 +1521,24 @@ if [ $# -ne 6 ]; then
     exit 1;
 fi
 jobnum=$1
-padjnum=`/usr/bin/printf %04d $jobnum`
+
+lenjobnum=`expr length "$jobnum"`
+if [ $lenjobnum == 4 ]; then
+    padjnum=$jobnum
+else
+    jobnum=$(echo $jobnum | sed 's/^0*//')
+    padjnum=`/usr/bin/printf %04d $jobnum` 
+fi
+echo "jobnum = '$jobnum'"
+echo "padjnum = '$padjnum'"
+
 intar=$2
 jobwcl=$3
 tasklist=$4
 envfile=$5
 outputtar=$6
 initdir=`/bin/pwd`
+
 """
 
     # setup job environment

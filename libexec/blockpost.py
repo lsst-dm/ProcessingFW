@@ -131,7 +131,7 @@ def blockpost(argv = None):
                     msg2 += " FAIL"
                     retval = pfwdefs.PF_EXIT_FAILURE
 
-            msg2 += '\n'
+                msg2 += '\n'
         except Exception, e:
             msg2 += "\n\nEncountered error trying to gather job/wrapper status for email.  Check output for blockpost for further details."
             print "\n\nEncountered error trying to gather job/wrapper status for email"

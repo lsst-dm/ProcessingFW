@@ -968,6 +968,7 @@ def parse_wrapper_line(line, linecnt):
         wrapinfo['wrapdebug'] = 0  # default wrapdebug 
     else:
         print "Error: incorrect number of items in line #%s" % linecnt
+        print "       Check that modnamepat matches wrapperloop"
         print "\tline: %s" % line
         raise SyntaxError("Error: incorrect number of items in line #%s" % linecnt)
     return wrapinfo
@@ -1061,7 +1062,8 @@ def job_workflow(workflow, jobwcl={}):
             if exitcode != 0:
                 print "Error: wrapper %s exited with non-zero exit code %s.   Check log:" % \
                     (wcl[pfwdefs.PF_WRAPNUM], exitcode),
-                print " %s/%s" % (wcl['log_archive_path'], wcl['log'])
+                logfilename = coremisc.parse_fullname(wcl['log'], coremisc.CU_PARSE_FILENAME)
+                print " %s/%s" % (wcl['log_archive_path'], logfilename)
 
             if wcl['use_db']:
                 if pfw_dbh is None:

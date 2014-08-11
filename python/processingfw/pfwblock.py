@@ -32,7 +32,7 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
     """ Add runtime path to filename """
 
     coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "creating path for %s" % fname)
-    coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "finfo = %s" % finfo)
+    coremisc.fwdebug(6,"PFWBLOCK_DEBUG", "finfo = %s" % finfo)
 
     path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: currvals, 
                                                  'searchobj': finfo,
@@ -349,7 +349,20 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
 
     winst[pfwdefs.IW_LISTSECT][lname] = {}
 
+    ### create an object that has values from ldict and winst
+
+    # don't deepcopy sublists
+    savesublists = None
+    if 'sublists' in ldict:
+        savesublists = ldict['sublists']
+        ldict['sublists'] = None
+
     sobj = copy.deepcopy(ldict)
+
+    # put sublists back after deepcopy
+    if savesublists is not None:
+        ldict['sublists'] = savesublists
+
     sobj.update(winst)
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "sobj = %s" % (sobj))
 
@@ -481,7 +494,7 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
         sortkey = ldict['sortkey'].lower()
         lines = sorted(lines, key=lambda k: get_value_from_line(k, sortkey, None, 1)) 
         
-
+    coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Writing list to file %s" % listname)
     with open(listname, "w") as listfh:
         for linedict in lines:
             output_line(listfh, linedict, format, coremisc.fwsplit(columns))

@@ -12,8 +12,11 @@ import os
 import shutil
 import sys
 
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
+#from processingfw.pfwdefs import *
+#from coreutils.miscutils import *
+import intgutils.wclutils as wclutils
+import processingfw.pfwdefs as pfwdefs
+import coreutils.miscutils as coremisc
 from processingfw.pfwcondor import CondorException
 import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwcheck as pfwcheck
@@ -32,7 +35,7 @@ def create_dags(config, logfh):
     sys.stdout = logfh
     sys.stderr = logfh
 
-    maindag = config.get_filename('mngrdag', {PF_CURRVALS: {'dagtype': 'mainmngr'}})
+    maindag = config.get_filename('mngrdag', {pfwdefs.PF_CURRVALS: {'dagtype': 'mainmngr'}})
 
     try:
         pfwsubmit.write_main_dag(config, maindag)
@@ -58,11 +61,11 @@ def main(args):
     os.putenv('PYTHONUNBUFFERED', 'true')
     try:
         parser = argparse.ArgumentParser(description='Submit a run to the processing framework')
-        boolargs = [PF_DRYRUN, PF_USE_DB_IN, PF_USE_DB_OUT, PF_USE_QCF, 'usePFWconfig', 'version']
+        boolargs = [pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF, 'usePFWconfig', 'version']
 
         for barg in boolargs:
             parser.add_argument('--%s' % barg, action='store', type=str)
-        parser.add_argument('--notarget', action='store', type=str, help='Depricated. use --%s=True' % PF_DRYRUN)
+        parser.add_argument('--notarget', action='store', type=str, help='Depricated. use --%s=True' % pfwdefs.PF_DRYRUN)
         parser.add_argument('--gensubmit', action='store')
         parser.add_argument('--des_services', action='store')
         parser.add_argument('--des_db_section', action='store')
@@ -72,7 +75,7 @@ def main(args):
 
         for barg in boolargs:
             if args[barg] is not None:
-                args[barg] = convertBool(args[barg])
+                args[barg] = coremisc.convertBool(args[barg])
 
         print 'Using version %s of dessubmit\n' % VERSION
 
@@ -80,21 +83,21 @@ def main(args):
             return 0   # already printed version
 
         if args['notarget']:
-            print "Note:  notarget is depricated.   Instead use --%s" % PF_DRYRUN 
-            args[PF_DRYRUN] = True
+            print "Note:  notarget is depricated.   Instead use --%s" % pfwdefs.PF_DRYRUN 
+            args[pfwdefs.PF_DRYRUN] = True
         else:
-            args[PF_DRYRUN] = False
+            args[pfwdefs.PF_DRYRUN] = False
 
-        if args[PF_DRYRUN]:
-            print "RUNNING WITH %s\n" % PF_DRYRUN.upper()
+        if args[pfwdefs.PF_DRYRUN]:
+            print "RUNNING WITH %s\n" % pfwdefs.PF_DRYRUN.upper()
 
         args['wclfile'] = args['submitwcl'][0]
         args['get_db_config'] = True
 
-        if args[PF_USE_QCF] and not args[PF_USE_DB_OUT]:
-            print "Note: cannot use QCF if %s is False" % PF_USE_DB_OUT
+        if args[pfwdefs.PF_USE_QCF] and not args[pfwdefs.PF_USE_DB_OUT]:
+            print "Note: cannot use QCF if %s is False" % pfwdefs.PF_USE_DB_OUT
             print "      setting useQCF to False"
-            args[PF_USE_QCF] = False
+            args[pfwdefs.PF_USE_QCF] = False
 
         print "Reading framework configuration and submit wcl:"
         config = pfwconfig.PfwConfig(args) 
@@ -106,7 +109,7 @@ def main(args):
             pfwsubmit.min_wcl_checks(config)
             print 'DONE'
 
-            if convertBool(config[PF_USE_DB_OUT]):
+            if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
                 print 'Inserting run into PFW tables...',
                 import processingfw.pfwdb as pfwdb   # import late 
                 dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
@@ -137,17 +140,27 @@ def main(args):
 
             # save original submit file as is
             print 'Saving submit file...',
-            shutil.copy2(args['wclfile'], "%s/orig_submit.des" % uberctrl)
-            print 'DONE'
+            expwclfile = config.get_filename(filepat='config', searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'exp'}})
+            expwcl = None 
+            with open(args['wclfile'], 'r') as infh:
+                expwcl = wclutils.read_wcl(infh)
+            with open("%s/%s" % (uberctrl,expwclfile), 'w') as outfh:
+                wclutils.write_wcl(expwcl, outfh, True, 4)
 
-            # save config
-            config.save_file('%s/expand_submit.des' % uberctrl)
+            # save config with expanded wcl, db values and 
+            fullcfg = config.get_filename(filepat='config', searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'full'}})
+            config.save_file('%s/%s' % (uberctrl, fullcfg))
+
+            config['expwcl'] = expwclfile
+            config['fullcfg'] = fullcfg
+
+            print 'DONE'
 
 
             print 'Checking submit file:'
             cnts = pfwcheck.check_globals(config, '    ')
             if cnts[pfwcheck.ERRCNT_POS] > 0:
-                fwdie("Errors in submit file", PF_EXIT_FAILURE)
+                coremisc.fwdie("Errors in submit file", pfwdefs.PF_EXIT_FAILURE)
             elif cnts[pfwcheck.WARNCNT_POS] > 0:
                 print "\t(Note: %d warning(s) in config)" % cnts[pfwcheck.WARNCNT_POS]
             elif cnts[pfwcheck.CLEANCNT_POS] > 0:
@@ -162,7 +175,7 @@ def main(args):
             print 'DONE'
 
             condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
-            if (convertBool(config[PF_USE_DB_OUT]) and 
+            if (coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]) and 
                 condorid is not None):
                 print "Saving run's condorid into PFW tables...",
                 import processingfw.pfwdb as pfwdb
@@ -172,13 +185,13 @@ def main(args):
     except CondorException as e:
         print 'ERROR\nABORTING SUBMISSION' 
         print 'Error: %s' % str(e) 
-        return PF_EXIT_FAILURE  # exit on error
+        return pfwdefs.PF_EXIT_FAILURE  # exit on error
     except Exception:
         # error handling code here
         print 'ERROR\nABORTING SUBMISSION' 
         raise
     else:
-        return PF_EXIT_SUCCESS  # exit errorlessly
+        return pfwdefs.PF_EXIT_SUCCESS  # exit errorlessly
  
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

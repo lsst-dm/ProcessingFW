@@ -8,8 +8,8 @@ import argparse
 import sys
 import re
 import coreutils.desdbi as desdbi
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
+import coreutils.miscutils as coremisc
+import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwfilelist as pfwfilelist
     
@@ -28,23 +28,32 @@ def main(argv):
     print args.configfile
     config = pfwconfig.PfwConfig({'wclfile':args.configfile})
     
-    if args.modulename not in config[SW_MODULESECT]:
+    if args.modulename not in config[pfwdefs.SW_MODULESECT]:
         raise Exception("Error: module '%s' does not exist.\n" % (args.modulename))
     
-    module_dict = config[SW_MODULESECT][args.modulename]
+    module_dict = config[pfwdefs.SW_MODULESECT][args.modulename]
     
     if args.searchname is not None:
-        if SW_LISTSECT in module_dict and args.searchname in module_dict[SW_LISTSECT]:
-            search_dict = module_dict[SW_LISTSECT][args.searchname]
-        elif SW_FILESECT in module_dict and args.searchname in module_dict[SW_FILESECT]:
-            search_dict = module_dict[SW_FILESECT][args.searchname]
+        if pfwdefs.SW_LISTSECT in module_dict and args.searchname in module_dict[pfwdefs.SW_LISTSECT]:
+            search_dict = module_dict[pfwdefs.SW_LISTSECT][args.searchname]
+        elif pfwdefs.SW_FILESECT in module_dict and args.searchname in module_dict[pfwdefs.SW_FILESECT]:
+            search_dict = module_dict[pfwdefs.SW_FILESECT][args.searchname]
         else:
             raise Exception("Error: Could not find either list or file by name %s in module %s\n" % (args.searchname, args.modulename))
         nickname = args.searchname
     else:
         raise Exception("Error: need to define either list or file or search\n")
+
+
+    archive_names = []
+
+    if config[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never':
+        archive_names.append(config[pfwdefs.HOME_ARCHIVE])
+
+    if config[pfwdefs.USE_TARGET_ARCHIVE_INPUT] != 'never':
+        archive_names.append(config[pfwdefs.TARGET_ARCHIVE])
     
-    fields = fwsplit(search_dict[SW_QUERYFIELDS].lower())
+    fields = coremisc.fwsplit(search_dict[pfwdefs.SW_QUERYFIELDS].lower())
     
     if ('query_run' in config and 'fileclass' in search_dict and 
         'fileclass' in config and search_dict['fileclass'] == config['fileclass']):
@@ -79,10 +88,10 @@ def main(argv):
     
         value = config.interpolate(value)
         if ',' in value:
-            value = fwsplit(value)
+            value = coremisc.fwsplit(value)
 
         if ':' in value:
-            value = fwsplit(value)
+            value = coremisc.fwsplit(value)
     
         if table not in query:
             query[table] = {}
@@ -95,7 +104,7 @@ def main(argv):
     
     # if specified, insert join into query hash
     if 'join' in search_dict:
-        #joins = fwsplit(search_dict['join'].lower())
+        #joins = coremisc.fwsplit(search_dict['join'].lower())
         #for j in joins:
         #    m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
         #    if m:
@@ -115,7 +124,7 @@ def main(argv):
 
     # check output fields for fields from other tables.
     if 'output_fields' in search_dict:
-        output_fields = fwsplit(search_dict['output_fields'].lower())
+        output_fields = coremisc.fwsplit(search_dict['output_fields'].lower())
 
         for ofield in output_fields:
             m = re.search("(\S+)\.(\S+)", ofield)
@@ -132,6 +141,11 @@ def main(argv):
     for t in query:
         if 'select_fields' in query[t]:
             query[t]['select_fields'] = ','.join(query[t]['select_fields'])
+
+    if len(archive_names) > 0:
+        query[qtable]['join'] = "%s.filename=file_archive_info.filename" % qtable
+        query['file_archive_info'] = {'select_fields': 'compression'}
+        query['file_archive_info']['key_vals'] = {'archive_name': ','.join(archive_names)}
 
     print "Calling gen_file_list with the following query\n", query
     files = pfwfilelist.gen_file_list(query)

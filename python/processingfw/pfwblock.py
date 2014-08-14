@@ -46,16 +46,21 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
     #                                      'interpolate': True,
     #                                      'expand': True})
 
+    cmpext = ''
+    if 'compression' in finfo and finfo['compression'] is not None and finfo['compression'] != 'None':
+        #print "compression: %s, %s" % (finfo['compression'], type(finfo['compression']))
+        cmpext = finfo['compression']
+    
     fullname = None
     if type(filename) is list:
         fullname = []
         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "%s has multiple names, number of names = %s" % (fname,len(filename)))
         for f in filename:
             coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "path + filename = %s/%s" % (path,f))
-            fullname.append("%s/%s" % (path, f))
+            fullname.append("%s/%s%s" % (path, f, cmpext))
     else:
         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "Adding path to filename for %s" % filename)
-        fullname = ["%s/%s" % (path, filename)]
+        fullname = ["%s/%s%s" % (path, filename, cmpext)]
     coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "END fullname = %s" % fullname)
     return fullname
 
@@ -330,7 +335,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
     if finfo is not None and is_iter_obj:
         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = true")
         for key,val in finfo.items():
-            if key not in ['fullname','filename','dirpat','filetype']:
+            if key not in ['fullname','filename','dirpat','filetype','compression']:
                 coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
                 winst[key] = val
         
@@ -884,7 +889,7 @@ def write_jobwcl(config, jobkey, jobdict):
         print "home_archive =", home_archive
         print "target_archive =", target_archive
         print 'job_file_mvmt =' 
-        pretty_print_dict(config['job_file_mvmt'])
+        coremisc.pretty_print_dict(config['job_file_mvmt'])
         print "\n"
         raise
 
@@ -1140,11 +1145,9 @@ def create_fullnames(config, modname):
                 for llabel,ldict in master['list'][pfwdefs.PF_LISTENTRY].items():
                     for flabel,fdict in ldict['file'].items():
                         if flabel in dictcurr:
-                            path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: dictcurr[flabel], 'searchobj': fdict})
-                            fdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                            fdict['fullname'] = add_runtime_path(config, dictcurr[flabel], flabel, fdict, fdict['filename'])
                         elif len(dictcurr) == 1:
-                            path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: dictcurr.values()[0], 'searchobj': fdict})
-                            fdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                            fdict['fullname'] = add_runtime_path(config, dictcurr.values()[0], flabel, fdict, fdict['filename'])[0]
                         else:
                             print "dictcurr: ", dictcurr.keys()
                             coremisc.fwdie("Error: Looking at lines - could not find %s def in dictcurr" % flabel, pfwdefs.PF_EXIT_FAILURE)
@@ -1156,8 +1159,7 @@ def create_fullnames(config, modname):
 
                 for llabel,ldict in master['list'][pfwdefs.PF_LISTENTRY].items():
                     for flabel,fdict in ldict['file'].items():
-                        path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: currvals, 'searchobj': fdict})
-                        fdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                        fdict['fullname'] = add_runtime_path(config, currvals, flabel, fdict, fdict['filename'])[0]
         else:
             print "\t%s-%s: no masterlist...skipping" % (modname, sname)
 

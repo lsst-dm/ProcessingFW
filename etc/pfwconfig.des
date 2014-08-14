@@ -11,8 +11,9 @@ use_db_out = True
 tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
 modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
 <filename_pattern>
+    config = ${unitname}_r${reqnum}p${attnum:2}_${cfglabel}_config.des
+
     qoutput = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
-    config = ${unitname}_r${reqnum}p${attnum:2}_config.des
     inputwcl = ${modnamepat}_input.wcl
     outputwcl = ${modnamepat}_output.wcl
     log = ${modnamepat}.log

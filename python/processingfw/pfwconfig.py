@@ -281,6 +281,9 @@ class PfwConfig:
         self.set_block_info()
     
         self.config['submit_run'] = self.interpolate("${unitname}_r${reqnum}p${attnum:2}")
+        self.config['submit_%s' % REQNUM] = self.config[REQNUM]
+        self.config['submit_%s' % UNITNAME] = self.config[UNITNAME]
+        self.config['submit_%s' % ATTNUM] = self.config[ATTNUM]
         self.config['run'] = self.config['submit_run']
     
 

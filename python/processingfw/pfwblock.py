@@ -32,7 +32,7 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
     """ Add runtime path to filename """
 
     coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "creating path for %s" % fname)
-    coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "finfo = %s" % finfo)
+    coremisc.fwdebug(6,"PFWBLOCK_DEBUG", "finfo = %s" % finfo)
 
     path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: currvals, 
                                                  'searchobj': finfo,
@@ -46,16 +46,21 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
     #                                      'interpolate': True,
     #                                      'expand': True})
 
+    cmpext = ''
+    if 'compression' in finfo and finfo['compression'] is not None and finfo['compression'] != 'None':
+        print "compression: %s, %s" % (finfo['compression'], type(finfo['compression']))
+        cmpext = finfo['compression']
+    
     fullname = None
     if type(filename) is list:
         fullname = []
         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "%s has multiple names, number of names = %s" % (fname,len(filename)))
         for f in filename:
             coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "path + filename = %s/%s" % (path,f))
-            fullname.append("%s/%s" % (path, f))
+            fullname.append("%s/%s%s" % (path, f, cmpext))
     else:
         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "Adding path to filename for %s" % filename)
-        fullname = ["%s/%s" % (path, filename)]
+        fullname = ["%s/%s%s" % (path, filename, cmpext)]
     coremisc.fwdebug(0,"PFWBLOCK_DEBUG", "END fullname = %s" % fullname)
     return fullname
 
@@ -157,6 +162,7 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
             sinfo = copy.deepcopy(finfo)
             sinfo.update(file1)   
 
+            print "MMG1"
             file1['fullname'] = add_runtime_path(config, currvals, fname, sinfo, pair[0])[0]
             filedict_list.append(file1)
         filelist_wcl = pfwfilelist.convert_single_files_to_lines(filedict_list)
@@ -315,6 +321,13 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
                                                                 'interpolate': True}) 
 
         # Add runtime path to filename
+        print "MMG2"
+        if "compression" in winst:
+            print "MMG2 - compression in winst %s" % winst['compression']
+        if "compression" in finfo:
+            print "MMG2 - compression in finfo %s" % finfo['compression']
+        if "compression" in sobj:
+            print "MMG2 - compression in sobj %s" % sobj['compression']
         fullname = add_runtime_path(config, currvals, fname, sobj, winst[pfwdefs.IW_FILESECT][fname]['filename'])
         if fname in theinputs[pfwdefs.SW_FILESECT]:
             for f in fullname:
@@ -330,7 +343,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
     if finfo is not None and is_iter_obj:
         coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj = true")
         for key,val in finfo.items():
-            if key not in ['fullname','filename','dirpat','filetype']:
+            if key not in ['fullname','filename','dirpat','filetype','compression']:
                 coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "is_iter_obj: saving %s" % key)
                 winst[key] = val
         
@@ -349,7 +362,20 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
 
     winst[pfwdefs.IW_LISTSECT][lname] = {}
 
+    ### create an object that has values from ldict and winst
+
+    # don't deepcopy sublists
+    savesublists = None
+    if 'sublists' in ldict:
+        savesublists = ldict['sublists']
+        ldict['sublists'] = None
+
     sobj = copy.deepcopy(ldict)
+
+    # put sublists back after deepcopy
+    if savesublists is not None:
+        ldict['sublists'] = savesublists
+
     sobj.update(winst)
     coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "sobj = %s" % (sobj))
 
@@ -481,7 +507,7 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
         sortkey = ldict['sortkey'].lower()
         lines = sorted(lines, key=lambda k: get_value_from_line(k, sortkey, None, 1)) 
         
-
+    coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Writing list to file %s" % listname)
     with open(listname, "w") as listfh:
         for linedict in lines:
             output_line(listfh, linedict, format, coremisc.fwsplit(columns))
@@ -566,9 +592,11 @@ def finish_wrapper_inst(config, modname, wrapperinst):
     output_filenames = []
     for winst in wrapperinst.values():
         for f in winst['wrapinputs'].values():
+            print "MMG f=%s" % f
             input_filenames.append(coremisc.parse_fullname(f, coremisc.CU_PARSE_FILENAME))
 
         for f in winst['wrapoutputs'].values():
+            print "MMG f=%s" % f
             output_filenames.append(coremisc.parse_fullname(f, coremisc.CU_PARSE_FILENAME))
 
 
@@ -871,7 +899,7 @@ def write_jobwcl(config, jobkey, jobdict):
         print "home_archive =", home_archive
         print "target_archive =", target_archive
         print 'job_file_mvmt =' 
-        pretty_print_dict(config['job_file_mvmt'])
+        coremisc.pretty_print_dict(config['job_file_mvmt'])
         print "\n"
         raise
 
@@ -1041,6 +1069,8 @@ def create_wrapper_inst(config, modname, loopvals):
                 raise
 
             wrapperinst[instkey] = winst
+            if 'compression' in winst:
+                print "MMGYYY"
     else:
         config.inc_wrapnum()
         wrapperinst['noloop'] = {pfwdefs.PF_WRAPNUM: config[pfwdefs.PF_WRAPNUM]}
@@ -1127,11 +1157,15 @@ def create_fullnames(config, modname):
                 for llabel,ldict in master['list'][pfwdefs.PF_LISTENTRY].items():
                     for flabel,fdict in ldict['file'].items():
                         if flabel in dictcurr:
-                            path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: dictcurr[flabel], 'searchobj': fdict})
-                            fdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                            #MMGpath = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: dictcurr[flabel], 'searchobj': fdict})
+                            #MMGfdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                            print "MMG3"
+                            fdict['fullname'] = add_runtime_path(config, dictcurr[flabel], flabel, fdict, fdict['filename'])
                         elif len(dictcurr) == 1:
-                            path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: dictcurr.values()[0], 'searchobj': fdict})
-                            fdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                            #MMGpath = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: dictcurr.values()[0], 'searchobj': fdict})
+                            #MMGfdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                            print "MMG4"
+                            fdict['fullname'] = add_runtime_path(config, dictcurr.values()[0], flabel, fdict, fdict['filename'])[0]
                         else:
                             print "dictcurr: ", dictcurr.keys()
                             coremisc.fwdie("Error: Looking at lines - could not find %s def in dictcurr" % flabel, pfwdefs.PF_EXIT_FAILURE)
@@ -1143,8 +1177,10 @@ def create_fullnames(config, modname):
 
                 for llabel,ldict in master['list'][pfwdefs.PF_LISTENTRY].items():
                     for flabel,fdict in ldict['file'].items():
-                        path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: currvals, 'searchobj': fdict})
-                        fdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                        #MMGpath = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: currvals, 'searchobj': fdict})
+                        #MMGfdict['fullname'] = "%s/%s" % (path, fdict['filename'])
+                        print "MMG5"
+                        fdict['fullname'] = add_runtime_path(config, currvals, flabel, fdict, fdict['filename'])[0]
         else:
             print "\t%s-%s: no masterlist...skipping" % (modname, sname)
 
@@ -1290,6 +1326,7 @@ def get_value_from_line(line, key, nickname=None, numvals=None):
         else:
             for fnickname, fdict in line['file'].items():
                 if key in fdict:
+                    print "MMG8: key=%s, fdict=%s" % (key,fdict)
                     valhash[fdict[key]] = True
 
     valarr = valhash.keys()

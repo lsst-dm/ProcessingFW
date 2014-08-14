@@ -139,6 +139,12 @@ class PFWDB (desdbi.DesDbi):
         else:
             allparams['group_submit_id'] = None
 
+        (exists, value) = config.search('campaign', {'interpolate': True})
+        if exists:
+            allparams['campaign'] = value
+        else:
+            allparams['campaign'] = None
+
         # create named bind strings for all parameters
         namebinds = {}
         for k in allparams.keys():
@@ -155,14 +161,14 @@ class PFWDB (desdbi.DesDbi):
 
                 # pfw_request
                 coremisc.fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_request table\n")
-                sql =  "insert into pfw_request (reqnum, project, jira_id, pipeline) " 
-                sql += "select %s, %s, %s, %s %s where not exists (select null from pfw_request where reqnum=%s)" % \
-                       (namebinds['reqnum'], namebinds['project'], namebinds['jiraid'], namebinds['pipeline'], 
+                sql =  "insert into pfw_request (reqnum, project, campaign, jira_id, pipeline) " 
+                sql += "select %s, %s, %s, %s, %s %s where not exists (select null from pfw_request where reqnum=%s)" % \
+                       (namebinds['reqnum'], namebinds['project'], namebinds['campaign'], namebinds['jiraid'], namebinds['pipeline'], 
                        from_dual, namebinds['reqnum'])
                 coremisc.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
 
                 params = {}
-                for k in ['reqnum', 'project', 'jiraid', 'pipeline']:
+                for k in ['reqnum', 'project', 'jiraid', 'pipeline', 'campaign']:
                     params[k]=allparams[k]
                 coremisc.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % params)
                 curs.execute(sql, params)

@@ -242,6 +242,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
     """ Handle the transfer of files from a single archive to the job directory """
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     
+    trans_task_id = 0
     if pfw_dbh is not None:
         trans_task_id = pfw_dbh.create_task(name = 'transfer', 
                                             info_table = None,
@@ -320,7 +321,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
         else:
             results = jobfilemvmt.home2job(transinfo)
         if sem is not None:
-            coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Releasing lock")
+            coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Releasing lock")
             del sem
 
     if pfw_dbh is not None:
@@ -817,7 +818,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     else:
         results = jobfilemvmt.job2home(saveinfo)
     if sem is not None:
-        coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Releasing lock")
+        coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Releasing lock")
         del sem
     
     if pfw_dbh is None:
@@ -1097,6 +1098,7 @@ def job_workflow(workflow, jobwcl={}):
             else:
                 wcl['task_id']['jobwrapper'] = -1
 
+            print "\tSetup"
             setup_wrapper(pfw_dbh, wcl, task['wclfile'], task['logfile'])
             exectid = determine_exec_task_id(pfw_dbh, wcl)
 
@@ -1105,6 +1107,7 @@ def job_workflow(workflow, jobwcl={}):
                 pfw_dbh.close()
                 pfw_dbh = None
 
+            print "\tRunning wrapper"
             starttime = time.time()
             try:
                 os.putenv("DESDMFW_TASKID", str(exectid))
@@ -1134,6 +1137,7 @@ def job_workflow(workflow, jobwcl={}):
             else:
                 print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
+            print "\tPost-steps"
             postwrapper(pfw_dbh, wcl, task['logfile'], exitcode) 
             pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
 

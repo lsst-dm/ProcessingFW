@@ -68,7 +68,7 @@ def begrun(argv):
         # load file mvmt class
         filemvmt_class = coremisc.dynamically_load_class(submit_files_mvmt)
         valDict = fmutils.get_config_vals(config['job_file_mvmt'], config, filemvmt_class.requested_config_vals())
-        filemvmt = filemvmt_class(archive_info, None, None, None, None)
+        filemvmt = filemvmt_class(archive_info, None, None, None, valDict)
 
         results = filemvmt.job2home(files2copy)
         coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'trans results = %s' % results)

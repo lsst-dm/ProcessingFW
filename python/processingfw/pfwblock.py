@@ -1799,9 +1799,9 @@ def create_runjob_condorfile(config, scriptfile):
                 'notification': 'Never',
                 'output':'%sout' % jobbase,
                 'error':'%serr' % jobbase,
-                'log': '%slog' % blockbase,
-                'periodic_release': '((CurrentTime - EnteredCurrentStatus) > 1800) && (HoldReason =!= "via condor_hold (by user %s)")' % config['operator'],
-                'periodic_remove' : '((JobStatus == 1) && (JobRunCount =!= Undefined))'
+                'log': '%slog' % blockbase
+                #'periodic_release': '((CurrentTime - EnteredCurrentStatus) > 1800) && (HoldReason =!= "via condor_hold (by user %s)")' % config['operator'],
+                #'periodic_remove' : '((JobStatus == 1) && (JobRunCount =!= Undefined))'
                  }
 
 

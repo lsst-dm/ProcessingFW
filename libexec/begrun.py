@@ -21,7 +21,16 @@ def begrun(argv):
 
     coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'use_home_archive_output = %s' % config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
 
-    if config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never':
+    # if not a dryrun and using a home archive for output
+    if (config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never' and
+        (pfwdefs.PF_DRYRUN not in config or 
+        not coremisc.convertBool(config[pfwdefs.PF_DRYRUN]))):
+
+        print config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT]
+        print config[pfwdefs.PF_DRYRUN]
+        print coremisc.convertBool(config[pfwdefs.PF_DRYRUN])
+        sys.exit(1)
+
         # the two wcl files to copy to the home archive
         expwcl = config['expwcl']
         fullcfg = config['fullcfg'] 

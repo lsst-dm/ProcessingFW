@@ -1826,7 +1826,7 @@ def create_runjob_condorfile(config, scriptfile):
         else:
             targetinfo['batchtype'] = targetinfo['batchtype'].lower()
 
-        if targetinfo['batchtype'] == 'glidein':
+        if 'glidein' in targetinfo['batchtype']:
             if 'uiddomain' not in config:
                 coremisc.fwdie("Error: Cannot determine uiddomain for matching to a glidein", pfwdefs.PF_EXIT_FAILURE)
             reqs.append('(UidDomain == "%s")' % config['uiddomain'])
@@ -1852,7 +1852,8 @@ def create_runjob_condorfile(config, scriptfile):
                 coremisc.fwdie("Error:  Cannot determine machine name (missing loginhost and gridhost)", pfwdefs.PF_EXIT_FAILURE)
 
             reqs.append('(machine == "%s")' % machine)
-        elif 'dynslots' in targetinfo['batchtype'].lower():
+
+        if 'dynslots' in targetinfo['batchtype']:
             if 'request_memory' in config:
                 jobattribs['request_memory'] = config['request_memory'] 
             if 'request_cpus' in config:

@@ -77,19 +77,23 @@ def main(args):
             if args[barg] is not None:
                 args[barg] = coremisc.convertBool(args[barg])
 
+    
+
         print 'Using version %s of dessubmit\n' % VERSION
 
         if args['version']:
             return 0   # already printed version
 
-        if args['notarget']:
-            print "Note:  notarget is depricated.   Instead use --%s" % pfwdefs.PF_DRYRUN 
-            args[pfwdefs.PF_DRYRUN] = True
-        else:
-            args[pfwdefs.PF_DRYRUN] = False
+        if args['notarget'] is not None:
+            if args['notarget']:
+                print "Note:  notarget is depricated.   Instead use --%s" % pfwdefs.PF_DRYRUN 
+                args[pfwdefs.PF_DRYRUN] = True
+            else:
+                args[pfwdefs.PF_DRYRUN] = False
 
         if args[pfwdefs.PF_DRYRUN]:
             print "RUNNING WITH %s\n" % pfwdefs.PF_DRYRUN.upper()
+
 
         args['wclfile'] = args['submitwcl'][0]
         args['get_db_config'] = True
@@ -117,9 +121,9 @@ def main(args):
                 dbh.insert_attempt_val(config)
                 dbh.insert_attempt_label(config)
                 print 'DONE'
-            elif ATTNUM not in config:
-                print '\tNo DB.  Defaulting %s to 0' % ATTNUM
-                config[ATTNUM] = 0 
+            elif pfwdefs.ATTNUM not in config:
+                print '\tNo DB.  Defaulting %s to 0' % pfwdefs.ATTNUM
+                config[pfwdefs.ATTNUM] = 0 
                
 
             print 'Checking system:'

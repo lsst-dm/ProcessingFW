@@ -104,19 +104,19 @@ def main(argv):
     
     # if specified, insert join into query hash
     if 'join' in search_dict:
-        #joins = coremisc.fwsplit(search_dict['join'].lower())
-        #for j in joins:
-        #    m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
-        #    if m:
-        #        print "1", m.group(1)
-        #        print "2", m.group(2)
-        #        print "3", m.group(3)
-        #        table = m.group(1)
-        #        if table not in query:
-        #            query[table] = {}
-        #        if 'join' not in query[table]:
-        #            query[table]['join'] = {}
-        #        query[m.group(1)]['join'][m.group(2)] = m.group(3)
+        joins = coremisc.fwsplit(search_dict['join'].lower())
+        for j in joins:
+            m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
+            if m:
+                print "1", m.group(1)
+                print "2", m.group(2)
+                print "3", m.group(3)
+                table = m.group(1)
+                if table not in query:
+                    query[table] = {}
+                if 'join' not in query[table]:
+                    query[table]['join'] = {}
+                query[m.group(1)]['join'][m.group(2)] = m.group(3)
         query[table]['join']=search_dict['join']
 
 

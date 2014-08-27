@@ -1799,9 +1799,10 @@ def create_runjob_condorfile(config, scriptfile):
                 'notification': 'Never',
                 'output':'%sout' % jobbase,
                 'error':'%serr' % jobbase,
-                'log': '%slog' % blockbase
+                'log': '%slog' % blockbase,
                 #'periodic_release': '((CurrentTime - EnteredCurrentStatus) > 1800) && (HoldReason =!= "via condor_hold (by user %s)")' % config['operator'],
                 #'periodic_remove' : '((JobStatus == 1) && (JobRunCount =!= Undefined))'
+                'periodic_hold': '((NumJobStarts > 0) && (JobStatus == 1))'   # put jobs that have run once and are back in idle on hold
                  }
 
 
@@ -1814,7 +1815,7 @@ def create_runjob_condorfile(config, scriptfile):
         targetinfo['gridtype'] = targetinfo['gridtype'].lower()
         print 'GRIDTYPE =', targetinfo['gridtype']
 
-    reqs = []
+    reqs = ['NumJobStarts == 0']   # don't want to rerun any job
     if targetinfo['gridtype'] == 'condor':
         jobattribs['universe'] = 'vanilla'
 

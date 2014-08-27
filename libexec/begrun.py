@@ -23,13 +23,9 @@ def begrun(argv):
 
     # if not a dryrun and using a home archive for output
     if (config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never' and
+        'submit_files_mvmt' in config and
         (pfwdefs.PF_DRYRUN not in config or 
         not coremisc.convertBool(config[pfwdefs.PF_DRYRUN]))):
-
-        print config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT]
-        print config[pfwdefs.PF_DRYRUN]
-        print coremisc.convertBool(config[pfwdefs.PF_DRYRUN])
-        sys.exit(1)
 
         # the two wcl files to copy to the home archive
         expwcl = config['expwcl']

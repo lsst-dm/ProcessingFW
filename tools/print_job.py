@@ -49,7 +49,7 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
     
             
             print "\t%s %d/%d  %s (%s)" % (pfwutils.pad_jobnum(jobnum), numwraps, expnumwrap, modname, jobkeys),
-            if 'endtime' in jobdict and jobdict['endtime'] is not None:
+            if 'end_time' in jobdict and jobdict['end_time'] is not None:
                 if jobdict['status'] == 0:
                     print "done"
                 else:

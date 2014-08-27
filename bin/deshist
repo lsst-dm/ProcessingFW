@@ -108,11 +108,11 @@ def massageInfo(attempts):
         #else:
         #    attd['qwait'] = 'UNK'
 
-        if 'starttime' in attd and attd['starttime'] is not None: 
-            if 'endtime' in attd and attd['endtime'] is not None: 
-                attd['wallclock'] = attd['endtime'] - attd['starttime']
+        if 'start_time' in attd and attd['start_time'] is not None: 
+            if 'end_time' in attd and attd['end_time'] is not None: 
+                attd['wallclock'] = attd['end_time'] - attd['start_time']
             else:
-                attd['wallclock'] = datetime.now() - attd['starttime']
+                attd['wallclock'] = datetime.now() - attd['start_time']
         else:
             attd['wallclock'] = 'UNK'
     

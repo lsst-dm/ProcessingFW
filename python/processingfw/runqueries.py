@@ -130,7 +130,7 @@ def create_master_list(config, modname, moddict,
         pfw_dbh.close()
 
     if exitcode != 0:
-        raise Exception("Error: problem creating master list\n%s" % (cmd))
+        fwdie("Error: problem creating master list (exitcode = %s)" % (exitcode), exitcode)
     
     fwdebug(0, "RUNQUERIES_DEBUG", "END")
 

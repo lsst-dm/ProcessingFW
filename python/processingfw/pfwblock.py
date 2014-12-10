@@ -1748,6 +1748,10 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
     blockname = config['curr_block']
     blkdir = config['block_dir']
 
+    use_condor_transfer_output = True
+    if 'use_condor_transfer_output' in config:
+        use_condor_transfer_output = coremisc.convertBool(config['use_condor_transfer_output'])
+
 
     with open("%s/%s" % (blkdir, dagfile), 'w') as dagfh:
         for jobkey,jobdict in joblist.items(): 
@@ -1759,7 +1763,9 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write('VARS %s exec="../%s"\n' % (tjpad, scriptfile))
             dagfh.write('VARS %s args="%s %s %s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile'], jobdict['envfile'], jobdict['outputwcltar']))
             dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
-            dagfh.write('VARS %s transoutput="%s,%s"\n' % (tjpad, jobdict['outputwcltar'], jobdict['envfile']))
+
+            if use_condor_transfer_output:
+                dagfh.write('VARS %s transoutput="%s,%s"\n' % (tjpad, jobdict['outputwcltar'], jobdict['envfile']))
             dagfh.write('SCRIPT pre %s %s/libexec/jobpre.py ../uberctrl/config.des $JOB\n' % (tjpad, pfwdir)) 
             dagfh.write('SCRIPT post %s %s/libexec/jobpost.py ../uberctrl/config.des %s $JOB %s %s $RETURN\n' % (tjpad, pfwdir, blockname, jobdict['inputwcltar'], jobdict['outputwcltar'])) 
 
@@ -1866,7 +1872,11 @@ def create_runjob_condorfile(config, scriptfile):
         jobattribs['grid_resource'] = pfwcondor.create_resource(targetinfo)
         jobattribs['stream_output'] = 'False'
         jobattribs['stream_error'] = 'False'
-        jobattribs['transfer_output_files'] = '$(transoutput)'
+        use_condor_transfer_output = True
+        if 'use_condor_transfer_output' in config:
+            use_condor_transfer_output = coremisc.convertBool(config['use_condor_transfer_output'])
+        if use_condor_transfer_output:
+            jobattribs['transfer_output_files'] = '$(transoutput)'
         globus_rsl = pfwcondor.create_rsl(targetinfo)
         if len(globus_rsl) > 0:
             jobattribs['globus_rsl'] = globus_rsl

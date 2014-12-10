@@ -1802,6 +1802,7 @@ def create_runjob_condorfile(config, scriptfile):
                 'log': '%slog' % blockbase,
                 #'periodic_release': '((CurrentTime - EnteredCurrentStatus) > 1800) && (HoldReason =!= "via condor_hold (by user %s)")' % config['operator'],
                 #'periodic_remove' : '((JobStatus == 1) && (JobRunCount =!= Undefined))'
+                'periodic_remove': '((JobStatus == 5) && (HoldReason =!= "via condor_hold (by user %s)"))' % config['operator'],
                 'periodic_hold': '((NumJobStarts > 0) && (JobStatus == 1))'   # put jobs that have run once and are back in idle on hold
                  }
 

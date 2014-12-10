@@ -472,12 +472,13 @@ class PFWDB (desdbi.DesDbi):
             coremisc.fwdebug(6, 'PFWDB_DEBUG', "\tjobnum = %s, jobinfo = %s" % (jobnum, jobinfo))
 
 
-    def update_tjob_info(self, wcl, jobnum, jobinfo, taskinfo):
+    #def update_tjob_info(self, wcl, jobnum, jobinfo, taskinfo):
+    def update_tjob_info(self, wcl, jobnum, jobinfo):
         """ update a row in the task table because couldn't do so at run time """
 
-        wherevals = {}
-        wherevals['id'] = wcl['task_id']['job'][jobnum]
-        self.basic_update_row ('task', taskinfo, wherevals)
+        #wherevals = {}
+        #wherevals['id'] = wcl['task_id']['job'][jobnum]
+        #self.basic_update_row ('task', taskinfo, wherevals)
 
         wherevals = {}
         wherevals['task_id'] = wcl['task_id']['job'][jobnum]

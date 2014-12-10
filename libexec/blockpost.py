@@ -99,36 +99,41 @@ def blockpost(argv = None):
 
             for jobnum,jobdict in sorted(job_byblk[blknum].items()):
                 jobkeys = ""
+                
+
                 if jobdict['jobkeys'] is not None:
                     jobkeys = jobdict['jobkeys']
                     #print "jobkeys = ",jobkeys, type(jobkeys)
 
-                if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
-                    msg2 += "\t%s (%s)" % (pfwutils.pad_jobnum(jobnum), jobkeys)
-                    msg2 += " FAIL - EUPS setup failure"
-                    retval = pfwdefs.PF_EXIT_FAILURE
+                msg2 += "\n\t%s (%s) " % (pfwutils.pad_jobnum(jobnum), jobkeys)
 
                 if jobnum not in wrap_byjob:
-                    print "\t%06d No wrapper instances" % jobnum
-                    continue
-                #print "wrapnum in job =", wrap_byjob[jobnum].keys()
-                maxwrap = max(wrap_byjob[jobnum].keys())
-                #print "maxwrap =", maxwrap
-                modname = wrap_byjob[jobnum][maxwrap]['modname']
-                #print "modname =", modname
+                    msg2 += "\tNo wrapper instances"
+                else:
+                    #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+                    maxwrap = max(wrap_byjob[jobnum].keys())
+                    #print "maxwrap =", maxwrap
+                    modname = wrap_byjob[jobnum][maxwrap]['modname']
+                    #print "modname =", modname
 
-                #print "wrap_byjob[jobnum][maxwrap]['task_id']=",wrap_byjob[jobnum][maxwrap]['task_id']
-                msg2 += "\t%s %d/%s  %s (%s)" % (pfwutils.pad_jobnum(jobnum), 
-                                                 len(wrap_byjob[jobnum]), 
-                                                 jobdict['expect_num_wrap'], 
-                                                 modname, jobkeys)
-                if jobdict['status'] is None:
-                    msg2 += " FAIL - NULL status"
-                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
+                    #print "wrap_byjob[jobnum][maxwrap]['task_id']=",wrap_byjob[jobnum][maxwrap]['task_id']
+                    msg2 += "%d/%s  %s" % (len(wrap_byjob[jobnum]), jobdict['expect_num_wrap'], modname)
+                
+                if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
+                    msg2 += " - FAIL - EUPS setup failure"
+                    retval = pfwdefs.PF_EXIT_FAILURE
+                elif jobdict['status'] == pfwdefs.PF_EXIT_CONDOR:
+                    msg2 += " - FAIL - Condor/Globus failure"
+                    retval = pfwdefs.PF_EXIT_FAILURE
+                elif jobdict['status'] is None:
+                    msg2 += " - FAIL - NULL status"
+                    if jobnum in wrap_byjob:
+                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
                     retval = pfwdefs.PF_EXIT_FAILURE
                 elif jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                    lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
-                    msg2 += " FAIL"
+                    if jobnum in wrap_byjob:
+                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
+                    msg2 += " - FAIL - Non-zero status"
                     retval = pfwdefs.PF_EXIT_FAILURE
 
                 msg2 += '\n'

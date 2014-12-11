@@ -30,6 +30,32 @@ import coreutils.dbsemaphore as dbsem
 VERSION = '$Rev$'
 
 ######################################################################
+def get_batch_id_from_job_ad(jobad_file):
+    """ Parse condor job ad to get condor job id """
+
+    batch_id = None
+    try:
+        info = {}
+        with open(jobad_file, 'r') as jobadfh:
+            for line in jobadfh:
+                m = re.match("^\s*(\S+)\s+=\s+(.+)\s*$", line)
+                info[m.group(1).lower()] = m.group(2)
+
+        # GlobalJobId currently too long to store as target job id
+        # Print it here so have it in stdout just in case
+        print "PFW: GlobalJobId = ", info['globaljobid']
+
+        batch_id = "%s.%s" % (info['clusterid'], info['procid'])
+    except Exception as ex:
+        coremisc.fwdebug(0, "PFWRUNJOB_DEBUG",  "Problem getting condor job id from job ad: %s" % (str(ex)))
+        coremisc.fwdebug(0, "PFWRUNJOB_DEBUG",  "Continuing without condor job id")
+
+    
+    coremisc.fwdebug(0, "PFWRUNJOB_DEBUG",  "condor_job_id = %s" % batch_id)
+    return batch_id
+
+
+######################################################################
 def determine_exec_task_id(pfw_dbh, wcl):
     exec_ids=[]
     execs = pfwutils.get_exec_sections(wcl, pfwdefs.IW_EXECPREFIX)
@@ -1178,8 +1204,8 @@ def run_job(args):
         batch_id = os.environ['LSB_JOBID']
     elif 'LOADL_STEP_ID' in os.environ:
         batch_id = os.environ['LOADL_STEP_ID'].split('.').pop()
-    elif 'SUBMIT_CONDORID' in os.environ:
-        batch_id = os.environ['SUBMIT_CONDORID']
+    elif '_CONDOR_JOB_AD' in os.environ:
+        batch_id = get_batch_id_from_job_ad(os.environ['_CONDOR_JOB_AD'])
 
     pfw_dbh = None
     if wcl['use_db']:   

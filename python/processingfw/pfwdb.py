@@ -18,6 +18,7 @@ __version__ = "$Rev$"
 import os
 import sys
 import traceback
+import datetime
 from collections import OrderedDict
 
 import coreutils.desdbi as desdbi
@@ -413,23 +414,81 @@ class PFWDB (desdbi.DesDbi):
         self.insert_PFW_row('PFW_JOB', row)
             
 
-    def update_job_target_info (self, wcl, submit_condor_id = None, target_batch_id = None, exechost=None):
+    def update_job_target_info (self, wcl, submit_condor_id = None, 
+                                target_batch_id = None, exechost=None):
         """ Save information about target job from pfwrunjob """
 
         jobnum = wcl[pfwdefs.PF_JOBNUM]
 
-
-        updatevals = {}
+        params = {}
+        setvals = []
         if submit_condor_id is not None:
-            updatevals['condor_job_id'] = float(submit_condor_id)
+            setvals.append('condor_job_id=%s' % self.get_named_bind_string('condor_job_id'))
+            params['condor_job_id'] = float(submit_condor_id)
 
         if target_batch_id is not None:
-            updatevals['target_job_id'] = target_batch_id
+            setvals.append('target_job_id=%s' % self.get_named_bind_string('target_job_id'))
+            params['target_job_id'] = target_batch_id
 
-        if len(updatevals) > 0:
-            wherevals = {}
-            wherevals['task_id'] = wcl['task_id']['job'][jobnum] 
-            self.update_PFW_row ('PFW_JOB', updatevals, wherevals)
+        if len(setvals) > 0:
+            params['task_id'] = wcl['task_id']['job'][jobnum] 
+
+            sql = "update pfw_job set %s where task_id=%s and condor_job_id is NULL" % (','.join(setvals), self.get_named_bind_string('task_id'))
+
+            coremisc.fwdebug(0, 'DESDBI_DEBUG', "sql> %s" % sql)
+            coremisc.fwdebug(0, 'DESDBI_DEBUG', "params> %s" % params)
+            curs = self.cursor()
+            try:
+                curs.execute(sql, params)
+            except:
+                (type, value, traceback) = sys.exc_info()
+                print "******************************"
+                print "Error:", type, value
+                print "sql> %s\n" % (sql)
+                print "params> %s\n" % params
+                raise
+
+            if curs.rowcount == 0:
+                self.insert_message(wcl['task_id']['job'][jobnum], PFW_MSG_ERROR, 
+                                    "Job attempted to run more than once")
+
+                print "******************************"
+                print "Error:  This job has already been run before."
+                print "reqnum = ", wcl[pfwdefs.REQNUM]
+                print "unitname = ", wcl[pfwdefs.UNITNAME]
+                print "attnum = ", wcl[pfwdefs.ATTNUM]
+                print "blknum = ", wcl[pfwdefs.PF_BLKNUM]
+                print "jobnum = ", jobnum
+                print "job task_id = ", wcl['task_id']['job'][jobnum]
+
+                print "\nThe 1st job information:"
+                curs2 = self.cursor()
+                sql = "select * from pfw_job, task where pfw_job.task_id=task.id and reqnum=%s and unitname=%s and attnum=%s and jobnum=%s" % (self.get_named_bind_string('reqnum'), self.get_named_bind_string('unitname'), self.get_named_bind_string('attnum'), self.get_named_bind_string('jobnum'))
+                curs2.execute(sql, {'reqnum': wcl[pfwdefs.REQNUM],
+                                    'unitname': wcl[pfwdefs.UNITNAME],
+                                    'attnum': wcl[pfwdefs.ATTNUM],
+                                    'jobnum': jobnum})
+                desc = [d[0].lower() for d in curs2.description]
+                for row in curs2:
+                    d = dict(zip(desc, row))
+                    for k,v in d.items():
+                        print k,v
+                    print "\n"
+
+
+    
+                print "\nThe 2nd job information:"
+                print "submit_condor_id = ", submit_condor_id
+                print "target_batch_id = ", target_batch_id
+                print "exechost = ", exechost
+                print "current time = ", str(datetime.datetime.now())
+
+                print "\nupdate statement information"
+                print "sql> %s\n" % sql
+                print "params> %s\n" % params
+
+
+                raise Exception("Error: job attempted to run more than once")
 
         if exechost is not None:
             wherevals = {}
@@ -664,10 +723,23 @@ class PFWDB (desdbi.DesDbi):
         curs.execute(sql, wherevals)
         desc = [d[0].lower() for d in curs.description]
 
+        sql2 = "select * from pfw_message where task_id=%s" % self.get_named_bind_string('task_id')
+        curs2 = self.cursor()
+        curs2.prepare(sql2)
+            
         jobinfo = {}
         for line in curs:
             d = dict(zip(desc, line))
+            curs2.execute(None, {'task_id': d['task_id']})
+            desc2 = [x[0].lower() for x in curs2.description]
+            msglist = []
+            for r in curs2:
+                mdict = dict(zip(desc2,r))
+                msglist.append(mdict)
+            d['message'] = msglist
             jobinfo[d['jobnum']] = d
+            
+
         return jobinfo
 
 

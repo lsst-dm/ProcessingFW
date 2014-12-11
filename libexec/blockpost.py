@@ -85,7 +85,9 @@ def blockpost(argv = None):
         try:
             print "\n\nChecking job status from pfw_job table in DB (%s is success)" % pfwdefs.PF_EXIT_SUCCESS
             dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+
             jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
+
             wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
             dbh.close()
 
@@ -137,6 +139,21 @@ def blockpost(argv = None):
                     retval = pfwdefs.PF_EXIT_FAILURE
 
                 msg2 += '\n'
+
+                if 'message' in jobdict:
+                    for msgdict in sorted(jobdict['message'], key=lambda k: k['msgtime']):
+                        level = int(msgdict['msglevel'])
+                        print level, msgdict['msg'], type(level)
+                        print "PFW_MSG_WARN = ", pfwdb.PFW_MSG_WARN, type(pfwdb.PFW_MSG_WARN) 
+                        print "PFW_MSG_ERROR = ", pfwdb.PFW_MSG_ERROR 
+                        levelstr = 'info'
+                        if level == pfwdb.PFW_MSG_WARN:
+                            levelstr = 'WARN'
+                        elif level == pfwdb.PFW_MSG_ERROR:
+                            levelstr = 'ERROR'
+        
+                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'])
+
         except Exception, e:
             msg2 += "\n\nEncountered error trying to gather job/wrapper status for email.  Check output for blockpost for further details."
             print "\n\nEncountered error trying to gather job/wrapper status for email"

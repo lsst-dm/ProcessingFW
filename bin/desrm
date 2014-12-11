@@ -101,6 +101,10 @@ def main(argv=None):
     
     dbh.end_task(task_id, PF_EXIT_OPDELETE, True)
 
+    # set attempt's data state to junk
+    dbh.basic_update_row('PFW_ATTEMPT', {'data_state': 'JUNK'}, {'task_id': task_id})
+    dbh.commit()
+
     return(0)
 
 if __name__ == "__main__":

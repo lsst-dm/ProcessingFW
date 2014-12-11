@@ -81,6 +81,11 @@ def print_job_info(run):
 
     # get the run info
     attinfo = dbh.get_attempt_info(reqnum, unitname, attnum)
+    if attinfo is None:
+        print "No DB information about the processing attempt"
+        print "(Double check which DB querying vs which DB the attempt used)"
+        sys.exit(0)
+
     if 'endtime' in attinfo and attinfo['endtime'] is not None:
         print "Note:  run has finished with status %s" % attinfo['status'] 
 

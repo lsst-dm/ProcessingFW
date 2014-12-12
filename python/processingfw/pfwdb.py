@@ -667,7 +667,7 @@ class PFWDB (desdbi.DesDbi):
         """ insert row into pfw_data_query table """
         coremisc.fwdebug(3, 'PFWDB_DEBUG', "BEG")
 
-        parent_tid = wcl['task_id']['block'][wcl[pfwdefs.PF_BLKNUM]]
+        parent_tid = wcl['task_id']['begblock']
 
         row = {}
         row['reqnum'] = wcl[pfwdefs.REQNUM] 
@@ -793,6 +793,20 @@ class PFWDB (desdbi.DesDbi):
             wrappers[d['wrapnum']] = d
 
         return wrappers
+
+    def get_block_task_info(self, blktid):
+        """ Return task information for tasks for given block """
+
+        sql = "select * from task where parent_task_id=%s and (info_table is Null or info_table != %s)" % (self.get_named_bind_string('parent_task_id'), self.get_named_bind_string('info_table'))
+        curs = self.cursor()
+        curs.execute(sql, {'parent_task_id': blktid,
+                           'info_table': 'pfw_job'})
+        desc = [d[0].lower() for d in curs.description]
+        info = {}
+        for line in curs:
+            d = dict(zip(desc, line))
+            info[d['name']] = d
+        return info
 
 
     def get_run_filelist(self, reqnum, unitname, attnum, 

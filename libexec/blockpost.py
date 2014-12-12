@@ -74,6 +74,7 @@ def blockpost(argv = None):
     unitname = config.search(pfwdefs.UNITNAME, {'interpolate': True})[1]
     attnum = config.search(pfwdefs.ATTNUM, {'interpolate': True})[1]
     blknum = int(config.search(pfwdefs.PF_BLKNUM, {'interpolate': True})[1])
+    blktid = None
 
     msg2 = ""
     dbh = None
@@ -83,8 +84,33 @@ def blockpost(argv = None):
     wrap_bymod = {}
     if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         try:
-            print "\n\nChecking job status from pfw_job table in DB (%s is success)" % pfwdefs.PF_EXIT_SUCCESS
             dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+
+            print "\n\nChecking non-job block task status from task table in DB (%s is success)" % pfwdefs.PF_EXIT_SUCCESS
+            num_bltasks_failed = 0
+            bltasks = {}
+            if ('block' in config['task_id'] and 
+                str(blknum) in config['task_id']['block']):
+                blktid = config['task_id']['block'][str(blknum)]
+                bltasks = dbh.get_block_task_info(blktid)
+            else:
+                msg = "Could not find task id for block %s in config.des" % blockname
+                print "Error:", msg
+                if 'attempt' in config['task_id']:
+                    dbh.insert_message(config['task_id']['attempt'], pfwdb.PFW_MSG_WARN, msg)
+                print "all the task ids:", config['task_id']
+
+            for bltdict in bltasks.values():
+                if bltdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                    num_bltasks_failed += 1
+                    msg2 += "\t%s" % (bltdict['name'])
+                    if bltdict['label'] is not None:
+                        msg2 += " - %s" % (bltdict['label'])
+                    msg2 += " failed"
+                    retval = pfwdefs.PF_EXIT_FAILURE
+
+
+            print "\n\nChecking job status from pfw_job table in DB (%s is success)" % pfwdefs.PF_EXIT_SUCCESS
 
             jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname, 'attnum': attnum, 'blknum': blknum})
 
@@ -99,64 +125,68 @@ def blockpost(argv = None):
             #print "wrap_byjob:", wrap_byjob
             #print "wrap_bymod:", wrap_bymod
 
-            for jobnum,jobdict in sorted(job_byblk[blknum].items()):
-                jobkeys = ""
+            if blknum not in job_byblk:
+                print "Warn: could not find jobs for block %s" % blknum
+                print "      This is ok if attempt died before jobs ran"
+                print "      blknums in job_byblk:" % job_byblk.keys()
+            else:
+                for jobnum,jobdict in sorted(job_byblk[blknum].items()):
+                    jobkeys = ""
+
+                    if jobdict['jobkeys'] is not None:
+                        jobkeys = jobdict['jobkeys']
+                        #print "jobkeys = ",jobkeys, type(jobkeys)
+
+                    msg2 += "\n\t%s (%s) " % (pfwutils.pad_jobnum(jobnum), jobkeys)
+
+                    if jobnum not in wrap_byjob:
+                        msg2 += "\tNo wrapper instances"
+                    else:
+                        #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+                        maxwrap = max(wrap_byjob[jobnum].keys())
+                        #print "maxwrap =", maxwrap
+                        modname = wrap_byjob[jobnum][maxwrap]['modname']
+                        #print "modname =", modname
+
+                        #print "wrap_byjob[jobnum][maxwrap]['task_id']=",wrap_byjob[jobnum][maxwrap]['task_id']
+                        msg2 += "%d/%s  %s" % (len(wrap_byjob[jobnum]), jobdict['expect_num_wrap'], modname)
                 
+                    if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
+                        msg2 += " - FAIL - EUPS setup failure"
+                        retval = pfwdefs.PF_EXIT_FAILURE
+                    elif jobdict['status'] == pfwdefs.PF_EXIT_CONDOR:
+                        msg2 += " - FAIL - Condor/Globus failure"
+                        retval = pfwdefs.PF_EXIT_FAILURE
+                    elif jobdict['status'] is None:
+                        msg2 += " - FAIL - NULL status"
+                        if jobnum in wrap_byjob:
+                            lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
+                        retval = pfwdefs.PF_EXIT_FAILURE
+                    elif jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                        if jobnum in wrap_byjob:
+                            lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
+                        msg2 += " - FAIL - Non-zero status"
+                        retval = pfwdefs.PF_EXIT_FAILURE
 
-                if jobdict['jobkeys'] is not None:
-                    jobkeys = jobdict['jobkeys']
-                    #print "jobkeys = ",jobkeys, type(jobkeys)
+                    msg2 += '\n'
 
-                msg2 += "\n\t%s (%s) " % (pfwutils.pad_jobnum(jobnum), jobkeys)
-
-                if jobnum not in wrap_byjob:
-                    msg2 += "\tNo wrapper instances"
-                else:
-                    #print "wrapnum in job =", wrap_byjob[jobnum].keys()
-                    maxwrap = max(wrap_byjob[jobnum].keys())
-                    #print "maxwrap =", maxwrap
-                    modname = wrap_byjob[jobnum][maxwrap]['modname']
-                    #print "modname =", modname
-
-                    #print "wrap_byjob[jobnum][maxwrap]['task_id']=",wrap_byjob[jobnum][maxwrap]['task_id']
-                    msg2 += "%d/%s  %s" % (len(wrap_byjob[jobnum]), jobdict['expect_num_wrap'], modname)
-                
-                if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
-                    msg2 += " - FAIL - EUPS setup failure"
-                    retval = pfwdefs.PF_EXIT_FAILURE
-                elif jobdict['status'] == pfwdefs.PF_EXIT_CONDOR:
-                    msg2 += " - FAIL - Condor/Globus failure"
-                    retval = pfwdefs.PF_EXIT_FAILURE
-                elif jobdict['status'] is None:
-                    msg2 += " - FAIL - NULL status"
-                    if jobnum in wrap_byjob:
-                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
-                    retval = pfwdefs.PF_EXIT_FAILURE
-                elif jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                    if jobnum in wrap_byjob:
-                        lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
-                    msg2 += " - FAIL - Non-zero status"
-                    retval = pfwdefs.PF_EXIT_FAILURE
-
-                msg2 += '\n'
-
-                if 'message' in jobdict:
-                    for msgdict in sorted(jobdict['message'], key=lambda k: k['msgtime']):
-                        level = int(msgdict['msglevel'])
-                        print level, msgdict['msg'], type(level)
-                        print "PFW_MSG_WARN = ", pfwdb.PFW_MSG_WARN, type(pfwdb.PFW_MSG_WARN) 
-                        print "PFW_MSG_ERROR = ", pfwdb.PFW_MSG_ERROR 
-                        levelstr = 'info'
-                        if level == pfwdb.PFW_MSG_WARN:
-                            levelstr = 'WARN'
-                        elif level == pfwdb.PFW_MSG_ERROR:
-                            levelstr = 'ERROR'
+                    if 'message' in jobdict:
+                        for msgdict in sorted(jobdict['message'], key=lambda k: k['msgtime']):
+                            level = int(msgdict['msglevel'])
+                            print level, msgdict['msg'], type(level)
+                            print "PFW_MSG_WARN = ", pfwdb.PFW_MSG_WARN, type(pfwdb.PFW_MSG_WARN) 
+                            print "PFW_MSG_ERROR = ", pfwdb.PFW_MSG_ERROR 
+                            levelstr = 'info'
+                            if level == pfwdb.PFW_MSG_WARN:
+                                levelstr = 'WARN'
+                            elif level == pfwdb.PFW_MSG_ERROR:
+                                levelstr = 'ERROR'
         
-                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'])
+                            msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'])
 
         except Exception, e:
-            msg2 += "\n\nEncountered error trying to gather job/wrapper status for email.  Check output for blockpost for further details."
-            print "\n\nEncountered error trying to gather job/wrapper status for email"
+            msg2 += "\n\nEncountered error trying to gather status information for email.  Check output for blockpost for further details."
+            print "\n\nEncountered error trying to gather status information for email"
             print "%s: %s" % (e.__class__.__name__,str(e))
             (extype, value, trback) = sys.exc_info()
             traceback.print_exception(extype, value, trback, file=sys.stdout)
@@ -232,11 +262,16 @@ def blockpost(argv = None):
     dbh = None
     if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        print "Updating end of block task", config['task_id']['block'][str(blknum)]
-        dbh.end_task(config['task_id']['block'][str(blknum)], retval, True)
+        if blktid is not None:
+            print "Updating end of block task", blktid 
+            dbh.end_task(blktid, retval, True)
+        else:
+            print "Could not update end of block task without block task id"
         if retval != pfwdefs.PF_EXIT_SUCCESS:
             print "Updating end of attempt", config['task_id']['attempt']
             dbh.end_task(config['task_id']['attempt'], retval, True)
+        dbh.commit()
+        dbh.close()
 
     print "before next block retval = ", retval
     if retval == pfwdefs.PF_EXIT_SUCCESS:

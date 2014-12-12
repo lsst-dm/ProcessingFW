@@ -248,17 +248,6 @@ def blockpost(argv = None):
     else:
         retval = pfwdefs.PF_EXIT_FAILURE
 
-    # Moved to endrun.py
-    #if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
-    #    if config[pfwdefs.PF_BLKNUM] > len(config.block_array):
-    #        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
-    #        dbh.update_attempt_end(config, retval)
-    #    else:
-    #        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Not calling update_attempt_end: use_db_out = %s, retval = %s" % (config[pfwdefs.PF_USE_DB_OUT], retval))
-    #
-    #    dbh.commit()
-    #    dbh.close()
-    
     coremisc.fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s (%s)" % (retval, type(retval)))
     coremisc.fwdebug(0, 'PFWPOST_DEBUG', "END")
     debugfh.close()

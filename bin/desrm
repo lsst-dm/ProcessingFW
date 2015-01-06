@@ -97,12 +97,13 @@ def main(argv=None):
     curs = dbh.cursor()
     curs.execute(sql, {'root_task_id':task_id})
     for (tid,) in curs:
-        dbh.end_task(tid, PF_EXIT_OPDELETE, True)
+        dbh.end_task(tid, PF_EXIT_OPDELETE, False)
     
-    dbh.end_task(task_id, PF_EXIT_OPDELETE, True)
+    dbh.end_task(task_id, PF_EXIT_OPDELETE, False)
 
     # set attempt's data state to junk
-    dbh.basic_update_row('PFW_ATTEMPT', {'data_state', 'JUNK'}, {'task_id': task_id})
+    dbh.basic_update_row('PFW_ATTEMPT', {'data_state': 'JUNK'}, {'task_id': task_id})
+    dbh.commit()
 
     return(0)
 

@@ -15,7 +15,8 @@ def get_start_time(x):
 
 def recurs_dump(tasks, tids, indent=''):
     tlist = [tasks[t] for t in tids]
-    for taskd in sorted(tlist, key=lambda x:get_start_time(x), reverse=False):
+    #for taskd in sorted(tlist, key=lambda x:get_start_time(x), reverse=False):
+    for taskd in sorted(tlist, key=lambda x:x['id'], reverse=False):
         print indent, taskd['id'], taskd['root_task_id'], taskd['name'], taskd['label'], taskd['status'], taskd['info_table'],
         if taskd['start_time'] is None:
             print "    -  -     :  :  ",
@@ -66,7 +67,8 @@ for line in curs:
     d['children'] = []
     tasks[d['id']] = d
     if d['parent_task_id'] is not None:
-        tasks[d['parent_task_id']]['children'].append(d['id'])
+        if d['parent_task_id'] in tasks:
+            tasks[d['parent_task_id']]['children'].append(d['id'])
 
 
 #for tid, taskd in sorted(tasks.items()):

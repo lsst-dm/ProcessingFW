@@ -322,18 +322,31 @@ def parse_condor_user_log(logfilename):
                 #    pass  # Shadow threw an exception
                 #elif code == '008':
                 #    pass  # Generic Log Event
-                elif code == '009':
+                elif code == '009':  # aborted
                     jobinfo[jobnum]['jobstat'] = 'FAIL'
                     jobinfo[jobnum]['endtime'] = eventdate
+                    if len(splitline) > 1:
+                        jobinfo[jobnum]['abortreason'] = splitline[1].strip()
+                    else:
+                        jobinfo[jobnum]['abortreason'] = None
                 #elif code == '010':
                 #    pass  # Job was suspended
                 #elif code == '011': 
                 #    pass  # Job was unsuspended
                 elif code == '012':
                     jobinfo[jobnum]['jobstat'] = 'ERR'
-                    result = re.search('(\S+)', splitline[1])
-                    if result:
-                        jobinfo[jobnum]['holdreason'] = result.group(1)
+                    #result = re.search('(\S+)', splitline[1])
+                    #if result:
+                    #    jobinfo[jobnum]['holdreason'] = result.group(1)
+                    jobinfo[jobnum]['holdreason'] = splitline[1].strip()
+                    if len(splitline) > 2:
+                        result = re.search('Code (\d+) Subcode (\d+)', splitline[2])
+                        if result:
+                            jobinfo[jobnum]['holdcode'] = result.group(1)
+                            jobinfo[jobnum]['holdsubcode'] = result.group(2)
+                        else:
+                            jobinfo[jobnum]['holdcode'] = None
+                            jobinfo[jobnum]['holdsubcode'] = None
                 elif code == '013':
                     jobinfo[jobnum]['jobstat'] = 'UNSUB'
                 #elif code == '014':

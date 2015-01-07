@@ -6,6 +6,7 @@
 
 import sys
 import os
+import socket
 
 import processingfw.pfwdefs as pfwdefs
 import coreutils.miscutils as coremisc
@@ -20,8 +21,11 @@ def write_block_condor(config):
     run = config['submit_run']
     filename = 'blocktask.condor'
 
+    submit_machine = socket.gethostname() 
+
     with open("%s/%s" % (blkdir,filename), 'w') as fh:
         fh.write("""universe=vanilla
+requirements = machine == "%(machine)s"
 executable= $(exec)
 arguments = $(args)
 getenv=true
@@ -32,7 +36,7 @@ output=%(blkdir)s/$(run)_%(block)s_$(jobname).out
 error=%(blkdir)s/$(run)_%(block)s_$(jobname).err
 log=blocktask.log
 queue
-        """ % {'block':blockname, 'blkdir':blkdir})
+        """ % {'machine': submit_machine, 'block':blockname, 'blkdir':blkdir})
     return filename
 
 

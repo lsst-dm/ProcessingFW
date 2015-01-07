@@ -21,7 +21,12 @@ def begrun(argv):
 
     coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'use_home_archive_output = %s' % config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
 
-    if config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never':
+    # if not a dryrun and using a home archive for output
+    if (config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never' and
+        'submit_files_mvmt' in config and
+        (pfwdefs.PF_DRYRUN not in config or 
+        not coremisc.convertBool(config[pfwdefs.PF_DRYRUN]))):
+
         # the two wcl files to copy to the home archive
         expwcl = config['expwcl']
         fullcfg = config['fullcfg'] 
@@ -68,7 +73,7 @@ def begrun(argv):
         # load file mvmt class
         filemvmt_class = coremisc.dynamically_load_class(submit_files_mvmt)
         valDict = fmutils.get_config_vals(config['job_file_mvmt'], config, filemvmt_class.requested_config_vals())
-        filemvmt = filemvmt_class(archive_info, None, None, None, None)
+        filemvmt = filemvmt_class(archive_info, None, None, None, valDict)
 
         results = filemvmt.job2home(files2copy)
         coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'trans results = %s' % results)

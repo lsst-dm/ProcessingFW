@@ -104,20 +104,18 @@ def main(argv):
     
     # if specified, insert join into query hash
     if 'join' in search_dict:
-        #joins = coremisc.fwsplit(search_dict['join'].lower())
-        #for j in joins:
-        #    m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
-        #    if m:
-        #        print "1", m.group(1)
-        #        print "2", m.group(2)
-        #        print "3", m.group(3)
-        #        table = m.group(1)
-        #        if table not in query:
-        #            query[table] = {}
-        #        if 'join' not in query[table]:
-        #            query[table]['join'] = {}
-        #        query[m.group(1)]['join'][m.group(2)] = m.group(3)
-        query[table]['join']=search_dict['join']
+        joins = coremisc.fwsplit(search_dict['join'].lower())
+        for j in joins:
+            m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
+            if m:
+                table = m.group(1)
+                if table not in query:
+                    query[table] = {}
+                if 'join' not in query[table]:
+                    query[table]['join'] = j
+                else:
+                    query[m.group(1)]['join'] += "," + j
+        #query[table]['join']=search_dict['join']
 
 
     query[qtable]['select_fields'] = ['filename']
@@ -125,6 +123,7 @@ def main(argv):
     # check output fields for fields from other tables.
     if 'output_fields' in search_dict:
         output_fields = coremisc.fwsplit(search_dict['output_fields'].lower())
+
 
         for ofield in output_fields:
             m = re.search("(\S+)\.(\S+)", ofield)
@@ -134,6 +133,8 @@ def main(argv):
             else:
                 table = qtable
                 field = ofield
+            if 'select_fields' not in query[table]:
+                query[table]['select_fields'] = []
             if field not in query[table]['select_fields']:
                 query[table]['select_fields'].append(field)
 
@@ -143,11 +144,14 @@ def main(argv):
             query[t]['select_fields'] = ','.join(query[t]['select_fields'])
 
     if len(archive_names) > 0:
-        query[qtable]['join'] = "%s.filename=file_archive_info.filename" % qtable
+        #query[qtable]['join'] = "%s.filename=file_archive_info.filename" % qtable
         query['file_archive_info'] = {'select_fields': 'compression'}
+        query['file_archive_info']['join'] = "file_archive_info.filename=%s.filename" % qtable
         query['file_archive_info']['key_vals'] = {'archive_name': ','.join(archive_names)}
 
-    print "Calling gen_file_list with the following query\n", query
+    print "Calling gen_file_list with the following query:\n"
+    coremisc.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
+    print "\n\n"
     files = pfwfilelist.gen_file_list(query)
     
     if len(files) == 0:

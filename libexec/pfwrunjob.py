@@ -30,6 +30,32 @@ import coreutils.dbsemaphore as dbsem
 VERSION = '$Rev$'
 
 ######################################################################
+def get_batch_id_from_job_ad(jobad_file):
+    """ Parse condor job ad to get condor job id """
+
+    batch_id = None
+    try:
+        info = {}
+        with open(jobad_file, 'r') as jobadfh:
+            for line in jobadfh:
+                m = re.match("^\s*(\S+)\s+=\s+(.+)\s*$", line)
+                info[m.group(1).lower()] = m.group(2)
+
+        # GlobalJobId currently too long to store as target job id
+        # Print it here so have it in stdout just in case
+        print "PFW: GlobalJobId = ", info['globaljobid']
+
+        batch_id = "%s.%s" % (info['clusterid'], info['procid'])
+    except Exception as ex:
+        coremisc.fwdebug(0, "PFWRUNJOB_DEBUG",  "Problem getting condor job id from job ad: %s" % (str(ex)))
+        coremisc.fwdebug(0, "PFWRUNJOB_DEBUG",  "Continuing without condor job id")
+
+    
+    coremisc.fwdebug(0, "PFWRUNJOB_DEBUG",  "condor_job_id = %s" % batch_id)
+    return batch_id
+
+
+######################################################################
 def determine_exec_task_id(pfw_dbh, wcl):
     exec_ids=[]
     execs = pfwutils.get_exec_sections(wcl, pfwdefs.IW_EXECPREFIX)
@@ -242,6 +268,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
     """ Handle the transfer of files from a single archive to the job directory """
     coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG")
     
+    trans_task_id = 0
     if pfw_dbh is not None:
         trans_task_id = pfw_dbh.create_task(name = 'transfer', 
                                             info_table = None,
@@ -320,7 +347,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
         else:
             results = jobfilemvmt.home2job(transinfo)
         if sem is not None:
-            coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Releasing lock")
+            coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Releasing lock")
             del sem
 
     if pfw_dbh is not None:
@@ -817,7 +844,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     else:
         results = jobfilemvmt.job2home(saveinfo)
     if sem is not None:
-        coremisc.fwdebug(0, "PFWRUNJOB_DEBUG", "Releasing lock")
+        coremisc.fwdebug(3, "PFWRUNJOB_DEBUG", "Releasing lock")
         del sem
     
     if pfw_dbh is None:
@@ -1097,6 +1124,7 @@ def job_workflow(workflow, jobwcl={}):
             else:
                 wcl['task_id']['jobwrapper'] = -1
 
+            print "\tSetup"
             setup_wrapper(pfw_dbh, wcl, task['wclfile'], task['logfile'])
             exectid = determine_exec_task_id(pfw_dbh, wcl)
 
@@ -1105,6 +1133,7 @@ def job_workflow(workflow, jobwcl={}):
                 pfw_dbh.close()
                 pfw_dbh = None
 
+            print "\tRunning wrapper"
             starttime = time.time()
             try:
                 os.putenv("DESDMFW_TASKID", str(exectid))
@@ -1134,6 +1163,7 @@ def job_workflow(workflow, jobwcl={}):
             else:
                 print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
+            print "\tPost-steps"
             postwrapper(pfw_dbh, wcl, task['logfile'], exitcode) 
             pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
 
@@ -1174,8 +1204,8 @@ def run_job(args):
         batch_id = os.environ['LSB_JOBID']
     elif 'LOADL_STEP_ID' in os.environ:
         batch_id = os.environ['LOADL_STEP_ID'].split('.').pop()
-    elif 'SUBMIT_CONDORID' in os.environ:
-        batch_id = os.environ['SUBMIT_CONDORID']
+    elif '_CONDOR_JOB_AD' in os.environ:
+        batch_id = get_batch_id_from_job_ad(os.environ['_CONDOR_JOB_AD'])
 
     pfw_dbh = None
     if wcl['use_db']:   

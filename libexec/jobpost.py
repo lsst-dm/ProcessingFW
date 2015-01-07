@@ -82,6 +82,7 @@ def parse_job_output(config, jobnum, dbh=None):
 
 
 def jobpost(argv = None):
+    """ Performs steps needed after a pipeline job """
     CONDOR2DB = { 'jobid': 'condor_job_id', 
                   'csubmittime': 'condor_submit_time', 
                   'gsubmittime': 'target_submit_time', 
@@ -153,30 +154,64 @@ def jobpost(argv = None):
     if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
 
+        # get job information from the job stdout if exists
         (tjobinfo, tjobinfo_task) = parse_job_output(config, jobnum, dbh)
 
         if dbh and len(tjobinfo) > 0:
             print "tjobinfo: ", tjobinfo
-            dbh.update_tjob_info(config, jobnum, tjobinfo, tjobinfo_task)
+            dbh.update_tjob_info(config, jobnum, tjobinfo)
 
+        # get job information from the condor job log 
         logfilename = 'runjob.log'
         if os.path.exists(logfilename):   # if made it to submitting/running jobs
             try:
                 # update job info in DB from condor log
                 print "Updating job info in DB from condor log"
-                cjobinfo = pfwcondor.parse_condor_user_log(logfilename)
-                for j in sorted(cjobinfo.keys()):
-                    print cjobinfo[j]
-                    djobinfo = {}
-                    for ck, dk in CONDOR2DB.items():
-                        if ck in cjobinfo[j]:
-                            djobinfo[dk] = cjobinfo[j][ck]
-                    print djobinfo
-                    dbh.update_job_info(config, cjobinfo[j]['jobname'], djobinfo)
+                condorjobinfo = pfwcondor.parse_condor_user_log(logfilename)
+                if len(condorjobinfo.keys()) > 1:
+                    print "More than single job in job log"
+                j = condorjobinfo.keys()[0]
+                cjobinfo = condorjobinfo[j]
+                djobinfo = {}
+                for ck, dk in CONDOR2DB.items():
+                    if ck in cjobinfo:
+                        djobinfo[dk] = cjobinfo[ck]
+                print djobinfo
+                dbh.update_job_info(config, cjobinfo['jobname'], djobinfo)
+
+                if 'holdreason' in cjobinfo and cjobinfo['holdreason'] is not None:
+                    msg = "Condor HoldReason: %s" % cjobinfo['holdreason']
+                    print msg
+                    if dbh:
+                        dbh.insert_message(config['task_id']['job'][jobnum], pfwdb.PFW_MSG_WARN, msg)
+
+                if 'abortreason' in cjobinfo and cjobinfo['abortreason'] is not None:
+                    tjobinfo_task['start_time'] = cjobinfo['starttime']
+                    tjobinfo_task['end_time'] = cjobinfo['endtime']
+                    if 'condor_rm' in cjobinfo['abortreason']:
+                        tjobinfo_task['status'] = pfwdefs.PF_EXIT_OPDELETE
+                    else:
+                        tjobinfo_task['status'] = pfwdefs.PF_EXIT_CONDOR
+                    print "MMG", tjobinfo_task
+                else:
+                    print "NOTTHERE"
             except Exception as e:
                 (extype, value, trback) = sys.exc_info()
                 traceback.print_exception(extype, value, trback, file=sys.stdout)
+        else:
+            print "Warning:  no job condor log file"
         
+
+        if dbh:
+            # update job task
+            if 'status' not in tjobinfo_task:
+                tjobinfo_task['status'] = pfwdefs.PF_EXIT_CONDOR
+            if 'end_time' not in tjobinfo_task:
+                tjobinfo_task['end_time'] = datetime.datetime.now()
+            wherevals = {'id': config['task_id']['job'][jobnum]}
+            dbh.basic_update_row ('task', tjobinfo_task, wherevals)
+            dbh.commit()
+
         
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])
 
@@ -190,6 +225,7 @@ def jobpost(argv = None):
 
     # untar output wcl tar and delete tar
     if os.path.exists(outputtar): 
+        print "Size of output wcl tar:", os.path.getsize(outputtar)
         if os.path.getsize(outputtar) > 0:
             print "found outputtar: %s" % outputtar
             pfwutils.untar_dir(outputtar, '..')

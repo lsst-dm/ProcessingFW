@@ -94,7 +94,7 @@ def create_master_list(config, modname, moddict,
 
     # call code
     query_tid = None
-    if config[PF_USE_DB_OUT]:
+    if convertBool(config[PF_USE_DB_OUT]):
         pfw_dbh = pfwdb.PFWDB()
         query_tid = pfw_dbh.insert_data_query(config, modname, datatype, search_name,
                                               prog, args, query_version)
@@ -124,13 +124,13 @@ def create_master_list(config, modname, moddict,
 
     print "\t\tCreating master list - end ", time.time()
     sys.stdout.flush()
-    if config[PF_USE_DB_OUT]:
+    if convertBool(config[PF_USE_DB_OUT]):
         pfw_dbh = pfwdb.PFWDB()
         pfw_dbh.end_task(query_tid, exitcode, True)
         pfw_dbh.close()
 
     if exitcode != 0:
-        raise Exception("Error: problem creating master list\n%s" % (cmd))
+        fwdie("Error: problem creating master list (exitcode = %s)" % (exitcode), exitcode)
     
     fwdebug(0, "RUNQUERIES_DEBUG", "END")
 

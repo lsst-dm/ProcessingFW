@@ -35,11 +35,19 @@ def begblock(argv):
         os.environ['DES_DB_SECTION'] = config['submit_des_db_section']
 
     blktid = -1
+    begblktid = -1
     coremisc.fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[pfwdefs.PF_BLKNUM]))
     if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.insert_block(config)
-        blktid = config['task_id']['block'][blknum]
+        blktid = config['task_id']['block'][str(blknum)]
+        config['task_id']['begblock'] = dbh.create_task(name = 'begblock',
+                                      info_table = None,
+                                      parent_task_id = blktid,
+                                      root_task_id = int(config['task_id']['attempt']),
+                                      label = None,
+                                      do_begin = True,
+                                      do_commit = True)
 
     
     try:
@@ -107,6 +115,7 @@ def begblock(argv):
         retval = pfwdefs.PF_EXIT_FAILURE
         config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
         if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+            dbh.end_task(config['task_id']['begblock'], retval, True)
             dbh.end_task(blktid, retval, True)
         raise
         
@@ -117,6 +126,8 @@ def begblock(argv):
         retval = pfwdefs.PF_EXIT_DRYRUN
     else:
         retval = pfwdefs.PF_EXIT_SUCCESS
+    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+        dbh.end_task(config['task_id']['begblock'], retval, True)
     coremisc.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
     return(retval)
 

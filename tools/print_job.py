@@ -49,7 +49,7 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
     
             
             print "\t%s %d/%d  %s (%s)" % (pfwutils.pad_jobnum(jobnum), numwraps, expnumwrap, modname, jobkeys),
-            if 'endtime' in jobdict and jobdict['endtime'] is not None:
+            if 'end_time' in jobdict and jobdict['end_time'] is not None:
                 if jobdict['status'] == 0:
                     print "done"
                 else:
@@ -81,6 +81,11 @@ def print_job_info(run):
 
     # get the run info
     attinfo = dbh.get_attempt_info(reqnum, unitname, attnum)
+    if attinfo is None:
+        print "No DB information about the processing attempt"
+        print "(Double check which DB querying vs which DB the attempt used)"
+        sys.exit(0)
+
     if 'endtime' in attinfo and attinfo['endtime'] is not None:
         print "Note:  run has finished with status %s" % attinfo['status'] 
 

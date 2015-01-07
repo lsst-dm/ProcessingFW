@@ -7,6 +7,7 @@
 """ need to write docstring """
 
 import sys
+import time
 import re
 import os
 import stat
@@ -22,6 +23,7 @@ import processingfw.pfwdb as pfwdb
 
 ######################################################################
 def min_wcl_checks(config):
+    """ execute minimal submit wcl checks """
     MAX_LABEL_LENGTH = 30    # todo: figure out how to get length from DB
 
     # check that reqnum and unitname exist
@@ -44,6 +46,8 @@ def min_wcl_checks(config):
 
 ######################################################################
 def create_common_vars(config, jobname):
+    """ Create string containing vars string for job """
+
     attribs = config.get_condor_attributes(jobname)
     varstr = ""
     if len(attribs) > 0:
@@ -187,12 +191,29 @@ def run_sys_checks():
       
     ### Check for Condor in path as well as daemons running
     print '\tChecking for Condor....',
-    try:
-        pfwcondor.check_condor('7.4.0')
-    except Exception as excpt:
-        print "ERROR"
-        raise excpt 
-              
+    MAX_TRIES = 5
+    TRY_DELAY = 60 # seconds
+
+    trycnt = 0
+    done = False
+    while not done and trycnt < MAX_TRIES:
+        try:
+            trycnt += 1
+            pfwcondor.check_condor('7.4.0')
+            done = True
+        except pfwcondor.CondorException as excpt:
+            print "ERROR"
+            print str(excpt)
+            if trycnt < MAX_TRIES:
+                print "\nSleeping and then retrying"
+                time.sleep(TRY_DELAY)
+        except Exception as excpt:
+            print "ERROR"
+            raise excpt
+
+    if not done and trycnt >= MAX_TRIES:
+        fwdie("Too many errors.  Aborting.", PF_EXIT_FAILURE)
+
     print "DONE"
 
 

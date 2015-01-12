@@ -13,9 +13,9 @@ import os
 import stat
 import subprocess
 
-from coreutils.miscutils import *
-from processingfw.pfwutils import *
-from processingfw.pfwdefs import *
+import despymisc.miscutils as miscutils
+import processingfw.pfwutils as pfwutils
+import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwlog as pfwlog
 import processingfw.pfwdb as pfwdb
@@ -27,21 +27,21 @@ def min_wcl_checks(config):
     MAX_LABEL_LENGTH = 30    # todo: figure out how to get length from DB
 
     # check that reqnum and unitname exist
-    if REQNUM not in config:
-        fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % REQNUM, PF_EXIT_FAILURE) 
+    if pfwdefs.REQNUM not in config:
+        miscutils.fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % pfwdefs.REQNUM, pfwdefs.PF_EXIT_FAILURE) 
 
-    (exists, labelstr) = config.search(UNITNAME, {'interpolate': True})
+    (exists, labelstr) = config.search(pfwdefs.UNITNAME, {'interpolate': True})
     if not exists:
-        fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % UNITNAME, PF_EXIT_FAILURE) 
+        miscutils.fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % pfwdefs.UNITNAME, pfwdefs.PF_EXIT_FAILURE) 
 
     # check that any given labels are short enough
-    (exists, labelstr) = config.search(SW_LABEL, {'interpolate': True})
+    (exists, labelstr) = config.search(pfwdefs.SW_LABEL, {'interpolate': True})
     if exists:
-        labels = fwsplit(labelstr,',')
+        labels = miscutils.fwsplit(labelstr,',')
         for lab in labels:
             if len(lab) > MAX_LABEL_LENGTH:
-                fwdie("ERROR\nError: label %s is longer (%s) than allowed (%s).  Aborting submission." % \
-                      (lab, len(lab), MAX_LABEL_LENGTH), PF_EXIT_FAILURE) 
+                miscutils.fwdie("ERROR\nError: label %s is longer (%s) than allowed (%s).  Aborting submission." % \
+                      (lab, len(lab), MAX_LABEL_LENGTH), pfwdefs.PF_EXIT_FAILURE) 
 
 
 ######################################################################
@@ -53,7 +53,7 @@ def create_common_vars(config, jobname):
     if len(attribs) > 0:
         varstr = "VARS %s" % jobname
         for (key,val) in attribs.items():
-            varstr += ' %s="%s"' % (key[len(ATTRIB_PREFIX):], val)
+            varstr += ' %s="%s"' % (key[len(pfwdefs.ATTRIB_PREFIX):], val)
     varstr += ' jobname="%s"' % jobname
     varstr += ' pfwdir="%s"' % config['processingfw_dir']
 
@@ -72,7 +72,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     pfwdir = config['processingfw_dir']
     cwd = os.getcwd()
 
-    coremakedirs(blkdir)
+    miscutils.coremakedirs(blkdir)
     os.chdir(blkdir)
     print "curr dir = ", os.getcwd()
 
@@ -150,7 +150,7 @@ VARS begrun arguments="../uberctrl/config.des"
     varstr = create_common_vars(config, 'begrun')
     dagfh.write('%s\n' % varstr)
 
-    blocklist = fwsplit(config[SW_BLOCKLIST].lower(),',')
+    blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(),',')
     for i in range(len(blocklist)):
         blockname = blocklist[i] 
         blockdir = "../B%02d-%s" % (i+1,blockname)
@@ -212,7 +212,7 @@ def run_sys_checks():
             raise excpt
 
     if not done and trycnt >= MAX_TRIES:
-        fwdie("Too many errors.  Aborting.", PF_EXIT_FAILURE)
+        miscutils.fwdie("Too many errors.  Aborting.", pfwdefs.PF_EXIT_FAILURE)
 
     print "DONE"
 
@@ -253,19 +253,19 @@ def create_submitside_dirs(config):
     """ Create directories for storage of pfw files on submit side """
     # make local working dir
     workdir = config['work_dir']
-    fwdebug(3, 'PFWSUBMIT_DEBUG', "workdir = %s" % workdir)
+    miscutils.fwdebug(3, 'PFWSUBMIT_DEBUG', "workdir = %s" % workdir)
 
     if os.path.exists(workdir):
         raise Exception('%s subdirectory already exists.\nAborting submission' % (workdir))
 
     print '\tMaking submit run directory...',
-    coremakedirs(workdir)
+    miscutils.coremakedirs(workdir)
     print 'DONE'
 
     uberdir = config['uberctrl_dir']
-    fwdebug(3, 'PFWSUBMIT_DEBUG', "uberdir = %s" % uberdir)
+    miscutils.fwdebug(3, 'PFWSUBMIT_DEBUG', "uberdir = %s" % uberdir)
     print '\tMaking submit uberctrl directory...',
-    coremakedirs(uberdir)
+    miscutils.coremakedirs(uberdir)
     print 'DONE'
 
 

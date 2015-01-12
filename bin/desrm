@@ -10,7 +10,7 @@ import sys
 import re
 import time
 
-from processingfw.pfwdefs import *
+import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -39,7 +39,7 @@ def main(argv=None):
             print "Error: run is not in current condor queue.   Not deleting run."
             return(1)
 
-        runkey = ATTRIB_PREFIX + 'run'
+        runkey = pfwdefs.ATTRIB_PREFIX + 'run'
         if runkey not in masterjob[givcondorid]:
             print "Given argument doesn't look like a desdm job (missing %s).    Not deleting run" % runkey
             print masterjob
@@ -97,9 +97,9 @@ def main(argv=None):
     curs = dbh.cursor()
     curs.execute(sql, {'root_task_id':task_id})
     for (tid,) in curs:
-        dbh.end_task(tid, PF_EXIT_OPDELETE, False)
+        dbh.end_task(tid, pfwdefs.PF_EXIT_OPDELETE, False)
     
-    dbh.end_task(task_id, PF_EXIT_OPDELETE, False)
+    dbh.end_task(task_id, pfwdefs.PF_EXIT_OPDELETE, False)
 
     # set attempt's data state to junk
     dbh.basic_update_row('PFW_ATTEMPT', {'data_state': 'JUNK'}, {'task_id': task_id})

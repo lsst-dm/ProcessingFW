@@ -10,7 +10,7 @@ import traceback
 
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwutils as pfwutils
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwcondor as pfwcondor
@@ -37,23 +37,23 @@ def blockpost(argv = None):
     configfile = argv[1]
     retval = int(argv[2])
 
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "retval = %s" % retval)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "retval = %s" % retval)
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
     blockname = config['blockname']
     blkdir = config['block_dir']
     
 
     # now that have more information, can rename output file
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
     new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
                                                   {'flabel': 'blockpost',
                                                    'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.chmod('blockpost.out', 0666)
@@ -82,7 +82,7 @@ def blockpost(argv = None):
     job_byblk = {}
     wrap_byjob = {}
     wrap_bymod = {}
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         try:
             dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
 
@@ -193,7 +193,7 @@ def blockpost(argv = None):
             retval = pfwdefs.PF_EXIT_FAILURE
 
         print "lastwraps = ", lastwraps
-        if coremisc.convertBool(config[pfwdefs.PF_USE_QCF]) and len(lastwraps) > 0: 
+        if miscutils.convertBool(config[pfwdefs.PF_USE_QCF]) and len(lastwraps) > 0: 
             try:
                 import qcframework.qcfdb as qcfdb
                 dbh = qcfdb.QCFDB(config['submit_des_services'], config['submit_des_db_section'])
@@ -234,7 +234,7 @@ def blockpost(argv = None):
             msg1 = "%s:  block %s has failed." % (run, blockname)
 
             send_email(config, blockname, retval, "", msg1, msg2)
-    elif coremisc.convertBool(dryrun):
+    elif miscutils.convertBool(dryrun):
         if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
             print "dryrun = ", dryrun
             print "Sending dryrun email"
@@ -260,7 +260,7 @@ def blockpost(argv = None):
 
     # Store values in DB and hist file 
     dbh = None
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         if blktid is not None:
             print "Updating end of block task", blktid 
@@ -283,8 +283,8 @@ def blockpost(argv = None):
     else:
         retval = pfwdefs.PF_EXIT_FAILURE
 
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s (%s)" % (retval, type(retval)))
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "END")
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s (%s)" % (retval, type(retval)))
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "END")
     debugfh.close()
     return(int(retval))
 
@@ -294,6 +294,6 @@ if __name__ == "__main__":
     exitcode = blockpost(sys.argv)
     sys.stdout = realstdout
     sys.stderr = realstderr
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "type of exitcode = %s" % type(exitcode))
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "type of exitcode = %s" % type(exitcode))
     sys.exit(exitcode)

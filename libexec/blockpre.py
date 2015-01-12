@@ -9,7 +9,7 @@ import os
 import socket
 
 import processingfw.pfwdefs as pfwdefs
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -64,7 +64,7 @@ def blockpre(argv = None):
     retry = 0
     if len(argv) == 3:
         retry = sys.argv[2]
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
     
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
@@ -73,23 +73,23 @@ def blockpre(argv = None):
     config.set_block_info()
     config.save_file(configfile)
 
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[pfwdefs.PF_BLKNUM])
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[pfwdefs.PF_BLKNUM])
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "retry = %s" % retry)
     if int(retry) != int(config[pfwdefs.PF_BLKNUM]):
-        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "WARNING: blknum != retry")
+        miscutils.fwdebug(0, 'PFWPOST_DEBUG', "WARNING: blknum != retry")
 
     blockname = config['blockname']
     blkdir = config['block_dir']
 
 
     # now that have more information, can rename output file
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
     new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
                                                   {'flabel': 'blockpre',
                                                    'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.chmod(DEFAULT_LOG, 0666)
@@ -101,7 +101,7 @@ def blockpre(argv = None):
 
     blocktaskfile = write_block_condor(config)
     
-    #if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    #if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
     #    dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
     #    dbh.insert_block(config)
     

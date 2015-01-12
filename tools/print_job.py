@@ -4,9 +4,8 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
-import coreutils
+#import despymisc.miscutils
 import processingfw.pfwdb as pfwdb
-#from processingfw.pfwutils import *
 import processingfw.pfwutils as pfwutils
 import re
 import sys

@@ -11,8 +11,8 @@ import os
 import sys
 import re
 
-from coreutils.miscutils import *
-import coreutils.desdbi as desdbi
+import despymisc.miscutils as miscutils
+import despydb.desdbi as desdbi
 
 
 def parse_file(filename):
@@ -34,7 +34,7 @@ def parse_file(filename):
 
 
 def save_uber_package(dbh, name, version, note):
-    fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
 
     from_dual = dbh.from_dual()
     row = {}
@@ -43,15 +43,15 @@ def save_uber_package(dbh, name, version, note):
     if note is not None:
         row['note'] = dbh.quote(note)
     sql = "insert into ops_uber_package (%s) select %s %s where not exists (select null from ops_uber_package where name=%s and version=%s)" % (','.join(row.keys()), ','.join(row.values()), from_dual, row['name'], row['version'])
-    fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+    miscutils.fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
     curs = dbh.cursor()
     curs.execute(sql)
-    fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_uber_package: %s" % curs.rowcount)
-    fwdebug(3, 'SAVESOFT_DEBUG', "END")
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_uber_package: %s" % curs.rowcount)
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "END")
 
 
 def save_indiv_packages(dbh, packages):
-    fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
 
     from_dual = dbh.from_dual()
     curs = dbh.cursor()
@@ -61,15 +61,15 @@ def save_indiv_packages(dbh, packages):
         row['name'] = dbh.quote(name)
         row['version'] = dbh.quote(version)
         sql = "insert into ops_indiv_package (%s) select %s %s where not exists (select null from ops_indiv_package where name=%s and version=%s)" % (','.join(row.keys()), ','.join(row.values()), from_dual, row['name'], row['version'])
-        fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+        miscutils.fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
         curs.execute(sql)
         inscnt += curs.rowcount
-    fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_indiv_package: %s" % inscnt)
-    fwdebug(3, 'SAVESOFT_DEBUG', "END")
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_indiv_package: %s" % inscnt)
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "END")
 
 
 def save_uber_contents(dbh, ubername, uberversion, packages):
-    fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
 
     from_dual = dbh.from_dual()
     row = {}
@@ -84,12 +84,12 @@ def save_uber_contents(dbh, ubername, uberversion, packages):
         row['indiv_order'] = dbh.quote(cnt)
         
         sql = "insert into ops_uber_package_contents (%s) select %s %s where not exists (select null from ops_uber_package_contents where uber_name=%s and uber_version=%s and indiv_name=%s and indiv_version=%s)" % (','.join(row.keys()), ','.join(row.values()), from_dual, row['uber_name'], row['uber_version'], row['indiv_name'], row['indiv_version'])
-        fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+        miscutils.fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
         curs.execute(sql)
         inscnt += curs.rowcount
         cnt += 1
-    fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_uber_package_contents: %s" % inscnt)
-    fwdebug(3, 'SAVESOFT_DEBUG', "END")
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "Number of rows inserted into ops_uber_package_contents: %s" % inscnt)
+    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "END")
 
 
 def save_software_info(dbh, name, version, contents, note=None):

@@ -4,12 +4,9 @@
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
 
-import coreutils.desdbi as desdbi
 import intgutils.wclutils as wclutils
-
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
-import processingfw.pfwlog as pfwlog
+import processingfw.pfwdefs as pfwdefs
+import despymisc.miscutils as miscutils
 import processingfw.pfwdb as pfwdb
 
 ###########################################################
@@ -26,9 +23,9 @@ def gen_file_list(query, debug = 3):
     dbh = pfwdb.PFWDB()
     results = dbh.gen_file_query(query)
 
-    fwdebug(1, 'PFWFILELIST_DEBUG', "number of files in list from query = %s" % len(results))
+    miscutils.fwdebug(1, 'PFWFILELIST_DEBUG', "number of files in list from query = %s" % len(results))
 
-    fwdebug(3, 'PFWFILELIST_DEBUG', "list from query = %s" % results)
+    miscutils.fwdebug(3, 'PFWFILELIST_DEBUG', "list from query = %s" % results)
 
     return results
 
@@ -40,16 +37,16 @@ def convert_single_files_to_lines(filelist):
     count = 1
     linedict = {'list': {}}
 
-    if type(filelist) is dict and len(files) > 1:
+    if type(filelist) is dict and len(filelist) > 1:
         filelist = filelist.values()
     elif type(filelist) is dict:  # single file
         filelist = [filelist]
 
-    linedict = {'list': {PF_LISTENTRY: {}}}
+    linedict = {'list': {pfwdefs.PF_LISTENTRY: {}}}
     for onefile in filelist:
         fname = "file%05d" % (count)
         lname = "line%05d" % (count)
-        linedict['list'][PF_LISTENTRY][lname] = {'file': {fname: onefile}}
+        linedict['list'][pfwdefs.PF_LISTENTRY][lname] = {'file': {fname: onefile}}
         count += 1
     return linedict
 
@@ -78,7 +75,7 @@ def output_lines_xml(filename, lines):
             xmlfh.write("\t\t<file nickname='%s'>\n" % name)
             for key,val in file.items():
                 if key.lower() == 'ccd':
-                    val = "%02d" % (ccd)
+                    val = "%02d" % (val)
                 xmlfh.write("\t\t\t<%s>%s</%s>" % (k,val,k))
             xmlfh.write("\t\t\t<fileid>%s</fileid>\n" % (file['id']))
             xmlfh.write("\t\t</file>\n")

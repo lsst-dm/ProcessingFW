@@ -9,7 +9,7 @@
 import sys
 import os
 
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
 import filemgmt.utils as fmutils
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
@@ -19,13 +19,13 @@ def begrun(argv):
     configfile = argv[0]
     config = pfwconfig.PfwConfig({'wclfile': configfile})
 
-    coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'use_home_archive_output = %s' % config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
+    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'use_home_archive_output = %s' % config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
 
     # if not a dryrun and using a home archive for output
     if (config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never' and
         'submit_files_mvmt' in config and
         (pfwdefs.PF_DRYRUN not in config or 
-        not coremisc.convertBool(config[pfwdefs.PF_DRYRUN]))):
+        not miscutils.convertBool(config[pfwdefs.PF_DRYRUN]))):
 
         # the two wcl files to copy to the home archive
         expwcl = config['expwcl']
@@ -36,15 +36,15 @@ def begrun(argv):
         archive_info = config['archive'][home_archive]
 
         archdir = '%s/submit' % config.interpolate(config['ops_run_dir'])
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'archive rel path = %s' % archdir)
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'archive rel path = %s' % archdir)
 
         submit_files_mvmt = config['submit_files_mvmt']
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'submit_files_mvmt = %s' % submit_files_mvmt)
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'submit_files_mvmt = %s' % submit_files_mvmt)
 
         # load filemgmt class
         filemgmt = None
         try:
-            filemgmt_class = coremisc.dynamically_load_class(archive_info['filemgmt'])
+            filemgmt_class = miscutils.dynamically_load_class(archive_info['filemgmt'])
             valDict = fmutils.get_config_vals(archive_info, config, filemgmt_class.requested_config_vals())
             filemgmt = filemgmt_class(config=valDict)
         except:
@@ -57,7 +57,7 @@ def begrun(argv):
         # create metadata for submit wcls
         filemeta = {'file_1': {'filename': expwcl, 'filetype': 'wcl'},
                     'file_2': {'filename': fullcfg, 'filetype': 'wcl'}}
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'filemeta = %s' % filemeta)
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'filemeta = %s' % filemeta)
         filemgmt.ingest_file_metadata(filemeta)
 
         # copy the files to the home archive
@@ -68,15 +68,15 @@ def begrun(argv):
                                'filename': fullcfg, 'fullname': '%s/%s' % (archdir,fullcfg),
                                'filesize': os.path.getsize(expwcl)}}
 
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'files2copy = %s' % files2copy)
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'files2copy = %s' % files2copy)
         
         # load file mvmt class
-        filemvmt_class = coremisc.dynamically_load_class(submit_files_mvmt)
+        filemvmt_class = miscutils.dynamically_load_class(submit_files_mvmt)
         valDict = fmutils.get_config_vals(config['job_file_mvmt'], config, filemvmt_class.requested_config_vals())
         filemvmt = filemvmt_class(archive_info, None, None, None, valDict)
 
         results = filemvmt.job2home(files2copy)
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'trans results = %s' % results)
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'trans results = %s' % results)
 
         # save info for files that we just copied into archive
         files2register = {}
@@ -90,14 +90,14 @@ def begrun(argv):
             files2register[f] = finfo
 
         # call function to do the register
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'files2register = %s' % files2register)
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'archive = %s' % archive_info['name'])
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'files2register = %s' % files2register)
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'archive = %s' % archive_info['name'])
         filemgmt.register_file_in_archive(files2register, {'archive': archive_info['name']})
 
         # create and save file provenance 
         prov = {'used': {'exec_1': expwcl}, 'was_generated_by': {'exec_1': fullcfg}} 
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'task_id = %s' % config['task_id']['attempt'])
-        coremisc.fwdebug(6, 'BEGRUN_DEBUG', 'prov = %s' % prov)
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'task_id = %s' % config['task_id']['attempt'])
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'prov = %s' % prov)
         filemgmt.ingest_provenance(prov, {'exec_1': config['task_id']['attempt']})
 
         filemgmt.commit()

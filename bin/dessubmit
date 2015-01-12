@@ -12,11 +12,9 @@ import os
 import shutil
 import sys
 
-#from processingfw.pfwdefs import *
-#from coreutils.miscutils import *
 import intgutils.wclutils as wclutils
 import processingfw.pfwdefs as pfwdefs
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
 from processingfw.pfwcondor import CondorException
 import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwcheck as pfwcheck
@@ -75,7 +73,7 @@ def main(args):
 
         for barg in boolargs:
             if args[barg] is not None:
-                args[barg] = coremisc.convertBool(args[barg])
+                args[barg] = miscutils.convertBool(args[barg])
 
     
 
@@ -113,7 +111,7 @@ def main(args):
             pfwsubmit.min_wcl_checks(config)
             print 'DONE'
 
-            if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+            if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
                 print 'Inserting run into PFW tables...',
                 import processingfw.pfwdb as pfwdb   # import late 
                 dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
@@ -164,7 +162,7 @@ def main(args):
             print 'Checking submit file:'
             cnts = pfwcheck.check_globals(config, '    ')
             if cnts[pfwcheck.ERRCNT_POS] > 0:
-                coremisc.fwdie("Errors in submit file", pfwdefs.PF_EXIT_FAILURE)
+                miscutils.fwdie("Errors in submit file", pfwdefs.PF_EXIT_FAILURE)
             elif cnts[pfwcheck.WARNCNT_POS] > 0:
                 print "\t(Note: %d warning(s) in config)" % cnts[pfwcheck.WARNCNT_POS]
             elif cnts[pfwcheck.CLEANCNT_POS] > 0:
@@ -179,7 +177,7 @@ def main(args):
             print 'DONE'
 
             condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
-            if (coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]) and 
+            if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]) and 
                 condorid is not None):
                 print "Saving run's condorid into PFW tables...",
                 import processingfw.pfwdb as pfwdb

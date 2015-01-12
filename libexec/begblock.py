@@ -8,7 +8,7 @@ import sys
 import os
 
 import processingfw.pfwdefs as pfwdefs 
-import coreutils.miscutils as coremisc 
+import despymisc.miscutils as miscutils 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwutils as pfwutils
 from processingfw.runqueries import runqueries
@@ -36,8 +36,8 @@ def begblock(argv):
 
     blktid = -1
     begblktid = -1
-    coremisc.fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[pfwdefs.PF_BLKNUM]))
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    miscutils.fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[pfwdefs.PF_BLKNUM]))
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.insert_block(config)
         blktid = config['task_id']['block'][str(blknum)]
@@ -51,7 +51,7 @@ def begblock(argv):
 
     
     try:
-        modulelist = coremisc.fwsplit(config[pfwdefs.SW_MODULELIST].lower())
+        modulelist = miscutils.fwsplit(config[pfwdefs.SW_MODULELIST].lower())
         modules_prev_in_list = {}
         inputfiles = []
         outputfiles = []
@@ -60,7 +60,7 @@ def begblock(argv):
         joblist = {} 
         for modname in modulelist:
             if modname not in config[pfwdefs.SW_MODULESECT]:
-                coremisc.fwdie("Error: Could not find module description for module %s\n" % (modname), pfwdefs.PF_EXIT_FAILURE)
+                miscutils.fwdie("Error: Could not find module description for module %s\n" % (modname), pfwdefs.PF_EXIT_FAILURE)
     
             task_id = -1
             runqueries(config, modname, modules_prev_in_list)
@@ -80,26 +80,26 @@ def begblock(argv):
     
         scriptfile = pfwblock.write_runjob_script(config)
     
-        coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - BEG")
+        miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - BEG")
         for jobkey,jobdict in sorted(joblist.items()):
             jobdict['jobnum'] = pfwutils.pad_jobnum(config.inc_jobnum())
             jobdict['jobkeys'] = jobkey
             jobdict['numexpwrap'] = len(jobdict['tasks'])
-            coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
+            miscutils.fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
             jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])
             jobdict['inputwcltar'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'], jobdict['inlist'])
-            if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+            if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
                 dbh.insert_job(config, jobdict)
             #(jobdict['jobwclfile'], jobdict['outputwcltar'], jobdict['envfile']) = pfwblock.write_jobwcl(config, jobkey, jobdict['jobnum'], len(jobdict['tasks']), jobdict['wrapinputs'])
             pfwblock.write_jobwcl(config, jobkey, jobdict)
-        coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - END")
+        miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - END")
     
         numjobs = len(joblist)
-        if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+        if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
             dbh.update_block_numexpjobs(config, numjobs)
     
-        coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "inputfiles: %s, %s" % (type(inputfiles), inputfiles))
-        coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "outputfiles: %s, %s" % (type(outputfiles), outputfiles))
+        miscutils.fwdebug(6, "PFWBLOCK_DEBUG", "inputfiles: %s, %s" % (type(inputfiles), inputfiles))
+        miscutils.fwdebug(6, "PFWBLOCK_DEBUG", "outputfiles: %s, %s" % (type(outputfiles), outputfiles))
         files2stage = set(inputfiles) - set(outputfiles)
         pfwblock.stage_inputs(config, files2stage)    
     
@@ -114,7 +114,7 @@ def begblock(argv):
     except:
         retval = pfwdefs.PF_EXIT_FAILURE
         config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
-        if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+        if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
             dbh.end_task(config['task_id']['begblock'], retval, True)
             dbh.end_task(blktid, retval, True)
         raise
@@ -122,13 +122,13 @@ def begblock(argv):
     
     config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
 
-    if pfwdefs.PF_DRYRUN in config and coremisc.convertBool(config[pfwdefs.PF_DRYRUN]):
+    if pfwdefs.PF_DRYRUN in config and miscutils.convertBool(config[pfwdefs.PF_DRYRUN]):
         retval = pfwdefs.PF_EXIT_DRYRUN
     else:
         retval = pfwdefs.PF_EXIT_SUCCESS
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh.end_task(config['task_id']['begblock'], retval, True)
-    coremisc.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
+    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
     return(retval)
 
 

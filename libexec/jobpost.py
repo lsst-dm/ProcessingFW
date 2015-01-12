@@ -5,13 +5,14 @@
 # $LastChangedDate::                      $:  # Date of last commit.
 
 import sys
+import re
 import os
 import tempfile
 import traceback
 import datetime
 
 import processingfw.pfwdefs as pfwdefs
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwcondor as pfwcondor
@@ -22,7 +23,7 @@ from processingfw.pfwemail import send_subblock_email
 
 
 
-def parse_job_output(config, jobnum, dbh=None):
+def parse_job_output(config, jobnum, dbh=None, retval=None):
     """ Search stdout/stderr for timing stats as well as eups setup or DB connection error messages and insert them into db """
     jobbase = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum, 
                                                         'flabel': 'runjob', 
@@ -97,7 +98,7 @@ def jobpost(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "temp log name = %s" % tmpfn)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "temp log name = %s" % tmpfn)
     print 'cmd>',' '.join(argv)  # print command line for debugging
 
     if len(argv) < 7:
@@ -115,21 +116,21 @@ def jobpost(argv = None):
     if len(argv) == 7:
         retval = int(sys.argv[6])
 
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "block = %s" % blockname)
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "jobnum = %s" % jobnum)
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "inputtar = %s" % inputtar)
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "outputtar = %s" % outputtar)
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "retval = %s" % retval)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "block = %s" % blockname)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "jobnum = %s" % jobnum)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "inputtar = %s" % inputtar)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "outputtar = %s" % outputtar)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "retval = %s" % retval)
 
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
 
 
     # now that have more information, rename output file
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "before get_filename")
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "before get_filename")
     blockname = config['blockname']
     blkdir = config['block_dir']
     tjpad = pfwutils.pad_jobnum(jobnum)
@@ -140,7 +141,7 @@ def jobpost(argv = None):
                                                 pfwdefs.PF_JOBNUM: jobnum,
                                                'fsuffix':'out'}})
     new_log_name = "%s" % (new_log_name)
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
      
     debugfh.close()
     os.chmod(tmpfn, 0666)
@@ -151,11 +152,11 @@ def jobpost(argv = None):
     
 
     dbh = None
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
 
         # get job information from the job stdout if exists
-        (tjobinfo, tjobinfo_task) = parse_job_output(config, jobnum, dbh)
+        (tjobinfo, tjobinfo_task) = parse_job_output(config, jobnum, dbh, retval)
 
         if dbh and len(tjobinfo) > 0:
             print "tjobinfo: ", tjobinfo
@@ -243,11 +244,11 @@ def jobpost(argv = None):
 
 
     if retval != pfwdefs.PF_EXIT_SUCCESS:
-        coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Setting failure retval")
+        miscutils.fwdebug(0, 'PFWPOST_DEBUG', "Setting failure retval")
         retval = pfwdefs.PF_EXIT_FAILURE     
         
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
-    coremisc.fwdebug(0, 'PFWPOST_DEBUG', "jobpost done")
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "jobpost done")
     debugfh.close()
     return(int(retval))
 
@@ -258,5 +259,5 @@ if __name__ == "__main__":
     exitcode = jobpost(sys.argv)
     sys.stdout = realstdout
     sys.stderr = realstderr
-    coremisc.fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
+    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
     sys.exit(exitcode)

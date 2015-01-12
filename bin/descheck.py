@@ -5,14 +5,13 @@
 # $LastChangedDate::                      $:  # Date of last commit.
 
 import argparse
-import processingfw.pfwconfig as pfwconfig
-import processingfw.pfwcheck as pfwcheck
-from coreutils.miscutils import *
-
-from processingfw.pfwdefs import *
-
 import os
 import sys
+
+import despymisc.miscutils as miscutils
+import processingfw.pfwconfig as pfwconfig
+import processingfw.pfwcheck as pfwcheck
+import processingfw.pfwdefs as pfwdefs
 
 
 if __name__ == '__main__':
@@ -25,16 +24,16 @@ if __name__ == '__main__':
 
     args = vars(parser.parse_args())   # convert dict
 
-    args['verbose'] = convertBool(args['verbose'])
-    args['usePFWconfig'] = convertBool(args['expandwcl'])
-    args['get_db_config'] = convertBool(args['expandwcl'])
+    args['verbose'] = miscutils.convertBool(args['verbose'])
+    args['usePFWconfig'] = miscutils.convertBool(args['expandwcl'])
+    args['get_db_config'] = miscutils.convertBool(args['expandwcl'])
 
     # usePFWconfig and get_db_config set to True because dessubmit does (work only done at submit time)
     #   use_db_in=False in submit wcl overrides get_db_config
     print "Gathering wcl..."
     config = pfwconfig.PfwConfig(args)
 
-    config[ATTNUM] = '0'   # must be string as if read from wcl file
+    config[pfwdefs.ATTNUM] = '0'   # must be string as if read from wcl file
     testcnts = pfwcheck.check(config, '')
 
     print "\nTest Summary"

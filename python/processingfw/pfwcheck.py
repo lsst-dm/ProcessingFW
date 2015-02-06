@@ -149,44 +149,44 @@ def check_block(config, indent=''):
 
 ########################################################################### 
 def check_target_archive(config, indent=''):
-    """ check info related to pfwdefs.TARGET_ARCHIVE """ 
+    """ check info related to target archive """ 
 
     cnts = [0 for i in range(0,NUMCNTS)]
 
-    print "%sChecking pfwdefs.TARGET_ARCHIVE..." % (indent)
+    print "%sChecking target archive..." % (indent)
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(),',')
     for blockname in blocklist:
         config.set_block_info()
         block = config[pfwdefs.SW_BLOCKSECT][blockname]
 
-        (found_input, pfwdefs.USE_TARGET_ARCHIVE_INPUT) = config.search(pfwdefs.USE_TARGET_ARCHIVE_INPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
-        (found_output, pfwdefs.USE_TARGET_ARCHIVE_OUTPUT) = config.search(pfwdefs.USE_TARGET_ARCHIVE_OUTPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
-        (found_archive, pfwdefs.TARGET_ARCHIVE) = config.search(pfwdefs.TARGET_ARCHIVE, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
+        (found_input, use_target_archive_input) = config.search(pfwdefs.USE_TARGET_ARCHIVE_INPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
+        (found_output, use_target_archive_output) = config.search(pfwdefs.USE_TARGET_ARCHIVE_OUTPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
+        (found_archive, target_archive) = config.search(pfwdefs.TARGET_ARCHIVE, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
 
         if not found_input:
             print "%s    Error: block %s - Could not determine %s" % (indent, blockname, pfwdefs.USE_TARGET_ARCHIVE_INPUT)
             cnts[ERRCNT_POS] += 1
-        elif pfwdefs.USE_TARGET_ARCHIVE_INPUT.lower() not in pfwdefs.VALID_TARGET_ARCHIVE_INPUT:
+        elif use_target_archive_input.lower() not in pfwdefs.VALID_TARGET_ARCHIVE_INPUT:
             print "%s    Error: block %s - Invalid %s value" % (indent, blockname, pfwdefs.USE_TARGET_ARCHIVE_INPUT)
             cnts[ERRCNT_POS] += 1
         
         if not found_output:
             print "%s    Error: block %s - Could not determine %s" % (indent, blockname, pfwdefs.USE_TARGET_ARCHIVE_OUTPUT)
             cnts[ERRCNT_POS] += 1
-        elif pfwdefs.USE_TARGET_ARCHIVE_OUTPUT.lower() not in pfwdefs.VALID_TARGET_ARCHIVE_OUTPUT:
+        elif use_target_archive_output.lower() not in pfwdefs.VALID_TARGET_ARCHIVE_OUTPUT:
             print "%s    Error: block %s - Invalid %s value" % (indent, blockname, pfwdefs.USE_TARGET_ARCHIVE_OUTPUT)
             cnts[ERRCNT_POS] += 1
 
-        # if need to use a pfwdefs.TARGET_ARCHIVE for this block
-        if ((found_input and pfwdefs.USE_TARGET_ARCHIVE_INPUT.lower() != 'never') or
-            (found_output and pfwdefs.USE_TARGET_ARCHIVE_OUTPUT.lower() != 'never')):
+        # if need to use a target_archive for this block
+        if ((found_input and use_target_archive_input.lower() != 'never') or
+            (found_output and use_target_archive_output.lower() != 'never')):
             if not found_archive:
                 print "%s    Error: block %s - Missing %s value" % (indent, blockname, pfwdefs.TARGET_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
             elif 'archive' not in config:
                 print "%s    Error: block %s - Needs archive section which doesn't exist" % (indent, blockname)
                 cnts[ERRCNT_POS] += 1
-            elif pfwdefs.TARGET_ARCHIVE not in config['archive']:
+            elif pfwdefs.target_archive not in config['archive']:
                 print "%s    Error: block %s - Invalid %s value" % (indent, blockname, pfwdefs.TARGET_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
             else:
@@ -203,7 +203,7 @@ def check_target_archive(config, indent=''):
 
 ########################################################################### 
 def check_home_archive(config, indent=''):
-    """ check info related to pfwdefs.TARGET_ARCHIVE """ 
+    """ check info related to home archive """ 
 
     cnts = [0 for i in range(0,NUMCNTS)]
 
@@ -213,27 +213,27 @@ def check_home_archive(config, indent=''):
         config.set_block_info()
         block = config[pfwdefs.SW_BLOCKSECT][blockname]
 
-        (found_input, pfwdefs.USE_HOME_ARCHIVE_INPUT) = config.search(pfwdefs.USE_HOME_ARCHIVE_INPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
-        (found_output, pfwdefs.USE_HOME_ARCHIVE_OUTPUT) = config.search(pfwdefs.USE_HOME_ARCHIVE_OUTPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
+        (found_input, use_home_archive_input) = config.search(pfwdefs.USE_HOME_ARCHIVE_INPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
+        (found_output, use_home_archive_output) = config.search(pfwdefs.USE_HOME_ARCHIVE_OUTPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
         (found_archive, home_archive) = config.search(pfwdefs.HOME_ARCHIVE, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
 
         if not found_input:
             print "%s    Error: block %s - Could not determine %s" % (indent, blockname, pfwdefs.USE_HOME_ARCHIVE_INPUT)
             cnts[ERRCNT_POS] += 1
-        elif pfwdefs.USE_HOME_ARCHIVE_INPUT.lower() not in pfwdefs.VALID_HOME_ARCHIVE_INPUT:
+        elif use_home_archive_input.lower() not in pfwdefs.VALID_HOME_ARCHIVE_INPUT:
             print "%s    Error: block %s - Invalid %s value" % (indent, blockname, pfwdefs.USE_HOME_ARCHIVE_INPUT)
             cnts[ERRCNT_POS] += 1
         
         if not found_output:
             print "%s    Error: block %s - Could not determine %s" % (indent, blockname, pfwdefs.USE_HOME_ARCHIVE_OUTPUT)
             cnts[ERRCNT_POS] += 1
-        elif pfwdefs.USE_HOME_ARCHIVE_OUTPUT.lower() not in pfwdefs.VALID_HOME_ARCHIVE_OUTPUT:
+        elif use_home_archive_output.lower() not in pfwdefs.VALID_HOME_ARCHIVE_OUTPUT:
             print "%s    Error: block %s - Invalid %s value" % (indent, blockname, pfwdefs.USE_HOME_ARCHIVE_OUTPUT)
             cnts[ERRCNT_POS] += 1
 
         # if need to use a home_archive for this block
-        if ((found_input and pfwdefs.USE_HOME_ARCHIVE_INPUT.lower() != 'never') or
-            (found_output and pfwdefs.USE_HOME_ARCHIVE_OUTPUT.lower() != 'never')):
+        if ((found_input and use_home_archive_input.lower() != 'never') or
+            (found_output and use_home_archive_output.lower() != 'never')):
             if not found_archive:
                 print "%s    Error: block %s - Missing %s value" % (indent, blockname, pfwdefs.HOME_ARCHIVE)
                 cnts[ERRCNT_POS] += 1

@@ -3,11 +3,21 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
-when_to_email = run
+when_to_email = run    # never, run, block
 wrapper_debug = 1
 use_qcf = False
 use_db_in = True
 use_db_out = True
+save_md5sum = True
+create_junk_tarball = True
+
+# default to not use target archive
+use_target_archive_input = never   # never, job
+use_target_archive_output = never  # wrapper, job, never
+use_home_archive_input = wrapper #
+use_home_archive_output = job # wrapper, job, block, run, never
+
+# framework patterns
 tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
 modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
 <filename_pattern>

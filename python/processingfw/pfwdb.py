@@ -435,8 +435,8 @@ class PFWDB (desdmdbi.DesDmDbi):
 
             sql = "update pfw_job set %s where task_id=%s and condor_job_id is NULL" % (','.join(setvals), self.get_named_bind_string('task_id'))
 
-            miscutils.fwdebug(0, 'PFWDB_DEBUG', "sql> %s" % sql)
-            miscutils.fwdebug(0, 'PFWDB_DEBUG', "params> %s" % params)
+            miscutils.fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
+            miscutils.fwdebug(3, 'PFWDB_DEBUG', "params> %s" % params)
             curs = self.cursor()
             try:
                 curs.execute(sql, params)

@@ -172,6 +172,8 @@ def main(args):
             os.chdir(uberctrl)
 
             print 'Writing internal files...',
+            if pfwdefs.SW_BLOCKLIST in config:
+                        config[pfwdefs.SW_BLOCKLIST] = config[pfwdefs.SW_BLOCKLIST].lower()
             maindag = create_dags(config, logfh)
             config.save_file('%s/config.des' % uberctrl)
             print 'DONE'

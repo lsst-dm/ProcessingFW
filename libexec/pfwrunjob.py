@@ -19,6 +19,7 @@ import socket
 import despymisc.miscutils as miscutils
 import processingfw.pfwdefs as pfwdefs
 import filemgmt.filemgmt_defs as fmdefs
+import filemgmt.disk_utils_local as diskutils
 
 import filemgmt.utils as fmutils
 import processingfw.pfwutils as pfwutils
@@ -46,12 +47,13 @@ def get_batch_id_from_job_ad(jobad_file):
         print "PFW: GlobalJobId = ", info['globaljobid']
 
         batch_id = "%s.%s" % (info['clusterid'], info['procid'])
+        print "PFW: batchid = ", batch_id
     except Exception as ex:
         miscutils.fwdebug(0, "PFWRUNJOB_DEBUG",  "Problem getting condor job id from job ad: %s" % (str(ex)))
         miscutils.fwdebug(0, "PFWRUNJOB_DEBUG",  "Continuing without condor job id")
 
     
-    miscutils.fwdebug(0, "PFWRUNJOB_DEBUG",  "condor_job_id = %s" % batch_id)
+    miscutils.fwdebug(3, "PFWRUNJOB_DEBUG",  "condor_job_id = %s" % batch_id)
     return batch_id
 
 
@@ -116,8 +118,8 @@ def create_wgb_prov(filelist, task_id):
 
 
 ######################################################################
-def ingest_file_prov(pfw_dbh, wcl, file_prov, prov_task_ids, task_label, parent_tid):
-    """ Call ingest file provenance routine after setting up appropriate filemgmt object """ 
+def pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, file_prov, prov_task_ids, task_label, parent_tid):
+    """ Call filemgmt.save_file_info routine after setting up appropriate filemgmt object """ 
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG (%s, %s)" % (task_label, parent_tid))
 
     starttime = time.time()
@@ -137,7 +139,7 @@ def ingest_file_prov(pfw_dbh, wcl, file_prov, prov_task_ids, task_label, parent_
                                       info_table = None,
                                       parent_task_id = parent_tid,
                                       root_task_id = wcl['task_id']['attempt'],
-                                      label = 'fm_meta',
+                                      label = 'save_file_info',
                                       do_begin = True,
                                       do_commit = True)
     filemgmt = None
@@ -159,7 +161,7 @@ def ingest_file_prov(pfw_dbh, wcl, file_prov, prov_task_ids, task_label, parent_
 
 
     if pfw_dbh is not None:
-        task_id = pfw_dbh.create_task(name = 'ingest_provenance', 
+        task_id = pfw_dbh.create_task(name = 'save_file_info', 
                                       info_table = None,
                                       parent_task_id = parent_tid,
                                       root_task_id = wcl['task_id']['attempt'],
@@ -168,13 +170,13 @@ def ingest_file_prov(pfw_dbh, wcl, file_prov, prov_task_ids, task_label, parent_
                                       do_commit = True)
 
     try:
-        filemgmt.ingest_provenance(file_prov, prov_task_ids)
+        filemgmt.save_file_info(artifacts, filemeta, file_prov, prov_task_ids)
         filemgmt.commit()
 
         if pfw_dbh is not None:
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
         else:
-            print "DESDMTIME: ingest_provenance %0.3f" % (time.time()-starttime)
+            print "DESDMTIME: pfw_save_file_info %0.3f" % (time.time()-starttime)
     except:
         (type, value, trback) = sys.exc_info()
         traceback.print_exception(type, value, trback, file=sys.stdout)
@@ -182,86 +184,10 @@ def ingest_file_prov(pfw_dbh, wcl, file_prov, prov_task_ids, task_label, parent_
             pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, value)
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         else:
-            print "DESDMTIME: ingest_provenance %0.3f" % (time.time()-starttime)
+            print "DESDMTIME: pfw_save_file_info %0.3f" % (time.time()-starttime)
         raise
 
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
-
-
-
-######################################################################
-def ingest_file_metadata(pfw_dbh, wcl, file_metadata, task_label, parent_tid):
-    """ Call ingest file metaddata routine after setting up appropriate filemgmt object """ 
-    miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "BEG (%s, %s)" % (task_label, parent_tid))
-
-    starttime = time.time()
-
-    archive_info = None
-    if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() != 'never':
-        archive_info = wcl['home_archive_info']
-    elif pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
-        archive_info = wcl['target_archive_info']
-    else:
-        raise Exception('Error: Could not determine archive for output files');
-
-        
-    task_id = -1
-    if pfw_dbh is not None:
-        task_id = pfw_dbh.create_task(name = 'dynclass', 
-                                      info_table = None,
-                                      parent_task_id = parent_tid,
-                                      root_task_id = wcl['task_id']['attempt'],
-                                      label = 'fm_meta',
-                                      do_begin = True,
-                                      do_commit = True)
-    filemgmt = None
-    try:
-        filemgmt_class = miscutils.dynamically_load_class(archive_info['filemgmt'])
-        valDict = fmutils.get_config_vals(archive_info, wcl, filemgmt_class.requested_config_vals())
-        filemgmt = filemgmt_class(config=valDict)
-    except:
-        (type, value, trback) = sys.exc_info()
-        msg = "Error: creating filemgmt object %s" % value
-        print "\n%s" % msg
-        if pfw_dbh is not None:
-            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
-            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
-        raise
-
-    if pfw_dbh is not None:
-        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
-
-
-
-    if pfw_dbh is not None:
-        task_id = pfw_dbh.create_task(name = 'ingest_metadata',
-                                      info_table = None,
-                                      parent_task_id = parent_tid,
-                                      root_task_id = wcl['task_id']['attempt'],
-                                      label = task_label,
-                                      do_begin = True,
-                                      do_commit = True)
-    try:
-        filemgmt.ingest_file_metadata(file_metadata)
-        filemgmt.commit()
-        if pfw_dbh is not None:
-            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
-        else:
-            print "DESDMTIME: %s %0.3f" % (task_label, time.time()-starttime)
-    except:
-        if pfw_dbh is None:
-            print "DESDMTIME: %s %0.3f" % (task_label, time.time()-starttime)
-        (type, value, trback) = sys.exc_info()
-        msg = "Error: Problem ingesting file metadata %s" % value
-        print "\n%s" % msg
-        if pfw_dbh is not None:
-            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
-            pfw_dbh.end_task(task_id,  pfwdefs.PF_EXIT_FAILURE, True)
-        print "file metadata to ingest:"
-        wclutils.write_wcl(file_metadata)
-        raise
-    miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
-
 
 
 def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, parent_tid):
@@ -462,8 +388,8 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, paren
         pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
     if len(files2get) != 0 and len(fileinfo_archive) == 0:
-        print "Info: 0 files found on %s" % archive_info['name']
-        print "\tfilemgmt = %s" % archive_info['filemgmt']
+        print "\tInfo: 0 files found on %s" % archive_info['name']
+        print "\t\tfilemgmt = %s" % archive_info['filemgmt']
 
     #archroot = archive_info['root']
     transinfo = {}
@@ -498,19 +424,20 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
     list_filenames = []
     cnt = 1
     if pfwdefs.IW_LISTSECT in wcl:
-        pfw_file_metadata = {}
+        filemeta = {}
+        artifacts = []
         for llabel, ldict in wcl[pfwdefs.IW_LISTSECT].items():
             cnt += 1
-            listname = miscutils.parse_fullname(ldict['fullname'], miscutils.CU_PARSE_FILENAME)
-            pfw_file_metadata['file_%d' % (cnt)] = {'filename': listname,
-                                                    'filetype': 'list'}
+            diskinfo = diskutils.get_single_file_disk_info(ldict['fullname'], save_md5sum=wcl['save_md5sum'], archive_root=None)
+            artifacts.append(diskinfo)
+            filemeta['file_%d' % (cnt)] = {'filename': diskinfo['filename'], 'filetype': 'list'} 
+    
             # add to list of input files so don't go into junk tarball
             wcl['infullnames'].append(ldict['fullname'])   
-            list_filenames.append(listname)    # lists are not individually compressed, so do not need compression value
+            list_filenames.append(diskinfo['filename'])    # lists are not individually compressed, so do not need compression value
 
-        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'lists', wcl['task_id']['jobwrapper'])
         (prov, tids) = create_wgb_prov(list_filenames, wcl['task_id']['jobwrapper'])
-        ingest_file_prov(pfw_dbh, wcl, prov, tids, 'lists', wcl['task_id']['jobwrapper'])
+        pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, prov, tids, 'lists', wcl['task_id']['jobwrapper'])
 
     
     # make directories for output files, get input files from targetnode
@@ -582,7 +509,7 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
                         outfile_dir = os.path.dirname(outfile)
                         miscutils.coremakedirs(outfile_dir)
         else:
-            print "Info: 0 output files (%s) in exec section %s" % (pfwdefs.IW_OUTPUTS, sect)
+            print "\tInfo: 0 output files (%s) in exec section %s" % (pfwdefs.IW_OUTPUTS, sect)
 
         if pfw_dbh is not None:
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
@@ -628,7 +555,7 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
             print "\tInfo: all %s input file(s) already in job directory." % \
                     len(wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values())
     else:
-        print "Info: 0 wrapinputs"
+        print "\tInfo: 0 wrapinputs"
 
     wcl['execnames'] = ','.join(execnamesarr)
 
@@ -898,13 +825,11 @@ def save_log_file(pfw_dbh, wcl, logfile):
         miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "log exists (%s)" % logfile)
 
         # Register log file
-        pfw_file_metadata = {}
-        filename = miscutils.parse_fullname(logfile, miscutils.CU_PARSE_FILENAME)
-        pfw_file_metadata['file_1'] = {'filename' : filename,
-                                       'filetype' : 'log'}
-        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'logfile', wcl['task_id']['jobwrapper'])
-        (prov, tids) = create_wgb_prov([filename], wcl['task_id']['jobwrapper'])
-        ingest_file_prov(pfw_dbh, wcl, prov, tids, 'logfile', wcl['task_id']['jobwrapper'])
+        artifacts = [diskutils.get_single_file_disk_info(logfile, save_md5sum=wcl['save_md5sum'], archive_root=None)]
+        filemeta = {'file_1': {'filename' : artifacts[0]['filename'],
+                               'filetype' : 'log'}}
+        (prov, tids) = create_wgb_prov([filemeta['file_1']['filename']], wcl['task_id']['jobwrapper'])
+        pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, prov, tids, 'logfile', wcl['task_id']['jobwrapper'])
 
         # since able to register log file, save as not junk file
         wcl['outfullnames'].append(logfile) 
@@ -915,7 +840,6 @@ def save_log_file(pfw_dbh, wcl, logfile):
                              'filename': filename,
                              'compression': None,
                              'path': wcl['log_archive_path'],
-                             'filesize': os.path.getsize(logfile),
                              'filesave': True}
     else:
         miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Warning: log doesn't exist (%s)" % logfile)
@@ -946,12 +870,12 @@ def copy_output_to_archive(pfw_dbh, wcl, fileinfo, loginfo, exitcode):
     for (filename, fdict) in fileinfo.items():
         miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "filename %s, fullname=%s" % (filename, fdict['fullname']))
         infdict = wcl[pfwdefs.IW_FILESECT][fdict['sectname']]
-        (filename, compression) = miscutils.parse_fullname(fdict['fullname'], miscutils.CU_PARSE_FILENAME|miscutils.CU_PARSE_EXTENSION) 
+        (filename, compression) = miscutils.parse_fullname(fdict['fullname'], 
+                                            miscutils.CU_PARSE_FILENAME|miscutils.CU_PARSE_EXTENSION) 
 
         filesave = miscutils.checkTrue(pfwdefs.SAVE_FILE_ARCHIVE, infdict, True)
         putinfo[filename] = {'src': fdict['fullname'],
                              'compression': compression,
-                             'filesize': os.path.getsize(fdict['fullname']),
                              'filename': filename,
                              'filesave': filesave}
 
@@ -1015,31 +939,36 @@ def postwrapper(pfw_dbh, wcl, logfile, exitcode):
                 else:
                     print "DESDMTIME: app_exec %s %0.3f" % (sect, float(outputwcl[sect]['walltime']))
 
-            if exitcode == 0:
+            if exitcode == 0:   # problems with data in output wcl if non-zero exit code
+                filemeta = None
+                artifacts = []
                 if pfwdefs.OW_METASECT in outputwcl and len(outputwcl[pfwdefs.OW_METASECT]) > 0:
+                    filemeta = outputwcl[pfwdefs.OW_METASECT]
+
                     wrapoutfullnames = [] 
-
-                    # separate metadata needed for PFW from DB metadata tables
                     for fdict in outputwcl[pfwdefs.OW_METASECT].values():
-                        finfo[fdict['filename']] = { 'sectname': fdict['sectname'],
-                                                     'fullname': fdict['fullname'],
-                                                     'filename': fdict['filename'] }
-                        del fdict['sectname']  # deleting because not needed by later ingest_file_metadata
-                        wrapoutfullnames.append(fdict['fullname']) 
-                        (filename, compression) = miscutils.parse_fullname(fdict['fullname'], miscutils.CU_PARSE_FILENAME | miscutils.CU_PARSE_EXTENSION)
-                        if compression is not None:
-                            filename += compression
-
-                        del fdict['fullname']  # deleting because not needed by later ingest_file_metadata
+                        fullname = fdict['fullname']
+                        del fdict['fullname']   # deleting because not needed by metadata
+                        artifacts.append(diskutils.get_single_file_disk_info(fullname,
+                                                                         save_md5sum=wcl['save_md5sum'], 
+                                                                         archive_root=None))
+                        finfo[fullname] = { 'sectname': fdict['sectname'],
+                                            'fullname': fullname,
+                                            'filename': fdict['filename'] }
+                        del fdict['sectname']   # deleting because not needed by metadata
+                        wrapoutfullnames.append(fullname) 
+                        
                     #wclutils.write_wcl(finfo)
-
-                    ingest_file_metadata(pfw_dbh, wcl, outputwcl[pfwdefs.OW_METASECT], 'wrapper-outputs', 
-                                         wcl['task_id']['jobwrapper']) 
-
                     wcl['outfullnames'].extend(wrapoutfullnames)
 
+                prov = None
+                execids = None
                 if pfwdefs.OW_PROVSECT in outputwcl and len(outputwcl[pfwdefs.OW_PROVSECT].keys()) > 0:
-                    ingest_file_prov(pfw_dbh, wcl, outputwcl[pfwdefs.OW_PROVSECT], wcl['task_id']['exec'], None, wcl['task_id']['jobwrapper'])
+                    prov = outputwcl[pfwdefs.OW_PROVSECT]
+                    execids = wcl['task_id']['exec']
+
+                pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, prov, execids, 
+                               'wrapper-outputs', wcl['task_id']['jobwrapper'])
 
     copy_output_to_archive(pfw_dbh, wcl, finfo, logfinfo, exitcode)
 
@@ -1084,6 +1013,23 @@ def gather_inwcl_fullnames(workflow, wcl):
     #print wcl['infullnames']
 
 
+def exechost_status(wrapnum):
+    """ Print various information about exec host """
+
+    exechost = socket.gethostname()
+
+    # free
+    subp = subprocess.Popen(["free", "-m"], stdout=subprocess.PIPE)
+    output = subp.communicate()[0]
+    print "%04d: EXECSTAT %s FREE\n%s" % (int(wrapnum), exechost, output)
+
+    # df
+    cwd = os.getcwd() 
+    subp = subprocess.Popen(["df", "-h", cwd], stdout=subprocess.PIPE)
+    output = subp.communicate()[0]
+    print "%04d: EXECSTAT %s DF\n%s" % (int(wrapnum), exechost, output)
+    
+
 
 def job_workflow(workflow, jobwcl={}):
     """ Run each wrapper execution sequentially """
@@ -1098,6 +1044,9 @@ def job_workflow(workflow, jobwcl={}):
 
             wrappercmd = "%s --input=%s --debug=%s" % (task['wrapname'], task['wclfile'], task['wrapdebug'])
             print "\n\n%04d: %s" % (int(task['wrapnum']), wrappercmd)
+
+            # print machine status information
+            exechost_status(task['wrapnum'])
 
             if not os.path.exists(task['wclfile']):
                 print "Error: input wcl file does not exist (%s)" % task['wclfile']
@@ -1124,7 +1073,7 @@ def job_workflow(workflow, jobwcl={}):
             else:
                 wcl['task_id']['jobwrapper'] = -1
 
-            print "\tSetup"
+            print "%04d: Setup" % (int(task['wrapnum']))
             setup_wrapper(pfw_dbh, wcl, task['wclfile'], task['logfile'])
             exectid = determine_exec_task_id(pfw_dbh, wcl)
 
@@ -1133,7 +1082,7 @@ def job_workflow(workflow, jobwcl={}):
                 pfw_dbh.close()
                 pfw_dbh = None
 
-            print "\tRunning wrapper"
+            print "%04d: Running wrapper" % (int(task['wrapnum']))
             starttime = time.time()
             try:
                 os.putenv("DESDMFW_TASKID", str(exectid))
@@ -1163,7 +1112,7 @@ def job_workflow(workflow, jobwcl={}):
             else:
                 print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
-            print "\tPost-steps"
+            print "%04d: Post-steps" % (int(task['wrapnum']))
             postwrapper(pfw_dbh, wcl, task['logfile'], exitcode) 
             pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
 
@@ -1346,20 +1295,18 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
         # register junktar with file manager
-        pfw_file_metadata = {}
-        pfw_file_metadata['file_1'] = {'filename' : wcl['junktar'],
-                                       'filetype' : 'junk_tar'}
-        ingest_file_metadata(pfw_dbh, wcl, pfw_file_metadata, 'junktar', job_task_id) 
-        (prov, tids) = create_wgb_prov([wcl['junktar']], job_task_id)
-        ingest_file_prov(pfw_dbh, wcl, prov, tids, 'junktar', job_task_id)
+        artifacts = [diskutils.get_single_file_disk_info(wcl['junktar'], save_md5sum=wcl['save_md5sum'], archive_root=None)]
+        junkfilename = miscutils.parse_fullname(wcl['junktar'], miscutils.CU_PARSE_FILENAME)
+        filemeta = {'file_1': {'filename': junkfilename, 'filetype': 'junk_tar'}}
+        (prov, tids) = create_wgb_prov([junkfilename], job_task_id)
+        pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, prov, tids, 'junktar', job_task_id)
     
 
         # gather "disk" metadata about tarball
         putinfo= {wcl['junktar']: {'src': wcl['junktar'],
-                                   'filename': wcl['junktar'],
-                                   'compression': None,
+                                   'filename': artifacts[0]['filename'],
+                                   'compression': artifacts[0]['compression'],
                                    'path': wcl['junktar_archive_path'],
-                                   'filesize': os.path.getsize(wcl['junktar']),
                                    'filesave': True}}
          
         # if save setting is wrapper, save here, otherwise save at end of job

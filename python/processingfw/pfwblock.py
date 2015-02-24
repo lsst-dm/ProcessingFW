@@ -813,6 +813,7 @@ def write_jobwcl(config, jobkey, jobdict):
                                     'interpolate': True})[1], 
               pfwdefs.PF_JOBNUM: jobdict['jobnum'],
               'numexpwrap': len(jobdict['tasks']),
+              'save_md5sum': config['save_md5sum'],
               'usedb': config.search(pfwdefs.PF_USE_DB_OUT, { 'required': True,
                                     'interpolate': True})[1], 
               'useqcf': config.search(pfwdefs.PF_USE_QCF, {'required': True,
@@ -1568,7 +1569,6 @@ echo ""
 BATCHID=""
 if /usr/bin/test -n "$SUBMIT_CONDORID"; then
     echo "PFW: condorid $SUBMIT_CONDORID"
-    BATCHID=$SUBMIT_CONDORID
 fi
 
 ### Output batch jobid for record keeping
@@ -1582,9 +1582,6 @@ if /usr/bin/test -n "$LSB_JOBID"; then
 fi
 if /usr/bin/test -n "$LOADL_STEP_ID"; then
    BATCHID=`echo $LOADL_STEP_ID | /bin/awk -F "." '{ print $(NF-1) "." $(NF) }'`
-fi
-if /usr/bin/test -n "$CONDOR_ID"; then
-   BATCHID=$CONDOR_ID
 fi
 if /usr/bin/test -n "$BATCHID"; then
     echo "PFW: batchid $BATCHID"

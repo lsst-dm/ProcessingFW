@@ -67,19 +67,19 @@ def copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg):
     miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'trans results = %s' % results)
 
     # save info for files that we just copied into archive
-    files2register = {}
+    files2register = []
     problemfiles = {}
     for fname, finfo in results.items():
         if 'err' in finfo:
             problemfiles[fname] = finfo
             print "Warning: Error trying to copy file %s to archive: %s" % (fname, finfo['err'])
         else:
-            files2register[fname] = finfo
+            files2register.append(finfo)
 
     # call function to do the register
     miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'files2register = %s' % files2register)
     miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'archive = %s' % archive_info['name'])
-    filemgmt.register_file_in_archive(files2register, {'archive': archive_info['name']})
+    filemgmt.register_file_in_archive(files2register, archive_info['name'])
 
 
 

@@ -649,7 +649,7 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, task_label, 
 
     # call function to do the register
     try:
-        filemgmt.register_file_in_archive(fileinfo, {'archive': archive_info['name']})
+        filemgmt.register_file_in_archive(fileinfo, archive_info['name'])
         filemgmt.commit()
     except:
         (type, value, trback) = sys.exc_info()
@@ -778,7 +778,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
         print "DESDMTIME: %s-filemvmt %0.3f" % (task_label, time.time()-starttime)
 
     # register files that we just copied into archive
-    files2register = {}
+    files2register = []
     problemfiles = {}
     for f, finfo in results.items():
         if 'err' in finfo:
@@ -788,7 +788,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
             if pfw_dbh:
                 pfw_dbh.insert_message(trans_task_id, pfwdb.PFW_MSG_WARN, msg)
         else:
-            files2register[f] = finfo
+            files2register.append(finfo)
 
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Registering %s file(s) in archive..." % len(files2register))
     starttime = time.time()

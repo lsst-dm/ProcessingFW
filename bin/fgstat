@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-""" 
+"""
 Print information about DESDM jobs in the FermiGrid queue from
-the FermiGrid batch system (condor) viewpoint. 
+the FermiGrid batch system (condor) viewpoint.
 
 Similar to logging onto HPC machine and running qstat.
 
-It massages remote condor_q output of framework jobs on FermiGrid only.  
+It massages remote condor_q output of framework jobs on FermiGrid only.
 It is meant to be a top-level helper/monitor tool.
 
-Users are recommended to manually run condor_q commands if needing 
-to debug a "why is my job not running" issue.  Example condor_q 
+Users are recommended to manually run condor_q commands if needing
+to debug a "why is my job not running" issue.  Example condor_q
 commands below.
 
 Example condor_q commands:
@@ -30,57 +30,55 @@ Example condor_q commands:
         -better-analyze <fermigrid id>
 """
 
-import sys
 import re
 import os
-import argparse
 from datetime import datetime
 from datetime import timedelta
 
 import processingfw.pfwcondor as pfwcondor
 
-if __name__=='__main__':
-    parser = argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
-    args = parser.parse_args(sys.argv[1:])
+def main():
+    """ Entry point """
 
     fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
     now = datetime.now()
     jobs = pfwcondor.condor_q(fermigrid)
-    
-    
+
+
     # print headers
-    print "%10s %20s %5s %20s  %15s %10s %10s %35s" % ('FG CID', 'FG user/DES user', 
-          "stat", 'qdate', 'remotehost', 'wallclock', 'DES CID', 'DES label')
+    print "%10s %20s %5s %20s  %15s %10s %10s %35s" % \
+           ('FG CID', 'FG user/DES user', 'stat', 'qdate', 'remotehost',
+            'wallclock', 'DES CID', 'DES label')
     print '-'*140
-    
+
     # sort on FermiGrid condor id
     for j in sorted(jobs.keys()):
         jdict = jobs[j]
-    
-        # create single string containing FermiGrid user name (usually a pool account) along with 
+
+        # create single string containing FermiGrid user name (usually a pool account) along with
         # a name more easily associated with person
         name1 = ""
         name2 = ""
         if 'x509userproxyemail' in jdict:
-            (name1, junk) = jdict['x509userproxyemail'].split('@')
-        
+            name1 = jdict['x509userproxyemail'].split('@')[0]
+
         if 'user' in jdict:
-            (name2, junk) = jdict['user'].split('@')
+            name2 = jdict['user'].split('@')[0]
         name = "%s/%s" % (name1, name2)
-    
+
         # grab the condor id that corresponds to the id on the submit machine
         submit_condorid = ""
         if 'env' in jdict:
-            m = re.search("SUBMIT_CONDORID=(\d+)", jdict['env'])
-            if m:
-                submit_condorid = m.group(1)
+            match = re.search(r"SUBMIT_CONDORID=(\d+)", jdict['env'])
+            if match:
+                submit_condorid = match.group(1)
         if submit_condorid == "":  # not a framework job, so skip
             continue
-    
+
         remotehost = ""
         if 'remotehost' in jdict:
-            remotehost = jdict['remotehost'].replace('.fnal.gov','')
-        
+            remotehost = jdict['remotehost'].replace('.fnal.gov', '')
+
         # calculate wallclock
         jobstartdate = ""
         wallclock = ""
@@ -88,16 +86,19 @@ if __name__=='__main__':
             jobstartdate = datetime.fromtimestamp(int(jdict['jobstartdate']))
             wallclock = now - jobstartdate
             wallclock = str(timedelta(seconds=wallclock.seconds))
-    
+
         # try to print a string that describes the job in framework terms
         label = ""
         if 'transferinput' in jdict:
-            m = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
-            if m:
-                label = os.path.basename(m.group(1)).replace('job_','')
-    
-        print "%10s %20s %5s %20s  %15s %10s %10s %35s" % (j, 
-            name, pfwcondor.get_job_status_str(j, jobs), 
-            datetime.fromtimestamp(int(jdict['qdate'])), 
-            remotehost, wallclock, submit_condorid, label)
-    
+            match = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
+            if match:
+                label = os.path.basename(match.group(1)).replace('job_', '')
+
+        print "%10s %20s %5s %20s  %15s %10s %10s %35s" % \
+               (j, name, pfwcondor.get_job_status_str(j, jobs),
+                datetime.fromtimestamp(int(jdict['qdate'])),
+                remotehost, wallclock, submit_condorid, label)
+
+
+if __name__ == '__main__':
+    main()

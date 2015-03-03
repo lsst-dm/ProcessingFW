@@ -1,15 +1,13 @@
 #!/usr/bin/env python
 # $Id$
 # $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
 """ TODO docstring """
 
 import argparse
-import time
 import os
-import shutil
 import sys
 
 import intgutils.wclutils as wclutils
@@ -18,7 +16,6 @@ import despymisc.miscutils as miscutils
 from processingfw.pfwcondor import CondorException
 import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwcheck as pfwcheck
-import processingfw.pfwutils as pfwutils
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwlog as pfwlog
 
@@ -47,7 +44,8 @@ def create_dags(config, logfh):
 
     return maindag
 
-# useDBin:   get default config, files already tracked in archive, existing file metadata, provenance
+# useDBin:   get default config, files already tracked in archive,
+#            existing file metadata, provenance
 # use_db_out:  framework can write to database, unclear how can control pipeline application codes
 # useQCF: only used if useDBout is true, controls whether to use QCF or not
 # usePFWconfig:  whether to include $PROCESSINGFW_DIR/etc/pfwconfig.des
@@ -59,11 +57,13 @@ def main(args):
     os.putenv('PYTHONUNBUFFERED', 'true')
     try:
         parser = argparse.ArgumentParser(description='Submit a run to the processing framework')
-        boolargs = [pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF, 'usePFWconfig', 'version']
+        boolargs = [pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT,
+                    pfwdefs.PF_USE_QCF, 'usePFWconfig', 'version']
 
         for barg in boolargs:
             parser.add_argument('--%s' % barg, action='store', type=str)
-        parser.add_argument('--notarget', action='store', type=str, help='Depricated. use --%s=True' % pfwdefs.PF_DRYRUN)
+        parser.add_argument('--notarget', action='store', type=str,
+                            help='Depricated. use --%s=True' % pfwdefs.PF_DRYRUN)
         parser.add_argument('--gensubmit', action='store')
         parser.add_argument('--des_services', action='store')
         parser.add_argument('--des_db_section', action='store')
@@ -75,7 +75,7 @@ def main(args):
             if args[barg] is not None:
                 args[barg] = miscutils.convertBool(args[barg])
 
-    
+
 
         print 'Using version %s of dessubmit\n' % VERSION
 
@@ -84,7 +84,7 @@ def main(args):
 
         if args['notarget'] is not None:
             if args['notarget']:
-                print "Note:  notarget is depricated.   Instead use --%s" % pfwdefs.PF_DRYRUN 
+                print "Note:  notarget is depricated.   Instead use --%s" % pfwdefs.PF_DRYRUN
                 args[pfwdefs.PF_DRYRUN] = True
             else:
                 args[pfwdefs.PF_DRYRUN] = False
@@ -102,7 +102,7 @@ def main(args):
             args[pfwdefs.PF_USE_QCF] = False
 
         print "Reading framework configuration and submit wcl:"
-        config = pfwconfig.PfwConfig(args) 
+        config = pfwconfig.PfwConfig(args)
 
         if args['gensubmit']:
             config.save_file(args['gensubmit'])
@@ -113,16 +113,15 @@ def main(args):
 
             if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
                 print 'Inserting run into PFW tables...',
-                import processingfw.pfwdb as pfwdb   # import late 
+                import processingfw.pfwdb as pfwdb   # import late
                 dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-                dbh.insert_run(config) 
+                dbh.insert_run(config)
                 dbh.insert_attempt_val(config)
                 dbh.insert_attempt_label(config)
                 print 'DONE'
             elif pfwdefs.ATTNUM not in config:
                 print '\tNo DB.  Defaulting %s to 0' % pfwdefs.ATTNUM
-                config[pfwdefs.ATTNUM] = 0 
-               
+                config[pfwdefs.ATTNUM] = 0
 
             print 'Checking system:'
             pfwsubmit.run_sys_checks()
@@ -142,15 +141,17 @@ def main(args):
 
             # save original submit file as is
             print 'Saving submit file...',
-            expwclfile = config.get_filename(filepat='config', searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'exp'}})
-            expwcl = None 
+            expwclfile = config.get_filename(filepat='config',
+                                             searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'exp'}})
+            expwcl = None
             with open(args['wclfile'], 'r') as infh:
                 expwcl = wclutils.read_wcl(infh)
-            with open("%s/%s" % (uberctrl,expwclfile), 'w') as outfh:
+            with open("%s/%s" % (uberctrl, expwclfile), 'w') as outfh:
                 wclutils.write_wcl(expwcl, outfh, True, 4)
 
-            # save config with expanded wcl, db values and 
-            fullcfg = config.get_filename(filepat='config', searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'full'}})
+            # save config with expanded wcl, db values and
+            fullcfg = config.get_filename(filepat='config',
+                                          searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'full'}})
             config.save_file('%s/%s' % (uberctrl, fullcfg))
 
             config['expwcl'] = expwclfile
@@ -173,30 +174,30 @@ def main(args):
 
             print 'Writing internal files...',
             if pfwdefs.SW_BLOCKLIST in config:
-                        config[pfwdefs.SW_BLOCKLIST] = config[pfwdefs.SW_BLOCKLIST].lower()
+                config[pfwdefs.SW_BLOCKLIST] = config[pfwdefs.SW_BLOCKLIST].lower()
             maindag = create_dags(config, logfh)
             config.save_file('%s/config.des' % uberctrl)
             print 'DONE'
 
             condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
-            if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]) and 
-                condorid is not None):
+            if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]) and
+                    condorid is not None):
                 print "Saving run's condorid into PFW tables...",
                 import processingfw.pfwdb as pfwdb
                 dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
                 dbh.update_attempt_cid(config, condorid)
                 print 'DONE'
     except CondorException as e:
-        print 'ERROR\nABORTING SUBMISSION' 
-        print 'Error: %s' % str(e) 
+        print 'ERROR\nABORTING SUBMISSION'
+        print 'Error: %s' % str(e)
         return pfwdefs.PF_EXIT_FAILURE  # exit on error
     except Exception:
         # error handling code here
-        print 'ERROR\nABORTING SUBMISSION' 
+        print 'ERROR\nABORTING SUBMISSION'
         raise
     else:
         return pfwdefs.PF_EXIT_SUCCESS  # exit errorlessly
- 
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
 

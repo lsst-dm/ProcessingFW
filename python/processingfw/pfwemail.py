@@ -46,7 +46,7 @@ def send_email(config, block, status, subject, msg1, msg2):
     if pfwdefs.HOME_ARCHIVE in config:
         mailfh.write("Home Archive:\n")
         mailfh.write("\t%s = %s\n" % (pfwdefs.HOME_ARCHIVE.lower(), config[pfwdefs.HOME_ARCHIVE]))
-        mailfh.write("\tArchive directory = %s/%s\n" % (config['root'], config.interpolate(config[pfwdefs.OPS_RUN_DIR])))
+        mailfh.write("\tArchive directory = %s/%s\n" % (config['root'], config.interpolate(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])))
         mailfh.write("\n")
 
 

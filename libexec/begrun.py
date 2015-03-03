@@ -44,7 +44,7 @@ def save_submit_file_info(config, filemgmt, expwcl, fullcfg):
 def copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg):
     """ Copy submit files to home archive """
 
-    archdir = '%s/submit' % config.interpolate(config['ops_run_dir'])
+    archdir = '%s/submit' % config.interpolate(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])
     miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'archive rel path = %s' % archdir)
 
     # copy the files to the home archive
@@ -122,6 +122,13 @@ def begrun(argv):
         copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg)
 
         filemgmt.commit()
+
+    if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])):
+        print "Saving attempt's archive path into PFW tables...",
+        import processingfw.pfwdb as pfwdb
+        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+        dbh.update_attempt_archive_path(config)
+        dbh.commit()
 
 
 if __name__ == "__main__":

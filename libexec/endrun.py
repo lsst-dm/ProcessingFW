@@ -25,13 +25,13 @@ def endrun(configfile):
 
     if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \
        config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() == 'run':
-        if pfwdefs.OPS_RUN_DIR not in config:
-            print "Error:  Cannot find %s in config" % pfwdefs.OPS_RUN_DIR
+        if pfwdefs.ATTEMPT_ARCHIVE_PATH not in config:
+            print "Error:  Cannot find %s in config" % pfwdefs.ATTEMPT_ARCHIVE_PATH
             print "\tIt is needed for the mass copy of the run back to the home archive at the end of the run"
             return(pfwdefs.PF_EXIT_FAILURE)
 
 
-        archpath = config.interpolate(config[pfwdefs.OPS_RUN_DIR])
+        archpath = config.interpolate(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])
         print "archpath =", archpath
 
             

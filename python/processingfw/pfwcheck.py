@@ -36,8 +36,9 @@ def check_globals(config, indent=''):
     # always required
     # TODO: unitname might need to be expanded to discover missing variables ???
     for key in ['pipeline', 'pipeprod', 'pipever', 'project', pfwdefs.REQNUM, pfwdefs.ATTNUM, pfwdefs.UNITNAME, 'jira_id', 'target_site',
-                'site', 'filename_pattern', 'directory_pattern', 'job_file_mvmt', 'ops_run_dir', 
-                pfwdefs.PF_USE_QCF, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT, pfwdefs.SW_BLOCKLIST, pfwdefs.SW_BLOCKSECT, pfwdefs.SW_MODULESECT, 'create_junk_tarball']:
+                'site', 'filename_pattern', 'directory_pattern', 'job_file_mvmt', pfwdefs.ATTEMPT_ARCHIVE_PATH,
+                pfwdefs.PF_USE_QCF, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT, pfwdefs.SW_BLOCKLIST,
+                pfwdefs.SW_BLOCKSECT, pfwdefs.SW_MODULESECT, 'create_junk_tarball']:
         try:
             if key not in config:
                 print "%s    Error: missing %s global key or section" % (indent, key)
@@ -77,6 +78,22 @@ def check_globals(config, indent=''):
     elif config['operator'] in ['bcs']:
         print '%s    Error:  Operator cannot be shared login (%s).' % (indent, config['operator'])
         cnts[ERRCNT_POS] += 1
+
+    print '%s    Checking %s...' % (indent, pfwdefs.SW_SAVE_RUN_VALS)
+    if pfwdefs.SW_SAVE_RUN_VALS in config:
+        keys2save = config.search(pfwdefs.SW_SAVE_RUN_VALS, {'interpolate': True})[1]
+        keys = miscutils.fwsplit(keys2save,',')
+        for key in keys:
+            exists = False
+            try:
+                exists = config.search(key, {'interpolate': True, 'expand': True})[0]
+            except SystemExit:
+                pass
+    
+            if not exists:
+                print '%s        Error:  Cannot determine %s value (%s).' % (indent, pfwdefs.SW_SAVE_RUN_VALS, key)
+                cnts[ERRCNT_POS] += 1
+        
 
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(),',')
     for blockname in blocklist:

@@ -209,13 +209,22 @@ class PFWDB (desdmdbi.DesDmDbi):
 
                 # execute will fail if extra params
                 params = {}
-                for k in ['reqnum', 'unitname', 'attnum', 'operator', 
-                          'numexpblk', 'basket', 'group_submit_id', 
-                          'task_id', 'subpipeprod', 'subpipever']:
+                needed_vals = ['reqnum', 'unitname', 'attnum', 'operator', 
+                               'numexpblk', 'basket', 'group_submit_id', 
+                               'task_id', 'subpipeprod', 'subpipever']
+                for k in needed_vals:
                     params[k]=allparams[k]
                 miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % params)
 
-                sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime, numexpblk, basket, group_submit_id, task_id, subpipeprod, subpipever) select %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname=%s and attnum=%s)" % (namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'], namebinds['operator'], self.get_current_timestamp_str(), namebinds['numexpblk'], namebinds['basket'], namebinds['group_submit_id'], namebinds['task_id'], namebinds['subpipeprod'], namebinds['subpipever'], from_dual, namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'])
+                #sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime, numexpblk, basket, group_submit_id, task_id, subpipeprod, subpipever) select %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname=%s and attnum=%s)" % (namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'], namebinds['operator'], self.get_current_timestamp_str(), namebinds['numexpblk'], namebinds['basket'], namebinds['group_submit_id'], namebinds['task_id'], namebinds['subpipeprod'], namebinds['subpipever'], from_dual, namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'])
+                subsql = "select null from pfw_attempt where reqnum=%s and unitname=%s and attnum=%s" % \
+                          (namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'])
+                sql = "insert into pfw_attempt (%s, submittime) select %s, %s %s where not exists (%s)" % \
+                       (','.join(needed_vals),
+                        ','.join(namebinds[x] for x in needed_vals),
+                        self.get_current_timestamp_str(), 
+                        from_dual,
+                        subsql)
                 miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
 
                 curs.execute(sql, params)
@@ -243,7 +252,7 @@ class PFWDB (desdmdbi.DesDmDbi):
 
 
         curs.close()
-        self.commit()  # not calling insert_PFW_row so must commit here
+        self.commit()  
 
 
     def insert_attempt_label(self, config):
@@ -284,6 +293,18 @@ class PFWDB (desdmdbi.DesDmDbi):
                 else:
                     row['val'] = val
                     self.insert_PFW_row('PFW_ATTEMPT_VAL', row)
+
+
+    def update_attempt_archive_path(self, config):
+        """ update row in pfw_attempt with relative path in archive """
+
+        updatevals = {}
+        updatevals['archive_path'] = config.search(pfwdefs.ATTEMPT_ARCHIVE_PATH, {'interpolate': True})[1]
+
+        wherevals = {}
+        wherevals['task_id'] = config['task_id']['attempt']
+        
+        self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
 
 
 

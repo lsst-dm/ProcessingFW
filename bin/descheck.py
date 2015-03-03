@@ -4,22 +4,24 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+""" Execute WCL checks """
+
 import argparse
-import os
-import sys
 
 import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwcheck as pfwcheck
 import processingfw.pfwdefs as pfwdefs
 
+def main():
+    """ Entry point when called as an executable """
 
-if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run check on given submit wcl')
     parser.add_argument('--verbose', action='store', default=True)
     parser.add_argument('--des_db_section', action='store')
     parser.add_argument('--des_services', action='store')
-    parser.add_argument('--expandwcl', action='store', default=True, help='set to False if running on an uberctrl/config.des')
+    parser.add_argument('--expandwcl', action='store', default=True,
+                        help='set to False if running on an uberctrl/config.des')
     parser.add_argument('wclfile', action='store')
 
     args = vars(parser.parse_args())   # convert dict
@@ -28,7 +30,8 @@ if __name__ == '__main__':
     args['usePFWconfig'] = miscutils.convertBool(args['expandwcl'])
     args['get_db_config'] = miscutils.convertBool(args['expandwcl'])
 
-    # usePFWconfig and get_db_config set to True because dessubmit does (work only done at submit time)
+    # usePFWconfig and get_db_config set to True because dessubmit does
+    #   (work only done at submit time)
     #   use_db_in=False in submit wcl overrides get_db_config
     print "Gathering wcl..."
     config = pfwconfig.PfwConfig(args)
@@ -40,3 +43,6 @@ if __name__ == '__main__':
     print "\tErrors: %d" % testcnts[0]
     print "\tWarnings: %d" % testcnts[1]
     print "\tItems fixed: %d" % testcnts[2]
+
+if __name__ == '__main__':
+    main()

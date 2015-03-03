@@ -11,6 +11,7 @@ import time
 import traceback
 
 import processingfw.pfwdefs as pfwdefs
+import intgutils.intgdefs as intgdefs
 import processingfw.pfwutils as pfwutils
 import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
@@ -28,7 +29,7 @@ def create_master_list(config, modname, moddict,
     if 'qouttype' in search_dict:
         qouttype = search_dict['qouttype']
     else:
-        qouttype = 'wcl'  
+        qouttype = intgdefs.DEFAULT_QUERY_OUTPUT_FORMAT
 
     qoutfile = config.get_filename('qoutput', {pfwdefs.PF_CURRVALS: 
         {'modulename': modname, 

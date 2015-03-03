@@ -7,11 +7,11 @@
 import argparse
 import sys
 import re
-import despydb.desdbi as desdbi
 import despymisc.miscutils as miscutils
+import intgutils.queryutils as queryutils
+import processingfw.pfwdb as pfwdb
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
-import processingfw.pfwfilelist as pfwfilelist
     
 def main(argv):    
     parser = argparse.ArgumentParser(description='genquery.py')
@@ -133,6 +133,8 @@ def main(argv):
             else:
                 table = qtable
                 field = ofield
+            if table not in query:
+                query[table] = {}
             if 'select_fields' not in query[table]:
                 query[table]['select_fields'] = []
             if field not in query[table]['select_fields']:
@@ -152,7 +154,8 @@ def main(argv):
     print "Calling gen_file_list with the following query:\n"
     miscutils.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
     print "\n\n"
-    files = pfwfilelist.gen_file_list(query)
+    dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+    files = queryutils.gen_file_list(dbh, query)
     
     if len(files) == 0:
         raise Exception("genquery: query returned zero results for %s\nAborting\n" % args.searchname)
@@ -188,8 +191,8 @@ def main(argv):
 #                    print "Var already exists: %s '%s'\n" % (var, filedict[var])
     
     ## output list
-    lines = pfwfilelist.convert_single_files_to_lines(files)
-    pfwfilelist.output_lines(args.qoutfile, lines, args.qouttype)
+    lines = queryutils.convert_single_files_to_lines(files)
+    queryutils.output_lines(args.qoutfile, lines, args.qouttype)
 
     return(0)
 

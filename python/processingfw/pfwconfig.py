@@ -495,7 +495,7 @@ class PfwConfig:
                     value = re.sub("(?i)\${%s}" % var, newval, value)
                     done = False
                 else:
-                    miscutils.fwdie("Error: Could not find value for %s" % newvar, pfwdefs.PF_EXIT_FAILURE)
+                    miscutils.fwdie("Error: Could not find value for %s (%s)" % (newvar, value), pfwdefs.PF_EXIT_FAILURE)
                 m = re.search("(?i)\$\{([^}]+)\}", value)
 
 
@@ -652,6 +652,8 @@ class PfwConfig:
         """ Return filename based upon given file pattern name """
         filename = ""
 
+        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "given filepat = %s, type = %s" % (filepat, type(filepat)))
+
         origreq = False
         if searchopts is not None and 'required' in searchopts:
             origreq = searchopts['required']
@@ -659,17 +661,20 @@ class PfwConfig:
             
         if not filepat:
             # first check for filename pattern override 
+            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "first check for filename pattern override")
             (found, filenamepat) = self.search('filename', searchopts)
         
             if not found:
                 # get filename pattern from global settings:
+                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "get filename pattern from global settings")
                 (found, filepat) = self.search(pfwdefs.SW_FILEPAT, searchopts)
 
                 if not found:
                     miscutils.fwdie("Error: Could not find file pattern %s" % pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE)
         else:
-            miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', "given filepat = %s" % (filepat))
+            miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', "working with given filepat = %s" % (filepat))
 
+        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "filepat = %s" % (filepat))
         
         if pfwdefs.SW_FILEPATSECT not in self.config:
             wclutils.write_wcl(self.config)

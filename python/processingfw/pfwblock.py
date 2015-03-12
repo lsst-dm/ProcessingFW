@@ -528,8 +528,30 @@ def output_list(config, listname, sublist, lname, ldict, currvals):
 
     lines = sublist['list'][intgdefs.LISTENTRY].values()
     if 'sortkey' in ldict and ldict['sortkey'] is not None:
-        sortkey = ldict['sortkey'].lower()
-        lines = sorted(lines, key=lambda k: get_value_from_line(k, sortkey, None, 1))
+        # (key, numeric, reverse)
+        sort_reverse = False
+        sort_numeric = False
+        
+        if ldict['sortkey'].strip().startswith('('):
+            rmatch = re.match('\(([^)]+)', ldict['sortkey'])
+            if rmatch:
+                sortinfo = miscutils.fwsplit(rmatch.group(1))
+                sort_key = sortinfo[0]
+                if len(sortinfo) > 1:
+                    sort_numeric = miscutils.convertBool(sortinfo[1])
+                if len(sortinfo) > 2:
+                    sort_reverse = miscutils.convertBool(sortinfo[2])
+            else:
+                miscutils.fwdie("Error: problems parsing sortkey...\n%s" % (ldict['sortkey']), pfwdefs.PF_EXIT_FAILURE)
+        else:
+            sort_key = ldict['sortkey']
+
+        sort_key = sort_key.lower()
+
+        if sort_numeric:
+            lines = sorted(lines, reverse=sort_reverse, key=lambda k: float(get_value_from_line(k, sort_key, None, 1)))
+        else:
+            lines = sorted(lines, reverse=sort_reverse, key=lambda k: get_value_from_line(k, sort_key, None, 1))
 
     allow_missing = False
     if 'allow_missing' in ldict:

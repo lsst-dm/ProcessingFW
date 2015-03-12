@@ -62,7 +62,7 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                         tjobinfo_task['status'] = pfwdefs.PF_EXIT_FAILURE
                         if dbh:
                             dbh.insert_message(config['task_id']['job'][jobnum], pfwdb.PFW_MSG_ERROR, line)
-                    elif 'Error: eups setup had non-zero exit code' in line:
+                    elif 'Error: eups setup' in line:
                         print "Found:", line
                         print "Setting retval to failure"
                         tjobinfo_task['status'] = pfwdefs.PF_EXIT_EUPS_FAILURE

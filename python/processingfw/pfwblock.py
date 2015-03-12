@@ -1649,6 +1649,11 @@ initdir=`/bin/pwd`
 
 """
 
+    max_eups_tries = 3
+    if 'max_eups_tries' in config:
+        max_eups_tries = config['max_eups_tries']
+        
+
     # setup job environment
     scriptstr += """
 export SHELL=/bin/bash    # needed for setup to work in Condor environment
@@ -1689,6 +1694,14 @@ echo "Creating empty job output files to guarantee condor job nice exit"
 touch $envfile
 tar -cvf $outputtar --files-from /dev/null
 
+if [ ! -r %(eups)s ]; then
+    echo "Error: eups setup script is not readable (%(eups)s)"
+    shd2=`/bin/date "+%%s"`
+    echo "PFW: job_shell_script endtime: $shd2"
+    echo "PFW: job_shell_script exit_status: %(eupsfail)s"
+    exit $mystat    # note exit code not passed back through grid universe jobs
+fi
+
 echo "Sourcing script to set up EUPS (%(eups)s)"
 source %(eups)s
 
@@ -1696,20 +1709,20 @@ echo "Using eups to setup up %(pipe)s %(ver)s"
 d1=`/bin/date "+%%s"`
 echo "PFW: eups_setup starttime: $d1"
 cnt=0
-maxtries=3
+maxtries=%(max_eups_tries)s
 mydelay=300
 mystat=1
 while [ $mystat -ne 0 -a $cnt -lt $maxtries ]; do
+    let cnt=cnt+1
     setup --nolock %(pipe)s %(ver)s
     mystat=$?
     if [ $mystat -ne 0 ]; then
-        echo "Error: eups setup had non-zero exit code ($mystat)"
+        echo "Warning: eups setup had non-zero exit code ($mystat)"
         if [ $cnt -lt $maxtries ]; then
             echo "Sleeping then retrying..."
             sleep $mydelay
         fi
     fi
-    let cnt=cnt+1
 done
 d2=`/bin/date "+%%s"`
 echo "PFW: eups_setup endtime: $d2"
@@ -1721,6 +1734,7 @@ if [ $mystat != 0 ]; then
     exit $mystat    # note exit code not passed back through grid universe jobs
 fi
 """ % ({'eups': config['setupeups'],
+        'max_eups_tries': max_eups_tries,
         'pipe':config['pipeprod'],
         'ver':config['pipever'],
         'eupsfail': pfwdefs.PF_EXIT_EUPS_FAILURE})

@@ -1534,7 +1534,9 @@ def translate_sw_iw(config, wrapperwcl, modname, winst):
                         val = re.sub(r'^%s\.' % swkey, '%s.' % iwkey, val)
                         val = val.replace(r'{%s.' % swkey, '{%s.' % iwkey)
                         val = val.replace(r' %s.' % swkey, ' %s.' % iwkey)
+                        val = val.replace(r',%s.' % swkey, ',%s.' % iwkey)
                         val = val.replace(r':%s.' % swkey, ':%s.' % iwkey)
+
                         miscutils.fwdebug(6, 'PFWBLOCK_DEBUG', "\tafter val = %s" % (val))
                     miscutils.fwdebug(4, 'PFWBLOCK_DEBUG', "final value = %s" % (val))
                     wcl[key] = val

@@ -404,11 +404,17 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict):
 
     miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "creating listdir and listname")
 
-    listdir = config.get_filepath('runtime', 'list', {pfwdefs.PF_CURRVALS: currvals,
+    # list dir and filename must use current attempt values
+    currvals2 = copy.deepcopy(currvals)
+    currvals2[pfwdefs.REQNUM] = config[pfwdefs.REQNUM]
+    currvals2[pfwdefs.UNITNAME] = config[pfwdefs.UNITNAME]
+    currvals2[pfwdefs.ATTNUM] = config[pfwdefs.ATTNUM]
+
+    listdir = config.get_filepath('runtime', 'list', {pfwdefs.PF_CURRVALS: currvals2,
                          'required': True, 'interpolate': True,
                          'searchobj': sobj})
 
-    listname = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
+    listname = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals2,
                                    'searchobj': sobj, 'required': True, 'interpolate': True})
     miscutils.fwdebug(3, "PFWBLOCK_DEBUG", "listname = %s" % (listname))
     listname = "%s/%s" % (listdir, listname)

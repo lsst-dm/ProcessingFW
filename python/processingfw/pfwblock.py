@@ -112,7 +112,7 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
     # grab file section names from columns value in list def
     filesects = {}
     if 'columns' in ldict:
-        columns = miscutils.fwsplit(ldict['columns'].lower(), ', ')
+        columns = miscutils.fwsplit(ldict['columns'].lower(), ',')
         for col in columns:
             filesects[col.split('.')[0]] = True
 
@@ -1594,7 +1594,7 @@ def divide_into_jobs(config, modname, wrapinst, joblist):
         key = '_nokey'
         if pfwdefs.SW_DIVIDE_JOBS_BY in config:
             key = ""
-            for divb in miscutils.fwsplit(config[pfwdefs.SW_DIVIDE_JOBS_BY], ', '):
+            for divb in miscutils.fwsplit(config[pfwdefs.SW_DIVIDE_JOBS_BY], ','):
                 key += "_"+config.get(divb, None, {pfwdefs.PF_CURRVALS: {'curr_module':modname}, 'searchobj': inst, 'interpolate': True, 'required':True})
 
         if key not in joblist:

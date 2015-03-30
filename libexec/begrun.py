@@ -34,10 +34,15 @@ def save_submit_file_info(config, filemgmt, expwcl, fullcfg):
     prov = {'used': {'exec_1': expdict['filename']},
             'was_generated_by': {'exec_1': fulldict['filename']}}
     miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'prov = %s' % prov)
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'task_id = %s' % config['task_id']['attempt'])
+
+    attempt_task_id = -99
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+        attempt_task_id = config['task_id']['attempt']
+
+    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'task_id = %s' % attempt_task_id)
 
     # save file information
-    filemgmt.save_file_info(artifacts, filemeta, prov, {'exec_1': config['task_id']['attempt']})
+    filemgmt.save_file_info(artifacts, filemeta, prov, {'exec_1': attempt_task_id})
 
 
 

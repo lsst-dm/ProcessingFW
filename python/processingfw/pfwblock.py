@@ -1203,6 +1203,7 @@ def create_fullnames(config, modname):
     for (sname, sdict) in dataset:
         if 'master' in sdict:
             master = sdict['master']
+            sdict['master' ] = None
             numlines = len(master['list'][intgdefs.LISTENTRY])
             print "\t%s-%s: number of lines in master = %s" % (modname, sname, numlines)
             if numlines == 0:
@@ -1245,6 +1246,8 @@ def create_fullnames(config, modname):
                     for flabel, fdict in ldict['file'].items():
                         fdict['fullname'] = add_runtime_path(config, currvals, flabel, 
                                                              fdict, fdict['filename'])[0]
+
+            sdict['master'] = master
         else:
             print "\t%s-%s: no masterlist...skipping" % (modname, sname)
 

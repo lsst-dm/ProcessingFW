@@ -178,10 +178,10 @@ def pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, file_prov, prov_task_i
         else:
             print "DESDMTIME: pfw_save_file_info %0.3f" % (time.time()-starttime)
     except:
-        (type, value, trback) = sys.exc_info()
-        traceback.print_exception(type, value, trback, file=sys.stdout)
+        (extype, exvalue, trback) = sys.exc_info()
+        traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         if pfw_dbh is not None:
-            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, value)
+            pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, "%s: %s" % (extype, str(exvalue)))
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         else:
             print "DESDMTIME: pfw_save_file_info %0.3f" % (time.time()-starttime)

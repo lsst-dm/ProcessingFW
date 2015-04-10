@@ -9,7 +9,7 @@ import os
 
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwdb as pfwdb
-import desdbmisc.miscutils as miscutils
+import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
 import filemgmt.archive_transfer_utils as archive_transfer_utils
 

@@ -38,7 +38,7 @@ class PfwConfig:
 
         wcldict = OrderedDict()
         if 'wclfile' in args:
-            miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+            #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
             try:
                 starttime = time.time()
                 print "\tReading submit wcl...",
@@ -74,7 +74,7 @@ class PfwConfig:
 
         if 'usePFWconfig' in args:
             pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
-            miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
+            #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
             starttime = time.time()
             print "\tReading config from software install...",
             fh = open(pfwconfig, "r")
@@ -94,7 +94,7 @@ class PfwConfig:
 
         # wclfile overrides all, so must be added last
         if 'wclfile' in args:
-            miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
+            #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
             wclutils.updateDict(self.config, wcldict)
 
 
@@ -177,11 +177,11 @@ class PfwConfig:
     ###########################################################################
     def search(self, key, opt=None):
         """ Searches for key using given opt following hierarchy rules """ 
-        miscutils.fwdebug(8, 'PFWCONFIG_DEBUG', "\tBEG")
-        miscutils.fwdebug(8, 'PFWCONFIG_DEBUG',
-                 "\tinitial key = '%s'" % key)
-        miscutils.fwdebug(8, 'PFWCONFIG_DEBUG',
-                 "\tinitial opts = '%s'" % opt)
+        #miscutils.fwdebug(8, 'PFWCONFIG_DEBUG', "\tBEG")
+        #miscutils.fwdebug(8, 'PFWCONFIG_DEBUG',
+        #         "\tinitial key = '%s'" % key)
+        #miscutils.fwdebug(8, 'PFWCONFIG_DEBUG',
+        #         "\tinitial opts = '%s'" % opt)
 
         found = False
         value = ''
@@ -231,7 +231,6 @@ class PfwConfig:
                                     found = True
                                     value = self.config[sect][currkey][key]
                                     break
-    
             # lastly check global values
             if not found:
                 #print "\t%s not found, checking global values" % (key)
@@ -248,11 +247,11 @@ class PfwConfig:
             print "\n\n"
             miscutils.fwdie("Error: Search failed (%s)" % key, pfwdefs.PF_EXIT_FAILURE, 2)
     
+    
         if found and opt and 'interpolate' in opt and opt['interpolate']:
-            opt['interpolate'] = False
             value = self.interpolate(value, opt) 
 
-        miscutils.fwdebug(8, 'PFWCONFIG_DEBUG', "\tEND")
+        #miscutils.fwdebug(8, 'PFWCONFIG_DEBUG', "\tEND")
         return (found, value)
     
     
@@ -304,10 +303,10 @@ class PfwConfig:
                 m = re.match('rand_(\d\d)', self.config[pfwdefs.MASTER_SAVE_FILE].lower())
                 if m:
                     if random.randrange(100) <= int(m.group(1)):
-                        miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', 'Changing %s to %s' % (pfwdefs.MASTER_SAVE_FILE, 'always'))
+                        #miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', 'Changing %s to %s' % (pfwdefs.MASTER_SAVE_FILE, 'always'))
                         self.config[pfwdefs.MASTER_SAVE_FILE] = 'always' 
                     else:
-                        miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', 'Changing %s to %s' % (pfwdefs.MASTER_SAVE_FILE, 'file'))
+                        #miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', 'Changing %s to %s' % (pfwdefs.MASTER_SAVE_FILE, 'file'))
                         self.config[pfwdefs.MASTER_SAVE_FILE] = 'file' 
                 else:
                     miscutils.fwdie("Error:  Invalid value for %s (%s)" % (pfwdefs.MASTER_SAVE_FILE, self.config[pfwdefs.MASTER_SAVE_FILE]), pfwdefs.PF_EXIT_FAILURE)
@@ -320,10 +319,10 @@ class PfwConfig:
     ###########################################################################
     def set_block_info(self):
         """ Set current vals to match current block number """
-        miscutils.fwdebug(1, 'PFWCONFIG_DEBUG', "BEG")
+        #miscutils.fwdebug(1, 'PFWCONFIG_DEBUG', "BEG")
 
         curdict = self.config['current']
-        miscutils.fwdebug(4, 'PFWCONFIG_DEBUG', "\tcurdict = %s" % (curdict))
+        #miscutils.fwdebug(4, 'PFWCONFIG_DEBUG', "\tcurdict = %s" % (curdict))
 
         # current block number
         blknum = self.config[pfwdefs.PF_BLKNUM]
@@ -396,7 +395,7 @@ class PfwConfig:
         if 'submit_des_db_section' in self.config:
             self.config['des_db_section'] = self.config['submit_des_db_section']
     
-        miscutils.fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
+        #miscutils.fwdebug(1, 'PFWCONFIG_DEBUG', "END") 
 
     
     def inc_blknum(self):
@@ -431,9 +430,14 @@ class PfwConfig:
     ###########################################################################
     def interpolate(self, value, opts=None):
         """ Replace variables in given value """
-        miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "BEG")
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
+        #miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "BEG")
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
+
+        orig_interpolate = None
+        if opts is not None and 'interpolate' in opts:
+            orig_interpolate = opts['interpolate']
+            opts['interpolate'] = False
 
         maxtries = 1000    # avoid infinite loop
         count = 0
@@ -441,7 +445,7 @@ class PfwConfig:
         while not done and count < maxtries:
             done = True
     
-            m = re.search("(?i)\$opt\{([^}]+)\}", value)
+            m = re.search("(?i)\$opt\{([^}]+)\}", str(value))
             while m and count < maxtries:
                 count += 1
                 var = m.group(1)
@@ -461,29 +465,29 @@ class PfwConfig:
                 else:
                     newval = ""
                 print "val = %s" % newval
-                value = re.sub("(?i)\$opt{%s}" % var, newval, value)
+                value = re.sub("(?i)\$opt{%s}" % var, newval, str(value))
                 print value
                 done = False
-                m = re.search("(?i)\$opt\{([^}]+)\}", value)
+                m = re.search("(?i)\$opt\{([^}]+)\}", str(value))
 
-            m = re.search("(?i)\$\{([^}]+)\}", value)
+            m = re.search("(?i)\$\{([^}]+)\}", str(value))
             while m and count < maxtries:
                 count += 1
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
                 (haskey, newval) = self.search(newvar, opts)
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', 
-                      "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', 
+                #      "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
                 if haskey:
                     newval = str(newval)
                     if '(' in newval or ',' in newval:
                         if opts is not None and 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
                     elif len(parts) > 1:
                         try:
                             newval = prpat % int(self.interpolate(newval, opts))
@@ -492,15 +496,15 @@ class PfwConfig:
                             print "prpat =", prpat
                             print "newval =", newval
                             raise err
-                    value = re.sub("(?i)\${%s}" % var, newval, value)
+                    value = re.sub("(?i)\${%s}" % var, newval, str(value))
                     done = False
                 else:
                     miscutils.fwdie("Error: Could not find value for %s (%s)" % (newvar, value), pfwdefs.PF_EXIT_FAILURE)
-                m = re.search("(?i)\$\{([^}]+)\}", value)
+                m = re.search("(?i)\$\{([^}]+)\}", str(value))
 
 
         valuedone = []
-        if '$LOOP' in value:
+        if isinstance(value, str) and '$LOOP' in value:
             if opts is not None:
                 opts['required'] = True
                 opts['interpolate'] = False
@@ -510,27 +514,27 @@ class PfwConfig:
             looptodo = [ value ]
             while len(looptodo) > 0 and count < maxtries:
                 count += 1
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
-                        "todo loop: before pop number in looptodo = %s" % len(looptodo))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
+                #        "todo loop: before pop number in looptodo = %s" % len(looptodo))
                 value = looptodo.pop() 
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
-                        "todo loop: after pop number in looptodo = %s" % len(looptodo))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
+                #        "todo loop: after pop number in looptodo = %s" % len(looptodo))
 
-                miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % value)
-                m = re.search("(?i)\$LOOP\{([^}]+)\}", value)
+                #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % value)
+                m = re.search("(?i)\$LOOP\{([^}]+)\}", str(value))
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: newvar= %s" % newvar)
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: opts= %s" % opts)
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: newvar= %s" % newvar)
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: opts= %s" % opts)
                 (haskey, newval) = self.search(newvar, opts)
                 if haskey:
-                    miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search results: newva1= %s" % newval)
+                    #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search results: newva1= %s" % newval)
                     newvalarr = miscutils.fwsplit(newval) 
                     for nv in newvalarr:
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv: nv=%s" % nv)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv: nv=%s" % nv)
                         if len(parts) > 1:
                             try:
                                 nv = prpat % int(nv)
@@ -539,26 +543,29 @@ class PfwConfig:
                                 print "prpat =", prpat
                                 print "nv =", nv
                                 raise err
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
-                        valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, value)
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
+                        valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, str(value))
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
                         if '$LOOP{' in valsub:
-                            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
+                            #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
                             looptodo.append(valsub)
                         else:
                             valuedone.append(valsub)
-                            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
-            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
+                            #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
+            #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
     
         if count >= maxtries:
             miscutils.fwdie("Error: Interpolate function aborting from infinite loop\n. Current string: '%s'" % value, pfwdefs.PF_EXIT_FAILURE)
     
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
-        miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "END")
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
+        #miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "END")
+
+        if orig_interpolate is not None:
+            opts['interpolate'] = orig_interpolate
 
         if len(valuedone) > 1:
             return valuedone
@@ -628,8 +635,8 @@ class PfwConfig:
                 (exists, value) = self.search(newkey)
                 if exists:
                     vals[newkey] = value
-                else:
-                    miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Could not find value for %s(%s)" % (key, newkey))
+                #else:
+                    #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Could not find value for %s(%s)" % (key, newkey))
     
         print "get_grid_info:  returning vals=", vals
         return vals
@@ -652,29 +659,29 @@ class PfwConfig:
         """ Return filename based upon given file pattern name """
         filename = ""
 
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "given filepat = %s, type = %s" % (filepat, type(filepat)))
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "given filepat = %s, type = %s" % (filepat, type(filepat)))
 
         origreq = False
         if searchopts is not None and 'required' in searchopts:
             origreq = searchopts['required']
             searchopts['required'] = False
             
-        if not filepat:
+        if filepat is None:
             # first check for filename pattern override 
-            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "first check for filename pattern override")
+            #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "first check for filename pattern override")
             (found, filenamepat) = self.search('filename', searchopts)
         
             if not found:
                 # get filename pattern from global settings:
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "get filename pattern from global settings")
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "get filename pattern from global settings")
                 (found, filepat) = self.search(pfwdefs.SW_FILEPAT, searchopts)
 
                 if not found:
                     miscutils.fwdie("Error: Could not find file pattern %s" % pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE)
-        else:
-            miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', "working with given filepat = %s" % (filepat))
+        #else:
+            #miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', "working with given filepat = %s" % (filepat))
 
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "filepat = %s" % (filepat))
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "filepat = %s" % (filepat))
         
         if pfwdefs.SW_FILEPATSECT not in self.config:
             wclutils.write_wcl(self.config)
@@ -688,13 +695,18 @@ class PfwConfig:
         if searchopts is not None:
             searchopts['required'] = origreq
                 
-        filename = self.interpolate(filenamepat, searchopts)
-        return filename
+        retval = filenamepat
+        if (searchopts is None or 'interpolate' not in searchopts or 
+               miscutils.convertBool(searchopts['interpolate'])):
+            retval = self.interpolate(filenamepat, searchopts)
+
+        return retval
 
 
     ###########################################################################
     def get_filepath(self, pathtype, dirpat=None, searchopts=None):
         """ Return filepath based upon given pathtype and directory pattern name """
+
         filepath = ""
        
         # get filename pattern from global settings:
@@ -716,7 +728,7 @@ class PfwConfig:
     ###########################################################################
     def combine_lists_files(self, modulename):
         """ Return python list of file and file list objects """
-        miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "BEG")
+        #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "BEG")
         
         moduledict = self[pfwdefs.SW_MODULESECT][modulename]
         
@@ -728,17 +740,17 @@ class PfwConfig:
             else:
                 listorder = moduledict[pfwdefs.SW_LISTSECT].keys()
             for k in listorder:
-                dataset.append((k, moduledict[pfwdefs.SW_LISTSECT][k]))
-        else:
-            miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "no lists")
+                dataset.append(('list-%s' % k, moduledict[pfwdefs.SW_LISTSECT][k]))
+        #else:
+            #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "no lists")
         
         if pfwdefs.SW_FILESECT in moduledict and len(moduledict[pfwdefs.SW_FILESECT]) > 0:
             for k,v in moduledict[pfwdefs.SW_FILESECT].items():
-                dataset.append((k,v))
-        else:
-            miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "no files")
+                dataset.append(('file-%s' % k,v))
+        #else:
+            #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "no files")
 
-        miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "END")
+        #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "END")
         return dataset 
 
     ###########################################################################
@@ -790,15 +802,15 @@ class PfwConfig:
 
         savefiles_exists, savefiles = self.search(pfwdefs.SAVE_FILE_ARCHIVE, opts)
         if savefiles_exists:
-            miscutils.fwdebug(3, "PFWUTILS_DEBUG", "checking savefiles (%s)" % savefiles)
+            #miscutils.fwdebug(3, "PFWUTILS_DEBUG", "checking savefiles (%s)" % savefiles)
             retval = miscutils.convertBool(self.interpolate(savefiles, opts))
-            miscutils.fwdebug(3, "PFWUTILS_DEBUG", "after interpolation savefiles (%s)" % retval)
+            #miscutils.fwdebug(3, "PFWUTILS_DEBUG", "after interpolation savefiles (%s)" % retval)
         else:
             envkey = 'DESDM_%s' % pfwdefs.SAVE_FILE_ARCHIVE.upper()
             if envkey in os.environ and not miscutils.convertBool(os.environ[envkey]):
                 retval = False
 
-        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "savefiles retval = %s" % retval)
+        #miscutils.fwdebug(3, "PFWUTILS_DEBUG", "savefiles retval = %s" % retval)
         return retval
 
     def __len__(self):
@@ -822,9 +834,9 @@ class PfwConfig:
 
     def interpolateKeep(self, value, opts=None):
         """ Replace variables in given value """
-        miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "BEG")
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
+        #miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "BEG")
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
 
         keep = {}
 
@@ -834,7 +846,7 @@ class PfwConfig:
         while not done and count < maxtries:
             done = True
     
-            m = re.search("(?i)\$opt\{([^}]+)\}", value)
+            m = re.search("(?i)\$opt\{([^}]+)\}", str(value))
             while m and count < maxtries:
                 count += 1
                 var = m.group(1)
@@ -857,29 +869,29 @@ class PfwConfig:
                 else:
                     newval = ""
                 print "val = %s" % newval
-                value = re.sub("(?i)\$opt{%s}" % var, newval, value)
+                value = re.sub("(?i)\$opt{%s}" % var, newval, str(value))
                 print value
                 done = False
-                m = re.search("(?i)\$opt\{([^}]+)\}", value)
+                m = re.search("(?i)\$opt\{([^}]+)\}", str(value))
 
-            m = re.search("(?i)\$\{([^}]+)\}", value)
+            m = re.search("(?i)\$\{([^}]+)\}", str(value))
             while m and count < maxtries:
                 count += 1
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\twhy req: newvar: %s " % (newvar))
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
                 (haskey, newval) = self.search(newvar, opts)
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', 
-                      "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', 
+                #      "\twhy req: haskey, newvar, newval, type(newval): %s, %s %s %s" % (haskey, newvar, newval, type(newval)))
                 if haskey:
                     newval = str(newval)
                     if '(' in newval or ',' in newval:
                         if opts is not None and 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
                     elif len(parts) > 1:
                         try:
                             newval = prpat % int(self.interpolate(newval, opts))
@@ -892,17 +904,17 @@ class PfwConfig:
                     else:
                         keep[newvar] = newval
 
-                    value = re.sub("(?i)\${%s}" % var, newval, value)
+                    value = re.sub("(?i)\${%s}" % var, newval, str(value))
                     done = False
                 else:
                     miscutils.fwdie("Error: Could not find value for %s" % newvar, pfwdefs.PF_EXIT_FAILURE)
-                m = re.search("(?i)\$\{([^}]+)\}", value)
+                m = re.search("(?i)\$\{([^}]+)\}", str(value))
 
         print "keep = ", keep
 
         valpair = (value, keep)
         valuedone = []
-        if '$LOOP' in value:
+        if isinstance(value, str) and '$LOOP' in value:
             if opts is not None:
                 opts['required'] = True
                 opts['interpolate'] = False
@@ -912,27 +924,27 @@ class PfwConfig:
             looptodo = [ valpair ]
             while len(looptodo) > 0 and count < maxtries:
                 count += 1
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
-                        "todo loop: before pop number in looptodo = %s" % len(looptodo))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
+                #        "todo loop: before pop number in looptodo = %s" % len(looptodo))
                 valpair = looptodo.pop() 
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
-                        "todo loop: after pop number in looptodo = %s" % len(looptodo))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
+                #        "todo loop: after pop number in looptodo = %s" % len(looptodo))
 
-                miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % valpair[0])
-                m = re.search("(?i)\$LOOP\{([^}]+)\}", valpair[0])
+                #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % valpair[0])
+                m = re.search("(?i)\$LOOP\{([^}]+)\}", str(valpair[0]))
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: newvar= %s" % newvar)
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: opts= %s" % opts)
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: newvar= %s" % newvar)
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search: opts= %s" % opts)
                 (haskey, newval) = self.search(newvar, opts)
                 if haskey:
-                    miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search results: newva1= %s" % newval)
+                    #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop search results: newva1= %s" % newval)
                     newvalarr = miscutils.fwsplit(newval) 
                     for nv in newvalarr:
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv: nv=%s" % nv)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv: nv=%s" % nv)
                         if len(parts) > 1:
                             try:
                                 nv = prpat % int(nv)
@@ -941,28 +953,28 @@ class PfwConfig:
                                 print "prpat =", prpat
                                 print "nv =", nv
                                 raise err
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
-                        valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, value)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
+                        valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, str(value))
                         keep = copy.deepcopy(valpair[1])
                         keep[newvar] = nv
-                        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
                         if '$LOOP{' in valsub:
-                            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
+                            #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
                             looptodo.append((valsub, keep))
                         else:
                             valuedone.append((valsub, keep))
-                            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
-                miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
-            miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
+                            #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
+                #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
+            #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
     
         if count >= maxtries:
             miscutils.fwdie("Error: Interpolate function aborting from infinite loop\n. Current string: '%s'" % value, pfwdefs.PF_EXIT_FAILURE)
     
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
-        miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
-        miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "END")
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvaluedone = %s" % valuedone)
+        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
+        #miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "END")
 
         if len(valuedone) >= 1:
             return valuedone

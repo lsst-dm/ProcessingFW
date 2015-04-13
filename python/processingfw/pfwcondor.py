@@ -224,8 +224,8 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
     """Creates <name>.condor description file 
        Assumes info contains valid condor key, value"""
 
-    print 'write_condor_descfile', jobname
-    print jobattribs
+    #print 'write_condor_descfile', jobname
+    #print jobattribs
 
     # default some values if not given
     if 'log' not in jobattribs:

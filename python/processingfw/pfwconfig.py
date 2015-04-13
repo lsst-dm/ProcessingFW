@@ -449,13 +449,11 @@ class PfwConfig:
             while m and count < maxtries:
                 count += 1
                 var = m.group(1)
-                print "opt var=",var
                 parts = var.split(':')
                 newvar = parts[0]
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
                 (haskey, newval) = self.search(newvar, opts)
-                print "opt: type(newval):", newvar, type(newval) 
                 if haskey:
                     if '(' in newval or ',' in newval: 
                         if 'expand' in opts and opts['expand']:
@@ -464,9 +462,7 @@ class PfwConfig:
                         newval = prpat % int(self.interpolate(newval, opts))
                 else:
                     newval = ""
-                print "val = %s" % newval
                 value = re.sub("(?i)\$opt{%s}" % var, newval, str(value))
-                print value
                 done = False
                 m = re.search("(?i)\$opt\{([^}]+)\}", str(value))
 
@@ -638,7 +634,6 @@ class PfwConfig:
                 #else:
                     #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Could not find value for %s(%s)" % (key, newkey))
     
-        print "get_grid_info:  returning vals=", vals
         return vals
 
     ###########################################################################
@@ -655,7 +650,7 @@ class PfwConfig:
 
 
     ###########################################################################
-    def get_filename(self, filepat=None, searchopts=None):
+    def get_filename(self, filepat=None, searchopts=None, return_vars=False):
         """ Return filename based upon given file pattern name """
         filename = ""
 
@@ -665,7 +660,7 @@ class PfwConfig:
         if searchopts is not None and 'required' in searchopts:
             origreq = searchopts['required']
             searchopts['required'] = False
-            
+
         if filepat is None:
             # first check for filename pattern override 
             #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "first check for filename pattern override")
@@ -677,7 +672,7 @@ class PfwConfig:
                 (found, filepat) = self.search(pfwdefs.SW_FILEPAT, searchopts)
 
                 if not found:
-                    miscutils.fwdie("Error: Could not find file pattern %s" % pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE)
+                    miscutils.fwdie("Error: Could not find file pattern (%s) in file def section" % pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE, 2)
         #else:
             #miscutils.fwdebug(2, 'PFWCONFIG_DEBUG', "working with given filepat = %s" % (filepat))
 
@@ -685,12 +680,13 @@ class PfwConfig:
         
         if pfwdefs.SW_FILEPATSECT not in self.config:
             wclutils.write_wcl(self.config)
-            miscutils.fwdie("Error: Could not find filename pattern section (%s)" % pfwdefs.SW_FILEPATSECT, pfwdefs.PF_EXIT_FAILURE)
+            miscutils.fwdie("Error: Could not find filename pattern section (%s) in config" % pfwdefs.SW_FILEPATSECT, pfwdefs.PF_EXIT_FAILURE)
         elif filepat in self.config[pfwdefs.SW_FILEPATSECT]:
             filenamepat = self.config[pfwdefs.SW_FILEPATSECT][filepat]
         else:
             print pfwdefs.SW_FILEPATSECT, " keys: ", self.config[pfwdefs.SW_FILEPATSECT].keys()
-            miscutils.fwdie("Error: Could not find filename pattern for %s" % filepat, pfwdefs.PF_EXIT_FAILURE, 2)
+            print "searchopts =", searchopts
+            miscutils.fwdie("Error: Could not find value for filename pattern '%s' in file pattern section" % filepat, pfwdefs.PF_EXIT_FAILURE, 2)
 
         if searchopts is not None:
             searchopts['required'] = origreq
@@ -698,7 +694,7 @@ class PfwConfig:
         retval = filenamepat
         if (searchopts is None or 'interpolate' not in searchopts or 
                miscutils.convertBool(searchopts['interpolate'])):
-            retval = self.interpolate(filenamepat, searchopts)
+            retval = self.interpolateKeep(filenamepat, searchopts)
 
         return retval
 
@@ -838,6 +834,11 @@ class PfwConfig:
         #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial value = '%s'" % value)
         #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tinitial opts = '%s'" % opts)
 
+        orig_interpolate = None
+        if opts is not None and 'interpolate' in opts:
+            orig_interpolate = opts['interpolate']
+            opts['interpolate'] = False
+
         keep = {}
 
         maxtries = 1000    # avoid infinite loop
@@ -850,27 +851,35 @@ class PfwConfig:
             while m and count < maxtries:
                 count += 1
                 var = m.group(1)
-                print "opt var=",var
+                #print "opt var=",var
                 parts = var.split(':')
                 newvar = parts[0]
                 if len(parts) > 1:
                     prpat = "%%0%dd" % int(parts[1])
                 (haskey, newval) = self.search(newvar, opts)
-                print "opt: type(newval):", newvar, type(newval) 
+                #print "opt: type(newval):", newvar, type(newval) 
                 if haskey:
                     if '(' in newval or ',' in newval: 
                         if 'expand' in opts and opts['expand']:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
                     elif len(parts) > 1:
-                        newval = prpat % int(self.interpolate(newval, opts))
-                        keep[newvar] = newval
+                        new1 = self.interpolate(newval, opts)
+                        keep[newvar] = new1    # don't save padding
+                        try:
+                            newval = prpat % int(new1)
+                        except ValueError as err:
+                            print "Error trying to format value:"
+                            print str(err)
+                            print "prpat =", prpat
+                            print "newval =", newval
+                            raise err
                     else:
                         keep[newvar] = newval
                 else:
                     newval = ""
-                print "val = %s" % newval
+                #print "val = %s" % newval
                 value = re.sub("(?i)\$opt{%s}" % var, newval, str(value))
-                print value
+                #print value
                 done = False
                 m = re.search("(?i)\$opt\{([^}]+)\}", str(value))
 
@@ -893,10 +902,12 @@ class PfwConfig:
                             newval = '$LOOP{%s}' % var   # postpone for later expanding
                         #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tnewval = %s" % newval)
                     elif len(parts) > 1:
+                        new1 = self.interpolate(newval, opts)
+                        keep[newvar] = new1
                         try:
-                            newval = prpat % int(self.interpolate(newval, opts))
-                            keep[newvar] = newval
+                            newval = prpat % int(new1)
                         except ValueError as err:
+                            print "Error trying to format value:"
                             print str(err)
                             print "prpat =", prpat
                             print "newval =", newval
@@ -910,28 +921,45 @@ class PfwConfig:
                     miscutils.fwdie("Error: Could not find value for %s" % newvar, pfwdefs.PF_EXIT_FAILURE)
                 m = re.search("(?i)\$\{([^}]+)\}", str(value))
 
-        print "keep = ", keep
+        #print "keep = ", keep
 
-        valpair = (value, keep)
+
+        # expand LOOP vars
+        if opts is not None and 'keepvars' in opts and miscutils.convertBool(opts['keepvars']):
+            keepvars = True
+        else:
+            keepvars = False
+
+        #print "KEEPVARS = ", keepvars
+
+
         valuedone = []
         if isinstance(value, str) and '$LOOP' in value:
-            if opts is not None:
-                opts['required'] = True
-                opts['interpolate'] = False
-            else:
-                opts = {'required': True, 'interpolate': False}
+            if opts is None:
+                opts = {}
 
-            looptodo = [ valpair ]
+            opts['required'] = True
+            opts['interpolate'] = False
+
+            looptodo = None
+            if keepvars:
+                looptodo = [(value, keep)]
+            else:
+                looptodo = [ value ]
             while len(looptodo) > 0 and count < maxtries:
                 count += 1
                 #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
                 #        "todo loop: before pop number in looptodo = %s" % len(looptodo))
-                valpair = looptodo.pop() 
+                value = looptodo.pop() 
+                if keepvars:
+                    val1 = value[0]
+                else:
+                    val1 = value
                 #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG',
                 #        "todo loop: after pop number in looptodo = %s" % len(looptodo))
 
-                #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: value = %s" % valpair[0])
-                m = re.search("(?i)\$LOOP\{([^}]+)\}", str(valpair[0]))
+                #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "todo loop: val1 = %s" % val1)
+                m = re.search("(?i)\$LOOP\{([^}]+)\}", str(val1))
                 var = m.group(1)
                 parts = var.split(':')
                 newvar = parts[0]
@@ -949,21 +977,31 @@ class PfwConfig:
                             try:
                                 nv = prpat % int(nv)
                             except ValueError as err:
+                                print "Error trying to format value:"
                                 print str(err)
                                 print "prpat =", prpat
                                 print "nv =", nv
                                 raise err
                         #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tloop nv2: nv=%s" % nv)
-                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % value)
-                        valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, str(value))
-                        keep = copy.deepcopy(valpair[1])
-                        keep[newvar] = nv
+                        #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tbefore loop sub: value=%s" % val1)
+                        valsub = re.sub("(?i)\$LOOP\{%s\}" % var, nv, str(val1))
+
+                        keep = None
+                        if keepvars:
+                            keep = copy.deepcopy(value[1])
+                            keep[newvar] = nv
                         #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tafter loop sub: value=%s" % valsub)
                         if '$LOOP{' in valsub:
                             #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in todo list")
-                            looptodo.append((valsub, keep))
+                            if keepvars:
+                                looptodo.append((valsub, keep))
+                            else:
+                                looptodo.append(valsub)
                         else:
-                            valuedone.append((valsub, keep))
+                            if keepvars:
+                                valuedone.append((valsub, keep))
+                            else:
+                                valuedone.append(valsub)
                             #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\t\tputting back in done list")
                 #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
                 #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
@@ -976,11 +1014,16 @@ class PfwConfig:
         #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tvalue = %s" % value)
         #miscutils.fwdebug(5, 'PFWCONFIG_DEBUG', "END")
 
-        if len(valuedone) >= 1:
+        if orig_interpolate is not None:
+            opts['interpolate'] = orig_interpolate
+
+        #print 'valuedone=', valuedone
+        if len(valuedone) > 1:
             return valuedone
+        elif len(valuedone) == 1:
+            return valuedone[0]
         else:
-            return [valpair]
-        
+            return value
 
 
 if __name__ ==  '__main__' :

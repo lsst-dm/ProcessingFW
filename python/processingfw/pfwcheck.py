@@ -348,11 +348,13 @@ def check_file_valid_input(config, blockname, modname, fname, fdict, indent=''):
         cnts2 = check_filepat_valid(config, fdict[pfwdefs.SW_FILEPAT], blockname, modname, fname, fdict, indent+'    ')
         cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     
-    # check that it has filepat, filename, or query code (required)
+    # check that it has filepat, filename, depends, or query wcl (required)
     # if filename is a pattern, can I check that all needed values exist?
+    # todo check depends happens in same block previous to this module
     if (('listonly' not in fdict or not miscutils.convertBool(fdict['listonly'])) and 
        pfwdefs.SW_FILEPAT not in fdict and pfwdefs.FILENAME not in fdict and 
-       'fullname' not in fdict and 'query_fields' not in fdict):  
+       'fullname' not in fdict and 'query_fields' not in fdict and
+       pfwdefs.DATA_DEPENDS not in fdict):  
         print "%sError: block %s, module %s, %s, %s - Missing terms needed to determine input filename" % (indent, blockname, modname, pfwdefs.SW_INPUTS, fname)
         cnts[ERRCNT_POS] += 1
     

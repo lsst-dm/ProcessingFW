@@ -9,6 +9,7 @@
 import argparse
 import os
 import sys
+import shutil
 
 import intgutils.wclutils as wclutils
 import processingfw.pfwdefs as pfwdefs
@@ -140,8 +141,12 @@ def main(args):
 
             pfwlog.log_pfw_event(config, 'submit', '', '')
 
-            # save original submit file as is
+            # save original submit file as is and after includes
             print 'Saving submit file...',
+            origfile = config.get_filename(filepat='config',
+                                             searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'orig'}})
+            shutil.copyfile(args['wclfile'], '%s/%s' % (uberctrl, origfile))
+
             expwclfile = config.get_filename(filepat='config',
                                              searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'exp'}})
             expwcl = None

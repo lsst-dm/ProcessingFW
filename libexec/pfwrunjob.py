@@ -519,6 +519,11 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
 
 
     if 'wrapinputs' in wcl and wcl[pfwdefs.PF_WRAPNUM] in wcl['wrapinputs'] and len(wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values()) > 0:
+
+        print 'wrapinputs', wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values() 
+        for root, subdirs, files in os.walk('.'):
+            print root, subdirs, files
+
         # check which input files are already in job scratch directory (i.e., outputs from a previous execution)
         neededinputs = {}
         for infile in wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values():

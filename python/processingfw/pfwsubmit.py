@@ -77,7 +77,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     print "curr dir = ", os.getcwd()
 
     jobmngr = write_stub_jobmngr_dag(config, blockname, blkdir, debugfh)
-    dag = config.get_filename('blockdag')
+    dag = config.get_filename('blockdag', {'interpolate': True})
 
     dagfh = open(dag, 'w')
 

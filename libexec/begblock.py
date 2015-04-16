@@ -6,6 +6,8 @@
 
 import sys
 import os
+import time
+from collections import OrderedDict
 
 import processingfw.pfwdefs as pfwdefs 
 import despymisc.miscutils as miscutils 
@@ -58,24 +60,36 @@ def begblock(argv):
         tasks = []
     
         joblist = {} 
+        masterdata = OrderedDict()
         for modname in modulelist:
             if modname not in config[pfwdefs.SW_MODULESECT]:
                 miscutils.fwdie("Error: Could not find module description for module %s\n" % (modname), pfwdefs.PF_EXIT_FAILURE)
     
             task_id = -1
             runqueries(config, modname, modules_prev_in_list)
-            pfwblock.read_master_lists(config, modname, modules_prev_in_list)
-            pfwblock.create_fullnames(config, modname)
+            pfwblock.read_master_lists(config, modname, masterdata, modules_prev_in_list)
+            pfwblock.create_fullnames(config, modname, masterdata)
             pfwblock.add_file_metadata(config, modname)
-            pfwblock.create_sublists(config, modname)
+            sublists = pfwblock.create_sublists(config, modname, masterdata)
+            if sublists is not None:
+                miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "sublists.keys() = %s" % (sublists.keys()))
             loopvals = pfwblock.get_wrapper_loopvals(config, modname)
             wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
-            pfwblock.assign_data_wrapper_inst(config, modname, wrapinst)
-            modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, wrapinst)
-            inputfiles.extend(modinputs)
-            outputfiles.extend(modoutputs)
-            pfwblock.create_module_wrapper_wcl(config, modname, wrapinst)
-            pfwblock.divide_into_jobs(config, modname, wrapinst, joblist)
+            infsect = pfwblock.which_are_inputs(config, modname)
+            outfsect = pfwblock.which_are_outputs(config, modname)
+            wcnt = 1
+            for winst in wrapinst.values():
+                stime = time.time()
+                #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "winst %d - BEG" % wcnt)
+                pfwblock.assign_data_wrapper_inst(config, modname, winst, masterdata, sublists, infsect, outfsect)
+                modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, winst, outfsect)
+                inputfiles.extend(modinputs)
+                outputfiles.extend(modoutputs)
+                pfwblock.create_module_wrapper_wcl(config, modname, winst)
+                pfwblock.divide_into_jobs(config, modname, winst, joblist)
+                etime = time.time()
+                #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "winst %d - %s - END" % (wcnt, etime-stime))
+                wcnt += 1
             modules_prev_in_list[modname] = True
     
         scriptfile = pfwblock.write_runjob_script(config)

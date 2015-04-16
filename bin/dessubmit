@@ -30,7 +30,8 @@ def create_dags(config, logfh):
     sys.stdout = logfh
     sys.stderr = logfh
 
-    maindag = config.get_filename('mngrdag', {pfwdefs.PF_CURRVALS: {'dagtype': 'mainmngr'}})
+    maindag = config.get_filename('mngrdag', {'interpolate': True, 'keepvars': False, pfwdefs.PF_CURRVALS: {'dagtype': 'mainmngr'}})
+    print maindag
 
     try:
         pfwsubmit.write_main_dag(config, maindag)

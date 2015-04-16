@@ -50,6 +50,11 @@ MASTER_SAVE_FILE = 'master_savefiles'
 VALID_MASTER_SAVE_FILE = ['always', 'failure', 'file', 'never']   # + rand_##
 MASTER_SAVE_FILE_DEFAULT = 'file'
 
+ALLOW_MISSING = 'allow_missing'
+DIV_LIST_BY_COL = 'div_list_by_col'
+DATA_DEPENDS = 'depends'
+
+
 
 DIRPAT = 'dirpat'
 DIRPATSECT = 'directory_pattern'

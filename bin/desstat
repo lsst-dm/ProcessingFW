@@ -13,13 +13,28 @@ import processingfw.pfwdefs as pfwdefs
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='desstat')
-    parser.add_argument('--user', action='store', default=None)
-    args = parser.parse_args(argv)
+    parser.add_argument('-desverbose', action='store_true', default=False)
+    parser.add_argument('-desq', action='store', default=None)
+    (args, unknowns) = parser.parse_known_args(argv)
 
-    constraint_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
-    if args.user:
-        constraint_str += args.user
-    (qjobs, top_jobs, orphan_jobs) = pfwcondor.condorq_dag(constraint_str)
+    # framework jobs have a specific attribute
+    cq_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
+
+    if args.desq is not None:
+        cq_str += ' -name %s -pool %s ' % (args.desq, args.desq)
+
+    # other command line options pass through to condor_q command
+    cq_str += ' '.join(unknowns)
+
+    # call function to run condor_q command
+    try:
+        (qjobs, top_jobs, orphan_jobs) = pfwcondor.condorq_dag(cq_str)
+    except pfwcondor.CondorException as exc:
+        if args.desverbose:
+            raise 
+        else:
+            print str(exc)
+            sys.exit(1)
 
     jobcnt = len(qjobs)
     if jobcnt == 0:

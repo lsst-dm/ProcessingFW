@@ -405,6 +405,7 @@ def condor_q(args_str=''):
     condorq_cmd.extend(shlex.split(args_str))
     miscutils.fwdebug(1, "PFWCONDOR_DEBUG", "condorq_cmd  = %s" % condorq_cmd)
     
+    process = None
     try:
         process = subprocess.Popen(condorq_cmd, 
                                    shell=False, 
@@ -417,13 +418,16 @@ def condor_q(args_str=''):
             out += buf
             buf = os.read(process.stdout.fileno(), 5000)
             miscutils.fwdebug(6, "PFWCONDOR_DEBUG", buf)
-            
-
-        if process.returncode != 0:
-            print "Cmd = ", condorq_cmd
-            raise CondorException('Problem running condor_q - non-zero exit code'+process.communicate()[0])
     except Exception as err:
         raise CondorException('Error: Could not run condor_q. Check PATH.\n'+str(err))
+            
+
+    if process.returncode != 0:
+        print "Problem running condor_q - non-zero exit code"
+        print "Cmd = ", ' '.join(condorq_cmd)
+        #print process.communicate()[0]
+        print process.communicate()[1]
+        raise CondorException('Problem running condor_q - non-zero exit code')
         
     
     lines = out.split('\n')

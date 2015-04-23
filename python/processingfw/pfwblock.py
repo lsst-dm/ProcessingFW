@@ -142,7 +142,8 @@ def create_sublist_file(config, moddict, fname, finfo, currvals):
                                        {pfwdefs.PF_CURRVALS: currvals,
                                         'searchobj': finfo,
                                         'interpolate': True,
-                                        'expand': True})
+                                        'expand': True,
+                                        'keepvars': True})
 
     # convert to same format as if read from file created by query
     filelist_wcl = None
@@ -174,7 +175,7 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
     # grab file section names from columns value in list def
     filesects = {}
     if 'columns' in ldict:
-        columns = convert_col_string_to_list(colstr, with_format=True)
+        columns = convert_col_string_to_list(ldict['columns'], with_format=True)
         for col in columns:
             filesects[col.lower().split('.')[0]] = True
 
@@ -387,7 +388,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                                                   'keepvars': True})
         if isinstance(fileinfo, list):
             if len(fileinfo) == 0:
-                fwdie('empty fileinfo %s %s' % (modname, fkey), PF_EXIT_FAILURE)
+                miscutils.fwdie('empty fileinfo %s %s' % (modname, fkey), pfwdefs.PF_EXIT_FAILURE)
             fnames = []
             filelist = []
             for (filename, finfo) in fileinfo:

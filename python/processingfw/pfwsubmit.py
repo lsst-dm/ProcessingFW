@@ -48,7 +48,8 @@ def min_wcl_checks(config):
 def create_common_vars(config, jobname):
     """ Create string containing vars string for job """
 
-    attribs = config.get_condor_attributes(jobname)
+    blkname = config['blockname']
+    attribs = config.get_condor_attributes(blkname, jobname)
     varstr = ""
     if len(attribs) > 0:
         varstr = "VARS %s" % jobname
@@ -106,7 +107,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     dagfh.write('\nPARENT begblock CHILD jobmngr\n')
     dagfh.write('PARENT jobmngr CHILD endblock\n')
     dagfh.close()
-    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("blockmngr"), blkdir, debugfh)
+    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes(blockname, "blockmngr"), blkdir, debugfh)
     os.chdir(cwd)
     return dag
 
@@ -129,8 +130,7 @@ def write_stub_jobmngr_dag(config, block, blkdir, debugfh=None):
     dagfh.write('SCRIPT post 0001 %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN' % (pfwdir, block))
     dagfh.close()
 
-    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), blkdir, debugfh)
-    #pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes("jobmngr"), None, debugfh)
+    pfwcondor.add2dag(dag, config.get_dag_cmd_opts(), config.get_condor_attributes(block, "jobmngr"), blkdir, debugfh)
 
     os.unlink(dag)
     return dag
@@ -182,7 +182,7 @@ VARS endrun arguments="../uberctrl/config.des"
     dagfh.write("PARENT %s CHILD endrun\n" % child)
 
     dagfh.close()
-    pfwcondor.add2dag(maindag, config.get_dag_cmd_opts(), config.get_condor_attributes("mainmngr"), None, sys.stdout)
+    pfwcondor.add2dag(maindag, config.get_dag_cmd_opts(), config.get_condor_attributes('uberctrl', 'mainmngr'), None, sys.stdout)
 
 
 ######################################################################

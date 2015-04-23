@@ -583,16 +583,16 @@ class PfwConfig:
 
     
     ###########################################################################
-    def get_condor_attributes(self, subblock):
+    def get_condor_attributes(self, block, subblock):
         """Create dictionary of attributes for condor jobs"""
         attribs = {} 
         attribs[pfwdefs.ATTRIB_PREFIX + 'isjob'] = 'TRUE'
         attribs[pfwdefs.ATTRIB_PREFIX + 'project'] = self.config['project']
         attribs[pfwdefs.ATTRIB_PREFIX + 'pipeline'] = self.config['pipeline']
         attribs[pfwdefs.ATTRIB_PREFIX + 'run'] = self.config['submit_run']
-        attribs[pfwdefs.ATTRIB_PREFIX + 'block'] = self.config['current']['curr_block']
         attribs[pfwdefs.ATTRIB_PREFIX + 'operator'] = self.config['operator']
         attribs[pfwdefs.ATTRIB_PREFIX + 'runsite'] = self.config['runsite']
+        attribs[pfwdefs.ATTRIB_PREFIX + 'block'] = block
         attribs[pfwdefs.ATTRIB_PREFIX + 'subblock'] = subblock
         if (subblock == '$(jobnum)'):
             if 'numjobs' in self.config:

@@ -142,7 +142,8 @@ def create_sublist_file(config, moddict, fname, finfo, currvals):
                                        {pfwdefs.PF_CURRVALS: currvals,
                                         'searchobj': finfo,
                                         'interpolate': True,
-                                        'expand': True})
+                                        'expand': True,
+                                        'keepvars': True})
 
     # convert to same format as if read from file created by query
     filelist_wcl = None
@@ -174,7 +175,7 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
     # grab file section names from columns value in list def
     filesects = {}
     if 'columns' in ldict:
-        columns = convert_col_string_to_list(colstr, with_format=True)
+        columns = convert_col_string_to_list(ldict['columns'], with_format=True)
         for col in columns:
             filesects[col.lower().split('.')[0]] = True
 
@@ -385,6 +386,8 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                                                   'expand': True,
                                                   'interpolate':True,
                                                   'keepvars': True})
+
+        # save file info as if we read from query
         if isinstance(fileinfo, list):
             if len(fileinfo) == 0:
                 fwdie('empty fileinfo %s %s' % (modname, fkey), PF_EXIT_FAILURE)
@@ -394,8 +397,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                 fnames.append(filename)
                 finfo['filename'] = filename
                 filelist.append(finfo)
-
-            # save file info as if we read from query
+        
             if modname not in masterdata:
                 masterdata[modname] = OrderedDict()
 
@@ -405,6 +407,8 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                 masterdata[modname][fkey]['list']['line'].update(newdata['list']['line'])
             else:
                 masterdata[modname][fkey] = queryutils.convert_single_files_to_lines(filelist)
+
+            miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "saved file info for %s.%s" % (modname, fkey))
         else:
             fnames = fileinfo
             
@@ -1300,12 +1304,14 @@ def read_master_lists(config, modname, masterdata, modules_prev_in_list):
             if depends[0] in masterdata and dkey in masterdata[depends[0]]:
                 masterdata[modname][sname] = masterdata[depends[0]][dkey]
             else:
+                print "Error.  Debugging info:"
                 print 'modname = ', modname
                 print 'sname = ', sname
                 print 'depends =',  depends
                 print 'dkey =', dkey
                 print 'masterdata keys=', masterdata.keys()
-                print 'masterdata[modname].keys()=', masterdata[modname].keys()
+                if depends[0] in masterdata:
+                    print 'masterdata[%s].keys()=%s' % (depends[0], masterdata[depends[0]].keys())
                 miscutils.fwdie("ERROR: Could not find data for depends", pfwdefs.PF_EXIT_FAILURE)
 
     miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
@@ -2019,7 +2025,7 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
     condorfile = create_runjob_condorfile(config, scriptfile)
 
     pfwdir = config['processingfw_dir']
-    blockname = config['curr_block']
+    blockname = config['blockname']
     blkdir = config['block_dir']
 
     use_condor_transfer_output = True
@@ -2063,6 +2069,7 @@ def create_runjob_condorfile(config, scriptfile):
     """ Write runjob condor description file for target job """
     miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "BEG")
 
+    blkname = config['blockname']
     blockbase = config.get_filename('block', {pfwdefs.PF_CURRVALS: {'flabel': 'runjob', 'fsuffix':''}})
     initialdir = "%s/%s" % (config['block_dir'], '$(jobnum)')
 
@@ -2087,7 +2094,7 @@ def create_runjob_condorfile(config, scriptfile):
                   }
 
 
-    userattribs = config.get_condor_attributes('$(jobnum)')
+    userattribs = config.get_condor_attributes(blkname, '$(jobnum)')
     targetinfo = config.get_grid_info()
     if 'gridtype' not in targetinfo:
         miscutils.fwdie("Error:  Missing gridtype", pfwdefs.PF_EXIT_FAILURE)

@@ -247,11 +247,11 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
 
     condorfh = open(filename, 'w')
 
-    for key, val in jobattribs.items():
+    for key, val in sorted(jobattribs.items()):
         condorfh.write('%s = %s\n' % (key, val))
 
     if userattribs:
-        for key, val in userattribs.items():
+        for key, val in sorted(userattribs.items()):
             if type(val) == str and val.lower() != 'true' and val.lower() != 'false':
                 val = '"%s"' % val
             condorfh.write('+%s = %s\n' % (key, val))

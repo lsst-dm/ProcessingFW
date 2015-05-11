@@ -7,8 +7,8 @@
 import sys
 import os
 
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
+import processingfw.pfwdefs as pfwdefs
+import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
 from processingfw.runqueries import runqueries
 import processingfw.pfwwrappers as pfwwrappers
@@ -19,57 +19,57 @@ import filemgmt.archive_transfer_utils as archive_transfer_utils
 
 
 def endblock(configfile):
-    fwdebug(0, 'PFWBLOCK_DEBUG', "BEG")
+    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "BEG")
 
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     blkdir = config['block_dir']
     os.chdir(blkdir)
 
-    if USE_HOME_ARCHIVE_OUTPUT in config and \
-        config[USE_HOME_ARCHIVE_OUTPUT].lower() == 'block':
+    if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \
+        config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() == 'block':
             
         # check if using target archive
         target_info = None
-        if USE_TARGET_ARCHIVE_OUTPUT in config and \
-            config[USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
-            print config[TARGET_ARCHIVE]
-            if TARGET_ARCHIVE in config and \
-                config[TARGET_ARCHIVE] in config['archive']:
-                target_info = config['archive'][config[TARGET_ARCHIVE]]
+        if pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in config and \
+            config[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
+            print config[pfwdefs.TARGET_ARCHIVE]
+            if pfwdefs.TARGET_ARCHIVE in config and \
+                config[pfwdefs.TARGET_ARCHIVE] in config['archive']:
+                target_info = config['archive'][config[pfwdefs.TARGET_ARCHIVE]]
             else:
                 print "Error:  cannot determine info for target archive"
-                return(PF_EXIT_FAILURE)
+                return(pfwdefs.PF_EXIT_FAILURE)
         else:
             print "Error:  Asked to transfer outputs at end of block, but not using target archive"
-            return(PF_EXIT_FAILURE)
+            return(pfwdefs.PF_EXIT_FAILURE)
 
         home_info = None
-        print config[HOME_ARCHIVE]
-        if HOME_ARCHIVE in config and config[HOME_ARCHIVE] in config['archive']:
-            home_info = config['archive'][config[HOME_ARCHIVE]]
+        print config[pfwdefs.HOME_ARCHIVE]
+        if pfwdefs.HOME_ARCHIVE in config and config[pfwdefs.HOME_ARCHIVE] in config['archive']:
+            home_info = config['archive'][config[pfwdefs.HOME_ARCHIVE]]
 
         # get file list of files to transfer
-        if PF_USE_DB_OUT in config and convertBool(config[PF_USE_DB_OUT]):
+        if pfwdefs.PF_USE_DB_OUT in config and miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
             dbh = pfwdb.PFWDB()
-            filelist = dbh.get_run_filelist(config[REQNUM], config[UNITNAME],
-                        config[ATTNUM], config[PF_BLKNUM], config[TARGET_ARCHIVE])
+            filelist = dbh.get_run_filelist(config[pfwdefs.REQNUM], config[pfwdefs.UNITNAME],
+                        config[pfwdefs.ATTNUM], config[pfwdefs.PF_BLKNUM], config[pfwdefs.TARGET_ARCHIVE])
         else:
             print "Error:  Asked to transfer outputs at end of block, but not using database.   Currently not supported." 
-            return(PF_EXIT_FAILURE)
+            return(pfwdefs.PF_EXIT_FAILURE)
             
 
         # call transfer
         archive_transfer_utils.archive_copy(target_info, home_info, config['archive_transfer'], filelist, config)
 
-    fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % PF_EXIT_SUCCESS)
-    return(PF_EXIT_SUCCESS)
+    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % pfwdefs.PF_EXIT_SUCCESS)
+    return(pfwdefs.PF_EXIT_SUCCESS)
 
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print "Usage: endblock.py configfile"
-        sys.exit(PF_EXIT_FAILURE)
+        sys.exit(pfwdefs.PF_EXIT_FAILURE)
 
     print ' '.join(sys.argv)    # print command so can run by hand if needed
     sys.stdout.flush()

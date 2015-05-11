@@ -7,11 +7,11 @@
 import argparse
 import sys
 import re
-import coreutils.desdbi as desdbi
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
+import intgutils.queryutils as queryutils
+import processingfw.pfwdb as pfwdb
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
-import processingfw.pfwfilelist as pfwfilelist
     
 def main(argv):    
     parser = argparse.ArgumentParser(description='genquery.py')
@@ -53,7 +53,7 @@ def main(argv):
     if config[pfwdefs.USE_TARGET_ARCHIVE_INPUT] != 'never':
         archive_names.append(config[pfwdefs.TARGET_ARCHIVE])
     
-    fields = coremisc.fwsplit(search_dict[pfwdefs.SW_QUERYFIELDS].lower())
+    fields = miscutils.fwsplit(search_dict[pfwdefs.SW_QUERYFIELDS].lower())
     
     if ('query_run' in config and 'fileclass' in search_dict and 
         'fileclass' in config and search_dict['fileclass'] == config['fileclass']):
@@ -88,10 +88,10 @@ def main(argv):
     
         value = config.interpolate(value)
         if ',' in value:
-            value = coremisc.fwsplit(value)
+            value = miscutils.fwsplit(value)
 
         if ':' in value:
-            value = coremisc.fwsplit(value)
+            value = miscutils.fwsplit(value)
     
         if table not in query:
             query[table] = {}
@@ -104,7 +104,7 @@ def main(argv):
     
     # if specified, insert join into query hash
     if 'join' in search_dict:
-        joins = coremisc.fwsplit(search_dict['join'].lower())
+        joins = miscutils.fwsplit(search_dict['join'].lower())
         for j in joins:
             m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
             if m:
@@ -122,7 +122,7 @@ def main(argv):
 
     # check output fields for fields from other tables.
     if 'output_fields' in search_dict:
-        output_fields = coremisc.fwsplit(search_dict['output_fields'].lower())
+        output_fields = miscutils.fwsplit(search_dict['output_fields'].lower())
 
 
         for ofield in output_fields:
@@ -133,6 +133,8 @@ def main(argv):
             else:
                 table = qtable
                 field = ofield
+            if table not in query:
+                query[table] = {}
             if 'select_fields' not in query[table]:
                 query[table]['select_fields'] = []
             if field not in query[table]['select_fields']:
@@ -150,9 +152,10 @@ def main(argv):
         query['file_archive_info']['key_vals'] = {'archive_name': ','.join(archive_names)}
 
     print "Calling gen_file_list with the following query:\n"
-    coremisc.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
+    miscutils.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
     print "\n\n"
-    files = pfwfilelist.gen_file_list(query)
+    dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+    files = queryutils.gen_file_list(dbh, query)
     
     if len(files) == 0:
         raise Exception("genquery: query returned zero results for %s\nAborting\n" % args.searchname)
@@ -188,8 +191,8 @@ def main(argv):
 #                    print "Var already exists: %s '%s'\n" % (var, filedict[var])
     
     ## output list
-    lines = pfwfilelist.convert_single_files_to_lines(files)
-    pfwfilelist.output_lines(args.qoutfile, lines, args.qouttype)
+    lines = queryutils.convert_single_files_to_lines(files)
+    queryutils.output_lines(args.qoutfile, lines, args.qouttype)
 
     return(0)
 

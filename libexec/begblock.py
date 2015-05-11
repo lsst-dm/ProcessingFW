@@ -6,9 +6,11 @@
 
 import sys
 import os
+import time
+from collections import OrderedDict
 
 import processingfw.pfwdefs as pfwdefs 
-import coreutils.miscutils as coremisc 
+import despymisc.miscutils as miscutils 
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwutils as pfwutils
 from processingfw.runqueries import runqueries
@@ -36,8 +38,8 @@ def begblock(argv):
 
     blktid = -1
     begblktid = -1
-    coremisc.fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[pfwdefs.PF_BLKNUM]))
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    miscutils.fwdebug(3, 'PFWBLOCK_DEBUG', "blknum = %s" % (config[pfwdefs.PF_BLKNUM]))
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.insert_block(config)
         blktid = config['task_id']['block'][str(blknum)]
@@ -51,55 +53,67 @@ def begblock(argv):
 
     
     try:
-        modulelist = coremisc.fwsplit(config[pfwdefs.SW_MODULELIST].lower())
+        modulelist = miscutils.fwsplit(config[pfwdefs.SW_MODULELIST].lower())
         modules_prev_in_list = {}
         inputfiles = []
         outputfiles = []
         tasks = []
     
         joblist = {} 
+        masterdata = OrderedDict()
         for modname in modulelist:
             if modname not in config[pfwdefs.SW_MODULESECT]:
-                coremisc.fwdie("Error: Could not find module description for module %s\n" % (modname), pfwdefs.PF_EXIT_FAILURE)
+                miscutils.fwdie("Error: Could not find module description for module %s\n" % (modname), pfwdefs.PF_EXIT_FAILURE)
     
             task_id = -1
             runqueries(config, modname, modules_prev_in_list)
-            pfwblock.read_master_lists(config, modname, modules_prev_in_list)
-            pfwblock.create_fullnames(config, modname)
+            pfwblock.read_master_lists(config, modname, masterdata, modules_prev_in_list)
+            pfwblock.create_fullnames(config, modname, masterdata)
             pfwblock.add_file_metadata(config, modname)
-            pfwblock.create_sublists(config, modname)
+            sublists = pfwblock.create_sublists(config, modname, masterdata)
+            if sublists is not None:
+                miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "sublists.keys() = %s" % (sublists.keys()))
             loopvals = pfwblock.get_wrapper_loopvals(config, modname)
             wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
-            pfwblock.assign_data_wrapper_inst(config, modname, wrapinst)
-            modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, wrapinst)
-            inputfiles.extend(modinputs)
-            outputfiles.extend(modoutputs)
-            pfwblock.create_module_wrapper_wcl(config, modname, wrapinst)
-            pfwblock.divide_into_jobs(config, modname, wrapinst, joblist)
+            infsect = pfwblock.which_are_inputs(config, modname)
+            outfsect = pfwblock.which_are_outputs(config, modname)
+            wcnt = 1
+            for winst in wrapinst.values():
+                stime = time.time()
+                #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "winst %d - BEG" % wcnt)
+                pfwblock.assign_data_wrapper_inst(config, modname, winst, masterdata, sublists, infsect, outfsect)
+                modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, winst, outfsect)
+                inputfiles.extend(modinputs)
+                outputfiles.extend(modoutputs)
+                pfwblock.create_module_wrapper_wcl(config, modname, winst)
+                pfwblock.divide_into_jobs(config, modname, winst, joblist)
+                etime = time.time()
+                #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "winst %d - %s - END" % (wcnt, etime-stime))
+                wcnt += 1
             modules_prev_in_list[modname] = True
     
         scriptfile = pfwblock.write_runjob_script(config)
     
-        coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - BEG")
+        miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - BEG")
         for jobkey,jobdict in sorted(joblist.items()):
             jobdict['jobnum'] = pfwutils.pad_jobnum(config.inc_jobnum())
             jobdict['jobkeys'] = jobkey
             jobdict['numexpwrap'] = len(jobdict['tasks'])
-            coremisc.fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
+            miscutils.fwdebug(3, "PFWBLOCK_DEBUG", "jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
             jobdict['tasksfile'] = pfwwrappers.write_workflow_taskfile(config, jobdict['jobnum'], jobdict['tasks'])
             jobdict['inputwcltar'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'], jobdict['inlist'])
-            if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+            if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
                 dbh.insert_job(config, jobdict)
             #(jobdict['jobwclfile'], jobdict['outputwcltar'], jobdict['envfile']) = pfwblock.write_jobwcl(config, jobkey, jobdict['jobnum'], len(jobdict['tasks']), jobdict['wrapinputs'])
             pfwblock.write_jobwcl(config, jobkey, jobdict)
-        coremisc.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - END")
+        miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "Creating job files - END")
     
         numjobs = len(joblist)
-        if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+        if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
             dbh.update_block_numexpjobs(config, numjobs)
     
-        coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "inputfiles: %s, %s" % (type(inputfiles), inputfiles))
-        coremisc.fwdebug(6, "PFWBLOCK_DEBUG", "outputfiles: %s, %s" % (type(outputfiles), outputfiles))
+        miscutils.fwdebug(6, "PFWBLOCK_DEBUG", "inputfiles: %s, %s" % (type(inputfiles), inputfiles))
+        miscutils.fwdebug(6, "PFWBLOCK_DEBUG", "outputfiles: %s, %s" % (type(outputfiles), outputfiles))
         files2stage = set(inputfiles) - set(outputfiles)
         pfwblock.stage_inputs(config, files2stage)    
     
@@ -114,7 +128,7 @@ def begblock(argv):
     except:
         retval = pfwdefs.PF_EXIT_FAILURE
         config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
-        if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+        if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
             dbh.end_task(config['task_id']['begblock'], retval, True)
             dbh.end_task(blktid, retval, True)
         raise
@@ -122,13 +136,13 @@ def begblock(argv):
     
     config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
 
-    if pfwdefs.PF_DRYRUN in config and coremisc.convertBool(config[pfwdefs.PF_DRYRUN]):
+    if pfwdefs.PF_DRYRUN in config and miscutils.convertBool(config[pfwdefs.PF_DRYRUN]):
         retval = pfwdefs.PF_EXIT_DRYRUN
     else:
         retval = pfwdefs.PF_EXIT_SUCCESS
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh.end_task(config['task_id']['begblock'], retval, True)
-    coremisc.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
+    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
     return(retval)
 
 

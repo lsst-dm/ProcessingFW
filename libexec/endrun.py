@@ -9,14 +9,14 @@ import os
 
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwdb as pfwdb
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
 import filemgmt.archive_transfer_utils as archive_transfer_utils
 
 
 
 def endrun(configfile):
-    coremisc.fwdebug(0, 'PFWBLOCK_DEBUG', "BEG")
+    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "BEG")
 
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     os.chdir('../uberctrl')
@@ -25,13 +25,13 @@ def endrun(configfile):
 
     if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \
        config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() == 'run':
-        if pfwdefs.OPS_RUN_DIR not in config:
-            print "Error:  Cannot find %s in config" % pfwdefs.OPS_RUN_DIR
+        if pfwdefs.ATTEMPT_ARCHIVE_PATH not in config:
+            print "Error:  Cannot find %s in config" % pfwdefs.ATTEMPT_ARCHIVE_PATH
             print "\tIt is needed for the mass copy of the run back to the home archive at the end of the run"
             return(pfwdefs.PF_EXIT_FAILURE)
 
 
-        archpath = config.interpolate(config[pfwdefs.OPS_RUN_DIR])
+        archpath = config.interpolate(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])
         print "archpath =", archpath
 
             
@@ -60,14 +60,14 @@ def endrun(configfile):
         archive_transfer_utils.archive_copy_dir(target_info, home_info, config['archive_transfer'], archpath, config)
 
 
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
-        coremisc.fwdebug(0, 'PFWENDRUN_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+        miscutils.fwdebug(0, 'PFWENDRUN_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.end_task(config['task_id']['attempt'], retval, True)
         dbh.commit()
         dbh.close()
 
-    coremisc.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
+    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
     return(retval)
 
 

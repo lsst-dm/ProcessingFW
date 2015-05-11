@@ -7,7 +7,7 @@
 import subprocess
 import os
 import time
-from coreutils.miscutils import *
+import despymisc.miscutils as miscutils
 
 def runwrapper(wrappercmd, logfilename, useQCF=False, bufsize = 5000):
     print "wrappercmd = ", wrappercmd
@@ -15,7 +15,7 @@ def runwrapper(wrappercmd, logfilename, useQCF=False, bufsize = 5000):
     print "useQCF = ", useQCF
 
     logpath = os.path.dirname(logfilename)
-    coremakedirs(logpath)
+    miscutils.coremakedirs(logpath)
 
     logfh = open(logfilename, 'w', 0)
 

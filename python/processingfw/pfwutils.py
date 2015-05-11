@@ -6,6 +6,7 @@
 
 import re
 import os
+import sys
 import inspect
 import tarfile
 import errno
@@ -13,8 +14,9 @@ import time
 import subprocess
 from collections import OrderedDict
 from collections import Mapping
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
+
+import processingfw.pfwdefs as pfwdefs
+import despymisc.miscutils as miscutils
 import intgutils.wclutils as wclutils
 
 """ Miscellaneous support functions for processing framework """
@@ -27,10 +29,10 @@ def get_exec_sections(wcl, prefix):
     """ Returns exec sections appearing in given wcl """
     execs = {}
     for key, val in wcl.items():
-        fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for exec prefix in %s" % key)
+        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for exec prefix in %s" % key)
 
         if re.search("^%s\d+$" % prefix, key):
-            fwdebug(4, "PFWUTILS_DEBUG", "\tFound exec prefex %s" % key)
+            miscutils.fwdebug(4, "PFWUTILS_DEBUG", "\tFound exec prefex %s" % key)
             execs[key] = val
     return execs
 
@@ -39,10 +41,10 @@ def get_hdrup_sections(wcl, prefix):
     """ Returns header update sections appearing in given wcl """
     hdrups = {}
     for key, val in wcl.items():
-        fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for hdrup prefix in %s" % key)
+        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for hdrup prefix in %s" % key)
 
         if re.search("^%s\d+$" % prefix, key):
-            fwdebug(4, "PFWUTILS_DEBUG", "\tFound hdrup prefex %s" % key)
+            miscutils.fwdebug(4, "PFWUTILS_DEBUG", "\tFound hdrup prefex %s" % key)
             hdrups[key] = val
     return hdrups
 
@@ -50,7 +52,7 @@ def get_hdrup_sections(wcl, prefix):
 
 #######################################################################
 def search_wcl_for_variables(wcl):
-    fwdebug(9, "PFWUTILS_DEBUG", "BEG")
+    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     usedvars = {}
     for key, val in wcl.items():
         if type(val) is dict or type(val) is OrderedDict:
@@ -64,26 +66,26 @@ def search_wcl_for_variables(wcl):
                     vstr = vstr.split(':')[0]
                 usedvars[vstr] = True
         else:
-            fwdebug(9, "PFWUTILS_DEBUG", "Note: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val))
+            miscutils.fwdebug(9, "PFWUTILS_DEBUG", "Note: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val))
     
-    fwdebug(9, "PFWUTILS_DEBUG", "END")
+    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "END")
     return usedvars
 
 #######################################################################
 def get_wcl_value(key, wcl):
     """ Return value of key from wcl, follows section notation """
-    fwdebug(9, "PFWUTILS_DEBUG", "BEG")
+    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     val = wcl
     for k in key.split('.'):
         #print "get_wcl_value: k=", k
         val = val[k]
-    fwdebug(9, "PFWUTILS_DEBUG", "END")
+    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "END")
     return val
 
 #######################################################################
 def set_wcl_value(key, val, wcl):
     """ Sets value of key in wcl, follows section notation """
-    fwdebug(9, "PFWUTILS_DEBUG", "BEG")
+    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     wclkeys = key.split('.')
     valkey = wclkeys.pop()
     wcldict = wcl
@@ -91,7 +93,7 @@ def set_wcl_value(key, val, wcl):
         wcldict = wcldict[k]
 
     wcldict[valkey] = val
-    fwdebug(9, "PFWUTILS_DEBUG", "END")
+    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "END")
 
 #######################################################################
 def tar_dir(filename, indir):
@@ -152,18 +154,18 @@ def untar_dir(filename, outputdir):
 def next_tasknum(wcl, tasktype, step=1):
     """ Returns next tasknum for a specific task type """
 
-    fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  tasktype=%s, step=%s" % (tasktype, step))
+    miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  tasktype=%s, step=%s" % (tasktype, step))
 
     # note wcl stores numbers as strings
     if 'tasknums' not in wcl:
         wcl['tasknums'] = OrderedDict()
-        fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added tasknums subdict")
+        miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added tasknums subdict")
     if tasktype not in wcl['tasknums']:
         wcl['tasknums'][tasktype] = '1'
-        fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added subdict for tasktype")
+        miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added subdict for tasktype")
     else:
         wcl['tasknums'][tasktype] = str(int(wcl['tasknums'][tasktype]) + step)
-        fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  incremented tasknum")
+        miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  incremented tasknum")
 
     return wcl['tasknums'][tasktype]
 
@@ -199,10 +201,10 @@ def get_version(execname, execdefs):
         process.wait()
         out = process.communicate()[0]
         if process.returncode != 0:
-            fwdebug(0, 'PFWUTILS_DEBUG', "INFO:  problem when running code to get version")
-            fwdebug(0, 'PFWUTILS_DEBUG', "\t%s %s %s" % (execname, verflag, verpat))
-            fwdebug(0, 'PFWUTILS_DEBUG', "\tcmd> %s" % cmd)
-            fwdebug(0, 'PFWUTILS_DEBUG', "\t%s" % out)
+            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "INFO:  problem when running code to get version")
+            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "\t%s %s %s" % (execname, verflag, verpat))
+            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "\tcmd> %s" % cmd)
+            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "\t%s" % out)
             ver = None
         else:
             # parse output with verpat
@@ -211,16 +213,16 @@ def get_version(execname, execdefs):
                 if m:
                     ver = m.group(1)
                 else:
-                    fwdebug(1, 'PFWUTILS_DEBUG', "re.search didn't find version for exec %s" % execname)
-                    fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd output=%s" % out)
-                    fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd verpat=%s" % verpat)
+                    miscutils.fwdebug(1, 'PFWUTILS_DEBUG', "re.search didn't find version for exec %s" % execname)
+                    miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd output=%s" % out)
+                    miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd verpat=%s" % verpat)
             except Exception as err:
                 #print type(err)
                 ver = None
                 print "Error: Exception from re.match.  Didn't find version: %s" % err
                 raise
     else:
-        fwdebug(1, 'PFWUTILS_DEBUG', "INFO: Could not find version info for exec %s" % execname)
+        miscutils.fwdebug(1, 'PFWUTILS_DEBUG', "INFO: Could not find version info for exec %s" % execname)
 
     return ver
 
@@ -229,14 +231,14 @@ def get_version(execname, execdefs):
 def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
     """ Execute the command piping stdout/stderr to log and QCF """
 
-    fwdebug(3, "PFWUTILS_DEBUG", "BEG")
-    fwdebug(3, "PFWUTILS_DEBUG", "cmd = %s" % cmd)
-    fwdebug(3, "PFWUTILS_DEBUG", "logfilename = %s" % logfilename)
-    fwdebug(3, "PFWUTILS_DEBUG", "id = %s" % id)
-    fwdebug(3, "PFWUTILS_DEBUG", "execnames = %s" % execnames)
-    fwdebug(3, "PFWUTILS_DEBUG", "useQCF = %s" % useQCF)
+    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "BEG")
+    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "cmd = %s" % cmd)
+    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "logfilename = %s" % logfilename)
+    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "id = %s" % id)
+    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "execnames = %s" % execnames)
+    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "useQCF = %s" % useQCF)
 
-    useQCF = convertBool(useQCF)
+    useQCF = miscutils.convertBool(useQCF)
 
     logfh = open(logfilename, 'w', 0)
 
@@ -318,13 +320,13 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
 
     sys.stdout.flush()
     if processWrap.returncode != 0:
-        fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with non-zero exit code = %s" % processWrap.returncode)
-        fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: failed cmd = %s" % cmd)
+        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with non-zero exit code = %s" % processWrap.returncode)
+        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: failed cmd = %s" % cmd)
     else:
-        fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with exit code = 0")
+        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with exit code = 0")
 
 
-    fwdebug(3, "PFWUTILS_DEBUG", "END")
+    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "END")
     return processWrap.returncode
 
 

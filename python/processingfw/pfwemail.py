@@ -11,7 +11,7 @@ import glob
 import subprocess
 from cStringIO import StringIO
 
-from processingfw.pfwdefs import *
+import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 
 NUMLINES = 50
@@ -43,10 +43,10 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("run = %s\n" % run)
     mailfh.write("\n")
 
-    if HOME_ARCHIVE in config:
+    if pfwdefs.HOME_ARCHIVE in config:
         mailfh.write("Home Archive:\n")
-        mailfh.write("\t%s = %s\n" % (HOME_ARCHIVE.lower(), config[HOME_ARCHIVE]))
-        mailfh.write("\tArchive directory = %s/%s\n" % (config['root'], config.interpolate(config[OPS_RUN_DIR])))
+        mailfh.write("\t%s = %s\n" % (pfwdefs.HOME_ARCHIVE.lower(), config[pfwdefs.HOME_ARCHIVE]))
+        mailfh.write("\tArchive directory = %s/%s\n" % (config['root'], config.interpolate(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])))
         mailfh.write("\n")
 
 
@@ -61,10 +61,10 @@ def send_email(config, block, status, subject, msg1, msg2):
 
     mailfh.write("Target:\n")
     mailfh.write("\tsite = %s\n" % config['target_site'])
-    if TARGET_ARCHIVE in config:
-        mailfh.write("\t%s = %s\n" % (TARGET_ARCHIVE.lower(), config[TARGET_ARCHIVE]))
+    if pfwdefs.TARGET_ARCHIVE in config:
+        mailfh.write("\t%s = %s\n" % (pfwdefs.TARGET_ARCHIVE.lower(), config[pfwdefs.TARGET_ARCHIVE]))
     mailfh.write("\tmetapackage = %s %s\n" % (config['pipeprod'], config['pipever']))
-    mailfh.write("\tjobroot = %s\n" % (config[SW_JOB_BASE_DIR]))
+    mailfh.write("\tjobroot = %s\n" % (config[pfwdefs.SW_JOB_BASE_DIR]))
     mailfh.write("\n\n")
 
     mailfh.write("\n\n")
@@ -76,9 +76,9 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.close()
 
     subject = "DESDM: %s %s %s %s" % (project, run, block, subject)
-    if int(status) == PF_EXIT_DRYRUN:
+    if int(status) == pfwdefs.PF_EXIT_DRYRUN:
         subject += " [DRYRUN]"
-    elif int(status) != PF_EXIT_SUCCESS:
+    elif int(status) != pfwdefs.PF_EXIT_SUCCESS:
         subject += " [FAILED]"
 
     if 'email' in config:

@@ -25,6 +25,8 @@ UNITNAME = 'unitname'
 ATTRIB_PREFIX='des_'
 
 SUBMIT_RUN_DIR = 'submit_run_dir'
+ATTEMPT_ARCHIVE_PATH = 'ops_run_dir'
+OPS_RUN_DIR = 'ops_run_dir'
 
 HOME_ARCHIVE = 'home_archive'
 USE_HOME_ARCHIVE_INPUT = 'use_home_archive_input'
@@ -47,6 +49,11 @@ SAVE_FILE_ARCHIVE = 'savefiles'  # true/false
 MASTER_SAVE_FILE = 'master_savefiles'
 VALID_MASTER_SAVE_FILE = ['always', 'failure', 'file', 'never']   # + rand_##
 MASTER_SAVE_FILE_DEFAULT = 'file'
+
+ALLOW_MISSING = 'allow_missing'
+DIV_LIST_BY_COL = 'div_list_by_col'
+DATA_DEPENDS = 'depends'
+
 
 
 DIRPAT = 'dirpat'
@@ -117,11 +124,9 @@ OW_PROVSECT = 'provenance'
 OW_METASECT = 'file_metadata'
 
 PF_RUN_PAT = '%(unitname)s_r%(reqnum)dp%(attnum)02d'
-OPS_RUN_DIR = 'ops_run_dir'
 PF_TASKNUM = 'tasknum'
 PF_JOBNUM = 'jobnum'
 PF_WRAPNUM = 'wrapnum'
-PF_LISTENTRY = 'line'
 PF_USE_DB_IN = 'use_db_in'
 PF_USE_DB_OUT = 'use_db_out'
 PF_USE_QCF = 'use_qcf'

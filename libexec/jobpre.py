@@ -9,7 +9,7 @@ import os
 import tempfile
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwutils as pfwutils
-import coreutils.miscutils as coremisc
+import despymisc.miscutils as miscutils
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -41,12 +41,12 @@ def jobpre(argv = None):
     tjpad = pfwutils.pad_jobnum(jobnum)
 
     # now that have more information, can rename output file
-    coremisc.fwdebug(0, 'PFWJOBPRE_DEBUG', "getting new_log_name")
+    miscutils.fwdebug(0, 'PFWJOBPRE_DEBUG', "getting new_log_name")
     new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum,
                                                         'flabel': 'jobpre',
                                                         'fsuffix':'out'}})
     new_log_name = "%s/%s/%s" % (blkdir, tjpad, new_log_name)
-    coremisc.fwdebug(0, 'PFWJOBPRE_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug(0, 'PFWJOBPRE_DEBUG', "new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.chmod(tmpfn, 0666)
@@ -55,14 +55,14 @@ def jobpre(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
     
-    if coremisc.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         ctstr = dbh.get_current_timestamp_str()
         dbh.update_job_info(config, tjpad, {'condor_submit_time': ctstr, 'target_submit_time': ctstr} )
 
     log_pfw_event(config, blockname, tjpad, 'j', ['pretask'])
 
-    coremisc.fwdebug(0, 'PFWJOBPRE_DEBUG', "DONE")
+    miscutils.fwdebug(0, 'PFWJOBPRE_DEBUG', "DONE")
     debugfh.close()
     return(pfwdefs.PF_EXIT_SUCCESS)
 

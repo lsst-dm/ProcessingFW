@@ -7,8 +7,8 @@
 
 import argparse
 import sys
-import coreutils.desdbi as desdbi
-import processingfw.pfwfilelist as pfwfilelist
+import despydb.desdbi as desdbi
+import intgutils.queryutils as queryutils
     
 def main(argv):    
     parser = argparse.ArgumentParser(description='filepairs_query.py')
@@ -71,7 +71,7 @@ def main(argv):
     print "Results returned from query\n", listdict
     
     ## output list
-    pfwfilelist.output_lines(args.qoutfile, listdict, args.qouttype)
+    queryutils.output_lines(args.qoutfile, listdict, args.qouttype)
 
     return(0)
 

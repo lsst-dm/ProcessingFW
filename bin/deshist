@@ -16,16 +16,16 @@
 
 import argparse
 import sys
-import coreutils.desdbi
 import ConfigParser
 from datetime import datetime
 from datetime import timedelta
-from coreutils.miscutils import fwsplit
-from processingfw.pfwdefs import *
 from time import strftime
 
+import despydb.desdbi as desdbi
+import despymisc.miscutils as miscutils
+import processingfw.pfwdefs as pfwdefs
 
-ADD_COLS = ['run' , 'qwait', 'wallclock', 'numexpblk', 'lastblk', 'lastmod-l', 'lastmod-h', 'target_site', 'pipeline', 'pipeprod', 'pipever']
+ADD_COLS = ['run', 'qwait', 'wallclock', 'numexpblk', 'lastblk', 'lastmod-l', 'lastmod-h', 'target_site', 'pipeline', 'pipeprod', 'pipever']
 #DEF_COLS = 'reqnum,unitname,attnum,operator,qwait,wallclock,status,label'
 DEF_COLS = 'run,status,operator,wallclock,blkcnt,lastblk,lastmod,label'
 
@@ -86,7 +86,7 @@ def convertStatus(st):
     stlabel = ''
     if st is None:
         stlabel = 'U'
-    elif st == PF_EXIT_OPDELETE:
+    elif st == pfwdefs.PF_EXIT_OPDELETE:
         stlabel = 'A'
     elif st != 0:
         stlabel = 'F'
@@ -207,7 +207,7 @@ def queryAttempt(dbh, colnames, argsdict):
                 val = argsdict[argkey]
                 if 'time' in col:
                     if ',' in val:    # times can have date range
-                        (begdate,enddate) = fwsplit(val)
+                        (begdate,enddate) = miscutils.fwsplit(val)
                     else:
                         begdate = val
                         enddate = val
@@ -322,7 +322,7 @@ def create_and_parse_args():
 
     colnames = None
     try:
-        dbh = coreutils.DesDbi(desservices, section)
+        dbh = desdbi.DesDbi(desservices, section)
     except ConfigParser.NoSectionError:
         print "Error: must be able to connect to database."
         print "\tCannot determine section for credential wallet."

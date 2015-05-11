@@ -6,8 +6,8 @@
 
 import sys
 import os
-from processingfw.pfwdefs import *
-from coreutils.miscutils import *
+import processingfw.pfwdefs as pfwdefs
+import despymisc.miscutils as miscutils
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
@@ -25,7 +25,7 @@ def logpre(argv = None):
     if len(argv) < 5:
         print 'Usage: logpre configfile block subblocktype subblock'
         debugfh.close()
-        return(PF_EXIT_FAILURE)
+        return(pfwdefs.PF_EXIT_FAILURE)
 
     configfile = sys.argv[1]
     blockname = sys.argv[2]    # could also be uberctrl
@@ -35,20 +35,20 @@ def logpre(argv = None):
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
 
-    if convertBool(config[PF_USE_DB_OUT]): 
+    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         #dbh.insert_blktask(config, "", subblock)
 
     # now that have more information, can rename output file
-    fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
     blockname = config['blockname']
     blkdir = config['block_dir']
-    new_log_name = config.get_filename('block', {PF_CURRVALS:
+    new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
                                                     {'flabel': '${subblock}_logpre',
                                                      'subblock': subblock,
                                                      'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
     debugfh.close()
 
     os.chmod('logpre.out', 0666)
@@ -63,7 +63,7 @@ def logpre(argv = None):
     
     print "logpre done"
     debugfh.close()
-    return(PF_EXIT_SUCCESS)
+    return(pfwdefs.PF_EXIT_SUCCESS)
 
 if __name__ == "__main__":
     sys.exit(logpre(sys.argv))

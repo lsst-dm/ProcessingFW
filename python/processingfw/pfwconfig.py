@@ -583,16 +583,16 @@ class PfwConfig:
 
     
     ###########################################################################
-    def get_condor_attributes(self, subblock):
+    def get_condor_attributes(self, block, subblock):
         """Create dictionary of attributes for condor jobs"""
         attribs = {} 
         attribs[pfwdefs.ATTRIB_PREFIX + 'isjob'] = 'TRUE'
         attribs[pfwdefs.ATTRIB_PREFIX + 'project'] = self.config['project']
         attribs[pfwdefs.ATTRIB_PREFIX + 'pipeline'] = self.config['pipeline']
         attribs[pfwdefs.ATTRIB_PREFIX + 'run'] = self.config['submit_run']
-        attribs[pfwdefs.ATTRIB_PREFIX + 'block'] = self.config['current']['curr_block']
         attribs[pfwdefs.ATTRIB_PREFIX + 'operator'] = self.config['operator']
         attribs[pfwdefs.ATTRIB_PREFIX + 'runsite'] = self.config['runsite']
+        attribs[pfwdefs.ATTRIB_PREFIX + 'block'] = block
         attribs[pfwdefs.ATTRIB_PREFIX + 'subblock'] = subblock
         if (subblock == '$(jobnum)'):
             if 'numjobs' in self.config:
@@ -1006,6 +1006,12 @@ class PfwConfig:
                 #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in todo list = %s" % len(looptodo))
                 #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tNumber in done list = %s" % len(valuedone))
             #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "\tEND OF WHILE LOOP = %s" % len(valuedone))
+        else:
+            if keepvars:
+                valuedone = [(value, keep)]
+            else:
+                valuedone = [ value ]
+            
     
         if count >= maxtries:
             miscutils.fwdie("Error: Interpolate function aborting from infinite loop\n. Current string: '%s'" % value, pfwdefs.PF_EXIT_FAILURE)
@@ -1018,7 +1024,9 @@ class PfwConfig:
             opts['interpolate'] = orig_interpolate
 
         #print 'valuedone=', valuedone
-        if len(valuedone) > 1:
+        if keepvars:
+            return valuedone 
+        elif len(valuedone) > 1:
             return valuedone
         elif len(valuedone) == 1:
             return valuedone[0]

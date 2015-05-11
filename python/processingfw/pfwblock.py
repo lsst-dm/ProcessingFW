@@ -390,7 +390,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
         # save file info as if we read from query
         if isinstance(fileinfo, list):
             if len(fileinfo) == 0:
-                fwdie('empty fileinfo %s %s' % (modname, fkey), PF_EXIT_FAILURE)
+                miscutils.fwdie('empty fileinfo %s %s' % (modname, fkey), pfwdefs.PF_EXIT_FAILURE)
             fnames = []
             filelist = []
             for (filename, finfo) in fileinfo:

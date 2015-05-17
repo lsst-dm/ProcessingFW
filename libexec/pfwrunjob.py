@@ -15,20 +15,22 @@ import copy
 import traceback
 import resource
 import socket
+import pyfits
 
 import despymisc.miscutils as miscutils
 import processingfw.pfwdefs as pfwdefs
 import filemgmt.filemgmt_defs as fmdefs
 import filemgmt.disk_utils_local as diskutils
+import filemgmt.metautils as metautils
 
 import filemgmt.utils as fmutils
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
-import intgutils.wclutils as wclutils
+from intgutils.wcl import WCL
 import despydmdb.dbsemaphore as dbsem
 
 
-VERSION = '$Rev$'
+__version__ = '$Rev$'
 
 ######################################################################
 def get_batch_id_from_job_ad(jobad_file):
@@ -449,7 +451,7 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
         miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "section %s" % sect)
         if 'execname' not in wcl[sect]:
             print "Error: Missing execname in input wcl.  sect =", sect
-            print "wcl[sect] = ", wclutils.write_wcl(wcl[sect])
+            print "wcl[sect] = ", miscutils.pretty_print_dict(wcl[sect])
             miscutils.fwdie("Error: Missing execname in input wcl", pfwdefs.PF_EXIT_FAILURE)
                 
         execname = wcl[sect]['execname']
@@ -518,7 +520,14 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
 
 
 
-    if 'wrapinputs' in wcl and wcl[pfwdefs.PF_WRAPNUM] in wcl['wrapinputs'] and len(wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values()) > 0:
+    if 'wrapinputs' in wcl and \
+       wcl[pfwdefs.PF_WRAPNUM] in wcl['wrapinputs'] and \
+       len(wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values()) > 0:
+
+        #print 'wrapinputs', wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values()
+        #for root, subdirs, files in os.walk('.'):
+        #    print root, subdirs, files
+
         # check which input files are already in job scratch directory (i.e., outputs from a previous execution)
         neededinputs = {}
         for infile in wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values():
@@ -531,7 +540,7 @@ def setup_wrapper(pfw_dbh, wcl, iwfilename, logfilename):
 
             # check if still missing input files
             if len(files2get) > 0:
-                print "******************************"
+                print '!' * 60
                 for f in files2get:
                     msg="Error: input file needed that was not retrieved from target or home archives\n(%s)" % f
                     print msg
@@ -659,7 +668,9 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, task_label, 
             pfw_dbh.insert_message(task_id, pfwdb.PFW_MSG_ERROR, msg)
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
-    pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+
+    if pfw_dbh is not None:
+        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
 
 
@@ -669,7 +680,8 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     """ Handle the transfer of files from the job directory to a single archive """
 
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "TRANSFER JOB TO ARCHIVE SECTION")
-    tasknum = -1
+    trans_task_id = -1
+    task_id = -1
     if pfw_dbh is not None:
         trans_task_id = pfw_dbh.create_task(name = 'job2archive',
                                             info_table = None,
@@ -792,12 +804,9 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
 
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Registering %s file(s) in archive..." % len(files2register))
     starttime = time.time()
-    regprobs = register_files_in_archive(pfw_dbh, wcl, archive_info, files2register, task_label, trans_task_id)
+    register_files_in_archive(pfw_dbh, wcl, archive_info, files2register, task_label, trans_task_id)
     if pfw_dbh is None:
         print "DESDMTIME: %s-register_files %0.3f" % (task_label, time.time()-starttime)
-
-    if regprobs is not None and len(regprobs) > 0:
-        problemfiles.update(regprobs)
 
     if len(problemfiles) > 0:
         print "ERROR\n\n\nError: putting %d files into archive %s" % (len(problemfiles), archive_info['name'])
@@ -909,11 +918,10 @@ def postwrapper(pfw_dbh, wcl, logfile, exitcode):
     logfinfo=save_log_file(pfw_dbh, wcl, logfile)
     finfo = {}
 
-    outputwcl = None
+    outputwcl = WCL()
     if outputwclfile and os.path.exists(outputwclfile):
         with open(outputwclfile, 'r') as outwclfh:
-            outputwcl = wclutils.read_wcl(outwclfh, filename=outputwclfile)
-
+            outputwcl.read_wcl(outwclfh, filename=outputwclfile)
         
         # add to list of non-junk output files
         wcl['outfullnames'].append(outputwclfile) 
@@ -940,26 +948,32 @@ def postwrapper(pfw_dbh, wcl, logfile, exitcode):
                     print "DESDMTIME: app_exec %s %0.3f" % (sect, float(outputwcl[sect]['walltime']))
 
             if exitcode == 0:   # problems with data in output wcl if non-zero exit code
-                filemeta = None
+                filemeta = {}
+                filecnt = 0
                 artifacts = []
-                if pfwdefs.OW_METASECT in outputwcl and len(outputwcl[pfwdefs.OW_METASECT]) > 0:
-                    filemeta = outputwcl[pfwdefs.OW_METASECT]
+                if pfwdefs.OW_OUTPUTS_BY_SECT in outputwcl and len(outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT]) > 0:
+                    wrap_output_files = []
+                    for sectname, sectlist in outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT].items():
+                        sectdict = wcl[pfwdefs.IW_FILESECT][sectname]
+                        for fullname in miscutils.fwsplit(sectlist, ','):
+                            filecnt += 1
+                            try:
+                                filemeta['file_%s' % filecnt] = process_output_file(wcl, fullname, sectdict, 
+                                                                                    wcl[fmdefs.FILETYPE_METADATA], 
+                                                                                    wcl[fmdefs.FILE_HEADER_INFO])
+                                artifacts.append(diskutils.get_single_file_disk_info(fullname, 
+                                                                                     save_md5sum=wcl['save_md5sum'], 
+                                                                                     archive_root=None))
+                                finfo[fullname] = { 'sectname': sectname, 'fullname': fullname,
+                                                    'filename': miscutils.parse_fullname(fullname, miscutils.CU_PARSE_FILENAME) }
+                            except Exception as exc:
+                                print "Error:   Problems processing output file: %s" % fullname
+                                print "         %s" % exc
+                                raise
+                            wrap_output_files.append(fullname)
 
-                    wrapoutfullnames = [] 
-                    for fdict in outputwcl[pfwdefs.OW_METASECT].values():
-                        fullname = fdict['fullname']
-                        del fdict['fullname']   # deleting because not needed by metadata
-                        artifacts.append(diskutils.get_single_file_disk_info(fullname,
-                                                                         save_md5sum=wcl['save_md5sum'], 
-                                                                         archive_root=None))
-                        finfo[fullname] = { 'sectname': fdict['sectname'],
-                                            'fullname': fullname,
-                                            'filename': fdict['filename'] }
-                        del fdict['sectname']   # deleting because not needed by metadata
-                        wrapoutfullnames.append(fullname) 
                         
-                    #wclutils.write_wcl(finfo)
-                    wcl['outfullnames'].extend(wrapoutfullnames)
+                    wcl['outfullnames'].extend(wrap_output_files)
 
                 prov = None
                 execids = None
@@ -975,7 +989,48 @@ def postwrapper(pfw_dbh, wcl, logfile, exitcode):
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
     
 
+######################################################################
+def process_output_file(wcl, outfile, filedef, metadef, file_header_info):
+    """ Steps """
 
+    miscutils.fwdebug(3, 'PFWRUNJOB_DEBUG', "INFO: begin")
+    miscutils.fwdebug(3, 'PFWRUNJOB_DEBUG', "INFO: outfile = %s" % outfile)
+
+    # open file
+    hdulist = pyfits.open(outfile, 'update')
+
+    metadef2 = metadef[filedef['filetype']]
+    metadef2 = metautils.convert_metadata_specs(metadef2, file_header_info)
+    miscutils.fwdebug(6, 'PFWRUNJOB_DEBUG', "INFO: after convert metadef2 = %s" % metadef2)
+
+    # update headers
+    updatedef = None
+    if 'update' in metadef2:
+        updatedef = metadef2['update']
+    else:
+        updatedef = {'primary':{}}
+
+    prihdu = 'primary'
+    if '0' in updatedef:
+        prihdu = '0'
+
+    updatedef[prihdu]['pipeline'] = "%s/eups pipeline meta-package name/str" % wcl['wrapper.pipeline']
+    updatedef[prihdu]['pipever'] = "%s/eups pipeline meta-package version/str" % wcl['wrapper.pipever']
+
+    # call even if no update in case special wrapper has overloaded func
+    metautils.update_headers_file(hdulist, updatedef)
+
+    # read metadata (do after update headers so get updated values from headers)
+    metadata = metautils.gather_metadata_file(hdulist, outfile, metadef2, filedef)
+
+    # close file
+    hdulist.close()
+
+    miscutils.fwdebug(3, 'PFWRUNJOB_DEBUG', "INFO: end")
+    return metadata
+
+
+######################################################################
 def parse_wrapper_line(line, linecnt):
     """ Parse a line from the job's wrapper list """
     wrapinfo = {}
@@ -993,6 +1048,7 @@ def parse_wrapper_line(line, linecnt):
     return wrapinfo
     
 
+######################################################################
 def gather_inwcl_fullnames(workflow, wcl):
     """ save input wcl fullnames in input list so won't appear in junk tarball """
     linecnt = 0
@@ -1013,6 +1069,7 @@ def gather_inwcl_fullnames(workflow, wcl):
     #print wcl['infullnames']
 
 
+######################################################################
 def exechost_status(wrapnum):
     """ Print various information about exec host """
 
@@ -1042,18 +1099,21 @@ def job_workflow(workflow, jobwcl={}):
         while line:
             task = parse_wrapper_line(line, linecnt)
 
-            wrappercmd = "%s --input=%s --debug=%s" % (task['wrapname'], task['wclfile'], task['wrapdebug'])
-            print "\n\n%04d: %s" % (int(task['wrapnum']), wrappercmd)
+            print "\n\n%04d: %s" % (int(task['wrapnum']), '*' * 60)
 
             # print machine status information
             exechost_status(task['wrapnum'])
+            
+            wrappercmd = "%s %s" % (task['wrapname'], task['wclfile'])
+            print "%04d: %s" % (int(task['wrapnum']), wrappercmd)
 
             if not os.path.exists(task['wclfile']):
                 print "Error: input wcl file does not exist (%s)" % task['wclfile']
                 return(1)
 
+            wcl = WCL()
             with open(task['wclfile'], 'r') as wclfh:
-                wcl = wclutils.read_wcl(wclfh, filename=task['wclfile'])
+                wcl.read_wcl(wclfh, filename=task['wclfile'])
             wcl.update(jobwcl)
 
             job_task_id = wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]] 
@@ -1072,15 +1132,18 @@ def job_workflow(workflow, jobwcl={}):
                 wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'], wcl['task_id']['jobwrapper'])
             else:
                 wcl['task_id']['jobwrapper'] = -1
+                wcl['task_id']['wrapper'] = -1
 
             print "%04d: Setup" % (int(task['wrapnum']))
             setup_wrapper(pfw_dbh, wcl, task['wclfile'], task['logfile'])
-            exectid = determine_exec_task_id(pfw_dbh, wcl)
 
             if pfw_dbh is not None:
+                exectid = determine_exec_task_id(pfw_dbh, wcl)
                 pfw_dbh.begin_task(wcl['task_id']['wrapper'], True)
                 pfw_dbh.close()
                 pfw_dbh = None
+            else:
+                exectid = -1
 
             print "%04d: Running wrapper" % (int(task['wrapnum']))
             starttime = time.time()
@@ -1090,7 +1153,7 @@ def job_workflow(workflow, jobwcl={}):
                                                 wcl['execnames'], 5000, wcl['use_qcf'])
             except:
                 (type, value, trback) = sys.exc_info()
-                print "******************************"
+                print '!' * 60
                 if wcl['use_db']:
                     pfw_dbh = pfwdb.PFWDB()
                     pfw_dbh.insert_message(wcl['task_id']['wrapper'], pfwdb.PFW_MSG_ERROR, str(value))
@@ -1114,7 +1177,8 @@ def job_workflow(workflow, jobwcl={}):
 
             print "%04d: Post-steps" % (int(task['wrapnum']))
             postwrapper(pfw_dbh, wcl, task['logfile'], exitcode) 
-            pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
+            if pfw_dbh is not None: 
+                pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
 
             sys.stdout.flush()
             sys.stderr.flush()
@@ -1130,12 +1194,12 @@ def job_workflow(workflow, jobwcl={}):
 def run_job(args): 
     """Run tasks inside single job"""
 
-    wcl = {}
+    wcl = WCL()
 
     jobstart = time.time()
     if args.config:
         with open(args.config, 'r') as wclfh:
-            wcl = wclutils.read_wcl(wclfh, filename=args.config) 
+            wcl.read_wcl(wclfh, filename=args.config) 
             wcl['use_db'] = miscutils.checkTrue('usedb', wcl, True)
             wcl['use_qcf'] = miscutils.checkTrue('useqcf', wcl, False)
     else:
@@ -1199,7 +1263,7 @@ def run_job(args):
         exitcode = job_workflow(args.workflow, wcl)
     except Exception as err:
         (type, value, trback) = sys.exc_info()
-        print "******************************"
+        print '!' * 60
         if wcl['use_db'] and pfw_dbh is None:   
             pfw_dbh = pfwdb.PFWDB()
             pfw_dbh.insert_message(job_task_id, pfwdb.PFW_MSG_ERROR, str(value))
@@ -1328,7 +1392,7 @@ def parse_args(argv):
     args = parser.parse_args()
 
     if args.version:
-        print VERSION
+        print __version__
         sys.exit(0)
 
     return args

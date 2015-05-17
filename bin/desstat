@@ -4,6 +4,8 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+""" Print status of currently submitted/running processing attempts """
+
 import argparse
 import sys
 
@@ -12,6 +14,7 @@ import processingfw.pfwdefs as pfwdefs
 
 
 def main(argv=None):
+    """ Entry point """
     parser = argparse.ArgumentParser(description='desstat')
     parser.add_argument('-desverbose', action='store_true', default=False)
     parser.add_argument('-desq', action='store', default=None)
@@ -31,19 +34,19 @@ def main(argv=None):
         (qjobs, top_jobs, orphan_jobs) = pfwcondor.condorq_dag(cq_str)
     except pfwcondor.CondorException as exc:
         if args.desverbose:
-            raise 
+            raise
         else:
             print str(exc)
             sys.exit(1)
 
     jobcnt = len(qjobs)
     if jobcnt == 0:
-        print "No framework jobs\n" 
-        return(1)
+        print "No framework jobs\n"
+        return 1
 
     # Output jobs
     print_header()
-    for job in sorted(top_jobs): 
+    for job in sorted(top_jobs):
         print_single(job, " ", qjobs)
 
     for job in sorted(orphan_jobs):
@@ -53,18 +56,19 @@ def main(argv=None):
         else:
             print_single(job, "X", qjobs)
 
-    return(0)
+    return 0
 
 
-def print_header(): 
+def print_header():
     """ Print header line """
     print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-30s" % \
-          ("ID", "T","PRJ","PIPELINE","RUN","BLOCK","SUBBLOCK","STAT (H/P/R/T)",
-           "OPERATOR", "RUNSITE")
+          ("ID", "T", "PRJ", "PIPELINE", "RUN", "BLOCK", "SUBBLOCK",
+           "STAT (H/P/R/T)", "OPERATOR", "RUNSITE")
     print "="*133
 
 
 def status_target_jobs(job, qjobs):
+    """ Create status string for all condor jobs in an attempt """
     numtjobs = 'UNK'
     if '%snumjobs' % pfwdefs.ATTRIB_PREFIX in qjobs[qjobs[job]['children'][0]]:
         numtjobs = qjobs[qjobs[job]['children'][0]]['%snumjobs' % pfwdefs.ATTRIB_PREFIX]
@@ -76,22 +80,23 @@ def status_target_jobs(job, qjobs):
         jobstat = pfwcondor.get_job_status_str(childjob, qjobs)
         if jobstat in chstat:  # ignore other status, e.g. DONE
             chstat[jobstat] += 1
-    status = "(%s/%s/%s/%s)" % (chstat['ERR'], 
-                                chstat['PEND'] + chstat['UNSUB'], 
-                                chstat['RUN'], 
+    status = "(%s/%s/%s/%s)" % (chstat['ERR'],
+                                chstat['PEND'] + chstat['UNSUB'],
+                                chstat['RUN'],
                                 numtjobs)
-    return(status)
-    
+    return status
+
 
 
 def print_single(topjobid, jobtype, qjobs):
     """ Print info for single job """
 
     if '%soperator' % pfwdefs.ATTRIB_PREFIX not in qjobs[topjobid]:
+        ownerstr = '%soperator' % pfwdefs.ATTRIB_PREFIX
         if 'owner' in qjobs[topjobid]:
-            qjobs[topjobid]['%soperator' % pfwdefs.ATTRIB_PREFIX] = qjobs[topjobid]['owner'].replace('"', '')
+            qjobs[topjobid][ownerstr] = qjobs[topjobid]['owner'].replace('"', '')
         else:
-            qjobs[topjobid]['%soperator' % pfwdefs.ATTRIB_PREFIX] = "UNK"
+            qjobs[topjobid][ownerstr] = "UNK"
 
     # find innermost dag job
     jobid = topjobid
@@ -101,7 +106,7 @@ def print_single(topjobid, jobtype, qjobs):
         jobid = qjobs[jobid]['children'][0]
 
 
-    # grab DESDM from job attributes 
+    # grab DESDM from job attributes
     info = {}
     for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator']:
         info[key] = ""
@@ -116,10 +121,10 @@ def print_single(topjobid, jobtype, qjobs):
         info['subblock'] = "pipelines"
         info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % pfwdefs.ATTRIB_PREFIX]
 
-    print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-15s" % ( 
-          topjobid, jobtype, info['project'][:3], info['pipeline'][:8],
-          info['run'][:27], info['block'][:25], info['subblock'][:15], 
-          info['status'][:17], info['operator'][:8], info['runsite'][:15]
+    print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-15s" % (
+        topjobid, jobtype, info['project'][:3], info['pipeline'][:8],
+        info['run'][:27], info['block'][:25], info['subblock'][:15],
+        info['status'][:17], info['operator'][:8], info['runsite'][:15]
     )
 
 

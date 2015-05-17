@@ -82,7 +82,7 @@ def blockpre(argv = None):
 
     # make sure values which depend upon block are set correctly
     config.set_block_info()
-    config.save_file(configfile)
+    config.write(configfile)
 
     miscutils.fwdebug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[pfwdefs.PF_BLKNUM])
     miscutils.fwdebug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])

@@ -277,7 +277,7 @@ def blockpost(argv = None):
     if retval == pfwdefs.PF_EXIT_SUCCESS:
         # Get ready for next block
         config.inc_blknum()
-        config.save_file(configfile)
+        config.write(configfile)
         print "new blknum = ", config[pfwdefs.PF_BLKNUM]
         print "number of blocks = ", len(config.block_array)
     else:

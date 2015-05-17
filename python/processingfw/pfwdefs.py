@@ -122,6 +122,7 @@ OW_ANCESTRY = WDF
 OW_EXECPREFIX = IW_EXECPREFIX
 OW_PROVSECT = 'provenance'
 OW_METASECT = 'file_metadata'
+OW_OUTPUTS_BY_SECT = 'outputs_by_sect'
 
 PF_RUN_PAT = '%(unitname)s_r%(reqnum)dp%(attnum)02d'
 PF_TASKNUM = 'tasknum'

@@ -127,14 +127,14 @@ def begblock(argv):
         pfwblock.create_jobmngr_dag(config, dagfile, scriptfile, joblist)
     except:
         retval = pfwdefs.PF_EXIT_FAILURE
-        config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
+        config.write(configfile)   # save config, have updated jobnum, wrapnum, etc
         if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
             dbh.end_task(config['task_id']['begblock'], retval, True)
             dbh.end_task(blktid, retval, True)
         raise
         
     
-    config.save_file(configfile)   # save config, have updated jobnum, wrapnum, etc
+    config.write(configfile)   # save config, have updated jobnum, wrapnum, etc
 
     if pfwdefs.PF_DRYRUN in config and miscutils.convertBool(config[pfwdefs.PF_DRYRUN]):
         retval = pfwdefs.PF_EXIT_DRYRUN

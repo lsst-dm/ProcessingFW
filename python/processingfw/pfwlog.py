@@ -47,7 +47,7 @@ def log_pfw_event(config, block=None, subblock=None,
     deslogfh = open("%s/%s.deslog" % (logdir, run), "a", 0)
     deslogfh.write("%s %s %s %s %s %s %s" % (get_timestamp(), dagid, run, 
                    runsite, block, subblocktype, subblock))
-    if type(info) is list:
+    if isinstance(info, list):
         for col in info: 
             deslogfh.write(",%s" % col)
     else:

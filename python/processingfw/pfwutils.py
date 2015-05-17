@@ -12,12 +12,9 @@ import tarfile
 import errno
 import time
 import subprocess
-from collections import OrderedDict
-from collections import Mapping
 
 import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
-import intgutils.wclutils as wclutils
 
 """ Miscellaneous support functions for processing framework """
 #######################################################################
@@ -55,11 +52,11 @@ def search_wcl_for_variables(wcl):
     miscutils.fwdebug(9, "PFWUTILS_DEBUG", "BEG")
     usedvars = {}
     for key, val in wcl.items():
-        if type(val) is dict or type(val) is OrderedDict:
+        if isinstance(val, dict):
             uvars = search_wcl_for_variables(val)
             if uvars is not None:
                 usedvars.update(uvars)
-        elif type(val) is str:
+        elif isinstance(val, str):
             viter = [m.group(1) for m in re.finditer('(?i)\$\{([^}]+)\}', val)]
             for vstr in viter:
                 if ':' in vstr:
@@ -149,25 +146,6 @@ def untar_dir(filename, outputdir):
 
     if not done:
         print "Could not untar %s.  Aborting" % filename
-
-###########################################################################
-def next_tasknum(wcl, tasktype, step=1):
-    """ Returns next tasknum for a specific task type """
-
-    miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  tasktype=%s, step=%s" % (tasktype, step))
-
-    # note wcl stores numbers as strings
-    if 'tasknums' not in wcl:
-        wcl['tasknums'] = OrderedDict()
-        miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added tasknums subdict")
-    if tasktype not in wcl['tasknums']:
-        wcl['tasknums'][tasktype] = '1'
-        miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  added subdict for tasktype")
-    else:
-        wcl['tasknums'][tasktype] = str(int(wcl['tasknums'][tasktype]) + step)
-        miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "INFO:  incremented tasknum")
-
-    return wcl['tasknums'][tasktype]
 
 
 ###########################################################################

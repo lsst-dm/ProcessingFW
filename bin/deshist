@@ -181,9 +181,9 @@ def massageInfo(attempts):
                 maxwidths[k]  = 0
             if attd[k] is None:
                 attd[k] = ''
-            elif type(attd[k]) is datetime:
+            elif isinstance(attd[k], datetime):
                 attd[k] = attd[k].strftime("%02m/%02d/%Y %02H:%02M:%02S")
-            elif type(attd[k]) is timedelta:
+            elif isinstance(attd[k], timedelta):
                 attd[k] = str(timedelta(seconds=attd[k].seconds))
             else:
                 attd[k] = str(attd[k])

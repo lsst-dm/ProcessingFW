@@ -59,9 +59,9 @@ def compare_condor_version(ver2):
     #   0 if current = ver2 
     # > 0 if current > ver2
 
-    if type(ver2) is float:
+    if isinstance(ver2, float):
         ver2 = str(ver2)
-    elif type(ver2) is not str:
+    elif not isinstance(ver2, str):
         print "Invalid ver2 type: ", type(ver2), ver2 
         raise Exception("Invalid ver2 type")
 
@@ -178,7 +178,7 @@ def create_rsl(info):
     if 'environment' in info:
         env = ''
         infoenv = info['environment'] 
-        if type(infoenv) is dict:
+        if isinstance(infoenv, dict):
             for (key, val) in infoenv.items():
                 env += '(%s %s)' % (key.upper(), val)
         else:
@@ -194,7 +194,7 @@ def create_condor_env(envvars):
     # see rules in environment section of condor_submit manual page
     envparts = ['SUBMIT_CONDORID=$(Cluster).$(Process)']
 
-    if type(envvars) is dict:
+    if isinstance(envvars, dict):
         for (key, val) in envvars.items():
             # Any literal double quote marks within the string must 
             # be escaped by repeating the double quote mark
@@ -211,7 +211,7 @@ def create_condor_env(envvars):
             # Use white space (space or tab characters) to separate 
             #     environment entries. 
             envparts.append('%s=%s' % (key.upper(), val))
-    elif type(envvars) is str:
+    elif isinstance(envvars, str):
         envparts.append(envvars)
     
     # put double quote marks around the entire argument string.
@@ -252,7 +252,7 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
 
     if userattribs:
         for key, val in sorted(userattribs.items()):
-            if type(val) == str and val.lower() != 'true' and val.lower() != 'false':
+            if isinstance(val, str) and val.lower() != 'true' and val.lower() != 'false':
                 val = '"%s"' % val
             condorfh.write('+%s = %s\n' % (key, val))
 

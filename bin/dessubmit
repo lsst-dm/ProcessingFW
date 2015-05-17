@@ -11,7 +11,6 @@ import os
 import sys
 import shutil
 
-import intgutils.wclutils as wclutils
 import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
 from processingfw.pfwcondor import CondorException
@@ -19,8 +18,9 @@ import processingfw.pfwsubmit as pfwsubmit
 import processingfw.pfwcheck as pfwcheck
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwlog as pfwlog
+from intgutils.wcl import WCL
 
-VERSION = '$Rev$'
+__version__ = '$Rev$'
 
 ################################################################
 def create_dags(config, logfh):
@@ -79,7 +79,7 @@ def main(args):
 
 
 
-        print 'Using version %s of dessubmit\n' % VERSION
+        print 'Using version %s of dessubmit\n' % __version__
 
         if args['version']:
             return 0   # already printed version
@@ -107,7 +107,7 @@ def main(args):
         config = pfwconfig.PfwConfig(args)
 
         if args['gensubmit']:
-            config.save_file(args['gensubmit'])
+            config.write(args['gensubmit'])
         else:
             print '\tMinimal checks of submit wcl...',
             pfwsubmit.min_wcl_checks(config)
@@ -149,16 +149,16 @@ def main(args):
 
             expwclfile = config.get_filename(filepat='config',
                                              searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'exp'}})
-            expwcl = None
+            expwcl = WCL()
             with open(args['wclfile'], 'r') as infh:
-                expwcl = wclutils.read_wcl(infh)
+                expwcl.read_wcl(infh)
             with open("%s/%s" % (uberctrl, expwclfile), 'w') as outfh:
-                wclutils.write_wcl(expwcl, outfh, True, 4)
+                expwcl.write_wcl(outfh, True, 4)
 
             # save config with expanded wcl, db values and
             fullcfg = config.get_filename(filepat='config',
                                           searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'full'}})
-            config.save_file('%s/%s' % (uberctrl, fullcfg))
+            config.write('%s/%s' % (uberctrl, fullcfg))
 
             config['expwcl'] = expwclfile
             config['fullcfg'] = fullcfg
@@ -182,7 +182,7 @@ def main(args):
             if pfwdefs.SW_BLOCKLIST in config:
                 config[pfwdefs.SW_BLOCKLIST] = config[pfwdefs.SW_BLOCKLIST].lower()
             maindag = create_dags(config, logfh)
-            config.save_file('%s/config.des' % uberctrl)
+            config.write('%s/config.des' % uberctrl)
             print 'DONE'
 
             condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)

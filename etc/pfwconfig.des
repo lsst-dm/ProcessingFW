@@ -23,7 +23,7 @@ modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}
 <filename_pattern>
     config = ${unitname}_r${reqnum}p${attnum:2}_${cfglabel}_config.des
 
-    qoutput = ${unitname}_r${reqnum}p${attnum:2}_${blockname}_${modulename}_${searchname}.${suffix}
+    qoutput = ${searchname}_${modulename}_${blockname}_${unitname}_r${reqnum}p${attnum:2}.${suffix}
     inputwcl = ${modnamepat}_input.wcl
     outputwcl = ${modnamepat}_output.wcl
     log = ${modnamepat}.log

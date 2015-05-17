@@ -18,7 +18,7 @@ import random
 import processingfw.pfwdefs as pfwdefs
 #import processingfw.pfwutils as pfwutils
 import despymisc.miscutils as miscutils
-import intgutils.wclutils as wclutils
+from intgutils.wcl import WCL
 import processingfw.pfwdb as pfwdb
 
 
@@ -26,7 +26,8 @@ class PfwConfig:
     """ Contains configuration and state information for PFW """
 
     # order in which to search for values
-    DEFORDER = [pfwdefs.SW_FILESECT, pfwdefs.SW_LISTSECT, 'exec', 'job', pfwdefs.SW_MODULESECT, pfwdefs.SW_BLOCKSECT, 'archive', 'site']
+    DEFORDER = [pfwdefs.SW_FILESECT, pfwdefs.SW_LISTSECT, 'exec', 
+                'job', pfwdefs.SW_MODULESECT, pfwdefs.SW_BLOCKSECT, 'archive', 'site']
 
     ###########################################################################
     def __init__(self, args):
@@ -34,68 +35,70 @@ class PfwConfig:
 
         # data which needs to be kept across programs must go in self.config
         # data which needs to be searched also must go in self.config
-        self.config = OrderedDict()
+        self.config = WCL()
 
-        wcldict = OrderedDict()
+        wclobj = WCL()
         if 'wclfile' in args:
             #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
             try:
                 starttime = time.time()
                 print "\tReading submit wcl...",
                 with open(args['wclfile'], "r") as fh:
-                    wcldict = wclutils.read_wcl(fh, filename=args['wclfile'])
+                    wclobj.read_wcl(fh, filename=args['wclfile'])
                 print "DONE (%0.2f secs)" % (time.time()-starttime)
-                wcldict['wclfile'] = args['wclfile']
+                wclobj['wclfile'] = args['wclfile']
             except Exception as err:
                 miscutils.fwdie("Error: Problem reading wcl file '%s' : %s" % (args['wclfile'], err), pfwdefs.PF_EXIT_FAILURE)
 
         if 'submit_des_services' in args and args['submit_des_services'] is not None:
-            wcldict['submit_des_services'] = args['submit_des_services']
-        elif 'submit_des_services' not in wcldict:
+            wclobj['submit_des_services'] = args['submit_des_services']
+        elif 'submit_des_services' not in wclobj:
             if 'DES_SERVICES' in os.environ:
-                wcldict['submit_des_services'] = os.environ['DES_SERVICES']
+                wclobj['submit_des_services'] = os.environ['DES_SERVICES']
             else:
                 # let it default to $HOME/.desservices.init    
-                wcldict['submit_des_services'] = None
+                wclobj['submit_des_services'] = None
 
         if 'submit_des_db_section' in args and args['submit_des_db_section'] is not None:
-            wcldict['submit_des_db_section'] = args['submit_des_db_section']
-        elif 'submit_des_db_section' not in wcldict:
+            wclobj['submit_des_db_section'] = args['submit_des_db_section']
+        elif 'submit_des_db_section' not in wclobj:
             if 'DES_DB_SECTION' in os.environ:
-                wcldict['submit_des_db_section'] = os.environ['DES_DB_SECTION']
+                wclobj['submit_des_db_section'] = os.environ['DES_DB_SECTION']
             else:
                 # let DB connection code print error message
-                wcldict['submit_des_db_section'] = None
+                wclobj['submit_des_db_section'] = None
 
         # for values passed in on command line, set top-level config 
-        for var in (pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF):
+        for var in (pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN,
+                    pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF):
             if var in args and args[var] is not None:
-                wcldict[var] = args[var]
+                wclobj[var] = args[var]
 
         if 'usePFWconfig' in args:
             pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
             #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
             starttime = time.time()
             print "\tReading config from software install...",
-            fh = open(pfwconfig, "r")
-            wclutils.updateDict(self.config, wclutils.read_wcl(fh, filename=pfwconfig))
-            fh.close()
+            pfwcfg_wcl = WCL()
+            with open(pfwconfig, "r") as fh:
+                pfwcfg_wcl.read_wcl(fh, filename=pfwconfig)
+            self.config.update(pfwcfg_wcl)
             print "DONE (%0.2f secs)" % (time.time()-starttime)
 
-        if (pfwdefs.PF_USE_DB_IN in wcldict and 
-            miscutils.convertBool(wcldict[pfwdefs.PF_USE_DB_IN]) and 
+        if (pfwdefs.PF_USE_DB_IN in wclobj and 
+            miscutils.convertBool(wclobj[pfwdefs.PF_USE_DB_IN]) and 
             'get_db_config' in args and args['get_db_config']):
             print "\tGetting defaults from DB...",
             sys.stdout.flush()
             starttime = time.time()
-            dbh = pfwdb.PFWDB(wcldict['submit_des_services'], wcldict['submit_des_db_section'])
+            dbh = pfwdb.PFWDB(wclobj['submit_des_services'], wclobj['submit_des_db_section'])
             print "DONE (%0.2f secs)" % (time.time()-starttime)
-            wclutils.updateDict(self.config, dbh.get_database_defaults())
+            self.config.update(dbh.get_database_defaults())
 
         # wclfile overrides all, so must be added last
         if 'wclfile' in args:
             #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
-            wclutils.updateDict(self.config, wcldict)
+            self.config.update(wclobj)
 
 
         self.set_names()
@@ -128,13 +131,19 @@ class PfwConfig:
 
 
     ###########################################################################
-    def save_file(self, filename):
+    def write(self, filename):
         """Saves configuration in WCL format"""
-        fh = open(filename, "w")
+        fh = sys.stdout
+        if filename is not None:
+            fh = open(filename, "w")
+
         if 'submit_des_services' in self.config and self.config['submit_des_services'] == None:
             del self.config['submit_des_services']
-        wclutils.write_wcl(self.config, fh, True, 4)  # save it sorted
-        fh.close()
+
+        self.config.write_wcl(fh, True, 4)  # save it sorted
+
+        if filename is not None:
+            fh.close()
 
 
     ###########################################################################
@@ -167,11 +176,11 @@ class PfwConfig:
         """ store a value in wcl """
         subkeys = key.split('.')
         valkey = subkeys.pop()
-        wcldict = self.config
+        wclobj = self.config
         for k in subkeys:
-            wcldict = wcldict[k]
+            wclobj = wclobj[k]
 
-        wcldict[valkey] = val
+        wclobj[valkey] = val
 
 
     ###########################################################################
@@ -293,7 +302,9 @@ class PfwConfig:
                 work_dir = self.config['submit_dir'] + '/' + work_dir
                 
         else:  # make a timestamp-based directory in cwd
-            work_dir = self.config['submit_dir'] + '/' + os.path.splitext(self.config['submitwcl'])[0] + '_' + submit_time
+            work_dir = "%s/%s_%s" % (self.config['submit_dir'],
+                                     os.path.splitext(self.config['submitwcl'])[0],
+                                     submit_time)
 
         self.config['work_dir'] = work_dir
         self.config['uberctrl_dir'] = work_dir + "/uberctrl"
@@ -679,7 +690,7 @@ class PfwConfig:
         #miscutils.fwdebug(6, 'PFWCONFIG_DEBUG', "filepat = %s" % (filepat))
         
         if pfwdefs.SW_FILEPATSECT not in self.config:
-            wclutils.write_wcl(self.config)
+            self.config.write_wcl()
             miscutils.fwdie("Error: Could not find filename pattern section (%s) in config" % pfwdefs.SW_FILEPATSECT, pfwdefs.PF_EXIT_FAILURE)
         elif filepat in self.config[pfwdefs.SW_FILEPATSECT]:
             filenamepat = self.config[pfwdefs.SW_FILEPATSECT][filepat]
@@ -1037,7 +1048,7 @@ class PfwConfig:
 if __name__ ==  '__main__' :
     if len(sys.argv) == 2:
         pfw = PfwConfig({'wclfile': sys.argv[1]})
-        #pfw.save_file(sys.argv[2])
+        #pfw.write(sys.argv[2])
         print pfwdefs.SW_BLOCKLIST in pfw
         print 'not_there' in pfw
         pfw.set_block_info()

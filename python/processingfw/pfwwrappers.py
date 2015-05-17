@@ -8,7 +8,7 @@ import os
 import errno
 import stat
 
-from intgutils.wclutils import write_wcl
+from intgutils.wcl import WCL
 import processingfw.pfwutils as pfwutils
 import despymisc.miscutils as miscutils
 import processingfw.pfwdefs as pfwdefs
@@ -17,7 +17,7 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
     wcldir = os.path.dirname(filename)
     miscutils.coremakedirs(wcldir)
     with open(filename, 'w', 0) as wclfh:
-        write_wcl(wrapperwcl, wclfh, True, 4)
+        wrapperwcl.write_wcl(wclfh, True, 4)
 
 
 def write_workflow_taskfile(config, jobnum, tasks):

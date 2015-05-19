@@ -1076,15 +1076,29 @@ def exechost_status(wrapnum):
     exechost = socket.gethostname()
 
     # free
-    subp = subprocess.Popen(["free", "-m"], stdout=subprocess.PIPE)
-    output = subp.communicate()[0]
-    print "%04d: EXECSTAT %s FREE\n%s" % (int(wrapnum), exechost, output)
+    try:
+        subp = subprocess.Popen(["free", "-m"], stdout=subprocess.PIPE)
+        output = subp.communicate()[0]
+        print "%04d: EXECSTAT %s FREE\n%s" % (int(wrapnum), exechost, output)
+    except:
+        print "Problem running free command"
+        (type, value, trback) = sys.exc_info()
+        traceback.print_exception(type, value, trback, limit=1, file=sys.stdout)
+        print "Ignoring error and continuing...\n"
+        pass
 
     # df
-    cwd = os.getcwd() 
-    subp = subprocess.Popen(["df", "-h", cwd], stdout=subprocess.PIPE)
-    output = subp.communicate()[0]
-    print "%04d: EXECSTAT %s DF\n%s" % (int(wrapnum), exechost, output)
+    try:
+        cwd = os.getcwd() 
+        subp = subprocess.Popen(["df", "-h", cwd], stdout=subprocess.PIPE)
+        output = subp.communicate()[0]
+        print "%04d: EXECSTAT %s DF\n%s" % (int(wrapnum), exechost, output)
+    except:
+        print "Problem running df command"
+        (type, value, trback) = sys.exc_info()
+        traceback.print_exception(type, value, trback, limit=1, file=sys.stdout)
+        print "Ignoring error and continuing...\n"
+        pass
     
 
 
@@ -1116,7 +1130,7 @@ def job_workflow(workflow, jobwcl={}):
                 wcl.read_wcl(wclfh, filename=task['wclfile'])
             wcl.update(jobwcl)
 
-            job_task_id = wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]] 
+            job_task_id = wcl['task_id']['job']
 
             pfw_dbh = None
             if wcl['use_db']:
@@ -1254,7 +1268,7 @@ def run_job(args):
     wcl['output_putinfo'] = {}  # to be used if transferring at end of job
     
 
-    job_task_id = wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]] 
+    job_task_id = wcl['task_id']['job']
 
     # run the tasks (i.e., each wrapper execution)
     pfw_dbh = None
@@ -1306,7 +1320,7 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "infullnames = %s" % wcl['infullnames'])
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "outfullnames = %s" % wcl['outfullnames'])
 
-    job_task_id = wcl['task_id']['job'][wcl[pfwdefs.PF_JOBNUM]] 
+    job_task_id = wcl['task_id']['job']
 
     junklist = []
 

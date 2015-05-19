@@ -973,7 +973,10 @@ def write_jobwcl(config, jobkey, jobdict):
 
     if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
         jobwcl['task_id'] = {'attempt': config['task_id']['attempt'],
-                             'job':{jobdict['jobnum']: config['task_id']['job'][jobdict['jobnum']]}}
+                             'job': config['task_id']['job'][jobdict['jobnum']] }
+    else:
+        jobwcl['task_id'] = {'attempt': -1,
+                             'job': -2 }
 
 
     if pfwdefs.CREATE_JUNK_TARBALL in config and miscutils.convertBool(config[pfwdefs.CREATE_JUNK_TARBALL]):

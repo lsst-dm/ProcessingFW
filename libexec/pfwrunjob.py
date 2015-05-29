@@ -893,6 +893,8 @@ def copy_output_to_archive(pfw_dbh, wcl, fileinfo, loginfo, exitcode):
 
     # transfer_job_to_archives(pfw_dbh, wcl, putinfo, level, parent_tid, task_label, exitcode):
     transfer_job_to_archives(pfw_dbh, wcl, putinfo, 'wrapper', wcl['task_id']['jobwrapper'], 'wrapper_output', exitcode)
+
+    print "# output", len(wcl['output_putinfo'])
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
 
                    
@@ -985,6 +987,7 @@ def postwrapper(pfw_dbh, wcl, logfile, exitcode):
                                'wrapper-outputs', wcl['task_id']['jobwrapper'])
 
     copy_output_to_archive(pfw_dbh, wcl, finfo, logfinfo, exitcode)
+    print "after copy_output_to_archive - ", len(wcl['output_putinfo'])
 
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "END\n\n")
     
@@ -1102,7 +1105,7 @@ def exechost_status(wrapnum):
     
 
 
-def job_workflow(workflow, jobwcl={}):
+def job_workflow(workflow, jobwcl=WCL()):
     """ Run each wrapper execution sequentially """
 
     linecnt = 0
@@ -1191,6 +1194,11 @@ def job_workflow(workflow, jobwcl={}):
 
             print "%04d: Post-steps" % (int(task['wrapnum']))
             postwrapper(pfw_dbh, wcl, task['logfile'], exitcode) 
+            print "after postwrapper - ", len(wcl['output_putinfo'])
+            if len(wcl['output_putinfo']) > 0:
+                jobwcl['output_putinfo'].update(wcl['output_putinfo'])
+            print "after postwrapper - ", len(jobwcl['output_putinfo'])
+
             if pfw_dbh is not None: 
                 pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
 
@@ -1208,14 +1216,14 @@ def job_workflow(workflow, jobwcl={}):
 def run_job(args): 
     """Run tasks inside single job"""
 
-    wcl = WCL()
+    jobwcl = WCL()
 
     jobstart = time.time()
     if args.config:
         with open(args.config, 'r') as wclfh:
-            wcl.read_wcl(wclfh, filename=args.config) 
-            wcl['use_db'] = miscutils.checkTrue('usedb', wcl, True)
-            wcl['use_qcf'] = miscutils.checkTrue('useqcf', wcl, False)
+            jobwcl.read_wcl(wclfh, filename=args.config) 
+            jobwcl['use_db'] = miscutils.checkTrue('usedb', jobwcl, True)
+            jobwcl['use_qcf'] = miscutils.checkTrue('useqcf', jobwcl, False)
     else:
         raise Exception("Error:  Must specify job config file")
 
@@ -1235,70 +1243,72 @@ def run_job(args):
         batch_id = get_batch_id_from_job_ad(os.environ['_CONDOR_JOB_AD'])
 
     pfw_dbh = None
-    if wcl['use_db']:   
+    if jobwcl['use_db']:   
         # export serviceAccess info to environment
-        if 'des_services' in wcl:
-            os.environ['DES_SERVICES'] = wcl['des_services']
-        if 'des_db_section' in wcl:
-            os.environ['DES_DB_SECTION'] = wcl['des_db_section']
+        if 'des_services' in jobwcl:
+            os.environ['DES_SERVICES'] = jobwcl['des_services']
+        if 'des_db_section' in jobwcl:
+            os.environ['DES_DB_SECTION'] = jobwcl['des_db_section']
 
         # update job batch/condor ids
         pfw_dbh = pfwdb.PFWDB()
-        pfw_dbh.update_job_target_info(wcl, condor_id, batch_id, socket.gethostname())
+        pfw_dbh.update_job_target_info(jobwcl, condor_id, batch_id, socket.gethostname())
         pfw_dbh.close()    # in case job is long running, will reopen connection elsewhere in job
         pfw_dbh = None
 
     # Save pointers to archive information for quick lookup
-    if wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never' or wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never':
-        wcl['home_archive_info'] = wcl['archive'][wcl[pfwdefs.HOME_ARCHIVE]]
+    if jobwcl[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never' or \
+       jobwcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never':
+        jobwcl['home_archive_info'] = jobwcl['archive'][jobwcl[pfwdefs.HOME_ARCHIVE]]
     else:
-        wcl['home_archive_info'] = None
+        jobwcl['home_archive_info'] = None
 
-    if wcl[pfwdefs.USE_TARGET_ARCHIVE_INPUT] != 'never' or wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT] != 'never':
-        wcl['target_archive_info'] = wcl['archive'][wcl[pfwdefs.TARGET_ARCHIVE]]
+    if jobwcl[pfwdefs.USE_TARGET_ARCHIVE_INPUT] != 'never' or jobwcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT] != 'never':
+        jobwcl['target_archive_info'] = jobwcl['archive'][jobwcl[pfwdefs.TARGET_ARCHIVE]]
     else:
-        wcl['target_archive_info'] = None
+        jobwcl['target_archive_info'] = None
 
 
     # used to keep track of all input files and registered output files
-    wcl['outfullnames'] = []
-    wcl['infullnames'] = [args.config, args.workflow]
-
-
-    wcl['output_putinfo'] = {}  # to be used if transferring at end of job
+    jobwcl['outfullnames'] = []
+    jobwcl['infullnames'] = [args.config, args.workflow]
+    jobwcl['output_putinfo'] = {}  # to be used if transferring at end of job
     
 
-    job_task_id = wcl['task_id']['job']
+    job_task_id = jobwcl['task_id']['job']
 
     # run the tasks (i.e., each wrapper execution)
     pfw_dbh = None
     try:
-        exitcode = gather_inwcl_fullnames(args.workflow, wcl)
-        exitcode = job_workflow(args.workflow, wcl)
+        exitcode = gather_inwcl_fullnames(args.workflow, jobwcl)
+        exitcode = job_workflow(args.workflow, jobwcl)
     except Exception as err:
         (type, value, trback) = sys.exc_info()
         print '!' * 60
-        if wcl['use_db'] and pfw_dbh is None:   
+        if jobwcl['use_db'] and pfw_dbh is None:   
             pfw_dbh = pfwdb.PFWDB()
             pfw_dbh.insert_message(job_task_id, pfwdb.PFW_MSG_ERROR, str(value))
         traceback.print_exception(type, value, trback, file=sys.stdout)
         exitcode = pfwdefs.PF_EXIT_FAILURE
         print "Aborting rest of wrapper executions.  Continuing to end-of-job tasks\n\n"
 
-    if wcl['use_db'] and pfw_dbh is None:   
+    if jobwcl['use_db'] and pfw_dbh is None:   
         pfw_dbh = pfwdb.PFWDB()
 
     junkinfo = {}
-    if pfwdefs.CREATE_JUNK_TARBALL in wcl and miscutils.convertBool(wcl[pfwdefs.CREATE_JUNK_TARBALL]):
-        junkinfo = create_junk_tarball(pfw_dbh, wcl, exitcode)
+    if pfwdefs.CREATE_JUNK_TARBALL in jobwcl and miscutils.convertBool(jobwcl[pfwdefs.CREATE_JUNK_TARBALL]):
+        junkinfo = create_junk_tarball(pfw_dbh, jobwcl, exitcode)
         if len(junkinfo) > 0:
-            wcl['output_putinfo'].update(junkinfo)
+            jobwcl['output_putinfo'].update(junkinfo)
         
     # if should transfer at end of job
-    if len(wcl['output_putinfo']) > 0:
+    if len(jobwcl['output_putinfo']) > 0:
         print "\n\nCalling file transfer for end of job"
-        transfer_job_to_archives(pfw_dbh, wcl, wcl['output_putinfo'], 'job', 
+        transfer_job_to_archives(pfw_dbh, jobwcl, jobwcl['output_putinfo'], 'job', 
                                  job_task_id, 'job_output', exitcode)
+    else:
+        print "\n\n0 files to transfer for end of job"
+        miscutils.fwdebug(1, "PFWRUNJOB_DEBUG", "len(jobwcl['outfullnames'])=%s" % (len(jobwcl['outfullnames'])))
 
     if pfw_dbh is not None:
         pfw_dbh.close()

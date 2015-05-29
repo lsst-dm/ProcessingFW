@@ -452,7 +452,7 @@ class PFWDB (desdmdbi.DesDmDbi):
             params['target_job_id'] = target_batch_id
 
         if len(setvals) > 0:
-            params['task_id'] = wcl['task_id']['job'][jobnum] 
+            params['task_id'] = wcl['task_id']['job']
 
             sql = "update pfw_job set %s where task_id=%s and condor_job_id is NULL" % (','.join(setvals), self.get_named_bind_string('task_id'))
 
@@ -470,7 +470,7 @@ class PFWDB (desdmdbi.DesDmDbi):
                 raise
 
             if curs.rowcount == 0:
-                self.insert_message(wcl['task_id']['job'][jobnum], PFW_MSG_ERROR, 
+                self.insert_message(wcl['task_id']['job'], PFW_MSG_ERROR, 
                                     "Job attempted to run more than once")
 
                 print "******************************"
@@ -480,7 +480,7 @@ class PFWDB (desdmdbi.DesDmDbi):
                 print "attnum = ", wcl[pfwdefs.ATTNUM]
                 print "blknum = ", wcl[pfwdefs.PF_BLKNUM]
                 print "jobnum = ", jobnum
-                print "job task_id = ", wcl['task_id']['job'][jobnum]
+                print "job task_id = ", wcl['task_id']['job']
 
                 print "\nThe 1st job information:"
                 curs2 = self.cursor()
@@ -513,7 +513,7 @@ class PFWDB (desdmdbi.DesDmDbi):
 
         if exechost is not None:
             wherevals = {}
-            wherevals['id'] = wcl['task_id']['job'][jobnum] 
+            wherevals['id'] = wcl['task_id']['job']
             updatevals = {}
             updatevals['exec_host'] = exechost
             self.update_PFW_row ('TASK', updatevals, wherevals)
@@ -530,7 +530,7 @@ class PFWDB (desdmdbi.DesDmDbi):
             updatevals['junktar'] = junktar
 
             wherevals = {}
-            wherevals['task_id'] = wcl['task_id']['job'][jobnum] 
+            wherevals['task_id'] = wcl['task_id']['job']
 
             self.update_PFW_row ('PFW_JOB', updatevals, wherevals)
 

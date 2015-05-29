@@ -501,8 +501,9 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict, 
                 winst[pfwdefs.IW_LISTSECT][divcolname] = {'fullname': output_list(config, sublist, sobj, lname, currvals),
                                                           'columns': ','.join(convert_col_string_to_list(divcoldict['columns'], False))}
         else:
+            cols = get_list_all_columns(msobj, with_format=False)
             winst[pfwdefs.IW_LISTSECT][lname] = {'fullname': output_list(config, sublist, msobj, lname, currvals),
-                                                 'columns': ','.join(convert_col_string_to_list(msobj['columns'], False))}
+                                                 'columns': ','.join(cols[0])}
     else:
         print "Warning: Couldn't find files to put in list %s in %s" % (lname, moddict['modulename'])
 
@@ -610,9 +611,9 @@ def output_list(config, sublist, sobj, lname, currvals):
     listdir = os.path.dirname(listname)
     miscutils.coremakedirs(listdir)
 
-    lineformat = 'textsp'
-    if 'format' in sobj:
-        lineformat = sobj['format']
+    lineformat = intgdefs.DEFAULT_LIST_FORMAT
+    if intgdefs.LIST_FORMAT in sobj:
+        lineformat = sobj[intgdefs.LIST_FORMAT]
 
     lines = sublist['list'][intgdefs.LISTENTRY].values()
     if 'sortkey' in sobj and sobj['sortkey'] is not None:
@@ -645,14 +646,13 @@ def output_list(config, sublist, sobj, lname, currvals):
     if 'allow_missing' in sobj:
         allow_missing = miscutils.convertBool(sobj['allow_missing'])
         
-
     #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "sobj = %s" % sobj)
     columns = get_list_all_columns(sobj)
-    #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "columns = %s" % columns)
 
     #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "Writing list to file %s" % listname)
     with open(listname, "w") as listfh:
         for linedict in lines:
+            miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "columns = %s" % columns)
             output_line(listfh, linedict, lineformat, allow_missing, columns[0])
 
     #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
@@ -664,7 +664,7 @@ def output_list(config, sublist, sobj, lname, currvals):
 #####################################################################
 def output_line(listfh, line, lineformat, allow_missing, keyarr):
     """ output line into input list for science code"""
-    #miscutils.fwdebug(4, "PFWBLOCK_DEBUG", "BEG line=%s  keyarr=%s" % (line, keyarr))
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "BEG line=%s  keyarr=%s" % (line, keyarr))
 
     lineformat = lineformat.lower()
 
@@ -1325,9 +1325,10 @@ def get_list_all_columns(ldict, with_format=True):
     elif 'columns' in ldict:
         columns.append(convert_col_string_to_list(ldict['columns'], with_format))
     else:
-        #miscutils.fwdebug(3, "PFWBLOCK_DEBUG", "columns not in ldict, so defaulting to fullname")
-        columns.append('fullname')
+        miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "columns not in ldict, so defaulting to fullname")
+        columns.append(['fullname'])
 
+    print "get_list_all_columns: columns=", columns
     return columns
             
 
@@ -1516,7 +1517,7 @@ def get_wrapper_loopvals(config, modname):
 #############################################################
 def get_value_from_line(line, key, nickname=None, numvals=None):
     """ Return value from a line in master list """
-    #miscutils.fwdebug(1, "PFWBLOCK_DEBUG", "BEG: key = %s, nickname = %s, numvals = %s" % (key, nickname, numvals))
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "BEG: key = %s, nickname = %s, numvals = %s" % (key, nickname, numvals))
     # returns None if 0 matches
     #         scalar value if 1 match
     #         array if > 1 match
@@ -1633,6 +1634,20 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
             if not result:
                 miscutils.fwdie('Error:  Could not determine execnum from exec label %s' % execkey, pfwdefs.PF_EXIT_FAILURE)
             wrapperwcl[execkey]['execnum'] = result.group(1)
+
+        execname = wrapperwcl[iwkey]['execname']    
+        if intgdefs.IW_EXEC_DEF in config:
+            execdefs = config[intgdefs.IW_EXEC_DEF]
+            if ( execname.lower() in execdefs and
+                'version_flag' in execdefs[execname.lower()] and
+                'version_pattern' in execdefs[execname.lower()] ):
+                wrapperwcl[iwkey]['version_flag'] = execdefs[execname.lower()]['version_flag']
+                wrapperwcl[iwkey]['version_pattern'] = execdefs[execname.lower()]['version_pattern']
+            else:
+                miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "Info:  Missing version keys for %s" % (execname))
+                
+        else:
+            print "why %s" % intgdefs.IW_EXEC_DEF
 
     if pfwdefs.SW_WRAPSECT in config[pfwdefs.SW_MODULESECT][modname]:
         #miscutils.fwdebug(3, 'PFWBLOCK_DEBUG', "Copying wrapper section (%s)"% pfwdefs.SW_WRAPSECT)

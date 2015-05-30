@@ -36,15 +36,19 @@ from processingfw.pfwwrappers import write_wrapper_wcl
 def add_runtime_path(config, currvals, fname, finfo, filename):
     """ Add runtime path to filename """
 
-    #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "creating path for %s" % fname)
-    #miscutils.fwdebug(6, "PFWBLOCK_DEBUG", "finfo = %s" % finfo)
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "creating path for %s" % fname)
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "finfo = %s" % finfo)
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "currvals = %s" % currvals)
+
+    
+
 
     path = config.get_filepath('runtime', None, {pfwdefs.PF_CURRVALS: currvals,
                                                  'searchobj': finfo,
                                                  'interpolate': True,
                                                  'expand': True})
 
-    #miscutils.fwdebug(3, "PFWBLOCK_DEBUG", "\tpath = %s" % path)
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "\tpath = %s" % path)
 
     #filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
     #                                      'searchobj': finfo,
@@ -1337,7 +1341,7 @@ def get_list_all_columns(ldict, with_format=True):
 def create_fullnames(config, modname, masterdata):
     """ add paths to filenames """    # what about compression extension
 
-    #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "BEG %s" % modname)
     dataset = config.combine_lists_files(modname)
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
@@ -1351,52 +1355,59 @@ def create_fullnames(config, modname, masterdata):
 
 
             if pfwdefs.DIV_LIST_BY_COL in sdict or 'columns' in sdict:  # list
+                miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "list sect: sname=%s" % sname)
                 dictcurr = OrderedDict()
                 columns = get_list_all_columns(sdict, False)
+                miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "columns=%s" % columns)
 
                 for collist in columns:
                     for col in collist:
                         match = re.search(r"(\S+).fullname", col)
                         if match:
                             flabel = match.group(1)
+                            miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "flabel=%s" % flabel)
                             if flabel in moddict[pfwdefs.SW_FILESECT]:
                                 dictcurr[flabel] = copy.deepcopy(moddict[pfwdefs.SW_FILESECT][flabel])
                                 dictcurr[flabel]['curr_module'] = modname
                             else:
                                 #print "list files = ", moddict[pfwdefs.SW_FILESECT].keys()
                                 miscutils.fwdie("Error: Looking at list columns - could not find %s def in dataset" % flabel, pfwdefs.PF_EXIT_FAILURE)
-                #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "dictcurr=%s" % dictcurr)
+                miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "dictcurr=%s" % dictcurr)
 
                 for llabel, ldict in master['list'][intgdefs.LISTENTRY].items():
                     for flabel, fdict in ldict['file'].items():
-                        #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "flabel=%s, fdict=%s" % (flabel, fdict))
-                        if flabel in dictcurr:
-                            fdict['fullname'] = add_runtime_path(config, dictcurr[flabel], 
-                                                                 flabel, fdict, 
-                                                                 fdict['filename'])
-                        elif len(dictcurr) == 1:
-                            fdict['fullname'] = add_runtime_path(config, dictcurr.values()[0], 
-                                                                 flabel, fdict, 
-                                                                 fdict['filename'])[0]
+                        miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "flabel=%s, fdict=%s" % (flabel, fdict))
+                        if 'fullname' not in fdict:
+                            if flabel in dictcurr:
+                                fdict['fullname'] = add_runtime_path(config, dictcurr[flabel], 
+                                                                     flabel, fdict, 
+                                                                     fdict['filename'])
+                            elif len(dictcurr) == 1:
+                                fdict['fullname'] = add_runtime_path(config, dictcurr.values()[0], 
+                                                                     flabel, fdict, 
+                                                                     fdict['filename'])[0]
+                            else:
+                                print "dictcurr: ", dictcurr.keys()
+                                miscutils.fwdie("Error: Looking at lines - could not find %s def in dictcurr" % flabel, pfwdefs.PF_EXIT_FAILURE)
                         else:
-                            print "dictcurr: ", dictcurr.keys()
-                            miscutils.fwdie("Error: Looking at lines - could not find %s def in dictcurr" % flabel, pfwdefs.PF_EXIT_FAILURE)
+                            miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "fullname already in fdict: flabel=%s" % flabel)
 
 
             else:  # file
+                miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "file sect: sname=%s" % sname)
                 currvals = copy.deepcopy(sdict)
                 currvals['curr_module'] = modname
 
                 for llabel, ldict in master['list'][intgdefs.LISTENTRY].items():
-                    #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "file sect: llabel=%s" % llabel)
+                    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "file sect: llabel=%s" % llabel)
                     for flabel, fdict in ldict['file'].items():
-                        #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "file sect: flabel=%s" % flabel)
+                        miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "file sect: flabel=%s" % flabel)
                         fdict['fullname'] = add_runtime_path(config, currvals, flabel, 
                                                              fdict, fdict['filename'])[0]
         else:
             print "\t%s-%s: no masterlist...skipping" % (modname, sname)
 
-    #miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
+    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
 
 
 

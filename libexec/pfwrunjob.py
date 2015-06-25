@@ -196,7 +196,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
     
     trans_task_id = 0
     if pfw_dbh is not None:
-        trans_task_id = pfw_dbh.create_task(name = 'transfer', 
+        trans_task_id = pfw_dbh.create_task(name = 'trans_input_%s' % dest, 
                                             info_table = None,
                                             parent_task_id = parent_tid,
                                             root_task_id = wcl['task_id']['attempt'],
@@ -264,8 +264,17 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
         sem = None
-        if wcl['use_db'] and 'transfer_semname' in wcl:
-            sem = dbsem.DBSemaphore(wcl['transfer_semname'], trans_task_id)
+        if wcl['use_db']:
+            semname = None
+            if dest.lower() == 'target' and 'input_transfer_semname_target' in wcl:
+                semname = wcl['input_transfer_semname_target'] 
+            elif dest.lower() != 'target' and 'input_transfer_semname_home' in wcl:
+                semname = wcl['input_transfer_semname_home'] 
+            elif 'input_transfer_semname' in wcl:
+                semname = wcl['input_transfer_semname'] 
+            elif 'transfer_semname' in wcl:
+                semname = wcl['transfer_semname'] 
+            sem = dbsem.DBSemaphore(semname, trans_task_id)
             miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
 
         if dest.lower() == 'target':
@@ -671,7 +680,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "TRANSFER JOB TO ARCHIVE SECTION")
     tasknum = -1
     if pfw_dbh is not None:
-        trans_task_id = pfw_dbh.create_task(name = 'job2archive',
+        trans_task_id = pfw_dbh.create_task(name = 'trans_output_%s' % dest,
                                             info_table = None,
                                             parent_task_id = parent_tid,
                                             root_task_id = wcl['task_id']['attempt'],
@@ -763,9 +772,19 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     #pretty_print_dict(putinfo)
     starttime = time.time()
     sem = None
-    if wcl['use_db'] and 'transfer_semname' in wcl:
-        sem = dbsem.DBSemaphore(wcl['transfer_semname'], trans_task_id)
+    if wcl['use_db']:
+        semname = None
+        if dest.lower() == 'target' and 'output_transfer_semname_target' in wcl:
+            semname = wcl['output_transfer_semname_target']
+        elif dest.lower() != 'target' and 'output_transfer_semname_home' in wcl:
+            semname = wcl['output_transfer_semname_home']
+        elif 'input_transfer_semname' in wcl:
+            semname = wcl['output_transfer_semname']
+        elif 'transfer_semname' in wcl:
+            semname = wcl['transfer_semname']
+        sem = dbsem.DBSemaphore(semname, trans_task_id)
         miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
+
     if dest.lower() == 'target':
         results = jobfilemvmt.job2target(saveinfo)
     else:

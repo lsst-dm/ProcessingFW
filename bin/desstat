@@ -19,7 +19,7 @@ def main(argv=None):
     constraint_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
     if args.user:
         constraint_str += args.user
-    (qjobs, top_jobs, orphan_jobs) = pfwcondor.condorq_dag(constraint_str)
+    (qjobs, att_jobs, orphan_jobs) = pfwcondor.condorq_dag(constraint_str)
 
     jobcnt = len(qjobs)
     if jobcnt == 0:
@@ -28,19 +28,13 @@ def main(argv=None):
 
     # Output jobs
     print_header()
-    for job in sorted(top_jobs): 
-        print_single(job, " ", qjobs)
-
-    for job in sorted(orphan_jobs):
-        if '%sblock' % pfwdefs.ATTRIB_PREFIX in qjobs[job] and \
-            qjobs[job]['%sblock' % pfwdefs.ATTRIB_PREFIX] == 'saveruntime':
-            print_single(job, " ", qjobs)
-        else:
-            print_single(job, "X", qjobs)
+    print_attempts(att_jobs, qjobs)
+    print_orphans(orphan_jobs, qjobs)
 
     return(0)
 
 
+######################################################################
 def print_header(): 
     """ Print header line """
     print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-30s" % \
@@ -49,60 +43,27 @@ def print_header():
     print "="*133
 
 
-def status_target_jobs(job, qjobs):
-    numtjobs = 'UNK'
-    if '%snumjobs' % pfwdefs.ATTRIB_PREFIX in qjobs[qjobs[job]['children'][0]]:
-        numtjobs = qjobs[qjobs[job]['children'][0]]['%snumjobs' % pfwdefs.ATTRIB_PREFIX]
-    else:
-        print "Could not find %snumjobs in qjobs for job %s" % (pfwdefs.ATTRIB_PREFIX, job)
+######################################################################
+def print_attempts(attids, qjobs):
+    """ print attempt info """
+    for topjobid in sorted(attids):
+        info = pfwcondor.get_attempt_info(topjobid, qjobs)
+        print_line(topjobid, " ", info)
 
-    chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'ERR': 0}
-    for childjob in qjobs[job]['children']:
-        jobstat = pfwcondor.get_job_status_str(childjob, qjobs)
-        if jobstat in chstat:  # ignore other status, e.g. DONE
-            chstat[jobstat] += 1
-    status = "(%s/%s/%s/%s)" % (chstat['ERR'], 
-                                chstat['PEND'] + chstat['UNSUB'], 
-                                chstat['RUN'], 
-                                numtjobs)
-    return(status)
-    
+######################################################################
+def print_orphans(orphanids, qjobs):
+    """ Print info for single orphan job """
+
+    for topjobid in sorted(orphanids):
+        info = pfwcondor.get_attempt_info(topjobid, qjobs)
+        print_line(topjobid, "X", info)
 
 
-def print_single(topjobid, jobtype, qjobs):
-    """ Print info for single job """
-
-    if '%soperator' % pfwdefs.ATTRIB_PREFIX not in qjobs[topjobid]:
-        if 'owner' in qjobs[topjobid]:
-            qjobs[topjobid]['%soperator' % pfwdefs.ATTRIB_PREFIX] = qjobs[topjobid]['owner'].replace('"', '')
-        else:
-            qjobs[topjobid]['%soperator' % pfwdefs.ATTRIB_PREFIX] = "UNK"
-
-    # find innermost dag job
-    jobid = topjobid
-    while len(qjobs[jobid]['children']) == 1 and \
-          ('%sblock' % pfwdefs.ATTRIB_PREFIX not in qjobs[jobid] or \
-           'pipe' not in qjobs[jobid]['%sblock' % pfwdefs.ATTRIB_PREFIX]):
-        jobid = qjobs[jobid]['children'][0]
-
-
-    # grab DESDM from job attributes 
-    info = {}
-    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator']:
-        info[key] = ""
-        if pfwdefs.ATTRIB_PREFIX + key in qjobs[jobid]:
-            info[key] = qjobs[jobid][pfwdefs.ATTRIB_PREFIX + key]
-
-    info['status'] = pfwcondor.get_job_status_str(jobid, qjobs)
-
-    # If pipeline mngr, count number of pending, running, etc target jobs
-    if len(qjobs[jobid]['children']) > 0:
-        info['status'] = status_target_jobs(jobid, qjobs)
-        info['subblock'] = "pipelines"
-        info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % pfwdefs.ATTRIB_PREFIX]
-
+######################################################################
+def print_line(jid, jobtype, info):
+    """ Print single line """
     print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-15s" % ( 
-          topjobid, jobtype, info['project'][:3], info['pipeline'][:8],
+          jid, jobtype, info['project'][:3], info['pipeline'][:8],
           info['run'][:27], info['block'][:25], info['subblock'][:15], 
           info['status'][:17], info['operator'][:8], info['runsite'][:15]
     )

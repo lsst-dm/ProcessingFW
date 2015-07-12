@@ -12,6 +12,7 @@ import shlex
 import os
 import re
 import despymisc.miscutils as miscutils
+import processingfw.pfwdefs as pfwdefs
 
 class CondorException(Exception):
     "class for Condor exceptions"
@@ -709,7 +710,62 @@ def condor_rm(args_str=''):
         raise CondorException('Error: Could not run condor_rm. Check PATH.\n'+str(err))
         
     
+#######################################################################
+def status_target_jobs(job, qjobs):
+    """ Convert condor/grid status """
 
+    numtjobs = 'UNK'
+    if '%snumjobs' % pfwdefs.ATTRIB_PREFIX in qjobs[qjobs[job]['children'][0]]:
+        numtjobs = qjobs[qjobs[job]['children'][0]]['%snumjobs' % pfwdefs.ATTRIB_PREFIX]
+    else:
+        print "Could not find %snumjobs in qjobs for job %s" % (pfwdefs.ATTRIB_PREFIX, job)
+
+    chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'ERR': 0}
+    for childjob in qjobs[job]['children']:
+        jobstat = get_job_status_str(childjob, qjobs)
+        if jobstat in chstat:  # ignore other status, e.g. DONE
+            chstat[jobstat] += 1
+    status = "(%s/%s/%s/%s)" % (chstat['ERR'],
+                                chstat['PEND'] + chstat['UNSUB'],
+                                chstat['RUN'],
+                                numtjobs)
+    return status
+
+
+#######################################################################
+def get_attempt_info(topjob, qjobs):
+    """ Massage condor_q dag information into attempt information """
+
+    info = {}
+    if '%soperator' % pfwdefs.ATTRIB_PREFIX not in qjobs[topjob]:
+        if 'owner' in qjobs[topjob]:
+            qjobs[topjob]['%soperator' % pfwdefs.ATTRIB_PREFIX] = qjobs[topjob]['owner'].replace('"', '')
+        else:
+            qjobs[topjob]['%soperator' % pfwdefs.ATTRIB_PREFIX] = "UNK"
+
+    # find innermost dag job
+    jobid = topjob
+    while len(qjobs[jobid]['children']) == 1 and \
+          ('%sblock' % pfwdefs.ATTRIB_PREFIX not in qjobs[jobid] or \
+           'pipe' not in qjobs[jobid]['%sblock' % pfwdefs.ATTRIB_PREFIX]):
+        jobid = qjobs[jobid]['children'][0]
+
+
+    # grab DESDM from job attributes
+    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator']:
+        info[key] = ""
+        if pfwdefs.ATTRIB_PREFIX + key in qjobs[jobid]:
+            info[key] = qjobs[jobid][pfwdefs.ATTRIB_PREFIX + key]
+
+    info['status'] = get_job_status_str(jobid, qjobs)
+
+    # If pipeline mngr, count number of pending, running, etc target jobs
+    if len(qjobs[jobid]['children']) > 0:
+        info['status'] = status_target_jobs(jobid, qjobs)
+        info['subblock'] = "pipelines"
+        info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % pfwdefs.ATTRIB_PREFIX]
+
+    return info
 
 if __name__ ==  '__main__' :
     pass

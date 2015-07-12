@@ -128,6 +128,9 @@ def main(args):
             print 'Checking system:'
             pfwsubmit.run_sys_checks()
 
+            print 'Checking if need proxy:'
+            pfwsubmit.check_proxy(config)
+
             config.set_submit_info()
 
             print 'Creating submit dirs:'

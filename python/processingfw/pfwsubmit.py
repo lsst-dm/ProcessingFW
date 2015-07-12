@@ -45,6 +45,25 @@ def min_wcl_checks(config):
 
 
 ######################################################################
+def check_proxy(config):
+    """ Check if any block will submit to remote machine needing proxy, if so check for proxy """
+
+    blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(),',')
+    for blockname in blocklist:
+        #print "%sChecking block %s..." % (indent, blockname)
+        config.set_block_info()
+
+        if 'check_proxy' in config and miscutils.convertBool(config['check_proxy']):
+            timeleft = pfwcondor.get_grid_proxy_timeleft()
+            assert(timeleft > 0)
+            if timeleft < 21600:   # 5 * 60 * 60
+                print "Warning:  Proxy expires in less than 5 hours"
+                break
+        config.inc_blknum()
+
+    config.reset_blknum()
+
+######################################################################
 def create_common_vars(config, jobname):
     """ Create string containing vars string for job """
 

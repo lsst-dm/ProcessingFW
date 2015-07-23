@@ -4,6 +4,8 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+# pylint: disable=print-statement
+
 import re
 import os
 import sys
@@ -21,27 +23,18 @@ import despymisc.miscutils as miscutils
 def pad_jobnum(jobnum):
     return "%04d" % int(jobnum)
 
-#######################################################################
-def get_exec_sections(wcl, prefix):
-    """ Returns exec sections appearing in given wcl """
-    execs = {}
-    for key, val in wcl.items():
-        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for exec prefix in %s" % key)
-
-        if re.search("^%s\d+$" % prefix, key):
-            miscutils.fwdebug(4, "PFWUTILS_DEBUG", "\tFound exec prefex %s" % key)
-            execs[key] = val
-    return execs
 
 #######################################################################
 def get_hdrup_sections(wcl, prefix):
     """ Returns header update sections appearing in given wcl """
     hdrups = {}
     for key, val in wcl.items():
-        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tsearching for hdrup prefix in %s" % key)
+        if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
+            miscutils.fwdebug_print("\tsearching for hdrup prefix in %s" % key)
 
         if re.search("^%s\d+$" % prefix, key):
-            miscutils.fwdebug(4, "PFWUTILS_DEBUG", "\tFound hdrup prefex %s" % key)
+            if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
+                miscutils.fwdebug_print("\tFound hdrup prefex %s" % key)
             hdrups[key] = val
     return hdrups
 
@@ -49,7 +42,8 @@ def get_hdrup_sections(wcl, prefix):
 
 #######################################################################
 def search_wcl_for_variables(wcl):
-    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "BEG")
+    if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("BEG")
     usedvars = {}
     for key, val in wcl.items():
         if isinstance(val, dict):
@@ -63,26 +57,31 @@ def search_wcl_for_variables(wcl):
                     vstr = vstr.split(':')[0]
                 usedvars[vstr] = True
         else:
-            miscutils.fwdebug(9, "PFWUTILS_DEBUG", "Note: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val))
+            if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
+                miscutils.fwdebug_print("Note: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val))
     
-    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "END")
+    if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("END")
     return usedvars
 
 #######################################################################
 def get_wcl_value(key, wcl):
     """ Return value of key from wcl, follows section notation """
-    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "BEG")
+    if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("BEG")
     val = wcl
     for k in key.split('.'):
         #print "get_wcl_value: k=", k
         val = val[k]
-    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "END")
+    if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("END")
     return val
 
 #######################################################################
 def set_wcl_value(key, val, wcl):
     """ Sets value of key in wcl, follows section notation """
-    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "BEG")
+    if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("BEG")
     wclkeys = key.split('.')
     valkey = wclkeys.pop()
     wcldict = wcl
@@ -90,7 +89,8 @@ def set_wcl_value(key, val, wcl):
         wcldict = wcldict[k]
 
     wcldict[valkey] = val
-    miscutils.fwdebug(9, "PFWUTILS_DEBUG", "END")
+    if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("END")
 
 #######################################################################
 def tar_dir(filename, indir):
@@ -179,10 +179,10 @@ def get_version(execname, execdefs):
         process.wait()
         out = process.communicate()[0]
         if process.returncode != 0:
-            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "INFO:  problem when running code to get version")
-            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "\t%s %s %s" % (execname, verflag, verpat))
-            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "\tcmd> %s" % cmd)
-            miscutils.fwdebug(0, 'PFWUTILS_DEBUG', "\t%s" % out)
+            miscutils.fwdebug_print("INFO:  problem when running code to get version")
+            miscutils.fwdebug_print("\t%s %s %s" % (execname, verflag, verpat))
+            miscutils.fwdebug_print("\tcmd> %s" % cmd)
+            miscutils.fwdebug_print("\t%s" % out)
             ver = None
         else:
             # parse output with verpat
@@ -191,16 +191,17 @@ def get_version(execname, execdefs):
                 if m:
                     ver = m.group(1)
                 else:
-                    miscutils.fwdebug(1, 'PFWUTILS_DEBUG', "re.search didn't find version for exec %s" % execname)
-                    miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd output=%s" % out)
-                    miscutils.fwdebug(3, 'PFWUTILS_DEBUG', "\tcmd verpat=%s" % verpat)
+                    miscutils.fwdebug_print(1, 'PFWUTILS_DEBUG', "re.search didn't find version for exec %s" % execname)
+                    miscutils.fwdebug_print(3, 'PFWUTILS_DEBUG', "\tcmd output=%s" % out)
+                    miscutils.fwdebug_print(3, 'PFWUTILS_DEBUG', "\tcmd verpat=%s" % verpat)
             except Exception as err:
                 #print type(err)
                 ver = None
                 print "Error: Exception from re.match.  Didn't find version: %s" % err
                 raise
     else:
-        miscutils.fwdebug(1, 'PFWUTILS_DEBUG', "INFO: Could not find version info for exec %s" % execname)
+        if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
+            miscutils.fwdebug_print("INFO: Could not find version info for exec %s" % execname)
 
     return ver
 
@@ -209,12 +210,13 @@ def get_version(execname, execdefs):
 def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
     """ Execute the command piping stdout/stderr to log and QCF """
 
-    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "BEG")
-    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "cmd = %s" % cmd)
-    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "logfilename = %s" % logfilename)
-    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "id = %s" % id)
-    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "execnames = %s" % execnames)
-    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "useQCF = %s" % useQCF)
+    if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print(3, "PFWUTILS_DEBUG", "BEG")
+        miscutils.fwdebug_print(3, "PFWUTILS_DEBUG", "cmd = %s" % cmd)
+        miscutils.fwdebug_print(3, "PFWUTILS_DEBUG", "logfilename = %s" % logfilename)
+        miscutils.fwdebug_print(3, "PFWUTILS_DEBUG", "id = %s" % id)
+        miscutils.fwdebug_print(3, "PFWUTILS_DEBUG", "execnames = %s" % execnames)
+        miscutils.fwdebug_print(3, "PFWUTILS_DEBUG", "useQCF = %s" % useQCF)
 
     useQCF = miscutils.convertBool(useQCF)
 
@@ -297,14 +299,16 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
         raise
 
     sys.stdout.flush()
-    if processWrap.returncode != 0:
-        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with non-zero exit code = %s" % processWrap.returncode)
-        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: failed cmd = %s" % cmd)
-    else:
-        miscutils.fwdebug(3, "PFWUTILS_DEBUG", "\tInfo: cmd exited with exit code = 0")
+    if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
+        if processWrap.returncode != 0:
+            miscutils.fwdebug_print("\tInfo: cmd exited with non-zero exit code = %s" % processWrap.returncode)
+            miscutils.fwdebug_print("\tInfo: failed cmd = %s" % cmd)
+        else:
+            miscutils.fwdebug_print("\tInfo: cmd exited with exit code = 0")
 
 
-    miscutils.fwdebug(3, "PFWUTILS_DEBUG", "END")
+    if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("END")
     return processWrap.returncode
 
 
@@ -350,3 +354,41 @@ def should_save_file(mastersave, filesave, exitcode):
 
     retval = ((msave == 'always') or (msave == 'file' and filesave))
     return retval
+
+
+######################################################################
+def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
+                         label, classname, extra_info):
+
+    task_id = -1
+    if pfw_dbh is not None:
+        task_id = pfw_dbh.create_task(name = 'dynclass',
+                                      info_table = None,
+                                      parent_task_id = parent_tid,
+                                      root_task_id = attempt_task_id,
+                                      label = label,
+                                      do_begin = True,
+                                      do_commit = True)
+
+    the_class_obj = None
+    try:
+        the_class = miscutils.dynamically_load_class(classname)
+        valDict = {}
+        try:
+            valDict = miscutils.get_config_vals(extra_info, wcl, the_class.requested_config_vals())
+        except AttributeError: # in case the_class doesn't have requested_config_vals
+            pass
+        the_class_obj = the_class(valDict)
+    except:
+        (type, value, trback) = sys.exc_info()
+        msg = "Error: creating %s object - %s" % (label, value)
+        print "\n%s" % msg
+        if pfw_dbh is not None:
+            pfw_dbh.insert_message(task_id, pfwdefs.PFWDB_MSG_ERROR, msg)
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+        raise
+
+    if pfw_dbh is not None:
+        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+
+    return the_class_obj

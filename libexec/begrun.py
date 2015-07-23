@@ -12,64 +12,46 @@ import despymisc.miscutils as miscutils
 import filemgmt.utils as fmutils
 import filemgmt.disk_utils_local as diskutils
 import processingfw.pfwdefs as pfwdefs
+import processingfw.pfwutils as pfwutils
 import processingfw.pfwconfig as pfwconfig
 
-def save_submit_file_info(config, filemgmt, expwcl, fullcfg):
-    """ Save meta information and provenance for submit files """
-    # get artifact information
-    expdict = diskutils.get_single_file_disk_info(expwcl,
-                                                  save_md5sum=config['save_md5sum'],
-                                                  archive_root=None)
-    fulldict = diskutils.get_single_file_disk_info(fullcfg,
-                                                   save_md5sum=config['save_md5sum'],
-                                                   archive_root=None)
-    artifacts = [expdict, fulldict]
-
-    # create metadata for submit wcls
-    filemeta = {'file_1': {'filename': expdict['filename'], 'filetype': 'wcl'},
-                'file_2': {'filename': fulldict['filename'], 'filetype': 'wcl'}}
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'filemeta = %s' % filemeta)
-
-    # create provenance
-    prov = {'used': {'exec_1': expdict['filename']},
-            'was_generated_by': {'exec_1': fulldict['filename']}}
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'prov = %s' % prov)
-
-    attempt_task_id = -99
-    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
-        attempt_task_id = config['task_id']['attempt']
-
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'task_id = %s' % attempt_task_id)
-
-    # save file information
-    filemgmt.save_file_info(artifacts, filemeta, prov, {'exec_1': attempt_task_id})
 
 
 
-def copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg):
+def copy_files_home(config, archive_info, filemgmt):
     """ Copy submit files to home archive """
 
+    origwcl = config['origwcl']
+    expwcl = config['expwcl']
+    fullwcl = config['fullwcl']
+
     archdir = '%s/submit' % config.interpolate(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'archive rel path = %s' % archdir)
+    if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
+        miscutils.fwdebug_print('archive rel path = %s' % archdir)
 
     # copy the files to the home archive
-    files2copy = {expwcl: {'src':expwcl, 'dst':'%s/%s' % (archdir, expwcl),
+    files2copy = {origwcl: {'src': origwcl, 'dst':'%s/%s' % (archdir, origwcl),
+                           'filename': origwcl, 'fullname': '%s/%s' % (archdir, origwcl)},
+                  expwcl: {'src':expwcl, 'dst':'%s/%s' % (archdir, expwcl),
                            'filename': expwcl, 'fullname': '%s/%s' % (archdir, expwcl)},
-                  fullcfg: {'src':fullcfg, 'dst':'%s/%s' % (archdir, fullcfg),
-                            'filename': fullcfg, 'fullname': '%s/%s' % (archdir, fullcfg)}}
+                  fullwcl: {'src':fullwcl, 'dst':'%s/%s' % (archdir, fullwcl),
+                            'filename': fullwcl, 'fullname': '%s/%s' % (archdir, fullwcl)}}
 
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'files2copy = %s' % files2copy)
+    if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
+        miscutils.fwdebug_print('files2copy = %s' % files2copy)
 
     # load file mvmt class
     submit_files_mvmt = config['submit_files_mvmt']
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'submit_files_mvmt = %s' % submit_files_mvmt)
+    if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
+        miscutils.fwdebug_print('submit_files_mvmt = %s' % submit_files_mvmt)
     filemvmt_class = miscutils.dynamically_load_class(submit_files_mvmt)
     valdict = fmutils.get_config_vals(config['job_file_mvmt'], config,
                                       filemvmt_class.requested_config_vals())
     filemvmt = filemvmt_class(archive_info, None, None, None, valdict)
 
     results = filemvmt.job2home(files2copy)
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'trans results = %s' % results)
+    if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
+        miscutils.fwdebug_print('trans results = %s' % results)
 
     # save info for files that we just copied into archive
     files2register = []
@@ -82,8 +64,9 @@ def copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg):
             files2register.append(finfo)
 
     # call function to do the register
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'files2register = %s' % files2register)
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'archive = %s' % archive_info['name'])
+    if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
+        miscutils.fwdebug_print('files2register = %s' % files2register)
+        miscutils.fwdebug_print('archive = %s' % archive_info['name'])
     filemgmt.register_file_in_archive(files2register, archive_info['name'])
 
 
@@ -93,8 +76,9 @@ def begrun(argv):
     configfile = argv[0]
     config = pfwconfig.PfwConfig({'wclfile': configfile})
 
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'use_home_archive_output = %s' % \
-                                         config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
+    if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
+        miscutils.fwdebug_print('use_home_archive_output = %s' % \
+                                config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
 
     # if not a dryrun and using a home archive for output
     if (config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never' and
@@ -102,38 +86,36 @@ def begrun(argv):
             (pfwdefs.PF_DRYRUN not in config or
              not miscutils.convertBool(config[pfwdefs.PF_DRYRUN]))):
 
-        # the two wcl files to copy to the home archive
+        pfw_dbh = None
+        if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])):
+            import processingfw.pfwdb as pfwdb
+            pfw_dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+
+        # the three wcl files to copy to the home archive
+        origwcl = config['origwcl']
         expwcl = config['expwcl']
-        fullcfg = config['fullcfg']
+        fullwcl = config['fullwcl']
 
         # get home archive info
         home_archive = config['home_archive']
         archive_info = config['archive'][home_archive]
 
         # load filemgmt class
-        filemgmt = None
-        try:
-            filemgmt_class = miscutils.dynamically_load_class(archive_info['filemgmt'])
-            valdict = fmutils.get_config_vals(archive_info, config,
-                                              filemgmt_class.requested_config_vals())
-            filemgmt = filemgmt_class(config=valdict)
-        except:
-            value = sys.exc_info()[1]
-            msg = "Error: creating filemgmt object %s" % value
-            print "ERROR\n%s" % msg
-            raise
+        attempt_tid = config['task_id']['attempt']
+        filemgmt = pfwutils.pfw_dynam_load_class(pfw_dbh, config, attempt_tid, attempt_tid, 
+                                                 "filemgmt", archive_info['filemgmt'],
+                                                 archive_info) 
 
-        save_submit_file_info(config, filemgmt, expwcl, fullcfg)
-        copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg)
-
+        # save file information
+        filemgmt.register_file_data('wcl', [origwcl, expwcl, fullwcl], attempt_tid,
+                                    False, None)
+        copy_files_home(config, archive_info, filemgmt)
         filemgmt.commit()
 
-    if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])):
-        print "Saving attempt's archive path into PFW tables...",
-        import processingfw.pfwdb as pfwdb
-        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        dbh.update_attempt_archive_path(config)
-        dbh.commit()
+        if pfw_dbh is not None:
+            print "Saving attempt's archive path into PFW tables...",
+            pfw_dbh.update_attempt_archive_path(config)
+            pfw_dbh.commit()
 
 
 if __name__ == "__main__":

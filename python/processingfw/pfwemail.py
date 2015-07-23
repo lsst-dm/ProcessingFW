@@ -4,6 +4,8 @@
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
 
+# pylint: disable=print-statement
+
 """ Utilities for sending PFW emails """
 
 import os
@@ -11,6 +13,7 @@ import glob
 import subprocess
 from cStringIO import StringIO
 
+import intgutils.intgdefs as intgdefs
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 
@@ -46,7 +49,7 @@ def send_email(config, block, status, subject, msg1, msg2):
     if pfwdefs.HOME_ARCHIVE in config:
         mailfh.write("Home Archive:\n")
         mailfh.write("\t%s = %s\n" % (pfwdefs.HOME_ARCHIVE.lower(), config[pfwdefs.HOME_ARCHIVE]))
-        mailfh.write("\tArchive directory = %s/%s\n" % (config['root'], config.interpolate(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])))
+        mailfh.write("\tArchive directory = %s/%s\n" % (config['root'], config.replace_vars_single(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])))
         mailfh.write("\n")
 
 

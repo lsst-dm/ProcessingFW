@@ -40,7 +40,7 @@ def logpre(argv = None):
         #dbh.insert_blktask(config, "", subblock)
 
     # now that have more information, can rename output file
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    miscutils.fwdebug_print("getting new_log_name")
     blockname = config['blockname']
     blkdir = config['block_dir']
     new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
@@ -48,7 +48,7 @@ def logpre(argv = None):
                                                      'subblock': subblock,
                                                      'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
     debugfh.close()
 
     os.chmod('logpre.out', 0666)

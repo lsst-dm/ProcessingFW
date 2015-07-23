@@ -98,7 +98,7 @@ def jobpost(argv = None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "temp log name = %s" % tmpfn)
+    miscutils.fwdebug_print("temp log name = %s" % tmpfn)
     print 'cmd>',' '.join(argv)  # print command line for debugging
 
     if len(argv) < 7:
@@ -116,21 +116,24 @@ def jobpost(argv = None):
     if len(argv) == 7:
         retval = int(sys.argv[6])
 
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "block = %s" % blockname)
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "jobnum = %s" % jobnum)
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "inputtar = %s" % inputtar)
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "outputtar = %s" % outputtar)
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "retval = %s" % retval)
+    if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
+        miscutils.fwdebug_print("configfile = %s" % configfile)
+        miscutils.fwdebug_print("block = %s" % blockname)
+        miscutils.fwdebug_print("jobnum = %s" % jobnum)
+        miscutils.fwdebug_print("inputtar = %s" % inputtar)
+        miscutils.fwdebug_print("outputtar = %s" % outputtar)
+        miscutils.fwdebug_print("retval = %s" % retval)
 
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
+    if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
+        miscutils.fwdebug_print("done reading config file")
 
 
     # now that have more information, rename output file
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "before get_filename")
+    if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
+        miscutils.fwdebug_print("before get_filename")
     blockname = config['blockname']
     blkdir = config['block_dir']
     tjpad = pfwutils.pad_jobnum(jobnum)
@@ -141,7 +144,7 @@ def jobpost(argv = None):
                                                 pfwdefs.PF_JOBNUM: jobnum,
                                                'fsuffix':'out'}})
     new_log_name = "%s" % (new_log_name)
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
      
     debugfh.close()
     os.chmod(tmpfn, 0666)
@@ -244,11 +247,11 @@ def jobpost(argv = None):
 
 
     if retval != pfwdefs.PF_EXIT_SUCCESS:
-        miscutils.fwdebug(0, 'PFWPOST_DEBUG', "Setting failure retval")
+        miscutils.fwdebug_print("Setting failure retval")
         retval = pfwdefs.PF_EXIT_FAILURE     
         
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "Returning retval = %s" % retval)
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "jobpost done")
+    miscutils.fwdebug_print("Returning retval = %s" % retval)
+    miscutils.fwdebug_print("jobpost done")
     debugfh.close()
     return(int(retval))
 
@@ -259,5 +262,5 @@ if __name__ == "__main__":
     exitcode = jobpost(sys.argv)
     sys.stdout = realstdout
     sys.stderr = realstderr
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
+    miscutils.fwdebug_print("Exiting with = %s" % exitcode)
     sys.exit(exitcode)

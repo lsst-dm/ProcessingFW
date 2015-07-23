@@ -36,24 +36,26 @@ def blockpost(argv = None):
 
     configfile = argv[1]
     retval = int(argv[2])
-
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "configfile = %s" % configfile)
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "retval = %s" % retval)
+ 
+    if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
+        miscutils.fwdebug_print("configfile = %s" % configfile)
+    miscutils.fwdebug_print("retval = %s" % retval)
 
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "done reading config file")
+    if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
+        miscutils.fwdebug_print("done reading config file")
     blockname = config['blockname']
     blkdir = config['block_dir']
     
 
     # now that have more information, can rename output file
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    miscutils.fwdebug_print("getting new_log_name")
     new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
                                                   {'flabel': 'blockpost',
                                                    'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.chmod('blockpost.out', 0666)
@@ -282,9 +284,9 @@ def blockpost(argv = None):
         print "number of blocks = ", len(config.block_array)
     else:
         retval = pfwdefs.PF_EXIT_FAILURE
-
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "Returning retval = %s (%s)" % (retval, type(retval)))
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "END")
+ 
+    miscutils.fwdebug_print("Returning retval = %s (%s)" % (retval, type(retval)))
+    miscutils.fwdebug_print("END")
     debugfh.close()
     return(int(retval))
 
@@ -294,6 +296,7 @@ if __name__ == "__main__":
     exitcode = blockpost(sys.argv)
     sys.stdout = realstdout
     sys.stderr = realstderr
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "Exiting with = %s" % exitcode)
-    miscutils.fwdebug(3, 'PFWPOST_DEBUG', "type of exitcode = %s" % type(exitcode))
+    if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
+        miscutils.fwdebug_print("Exiting with = %s" % exitcode)
+        miscutils.fwdebug_print("type of exitcode = %s" % type(exitcode))
     sys.exit(exitcode)

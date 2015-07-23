@@ -4,6 +4,8 @@
 # $LastChangedBy::                        $:  # Author of last commit. 
 # $LastChangedDate::                      $:  # Date of last commit.
 
+# pylint: disable=print-statement
+
 """ Functions that handle a processing framework execution event """
 
 import os

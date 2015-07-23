@@ -4,9 +4,12 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+# pylint: disable=print-statement
+
 """ Contains functions used to check submit wcl for missing or invalid values """
 
 import processingfw.pfwdefs as pfwdefs
+import intgutils.intgmisc as intgmisc
 import despymisc.miscutils as miscutils
 import processingfw.pfwutils as pfwutils
 import filemgmt.filemgmt_defs as fmdefs
@@ -300,7 +303,7 @@ def check_module(config, blockname, modname, indent=''):
         cnts[ERRCNT_POS] += 1
 
     # check that have at least 1 exec section (required)
-    execsects = pfwutils.get_exec_sections(moddict, pfwdefs.SW_EXECPREFIX)
+    execsects = intgmisc.get_exec_sections(moddict, pfwdefs.SW_EXECPREFIX)
     if len(execsects) == 0:
         print "%s    Error: block %s, module %s - 0 exec sections (%s*)" % (indent, blockname, modname, pfwdefs.SW_EXECPREFIX)
         cnts[ERRCNT_POS] += 1

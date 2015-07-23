@@ -16,7 +16,7 @@ import filemgmt.archive_transfer_utils as archive_transfer_utils
 
 
 def endrun(configfile):
-    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "BEG")
+    miscutils.fwdebug_print("BEG")
 
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     os.chdir('../uberctrl')
@@ -61,13 +61,13 @@ def endrun(configfile):
 
 
     if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
-        miscutils.fwdebug(0, 'PFWENDRUN_DEBUG', "Calling update_attempt_end: retval = %s" % retval)
+        miscutils.fwdebug_print("Calling update_attempt_end: retval = %s" % retval)
         dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
         dbh.end_task(config['task_id']['attempt'], retval, True)
         dbh.commit()
         dbh.close()
 
-    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % retval)
+    miscutils.fwdebug_print("END - exiting with code %s" % retval)
     return(retval)
 
 

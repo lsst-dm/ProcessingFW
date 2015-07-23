@@ -3,13 +3,15 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+# pylint: disable=print-statement
+
 """
     Define a database utility class extending despydmdb.desdmdbi
 
-    Developed at: 
+    Developed at:
     The National Center for Supercomputing Applications (NCSA).
-  
-    Copyright (C) 2012 Board of Trustees of the University of Illinois. 
+
+    Copyright (C) 2012 Board of Trustees of the University of Illinois.
     All rights reserved.
 """
 
@@ -18,24 +20,14 @@ __version__ = "$Rev$"
 import os
 import sys
 import traceback
-import datetime
+from datetime import datetime
 from collections import OrderedDict
 
+import intgutils.intgdefs as intgdefs
 import despydmdb.desdmdbi as desdmdbi
 import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
 import processingfw.pfwutils as pfwutils
-
-#from errors import DuplicateDBFiletypeError
-#from errors import DuplicateDBHeaderError
-#from errors import IdMetadataHeaderError
-#from errors import FileMetadataIngestError
-#from errors import RequiredMetadataMissingError
-#from errors import DBMetadataNotFoundError
-
-PFW_MSG_ERROR = 3
-PFW_MSG_WARN = 2
-PFW_MSG_INFO = 1
 
 class PFWDB (desdmdbi.DesDmDbi):
     """
@@ -46,18 +38,19 @@ class PFWDB (desdmdbi.DesDmDbi):
     """
 
     def __init__ (self, *args, **kwargs):
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', args)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print(args)
         try:
             desdmdbi.DesDmDbi.__init__ (self, *args, **kwargs)
         except Exception as err:
             miscutils.fwdie("Error: problem connecting to database: %s\n\tCheck desservices file and environment variables" % err, pfwdefs.PF_EXIT_FAILURE)
-            
+
 
     def get_database_defaults(self):
         """ Grab default configuration information stored in database """
 
         result = OrderedDict()
-        
+
         result['archive'] = self.get_archive_info()
         result['archive_transfer'] = self.get_archive_transfer_info()
         result['job_file_mvmt'] = self.get_job_file_mvmt_info()
@@ -103,19 +96,19 @@ class PFWDB (desdmdbi.DesDmDbi):
 
 
         allparams = {}
-        allparams['task_id'] =  self.create_task(name = 'attempt', 
-                                                 info_table = 'pfw_attempt', 
-                                                 parent_task_id = None, 
-                                                 root_task_id = None, 
-                                                 label = None, 
+        allparams['task_id'] =  self.create_task(name = 'attempt',
+                                                 info_table = 'pfw_attempt',
+                                                 parent_task_id = None,
+                                                 root_task_id = None,
+                                                 label = None,
                                                  i_am_root = True,
                                                  do_commit = False)
         allparams['reqnum'] = config[pfwdefs.REQNUM]
-        allparams['unitname'] =  config.search(pfwdefs.UNITNAME, {'interpolate': True})[1]
-        allparams['project'] = config.search('project', {'interpolate': True})[1]
-        allparams['jiraid'] = config.search('jira_id', {'interpolate': True})[1]
-        allparams['pipeline'] = config.search('pipeline', {'interpolate': True})[1]
-        allparams['operator'] =  config.search('operator', {'interpolate': True})[1]
+        allparams['unitname'] =  config.get(pfwdefs.UNITNAME, {intgdefs.REPLACE_VARS: True})
+        allparams['project'] = config.get('project', {intgdefs.REPLACE_VARS: True})
+        allparams['jiraid'] = config.get('jira_id', {intgdefs.REPLACE_VARS: True})
+        allparams['pipeline'] = config.get('pipeline', {intgdefs.REPLACE_VARS: True})
+        allparams['operator'] =  config.get('operator', {intgdefs.REPLACE_VARS: True})
         allparams['numexpblk'] = len(miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST]))
 
         if 'DESDM_PIPEPROD' in os.environ:
@@ -128,19 +121,19 @@ class PFWDB (desdmdbi.DesDmDbi):
         else:
             allparams['subpipever'] = None
 
-        (exists, value) = config.search('basket', {'interpolate': True})
+        (exists, value) = config.search('basket', {intgdefs.REPLACE_VARS: True})
         if exists:
             allparams['basket'] = value
         else:
             allparams['basket'] = None
 
-        (exists, value) = config.search('group_submit_id', {'interpolate': True})
+        (exists, value) = config.search('group_submit_id', {intgdefs.REPLACE_VARS: True})
         if exists:
             allparams['group_submit_id'] = value
         else:
             allparams['group_submit_id'] = None
 
-        (exists, value) = config.search('campaign', {'interpolate': True})
+        (exists, value) = config.search('campaign', {intgdefs.REPLACE_VARS: True})
         if exists:
             allparams['campaign'] = value
         else:
@@ -161,39 +154,48 @@ class PFWDB (desdmdbi.DesDmDbi):
                 curs = self.cursor()
 
                 # pfw_request
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_request table\n")
-                sql =  "insert into pfw_request (reqnum, project, campaign, jira_id, pipeline) " 
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("Inserting to pfw_request table\n")
+                sql =  "insert into pfw_request (reqnum, project, campaign, jira_id, pipeline) "
                 sql += "select %s, %s, %s, %s, %s %s where not exists (select null from pfw_request where reqnum=%s)" % \
-                       (namebinds['reqnum'], namebinds['project'], namebinds['campaign'], namebinds['jiraid'], namebinds['pipeline'], 
+                       (namebinds['reqnum'], namebinds['project'], namebinds['campaign'], namebinds['jiraid'], namebinds['pipeline'],
                        from_dual, namebinds['reqnum'])
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % sql)
 
                 params = {}
                 for k in ['reqnum', 'project', 'jiraid', 'pipeline', 'campaign']:
                     params[k]=allparams[k]
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % params)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % params)
                 curs.execute(sql, params)
 
                 # pfw_unit
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_unit table\n")
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("Inserting to pfw_unit table\n")
                 curs = self.cursor()
                 sql = "insert into pfw_unit (reqnum, unitname) select %s, %s %s where not exists (select null from pfw_unit where reqnum=%s and unitname=%s)" % (namebinds['reqnum'], namebinds['unitname'], from_dual, namebinds['reqnum'], namebinds['unitname'])
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % sql)
                 params = {}
                 for k in ['reqnum', 'unitname']:
                     params[k]=allparams[k]
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % params)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % params)
                 curs.execute(sql, params)
 
                 # pfw_attempt
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_attempt table\n")
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("Inserting to pfw_attempt table\n")
                 ## get current max attnum and try next value
                 sql = "select max(attnum) from pfw_attempt where reqnum=%s and unitname=%s" % (namebinds['reqnum'], namebinds['unitname'])
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % sql)
                 params = {}
                 for k in ['reqnum', 'unitname']:
                     params[k]=allparams[k]
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % params)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % params)
                 curs.execute(sql, params)
                 maxarr = curs.fetchall()
                 if len(maxarr) == 0:
@@ -203,18 +205,20 @@ class PFWDB (desdmdbi.DesDmDbi):
                 else:
                     maxatt = int(maxarr[0][0])
 
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "maxatt = %s" % maxatt)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("maxatt = %s" % maxatt)
                 allparams['attnum'] = maxatt + 1
                 namebinds['attnum'] = self.get_named_bind_string('attnum')
 
                 # execute will fail if extra params
                 params = {}
-                needed_vals = ['reqnum', 'unitname', 'attnum', 'operator', 
-                               'numexpblk', 'basket', 'group_submit_id', 
+                needed_vals = ['reqnum', 'unitname', 'attnum', 'operator',
+                               'numexpblk', 'basket', 'group_submit_id',
                                'task_id', 'subpipeprod', 'subpipever']
                 for k in needed_vals:
                     params[k]=allparams[k]
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % params)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % params)
 
                 #sql = "insert into pfw_attempt (reqnum, unitname, attnum, operator, submittime, numexpblk, basket, group_submit_id, task_id, subpipeprod, subpipever) select %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s %s where not exists (select null from pfw_attempt where reqnum=%s and unitname=%s and attnum=%s)" % (namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'], namebinds['operator'], self.get_current_timestamp_str(), namebinds['numexpblk'], namebinds['basket'], namebinds['group_submit_id'], namebinds['task_id'], namebinds['subpipeprod'], namebinds['subpipever'], from_dual, namebinds['reqnum'], namebinds['unitname'], namebinds['attnum'])
                 subsql = "select null from pfw_attempt where reqnum=%s and unitname=%s and attnum=%s" % \
@@ -222,10 +226,11 @@ class PFWDB (desdmdbi.DesDmDbi):
                 sql = "insert into pfw_attempt (%s, submittime) select %s, %s %s where not exists (%s)" % \
                        (','.join(needed_vals),
                         ','.join(namebinds[x] for x in needed_vals),
-                        self.get_current_timestamp_str(), 
+                        self.get_current_timestamp_str(),
                         from_dual,
                         subsql)
-                miscutils.fwdebug(3, 'PFWDB_DEBUG', "\t%s\n" % sql)
+                if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                    miscutils.fwdebug_print("\t%s\n" % sql)
 
                 curs.execute(sql, params)
 
@@ -239,8 +244,8 @@ class PFWDB (desdmdbi.DesDmDbi):
                 print "namebinds> ", namebinds
                 (type, value, traceback) = sys.exc_info()
                 if loopcnt < maxtries:
-                    miscutils.fwdebug(0, 'PFWDB_DEBUG', "Warning: %s" % value)
-                    miscutils.fwdebug(0, 'PFWDB_DEBUG', "Retrying inserting run into database\n\n")
+                    miscutils.fwdebug_print("Warning: %s" % value)
+                    miscutils.fwdebug_print("Retrying inserting run into database\n\n")
                     loopcnt = loopcnt + 1
                     self.rollback()
                     continue
@@ -252,19 +257,20 @@ class PFWDB (desdmdbi.DesDmDbi):
 
 
         curs.close()
-        self.commit()  
+        self.commit()
 
 
     def insert_attempt_label(self, config):
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "Inserting into pfw_attempt_label table\n")
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("Inserting into pfw_attempt_label table\n")
 
         row = {}
         row['reqnum'] = config[pfwdefs.REQNUM]
-        row['unitname'] =  config.search(pfwdefs.UNITNAME, {'interpolate': True})[1]
+        row['unitname'] = config.get(pfwdefs.UNITNAME, {intgdefs.REPLACE_VARS: True})
         row['attnum'] = config[pfwdefs.ATTNUM]
 
         if pfwdefs.SW_LABEL in config:
-            labels = config.search(pfwdefs.SW_LABEL, {'interpolate': True})[1]
+            labels = config.get(pfwdefs.SW_LABEL, {intgdefs.REPLACE_VARS: True})
             labels = miscutils.fwsplit(labels,',')
             for label in labels:
                 row['label'] = label
@@ -273,19 +279,20 @@ class PFWDB (desdmdbi.DesDmDbi):
 
     def insert_attempt_val(self, config):
         """ Insert key/val pairs of information about an attempt into the pfw_attempt_val table """
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "Inserting into pfw_attempt_val table\n")
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("Inserting into pfw_attempt_val table\n")
 
         row = {}
         row['reqnum'] = config[pfwdefs.REQNUM]
-        row['unitname'] =  config.search(pfwdefs.UNITNAME, {'interpolate': True})[1]
+        row['unitname'] =  config.get(pfwdefs.UNITNAME, {intgdefs.REPLACE_VARS: True})
         row['attnum'] = config[pfwdefs.ATTNUM]
 
         if pfwdefs.SW_SAVE_RUN_VALS in config:
-            keys2save = config.search(pfwdefs.SW_SAVE_RUN_VALS, {'interpolate': True})[1]
+            keys2save = config.get(pfwdefs.SW_SAVE_RUN_VALS, {intgdefs.REPLACE_VARS: True})
             keys = miscutils.fwsplit(keys2save,',')
             for key in keys:
                 row['key'] = key
-                val = config.search(key, {'interpolate': True, 'expand': True})[1]
+                val = config.get(key, {intgdefs.REPLACE_VARS: True, 'expand': True})
                 if isinstance(val, list):
                     for v in val:
                         row['val'] = v
@@ -299,11 +306,11 @@ class PFWDB (desdmdbi.DesDmDbi):
         """ update row in pfw_attempt with relative path in archive """
 
         updatevals = {}
-        updatevals['archive_path'] = config.search(pfwdefs.ATTEMPT_ARCHIVE_PATH, {'interpolate': True})[1]
+        updatevals['archive_path'] = config.get(pfwdefs.ATTEMPT_ARCHIVE_PATH, {intgdefs.REPLACE_VARS: True})
 
         wherevals = {}
         wherevals['task_id'] = config['task_id']['attempt']
-        
+
         self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
 
 
@@ -340,9 +347,9 @@ class PFWDB (desdmdbi.DesDmDbi):
     #def update_attempt_end (self, config, exitcode):
     #    """ update row in pfw_attempt with end of attempt info """
     #
-    #    self.update_attempt_end_vals(config[pfwdefs.REQNUM], config[pfwdefs.UNITNAME], 
+    #    self.update_attempt_end_vals(config[pfwdefs.REQNUM], config[pfwdefs.UNITNAME],
     #                                 config[pfwdefs.ATTNUM], exitcode)
-        
+
 
     def update_attempt_end_vals (self, reqnum, unitname, attnum, exitcode):
         """ update row in pfw_attempt with end of attempt info """
@@ -357,35 +364,36 @@ class PFWDB (desdmdbi.DesDmDbi):
         wherevals['reqnum'] = reqnum
         wherevals['unitname'] = unitname
         wherevals['attnum'] = attnum
-        
+
         self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
 
 
     ##### BLOCK #####
     def insert_block (self, config):
         """ Insert an entry into the pfw_block table """
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_block table\n")
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("Inserting to pfw_block table\n")
 
-        blknum = config.search(pfwdefs.PF_BLKNUM, {'interpolate': False})[1]
+        blknum = config.get(pfwdefs.PF_BLKNUM, {intgdefs.REPLACE_VARS: False})
         if blknum == '1':  # attempt is starting
             #self.update_attempt_beg(config)
             self.begin_task(config['task_id']['attempt'], True)
 
-        blkname = config.search('blockname', {'interpolate': True})[1]
-            
+        blkname = config.get('blockname', {intgdefs.REPLACE_VARS: True})
+
         row = {}
         row['reqnum'] = config[pfwdefs.REQNUM]
         row['unitname'] = config[pfwdefs.UNITNAME]
         row['attnum'] = config[pfwdefs.ATTNUM]
         row['blknum'] = blknum
-        row['name'] = config.search('blockname', {'interpolate': True})[1]
-        row['target_site'] = config.search('target_site', {'interpolate': True})[1]
-        row['modulelist'] = config.search(pfwdefs.SW_MODULELIST, {'interpolate': True})[1]
-        row['task_id'] =  self.create_task(name = 'block', 
-                                           info_table = 'pfw_block', 
-                                           parent_task_id = int(config['task_id']['attempt']), 
-                                           root_task_id = int(config['task_id']['attempt']), 
-                                           label = None, 
+        row['name'] = config.get('blockname', {intgdefs.REPLACE_VARS: True})
+        row['target_site'] = config.get('target_site', {intgdefs.REPLACE_VARS: True})
+        row['modulelist'] = config.get(pfwdefs.SW_MODULELIST, {intgdefs.REPLACE_VARS: True})
+        row['task_id'] =  self.create_task(name = 'block',
+                                           info_table = 'pfw_block',
+                                           parent_task_id = int(config['task_id']['attempt']),
+                                           root_task_id = int(config['task_id']['attempt']),
+                                           label = None,
                                            do_commit = False)
         self.begin_task(row['task_id'])
         self.insert_PFW_row('PFW_BLOCK', row)
@@ -403,15 +411,16 @@ class PFWDB (desdmdbi.DesDmDbi):
         wherevals['reqnum'] = config[pfwdefs.REQNUM]
         wherevals['unitname'] = config[pfwdefs.UNITNAME]
         wherevals['attnum'] = config[pfwdefs.ATTNUM]
-        wherevals['blknum'] = config.search(pfwdefs.PF_BLKNUM, {'interpolate': False})[1]
+        wherevals['blknum'] = config.get(pfwdefs.PF_BLKNUM, {intgdefs.REPLACE_VARS: False})
 
         self.update_PFW_row ('PFW_BLOCK', updatevals, wherevals)
 
-        
+
     ##### JOB #####
     def insert_job (self, wcl, jobdict):
         """ Insert an entry into the pfw_job table """
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "Inserting to pfw_job table\n")
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("Inserting to pfw_job table\n")
 
         row = {}
         row['reqnum'] = wcl[pfwdefs.REQNUM]
@@ -422,20 +431,20 @@ class PFWDB (desdmdbi.DesDmDbi):
         row['expect_num_wrap'] = jobdict['numexpwrap']
         row['pipeprod'] = wcl['pipeprod']
         row['pipever'] = wcl['pipever']
-        row['task_id'] =  self.create_task(name = 'job', 
-                                           info_table = 'pfw_job', 
-                                           parent_task_id = wcl['task_id']['block'][row['blknum']], 
-                                           root_task_id = int(wcl['task_id']['attempt']), 
-                                           label = None, 
+        row['task_id'] =  self.create_task(name = 'job',
+                                           info_table = 'pfw_job',
+                                           parent_task_id = wcl['task_id']['block'][row['blknum']],
+                                           root_task_id = int(wcl['task_id']['attempt']),
+                                           label = None,
                                            do_commit = False)
         wcl['task_id']['job'][jobdict['jobnum']] = row['task_id']
 
         if 'jobkeys' in jobdict:
             row['jobkeys'] = jobdict['jobkeys']
         self.insert_PFW_row('PFW_JOB', row)
-            
 
-    def update_job_target_info (self, wcl, submit_condor_id = None, 
+
+    def update_job_target_info (self, wcl, submit_condor_id = None,
                                 target_batch_id = None, exechost=None):
         """ Save information about target job from pfwrunjob """
 
@@ -456,8 +465,10 @@ class PFWDB (desdmdbi.DesDmDbi):
 
             sql = "update pfw_job set %s where task_id=%s and condor_job_id is NULL" % (','.join(setvals), self.get_named_bind_string('task_id'))
 
-            miscutils.fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
-            miscutils.fwdebug(3, 'PFWDB_DEBUG', "params> %s" % params)
+            if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                miscutils.fwdebug_print("sql> %s" % sql)
+            if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                miscutils.fwdebug_print("params> %s" % params)
             curs = self.cursor()
             try:
                 curs.execute(sql, params)
@@ -470,7 +481,7 @@ class PFWDB (desdmdbi.DesDmDbi):
                 raise
 
             if curs.rowcount == 0:
-                self.insert_message(wcl['task_id']['job'], PFW_MSG_ERROR, 
+                self.insert_message(wcl['task_id']['job'], pfwdefs.PFWDB_MSG_ERROR,
                                     "Job attempted to run more than once")
 
                 print "******************************"
@@ -497,12 +508,12 @@ class PFWDB (desdmdbi.DesDmDbi):
                     print "\n"
 
 
-    
+
                 print "\nThe 2nd job information:"
                 print "submit_condor_id = ", submit_condor_id
                 print "target_batch_id = ", target_batch_id
                 print "exechost = ", exechost
-                print "current time = ", str(datetime.datetime.now())
+                print "current time = ", str(datetime.now())
 
                 print "\nupdate statement information"
                 print "sql> %s\n" % sql
@@ -524,8 +535,9 @@ class PFWDB (desdmdbi.DesDmDbi):
 
         jobnum = wcl[pfwdefs.PF_JOBNUM]
 
-        if junktar is not None: 
-            miscutils.fwdebug(3, 'PFWDB_DEBUG', "Saving junktar (%s) to pfw_job" % junktar)
+        if junktar is not None:
+            if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                miscutils.fwdebug_print("Saving junktar (%s) to pfw_job" % junktar)
             updatevals = {}
             updatevals['junktar'] = junktar
 
@@ -538,18 +550,23 @@ class PFWDB (desdmdbi.DesDmDbi):
     def update_job_info (self, wcl, jobnum, jobinfo):
         """ update row in pfw_job with information gathered post job from condor log """
 
-        miscutils.fwdebug(1, 'PFWDB_DEBUG', "Updating job information post job (%s)" % jobnum)
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "jobinfo=%s"%jobinfo)
+        if miscutils.fwdebug_check(1, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("Updating job information post job (%s)" % jobnum)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("jobinfo=%s" % jobinfo)
 
         wherevals = {}
-        wherevals['task_id'] = wcl['task_id']['job'][jobnum] 
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "wherevals = %s" %(wherevals))
+        wherevals['task_id'] = wcl['task_id']['job'][jobnum]
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("wherevals = %s" %(wherevals))
 
         if len(jobinfo) > 0:
             self.update_PFW_row ('PFW_JOB', jobinfo, wherevals)
         else:
-            miscutils.fwdebug(3, 'PFWDB_DEBUG', "Found 0 values to update (%s)" % (wherevals))
-            miscutils.fwdebug(6, 'PFWDB_DEBUG', "\tjobnum = %s, jobinfo = %s" % (jobnum, jobinfo))
+            if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+                miscutils.fwdebug_print("Found 0 values to update (%s)" % (wherevals))
+            if miscutils.fwdebug_check(6, 'PFWDB_DEBUG'):
+                miscutils.fwdebug_print("\tjobnum = %s, jobinfo = %s" % (jobnum, jobinfo))
 
 
     #def update_tjob_info(self, wcl, jobnum, jobinfo, taskinfo):
@@ -565,7 +582,7 @@ class PFWDB (desdmdbi.DesDmDbi):
         self.basic_update_row ('pfw_job', jobinfo, wherevals)
         self.commit()
 
-    
+
     ##### MSG #####
     def insert_message(self, task_id, msglevel, msg):
         """ Insert an entry into the pfw_message table """
@@ -573,8 +590,8 @@ class PFWDB (desdmdbi.DesDmDbi):
         row = {}
         row['task_id'] = task_id
         row['msgtime'] = self.get_current_timestamp_str()
-        row['msglevel'] = msglevel 
-        row['msg'] = msg 
+        row['msglevel'] = msglevel
+        row['msg'] = msg
         self.insert_PFW_row('PFW_MESSAGE', row)
 
 
@@ -590,11 +607,11 @@ class PFWDB (desdmdbi.DesDmDbi):
         row['wrapnum'] = wcl[pfwdefs.PF_WRAPNUM]
         row['modname'] = wcl['modname']
         row['name'] = wcl['wrapper']['wrappername']
-        row['task_id'] = self.create_task(name = 'wrapper', 
-                                          info_table = 'pfw_wrapper', 
+        row['task_id'] = self.create_task(name = 'wrapper',
+                                          info_table = 'pfw_wrapper',
                                           parent_task_id = parent_tid,
-                                          root_task_id = int(wcl['task_id']['attempt']), 
-                                          label = None, 
+                                          root_task_id = int(wcl['task_id']['attempt']),
+                                          label = wcl['modname'],
                                           do_commit = True)
         row['blknum'] = wcl[pfwdefs.PF_BLKNUM]
         row['jobnum'] = wcl[pfwdefs.PF_JOBNUM]
@@ -614,7 +631,6 @@ class PFWDB (desdmdbi.DesDmDbi):
             updatevals['outputwcl'] = os.path.split(owclfile)[-1]
         if logfile is not None:
             updatevals['log'] = os.path.split(logfile)[-1]
-
         wherevals = {}
         wherevals['task_id'] = wcl['task_id']['wrapper']
 
@@ -624,8 +640,9 @@ class PFWDB (desdmdbi.DesDmDbi):
     def insert_exec (self, wcl, sect):
         """ insert row into pfw_exec """
 
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', sect)
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', wcl[sect])
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print(sect)
+            miscutils.fwdebug_print(wcl[sect])
 
         row = {}
         row['reqnum'] = wcl[pfwdefs.REQNUM]
@@ -634,22 +651,24 @@ class PFWDB (desdmdbi.DesDmDbi):
         row['wrapnum'] = wcl[pfwdefs.PF_WRAPNUM]
         row['execnum'] = wcl[sect]['execnum']
         row['name'] = wcl[sect]['execname']
-        row['task_id'] =  self.create_task(name = sect, 
-                                           info_table ='pfw_exec', 
-                                           parent_task_id = wcl['task_id']['wrapper'], 
-                                           root_task_id = int(wcl['task_id']['attempt']), 
-                                           label=None, 
+        row['task_id'] =  self.create_task(name = sect,
+                                           info_table ='pfw_exec',
+                                           parent_task_id = wcl['task_id']['wrapper'],
+                                           root_task_id = int(wcl['task_id']['attempt']),
+                                           label=wcl[sect]['execname'],
                                            do_commit=True)
         if 'version' in wcl[sect] and wcl[sect]['version'] is not None:
             row['version'] = wcl[sect]['version']
 
         self.insert_PFW_row('PFW_EXEC', row)
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "end")
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("end")
         return row['task_id']
 
     def update_exec_version (self, taskid, version):
         """ update row in pfw_exec with exec version info """
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', taskid)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print(taskid)
 
         updatevals = {}
         updatevals['version'] = version
@@ -660,56 +679,89 @@ class PFWDB (desdmdbi.DesDmDbi):
         self.update_PFW_row ('PFW_EXEC', updatevals, wherevals)
 
 
-    def update_exec_end (self, execwcl, taskid, exitcode):
+    def update_exec_end (self, execwcl, taskid):
         """ update row in pfw_exec with end of exec info """
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', taskid)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print(taskid)
 
         # update pfw_exec table
         updatevals = {}
-        updatevals['cmdargs'] = execwcl['cmdlineargs']
-        updatevals['walltime'] = execwcl['walltime']
-        updatevals['status'] = exitcode
+        cmdargs = ''
+        if 'cmdline' in execwcl:
+            (_, _, cmdargs) = execwcl['cmdline'].partition(' ')
+        if len(cmdargs) > 0:
+            updatevals['cmdargs'] = cmdargs
+        if 'version' in execwcl:
+            updatevals['version'] = execwcl['version']
+        if 'procinfo' in execwcl:
+            prockeys = ['idrss', 'inblock', 'isrss', 'ixrss', 'majflt', 'maxrss',
+                        'minflt', 'msgrcv', 'msgsnd', 'nivcsw', 'nsignals', 'nswap',
+                        'nvcsw', 'oublock', 'stime', 'utime']
+            for pkey in prockeys:
+                rkey = 'ru_%s' % pkey
+                if rkey in execwcl['procinfo']:
+                    updatevals[pkey] = execwcl['procinfo'][rkey]
+                else:
+                    print "Warn:  didn't find %s in proc info" % rkey
 
-        wherevals = {}
-        wherevals['task_id'] = taskid
+        if len(updatevals) > 0:
+            wherevals = {}
+            wherevals['task_id'] = taskid
+            print "updatevals = ", updatevals
+            print "wherevals = ", updatevals
 
-        self.update_PFW_row ('PFW_EXEC', updatevals, wherevals)
+            self.update_PFW_row('PFW_EXEC', updatevals, wherevals)
 
         # update task table
         updatevals = {}
-        updatevals['status'] = exitcode
-        wherevals = {}
-        wherevals['id'] = taskid
-        self.basic_update_row ('TASK', updatevals, wherevals)
+        if 'task_info' in execwcl and 'run_command' in execwcl['task_info']:
+            wcl_task_info = execwcl['task_info']['run_command']
+            if 'start_time' in wcl_task_info:
+                updatevals['start_time'] = datetime.fromtimestamp(float(wcl_task_info['start_time']))
+            if 'end_time' in wcl_task_info:
+                updatevals['end_time'] =  datetime.fromtimestamp(float(wcl_task_info['end_time']))
+            if 'status' in wcl_task_info:
+                updatevals['status'] = wcl_task_info['status']
+            else:    # assume failure
+                updatevals['status'] = pfwdefs.PF_EXIT_FAILURE
+
+        if len(updatevals) > 0:
+            wherevals = {}
+            wherevals['id'] = taskid
+            print "updatevals = ", updatevals
+            print "wherevals = ", updatevals
+            self.basic_update_row('TASK', updatevals, wherevals)
         self.commit()
 
     #####
     def insert_data_query (self, wcl, modname, datatype, dataname, execname, cmdargs, version):
         """ insert row into pfw_data_query table """
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "BEG")
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("BEG")
 
         parent_tid = wcl['task_id']['begblock']
 
         row = {}
-        row['reqnum'] = wcl[pfwdefs.REQNUM] 
-        row['unitname'] = wcl[pfwdefs.UNITNAME] 
+        row['reqnum'] = wcl[pfwdefs.REQNUM]
+        row['unitname'] = wcl[pfwdefs.UNITNAME]
         row['attnum'] = wcl[pfwdefs.ATTNUM]
-        row['blknum'] = wcl[pfwdefs.PF_BLKNUM] 
+        row['blknum'] = wcl[pfwdefs.PF_BLKNUM]
         row['modname'] =  modname
         row['datatype'] = datatype   # file, list
         row['dataname'] = dataname
-        row['task_id'] = self.create_task(name = 'dataquery', 
-                                          info_table = 'PFW_DATA_QUERY', 
+        row['task_id'] = self.create_task(name = 'dataquery',
+                                          info_table = 'PFW_DATA_QUERY',
                                           parent_task_id = parent_tid,
-                                          root_task_id = int(wcl['task_id']['attempt']), 
-                                          label = None, 
+                                          root_task_id = int(wcl['task_id']['attempt']),
+                                          label = None,
                                           do_begin = True,
                                           do_commit = True)
         row['execname'] = os.path.basename(execname)
         row['cmdargs'] = cmdargs
         row['version'] = version
-        self.insert_PFW_row('PFW_DATA_QUERY', row) 
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "END")
+        self.insert_PFW_row('PFW_DATA_QUERY', row)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("END")
         return row['task_id']
 
 
@@ -719,9 +771,10 @@ class PFWDB (desdmdbi.DesDmDbi):
 
         self.basic_insert_row(pfwtable, row)
         self.commit()
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "end")
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("end")
 
-            
+
     ##########
     def update_PFW_row (self, pfwtable, updatevals, wherevals):
         """ Update a row in a PFW table and commit """
@@ -737,9 +790,11 @@ class PFWDB (desdmdbi.DesDmDbi):
 
         sql = "select j.*,t.* from pfw_job j, task t where t.id=j.task_id and %s" % (' and '.join(whclause))
 
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "params> %s" % wherevals)
-        
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("sql> %s" % sql)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("params> %s" % wherevals)
+
         curs = self.cursor()
         curs.execute(sql, wherevals)
         desc = [d[0].lower() for d in curs.description]
@@ -747,7 +802,7 @@ class PFWDB (desdmdbi.DesDmDbi):
         sql2 = "select * from pfw_message where task_id=%s" % self.get_named_bind_string('task_id')
         curs2 = self.cursor()
         curs2.prepare(sql2)
-            
+
         jobinfo = {}
         for line in curs:
             d = dict(zip(desc, line))
@@ -759,7 +814,7 @@ class PFWDB (desdmdbi.DesDmDbi):
                 msglist.append(mdict)
             d['message'] = msglist
             jobinfo[d['jobnum']] = d
-            
+
 
         return jobinfo
 
@@ -773,7 +828,7 @@ class PFWDB (desdmdbi.DesDmDbi):
         desc = [d[0].lower() for d in curs.description]
         attinfo = None
         row = curs.fetchone()    # should only be 1 row
-        if row is not None: 
+        if row is not None:
             attinfo = dict(zip(desc, row))
         return attinfo
 
@@ -785,7 +840,7 @@ class PFWDB (desdmdbi.DesDmDbi):
             sql += " and blknum = (select max blknum from pfw_block where reqnum=%s and attnum=%s and unitname='%s')"  % (reqnum, attnum, unitname)
         elif blknum is not None:
             sql += " and blknum=%s" % blknum
-            
+
         curs = self.cursor()
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
@@ -803,7 +858,7 @@ class PFWDB (desdmdbi.DesDmDbi):
             sql += " and blknum = (select max blknum from pfw_block where reqnum=%s and attnum=%s and unitname='%s')"  % (reqnum, attnum, unitname)
         elif blknum is not None:
             sql += " and blknum=%s" % blknum
-            
+
         #print "sql =", sql
         curs = self.cursor()
         curs.execute(sql)
@@ -830,11 +885,11 @@ class PFWDB (desdmdbi.DesDmDbi):
         return info
 
 
-    def get_run_filelist(self, reqnum, unitname, attnum, 
+    def get_run_filelist(self, reqnum, unitname, attnum,
                          blknum = None, archive=None):
 
         # store filenames in dictionary just to ensure don't get filename multiple times
-        filedict = {} 
+        filedict = {}
 
         # setup up common where clauses and params
         wherevals = {'reqnum': reqnum, 'unitname':unitname, 'attnum': attnum}
@@ -849,9 +904,11 @@ class PFWDB (desdmdbi.DesDmDbi):
         # search for output files
         sql = "select wgb.filename from wgb where %s" % (' and '.join(whclause))
 
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "params> %s" % wherevals)
-        
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("sql> %s" % sql)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("params> %s" % wherevals)
+
         curs = self.cursor()
         curs.execute(sql, wherevals)
 
@@ -859,13 +916,14 @@ class PFWDB (desdmdbi.DesDmDbi):
             filedict[row[0]] = True
 
 
-        # search for logs 
+        # search for logs
         # (not all logs show up in wgb, example ingestions which don't have output file)
         sql = "select log from pfw_wrapper where log is not NULL and %s" % (' and '.join(whclause))
 
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "params> %s" % wherevals)
-        
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("sql> %s" % sql)
+            miscutils.fwdebug_print("params> %s" % wherevals)
+
         curs = self.cursor()
         curs.execute(sql, wherevals)
 
@@ -875,19 +933,21 @@ class PFWDB (desdmdbi.DesDmDbi):
         # search for junk tarball
         sql = "select junktar from pfw_job where junktar is not NULL and %s" % (' and '.join(whclause))
 
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "sql> %s" % sql)
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "params> %s" % wherevals)
-        
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("sql> %s" % sql)
+            miscutils.fwdebug_print("params> %s" % wherevals)
+
         curs = self.cursor()
         curs.execute(sql, wherevals)
 
         for row in curs:
             filedict[row[0]] = True
 
-        
+
         # convert dictionary to list
         filelist = filedict.keys()
-        miscutils.fwdebug(3, 'PFWDB_DEBUG', "filelist = %s" % filelist)
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("filelist = %s" % filelist)
 
         if archive is not None:   # limit to files on a specified archive
             gtt_name = self.load_filename_gtt(filelist)

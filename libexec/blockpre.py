@@ -51,7 +51,7 @@ def write_block_condor(config):
 
     pfwcondor.write_condor_descfile('blocktask', filename, jobattribs, userattribs)
 
-    miscutils.fwdebug(0, "PFWBLOCK_DEBUG", "END\n\n")
+    miscutils.fwdebug_print("END\n\n")
 
     return filename
 
@@ -84,20 +84,20 @@ def blockpre(argv = None):
     config.set_block_info()
     config.write(configfile)
 
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "blknum = %s" % config[pfwdefs.PF_BLKNUM])
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "blockname = %s" % config['blockname'])
+    miscutils.fwdebug_print("blknum = %s" % config[pfwdefs.PF_BLKNUM])
+    miscutils.fwdebug_print("blockname = %s" % config['blockname'])
 
     blockname = config['blockname']
     blkdir = config['block_dir']
 
 
     # now that have more information, can rename output file
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
+    miscutils.fwdebug_print("getting new_log_name")
     new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
                                                   {'flabel': 'blockpre',
                                                    'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.chmod(DEFAULT_LOG, 0666)
@@ -116,7 +116,7 @@ def blockpre(argv = None):
     
     log_pfw_event(config, blockname, 'blockpre', 'j', ['pretask'])
     
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "DONE")
+    miscutils.fwdebug_print("blockpre done")
     debugfh.close()
 
     return(pfwdefs.PF_EXIT_SUCCESS)

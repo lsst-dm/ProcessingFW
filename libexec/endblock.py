@@ -11,7 +11,6 @@ import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
 from processingfw.runqueries import runqueries
-import processingfw.pfwwrappers as pfwwrappers
 import processingfw.pfwblock as pfwblock
 import processingfw.pfwdb as pfwdb
 import filemgmt.archive_transfer_utils as archive_transfer_utils
@@ -19,7 +18,7 @@ import filemgmt.archive_transfer_utils as archive_transfer_utils
 
 
 def endblock(configfile):
-    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "BEG")
+    miscutils.fwdebug_print("BEG")
 
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     blkdir = config['block_dir']
@@ -61,7 +60,7 @@ def endblock(configfile):
         # call transfer
         archive_transfer_utils.archive_copy(target_info, home_info, config['archive_transfer'], filelist, config)
 
-    miscutils.fwdebug(0, 'PFWBLOCK_DEBUG', "END - exiting with code %s" % pfwdefs.PF_EXIT_SUCCESS)
+    miscutils.fwdebug_print("END - exiting with code %s" % pfwdefs.PF_EXIT_SUCCESS)
     return(pfwdefs.PF_EXIT_SUCCESS)
 
 

@@ -41,12 +41,12 @@ def jobpre(argv = None):
     tjpad = pfwutils.pad_jobnum(jobnum)
 
     # now that have more information, can rename output file
-    miscutils.fwdebug(0, 'PFWJOBPRE_DEBUG', "getting new_log_name")
+    miscutils.fwdebug_print("getting new_log_name")
     new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum,
                                                         'flabel': 'jobpre',
                                                         'fsuffix':'out'}})
     new_log_name = "%s/%s/%s" % (blkdir, tjpad, new_log_name)
-    miscutils.fwdebug(0, 'PFWJOBPRE_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
     debugfh.close()
     os.chmod(tmpfn, 0666)
@@ -62,7 +62,7 @@ def jobpre(argv = None):
 
     log_pfw_event(config, blockname, tjpad, 'j', ['pretask'])
 
-    miscutils.fwdebug(0, 'PFWJOBPRE_DEBUG', "DONE")
+    miscutils.fwdebug_print("jobpre done")
     debugfh.close()
     return(pfwdefs.PF_EXIT_SUCCESS)
 

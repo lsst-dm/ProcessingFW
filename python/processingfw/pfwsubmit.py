@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # $Id$
 # $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
+
+# pylint: disable=print-statement
 
 """ need to write docstring """
 
@@ -10,15 +12,12 @@ import sys
 import time
 import re
 import os
-import stat
-import subprocess
 
+import intgutils.intgdefs as intgdefs
 import despymisc.miscutils as miscutils
-import processingfw.pfwutils as pfwutils
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwlog as pfwlog
-import processingfw.pfwdb as pfwdb
 
 
 ######################################################################
@@ -28,20 +27,20 @@ def min_wcl_checks(config):
 
     # check that reqnum and unitname exist
     if pfwdefs.REQNUM not in config:
-        miscutils.fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % pfwdefs.REQNUM, pfwdefs.PF_EXIT_FAILURE) 
+        miscutils.fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % pfwdefs.REQNUM, pfwdefs.PF_EXIT_FAILURE)
 
-    (exists, labelstr) = config.search(pfwdefs.UNITNAME, {'interpolate': True})
+    (exists, labelstr) = config.search(pfwdefs.UNITNAME, {intgdefs.REPLACE_VARS: True})
     if not exists:
-        miscutils.fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % pfwdefs.UNITNAME, pfwdefs.PF_EXIT_FAILURE) 
+        miscutils.fwdie("ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  Aborting submission." % pfwdefs.UNITNAME, pfwdefs.PF_EXIT_FAILURE)
 
     # check that any given labels are short enough
-    (exists, labelstr) = config.search(pfwdefs.SW_LABEL, {'interpolate': True})
+    (exists, labelstr) = config.search(pfwdefs.SW_LABEL, {intgdefs.REPLACE_VARS: True})
     if exists:
-        labels = miscutils.fwsplit(labelstr,',')
+        labels = miscutils.fwsplit(labelstr, ',')
         for lab in labels:
             if len(lab) > MAX_LABEL_LENGTH:
                 miscutils.fwdie("ERROR\nError: label %s is longer (%s) than allowed (%s).  Aborting submission." % \
-                      (lab, len(lab), MAX_LABEL_LENGTH), pfwdefs.PF_EXIT_FAILURE) 
+                      (lab, len(lab), MAX_LABEL_LENGTH), pfwdefs.PF_EXIT_FAILURE)
 
 
 ######################################################################
@@ -53,13 +52,13 @@ def create_common_vars(config, jobname):
     varstr = ""
     if len(attribs) > 0:
         varstr = "VARS %s" % jobname
-        for (key,val) in attribs.items():
+        for (key, val) in attribs.items():
             varstr += ' %s="%s"' % (key[len(pfwdefs.ATTRIB_PREFIX):], val)
     varstr += ' jobname="%s"' % jobname
     varstr += ' pfwdir="%s"' % config['processingfw_dir']
 
     return varstr
-    
+
 
 ######################################################################
 def write_block_dag(config, blkdir, blockname, debugfh=None):
@@ -67,7 +66,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
 
     if not debugfh:
         debugfh = sys.stderr
-    
+
     debugfh.write('write_block_dag pwd: %s\n' % os.getcwd())
 
     pfwdir = config['processingfw_dir']
@@ -78,7 +77,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     print "curr dir = ", os.getcwd()
 
     jobmngr = write_stub_jobmngr_dag(config, blockname, blkdir, debugfh)
-    dag = config.get_filename('blockdag', {'interpolate': True})
+    dag = config.get_filename('blockdag', {intgdefs.REPLACE_VARS: True})
 
     dagfh = open(dag, 'w')
 
@@ -88,7 +87,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     varstr = create_common_vars(config, 'begblock')
     dagfh.write('%s\n' % varstr)
     dagfh.write('SCRIPT pre begblock %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, blockname))
-    dagfh.write('SCRIPT post begblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, blockname))  
+    dagfh.write('SCRIPT post begblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, blockname))
 
     dagfh.write('\n')
     dagfh.write('JOB jobmngr %s.condor.sub\n' % jobmngr)
@@ -102,7 +101,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     varstr = create_common_vars(config, 'endblock')
     dagfh.write('%s\n' % varstr)
     dagfh.write('SCRIPT pre endblock %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB\n' % (pfwdir, blockname))
-    dagfh.write('SCRIPT post endblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, blockname))  
+    dagfh.write('SCRIPT post endblock %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN\n' % (pfwdir, blockname))
 
     dagfh.write('\nPARENT begblock CHILD jobmngr\n')
     dagfh.write('PARENT jobmngr CHILD endblock\n')
@@ -140,6 +139,7 @@ def write_main_dag(config, maindag):
     """ Writes main manager dag input file """
     pfwdir = config['processingfw_dir']
 
+    print "maindag = '%s', type=%s" % (maindag, type(maindag))
     dagfh = open(maindag, 'w')
 
     dagfh.write("""
@@ -150,15 +150,15 @@ VARS begrun arguments="../uberctrl/config.des"
     varstr = create_common_vars(config, 'begrun')
     dagfh.write('%s\n' % varstr)
 
-    blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(),',')
+    blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for i in range(len(blocklist)):
-        blockname = blocklist[i] 
-        blockdir = "../B%02d-%s" % (i+1,blockname)
-        cjobname = "B%02d-%s" % (i+1,blockname)
+        blockname = blocklist[i]
+        blockdir = "../B%02d-%s" % (i+1, blockname)
+        cjobname = "B%02d-%s" % (i+1, blockname)
         blockdag = write_block_dag(config, blockdir, blockname)
         dagfh.write("""
 JOB %(cjob)s %(bdir)s/%(bdag)s.condor.sub
-SCRIPT pre %(cjob)s %(pdir)s/libexec/blockpre.py ../uberctrl/config.des 
+SCRIPT pre %(cjob)s %(pdir)s/libexec/blockpre.py ../uberctrl/config.des
 SCRIPT post %(cjob)s %(pdir)s/libexec/blockpost.py ../uberctrl/config.des $RETURN
 
 """ % {'cjob':cjobname, 'bdir':blockdir, 'bdag':blockdag, 'pdir':pfwdir})
@@ -173,12 +173,12 @@ VARS endrun arguments="../uberctrl/config.des"
     varstr = create_common_vars(config, 'endrun')
     dagfh.write('%s\n' % varstr)
 
-    child = "B%02d-%s" % (1,blocklist[0])
+    child = "B%02d-%s" % (1, blocklist[0])
     dagfh.write("PARENT begrun CHILD %s\n" % child)
-    for i in range(1,len(blocklist)):
+    for i in range(1, len(blocklist)):
         parent = child
-        child = "B%02d-%s" % (i+1,blocklist[i])
-        dagfh.write("PARENT %s CHILD %s\n" % (parent,child))
+        child = "B%02d-%s" % (i+1, blocklist[i])
+        dagfh.write("PARENT %s CHILD %s\n" % (parent, child))
     dagfh.write("PARENT %s CHILD endrun\n" % child)
 
     dagfh.close()
@@ -188,7 +188,7 @@ VARS endrun arguments="../uberctrl/config.des"
 ######################################################################
 def run_sys_checks():
     """ Check valid system environemnt (e.g., condor setup) """
-      
+
     ### Check for Condor in path as well as daemons running
     print '\tChecking for Condor....',
     MAX_TRIES = 5
@@ -220,12 +220,12 @@ def run_sys_checks():
 ######################################################################
 def submit_main_dag(config, dagfile, logfh):
     """ Submit main DAG file to Condor"""
-    (exitcode, outtuple) = pfwcondor.condor_submit('%s.condor.sub' % 
+    (exitcode, outtuple) = pfwcondor.condor_submit('%s.condor.sub' %
                             (dagfile))
     if exitcode or re.search('ERROR', outtuple[0]):
         sys.stderr.write('\n%s\n' % (outtuple[0]))
 
-        logfh.write('\ncondor_submit %s.condor.sub\n%s\n' % 
+        logfh.write('\ncondor_submit %s.condor.sub\n%s\n' %
                     (dagfile, outtuple[0]))
     else:
         print '\nImage processing successfully submitted:'
@@ -235,14 +235,14 @@ def submit_main_dag(config, dagfile, logfh):
     print '\n'
 
     # for completeness, log condorid of pipeline manager
-    dagjob = pfwcondor.parse_condor_user_log('%s/%s.dagman.log' % 
+    dagjob = pfwcondor.parse_condor_user_log('%s/%s.dagman.log' %
                         (config['uberctrl_dir'], dagfile))
     jobids = dagjob.keys()
     condorid = None
     if len(jobids) == 1:
         condorid = int(jobids[0])
     pfwlog.log_pfw_event(config, 'analysis', 'j', 'mngr', 'pretask')
-    pfwlog.log_pfw_event(config, 'analysis', 'j', 'mngr', 
+    pfwlog.log_pfw_event(config, 'analysis', 'j', 'mngr',
                          {'cid': condorid})
 
     return condorid
@@ -253,7 +253,8 @@ def create_submitside_dirs(config):
     """ Create directories for storage of pfw files on submit side """
     # make local working dir
     workdir = config['work_dir']
-    miscutils.fwdebug(3, 'PFWSUBMIT_DEBUG', "workdir = %s" % workdir)
+    if miscutils.fwdebug_check(3, 'PFWSUBMIT_DEBUG'):
+        miscutils.fwdebug_print("workdir = %s" % workdir)
 
     if os.path.exists(workdir):
         raise Exception('%s subdirectory already exists.\nAborting submission' % (workdir))
@@ -263,7 +264,8 @@ def create_submitside_dirs(config):
     print 'DONE'
 
     uberdir = config['uberctrl_dir']
-    miscutils.fwdebug(3, 'PFWSUBMIT_DEBUG', "uberdir = %s" % uberdir)
+    if miscutils.fwdebug_check(3, 'PFWSUBMIT_DEBUG'):
+        miscutils.fwdebug_print("uberdir = %s" % uberdir)
     print '\tMaking submit uberctrl directory...',
     miscutils.coremakedirs(uberdir)
     print 'DONE'

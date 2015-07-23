@@ -37,7 +37,7 @@ def dump_db_config(argv=None):
     sys.stdout.flush()
     starttime = time.time()
     with open(args.outfilename, "w") as outfh:
-        dbwcl.write_wcl(outfh, True, 4)
+        dbwcl.write(outfh, True, 4)
     print "Done (%0.2f secs)" % (time.time()-starttime)
 
     return 0

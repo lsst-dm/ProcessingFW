@@ -36,6 +36,15 @@ class PfwConfig:
         # data which needs to be searched also must go in self.config
         self.config = OrderedDict()
 
+        if 'usePFWconfig' in args and miscutils.convertBool(args['usePFWconfig']):
+            pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
+            starttime = time.time()
+            print "\tReading config from software install...",
+            fh = open(pfwconfig, "r")
+            wclutils.updateDict(self.config, wclutils.read_wcl(fh, filename=pfwconfig))
+            fh.close()
+            print "DONE (%0.2f secs)" % (time.time()-starttime)
+
         wcldict = OrderedDict()
         if 'wclfile' in args:
             #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading wclfile: %s" % (args['wclfile']))
@@ -72,19 +81,13 @@ class PfwConfig:
             if var in args and args[var] is not None:
                 wcldict[var] = args[var]
 
-        if 'usePFWconfig' in args:
-            pfwconfig = os.environ['PROCESSINGFW_DIR'] + '/etc/pfwconfig.des' 
-            #miscutils.fwdebug(3, 'PFWCONFIG_DEBUG', "Reading pfwconfig: %s" % (pfwconfig))
-            starttime = time.time()
-            print "\tReading config from software install...",
-            fh = open(pfwconfig, "r")
-            wclutils.updateDict(self.config, wclutils.read_wcl(fh, filename=pfwconfig))
-            fh.close()
-            print "DONE (%0.2f secs)" % (time.time()-starttime)
 
-        if (pfwdefs.PF_USE_DB_IN in wcldict and 
-            miscutils.convertBool(wcldict[pfwdefs.PF_USE_DB_IN]) and 
-            'get_db_config' in args and args['get_db_config']):
+        if ('get_db_config' in args and args['get_db_config'] and 
+                ((pfwdefs.PF_USE_DB_IN in wcldict and
+                  miscutils.convertBool(wcldict[pfwdefs.PF_USE_DB_IN])) or
+                 (pfwdefs.PF_USE_DB_IN in self.config and
+                  miscutils.convertBool(self.config[pfwdefs.PF_USE_DB_IN])))):
+
             print "\tGetting defaults from DB...",
             sys.stdout.flush()
             starttime = time.time()

@@ -30,6 +30,8 @@ import despydmdb.dbsemaphore as dbsem
 
 VERSION = '$Rev$'
 
+
+
 ######################################################################
 def get_batch_id_from_job_ad(jobad_file):
     """ Parse condor job ad to get condor job id """
@@ -196,7 +198,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
     
     trans_task_id = 0
     if pfw_dbh is not None:
-        trans_task_id = pfw_dbh.create_task(name = 'transfer', 
+        trans_task_id = pfw_dbh.create_task(name = 'trans_input_%s' % dest, 
                                             info_table = None,
                                             parent_task_id = parent_tid,
                                             root_task_id = wcl['task_id']['attempt'],
@@ -263,15 +265,13 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
         if pfw_dbh is not None:
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
-        sem = None
-        if wcl['use_db'] and 'transfer_semname' in wcl:
-            sem = dbsem.DBSemaphore(wcl['transfer_semname'], trans_task_id)
-            miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
+        sem = get_semaphore(wcl, 'input', dest, trans_task_id)
 
         if dest.lower() == 'target':
             results = jobfilemvmt.target2job(transinfo)
         else:
             results = jobfilemvmt.home2job(transinfo)
+
         if sem is not None:
             miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Releasing lock")
             del sem
@@ -671,7 +671,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "TRANSFER JOB TO ARCHIVE SECTION")
     tasknum = -1
     if pfw_dbh is not None:
-        trans_task_id = pfw_dbh.create_task(name = 'job2archive',
+        trans_task_id = pfw_dbh.create_task(name = 'trans_output_%s' % dest,
                                             info_table = None,
                                             parent_task_id = parent_tid,
                                             root_task_id = wcl['task_id']['attempt'],
@@ -762,14 +762,13 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest, parent_tid, task
     # tranfer files to archive
     #pretty_print_dict(putinfo)
     starttime = time.time()
-    sem = None
-    if wcl['use_db'] and 'transfer_semname' in wcl:
-        sem = dbsem.DBSemaphore(wcl['transfer_semname'], trans_task_id)
-        miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
+    sem = get_semaphore(wcl, 'output', dest, trans_task_id)
+
     if dest.lower() == 'target':
         results = jobfilemvmt.job2target(saveinfo)
     else:
         results = jobfilemvmt.job2home(saveinfo)
+
     if sem is not None:
         miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Releasing lock")
         del sem
@@ -1318,6 +1317,7 @@ def create_junk_tarball(pfw_dbh, wcl, exitcode):
      
 
 
+######################################################################
 def parse_args(argv):
     """ Parse the command line arguments """
     parser = argparse.ArgumentParser(description='pfwrun_job.py')
@@ -1333,6 +1333,29 @@ def parse_args(argv):
 
     return args
 
+
+######################################################################
+def get_semaphore(wcl, stype, dest, trans_task_id):
+    """ create semaphore if being used """
+    miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", 
+                      "get_semaphore: stype=%s dest=%s tid=%s" % (stype, dest, trans_task_id))
+
+    sem = None
+    if wcl['use_db']:
+        semname = None
+        if dest.lower() == 'target' and '%s_transfer_semname_target' % stype.lower() in wcl:
+            semname = wcl['%s_transfer_semname_target' % stype.lower()]
+        elif dest.lower() != 'target' and '%s_transfer_semname_home' % stype.lower() in wcl:
+            semname = wcl['%s_transfer_semname_home' % stype.lower()]
+        elif '%s_transfer_semname' % stype.lower() in wcl:
+            semname = wcl['%s_transfer_semname' % stype.lower()]
+        elif 'transfer_semname' in wcl:
+            semname = wcl['transfer_semname']
+
+        if semname is not None and semname != '__NONE__':
+            sem = dbsem.DBSemaphore(semname, trans_task_id)
+            miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
+    return sem
 
 if __name__ == '__main__':
     os.putenv('PYTHONUNBUFFERED', 'true')

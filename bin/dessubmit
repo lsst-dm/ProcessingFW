@@ -97,6 +97,8 @@ def main(args):
 
         args['wclfile'] = args['submitwcl'][0]
         args['get_db_config'] = True
+        if args['usePFWconfig'] is None:
+            args['usePFWconfig'] = True
 
         if args[pfwdefs.PF_USE_QCF] and not args[pfwdefs.PF_USE_DB_OUT]:
             print "Note: cannot use QCF if %s is False" % pfwdefs.PF_USE_DB_OUT
@@ -127,6 +129,9 @@ def main(args):
 
             print 'Checking system:'
             pfwsubmit.run_sys_checks()
+
+            print 'Checking if need proxy:'
+            pfwsubmit.check_proxy(config)
 
             config.set_submit_info()
 

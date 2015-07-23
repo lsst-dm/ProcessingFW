@@ -7,17 +7,13 @@
 import re
 import os
 import sys
-import inspect
 import tarfile
 import errno
 import time
 import subprocess
 from collections import OrderedDict
-from collections import Mapping
 
-import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
-import intgutils.wclutils as wclutils
 
 """ Miscellaneous support functions for processing framework """
 #######################################################################
@@ -48,7 +44,7 @@ def get_hdrup_sections(wcl, prefix):
             hdrups[key] = val
     return hdrups
 
-        
+
 
 #######################################################################
 def search_wcl_for_variables(wcl):
@@ -67,7 +63,7 @@ def search_wcl_for_variables(wcl):
                 usedvars[vstr] = True
         else:
             miscutils.fwdebug(9, "PFWUTILS_DEBUG", "Note: wcl is not string.    key = %s, type(val) = %s, val = '%s'" % (key, type(val), val))
-    
+
     miscutils.fwdebug(9, "PFWUTILS_DEBUG", "END")
     return usedvars
 
@@ -177,7 +173,7 @@ def get_version(execname, execdefs):
 
     ver = None
     if ( execname.lower() in execdefs and
-         'version_flag' in execdefs[execname.lower()] and 
+         'version_flag' in execdefs[execname.lower()] and
          'version_pattern' in execdefs[execname.lower()] ):
         verflag = execdefs[execname.lower()]['version_flag']
         verpat = execdefs[execname.lower()]['version_pattern']
@@ -331,7 +327,7 @@ def run_cmd_qcf(cmd, logfilename, id, execnames, bufsize=5000, useQCF=False):
 
 
 #######################################################################
-def index_job_info(jobinfo):    
+def index_job_info(jobinfo):
     """ create dictionary of jobs indexed on blknum """
     # index jobinfo by blknum
     job_byblk = {}
@@ -361,7 +357,7 @@ def index_wrapper_info(wrapinfo):
     return wrap_byjob, wrap_bymod
 
 #######################################################################
-def should_save_file(mastersave, filesave, exitcode):      
+def should_save_file(mastersave, filesave, exitcode):
     msave = mastersave.lower()
 
     if msave == 'failure':

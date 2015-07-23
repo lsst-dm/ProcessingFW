@@ -423,7 +423,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
             for name in fullname:
                 winst['wrapoutputs'][len(winst['wrapinputs'])+1] = name
 
-        winst[pfwdefs.IW_FILESECT][fname]['fullname'] = ', '.join(fullname)
+        winst[pfwdefs.IW_FILESECT][fname]['fullname'] = ','.join(fullname)
         #print winst[pfwdefs.IW_FILESECT][fname]['fullname']
         del winst[pfwdefs.IW_FILESECT][fname]['filename']
 
@@ -1015,8 +1015,12 @@ def write_jobwcl(config, jobkey, jobdict):
     if 'transfer_stats' in config:
         jobwcl['transfer_stats'] = config['transfer_stats']
 
-    if 'transfer_semname' in config:
-        jobwcl['transfer_semname'] = config['transfer_semname']
+    # copy transfer_semname keys to jobwcl
+    for tsemname in ['input_transfer_semname_target', 'input_transfer_semname_home', 'input_transfer_semname',
+                     'output_transfer_semname_target', 'output_transfer_semname_home', 'output_transfer_semname',
+                     'transfer_semname']:
+        if tsemname in config:
+            jobwcl[tsemname] = config[tsemname]
 
     if pfwdefs.MASTER_SAVE_FILE in config:
         jobwcl[pfwdefs.MASTER_SAVE_FILE] = config[pfwdefs.MASTER_SAVE_FILE]
@@ -2185,7 +2189,13 @@ def stage_inputs(config, inputfiles):
         sys.stdout.flush()
         sem = None
         if config['use_db']:
-            sem = dbsem.DBSemaphore('filetrans')
+            if 'input_transfer_semname_prestage' in config:
+                semname = config['input_transfer_semname_prestage']
+            elif 'input_transfer_semname' in config:
+                semname = config['input_transfer_semname']
+            elif 'transfer_semname' in config:
+                semname = config['transfer_semname']
+            sem = dbsem.DBSemaphore(semname, None)
         archive_transfer_utils.archive_copy(config['archive'][config[pfwdefs.HOME_ARCHIVE]],
                                             config['archive'][config[pfwdefs.TARGET_ARCHIVE]],
                                             config['archive_transfer'],

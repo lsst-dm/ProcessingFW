@@ -7,13 +7,16 @@
 """ Program executed at beginning of processing attempt """
 
 import sys
+import os
 
 import despymisc.miscutils as miscutils
 import filemgmt.utils as fmutils
 import filemgmt.disk_utils_local as diskutils
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
+from processingfw.pfwemail import send_email
 
+######################################################################
 def save_submit_file_info(config, filemgmt, expwcl, fullcfg):
     """ Save meta information and provenance for submit files """
     # get artifact information
@@ -46,6 +49,7 @@ def save_submit_file_info(config, filemgmt, expwcl, fullcfg):
 
 
 
+######################################################################
 def copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg):
     """ Copy submit files to home archive """
 
@@ -61,9 +65,8 @@ def copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg):
     miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'files2copy = %s' % files2copy)
 
     # load file mvmt class
-    submit_files_mvmt = config['submit_files_mvmt']
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'submit_files_mvmt = %s' % submit_files_mvmt)
-    filemvmt_class = miscutils.dynamically_load_class(submit_files_mvmt)
+    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'submit_files_mvmt = %s' % config['submit_files_mvmt'])
+    filemvmt_class = miscutils.dynamically_load_class(config['submit_files_mvmt'])
     valdict = fmutils.get_config_vals(config['job_file_mvmt'], config,
                                       filemvmt_class.requested_config_vals())
     filemvmt = filemvmt_class(archive_info, None, None, None, valdict)
@@ -88,53 +91,91 @@ def copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg):
 
 
 
+######################################################################
 def begrun(argv):
     """ Performs steps executed on submit machine at beginning of processing attempt """
-    configfile = argv[0]
-    config = pfwconfig.PfwConfig({'wclfile': configfile})
 
-    miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'use_home_archive_output = %s' % \
-                                         config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
+    try:
+        configfile = argv[0]
+        config = pfwconfig.PfwConfig({'wclfile': configfile})
 
-    # if not a dryrun and using a home archive for output
-    if (config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never' and
-            'submit_files_mvmt' in config and
-            (pfwdefs.PF_DRYRUN not in config or
-             not miscutils.convertBool(config[pfwdefs.PF_DRYRUN]))):
+        miscutils.fwdebug(6, 'BEGRUN_DEBUG', 'use_home_archive_output = %s' % \
+                                              config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT])
 
-        # the two wcl files to copy to the home archive
-        expwcl = config['expwcl']
-        fullcfg = config['fullcfg']
+        # if not a dryrun and using a home archive for output
+        if (config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never' and
+                'submit_files_mvmt' in config and
+                (pfwdefs.PF_DRYRUN not in config or
+                 not miscutils.convertBool(config[pfwdefs.PF_DRYRUN]))):
 
-        # get home archive info
-        home_archive = config['home_archive']
-        archive_info = config['archive'][home_archive]
+            # the two wcl files to copy to the home archive
+            expwcl = config['expwcl']
+            fullcfg = config['fullcfg']
 
-        # load filemgmt class
-        filemgmt = None
-        try:
-            filemgmt_class = miscutils.dynamically_load_class(archive_info['filemgmt'])
-            valdict = fmutils.get_config_vals(archive_info, config,
-                                              filemgmt_class.requested_config_vals())
-            filemgmt = filemgmt_class(config=valdict)
-        except:
-            value = sys.exc_info()[1]
-            msg = "Error: creating filemgmt object %s" % value
-            print "ERROR\n%s" % msg
-            raise
+            # get home archive info
+            home_archive = config['home_archive']
+            archive_info = config['archive'][home_archive]
 
-        save_submit_file_info(config, filemgmt, expwcl, fullcfg)
-        copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg)
+            # load filemgmt class
+            filemgmt = None
+            try:
+                filemgmt_class = miscutils.dynamically_load_class(archive_info['filemgmt'])
+                valdict = fmutils.get_config_vals(archive_info, config,
+                                                  filemgmt_class.requested_config_vals())
+                filemgmt = filemgmt_class(config=valdict)
+            except:
+                value = sys.exc_info()[1]
+                msg = "Error: creating filemgmt object %s" % value
+                print "ERROR\n%s" % msg
+                raise
 
-        filemgmt.commit()
+            save_submit_file_info(config, filemgmt, expwcl, fullcfg)
+            copy_files_home(config, archive_info, filemgmt, expwcl, fullcfg)
 
-    if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])):
-        print "Saving attempt's archive path into PFW tables...",
-        import processingfw.pfwdb as pfwdb
-        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        dbh.update_attempt_archive_path(config)
-        dbh.commit()
+            filemgmt.commit()
 
+        if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+            print "Saving attempt's archive path into PFW tables...",
+            import processingfw.pfwdb as pfwdb
+            dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+            dbh.update_attempt_archive_path(config)
+            dbh.commit()
+    except Exception as exc:
+        send_failed_email(config, "%s: %s" % (exc.__class__.__name__, str(exc)))
+        raise
+    except SystemExit as exc:
+        send_failed_email(config, "SysExit=%s" % str(exc))
+        raise
+
+
+######################################################################
+def send_failed_email(config, msg2):
+    """ Send failed email """
+
+    if 'when_to_email' in config and config['when_to_email'].lower() != 'never':
+        print "Sending run failed email\n"
+        msg1 = "%s:  processing attempt has failed in begrun." % (config['submit_run'])
+        msg2 = "Typical failures to look for:\n"
+        msg2 += "\tMissing desservices file section needed by file transfer\n"
+        msg2 += "\tPermission problems in archive\n\n"
+
+        outfile = "%s_begrun.out" % config['submit_run']
+        msg2 += "########## %s ##########\n" % outfile
+        if os.path.exists(outfile):
+            with open(outfile, 'r') as outfh:
+                msg2 += '\n'.join(outfh.readlines())
+        else:
+            msg2 += 'Missing stdout\n'
+
+        outfile = "%s_begrun.err" % config['submit_run']
+        msg2 += "########## %s ##########\n" % outfile
+        if os.path.exists(outfile):
+            with open(outfile, 'r') as outfh:
+                msg2 += '\n'.join(outfh.readlines())
+        else:
+            msg2 += 'Missing stderr\n'
+
+        send_email(config, "", pfwdefs.PF_EXIT_FAILURE, "", msg1, msg2)
 
 if __name__ == "__main__":
     print ' '.join(sys.argv)  # print command line for debugging

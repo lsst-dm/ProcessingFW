@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # $Id$
 # $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
+
+""" Generic query to the DB to determine input files """
 
 import argparse
 import sys
@@ -12,8 +14,9 @@ import intgutils.queryutils as queryutils
 import processingfw.pfwdb as pfwdb
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
-    
-def main(argv):    
+
+def main(argv):
+    """ Program entry point """
     parser = argparse.ArgumentParser(description='genquery.py')
     parser.add_argument('--qoutfile', action='store')
     parser.add_argument('--qouttype', action='store')
@@ -21,42 +24,44 @@ def main(argv):
     parser.add_argument('--module', action='store', dest='modulename')
     parser.add_argument('--search', action='store', dest='searchname')
     args = parser.parse_args(argv)
-    
+
     if args.modulename is None:
         raise Exception("Error: Must specify module\n")
-    
+
     print args.configfile
     config = pfwconfig.PfwConfig({'wclfile':args.configfile})
-    
+
     if args.modulename not in config[pfwdefs.SW_MODULESECT]:
         raise Exception("Error: module '%s' does not exist.\n" % (args.modulename))
-    
+
     module_dict = config[pfwdefs.SW_MODULESECT][args.modulename]
-    
+
     if args.searchname is not None:
-        if pfwdefs.SW_LISTSECT in module_dict and args.searchname in module_dict[pfwdefs.SW_LISTSECT]:
+        if pfwdefs.SW_LISTSECT in module_dict and \
+           args.searchname in module_dict[pfwdefs.SW_LISTSECT]:
             search_dict = module_dict[pfwdefs.SW_LISTSECT][args.searchname]
-        elif pfwdefs.SW_FILESECT in module_dict and args.searchname in module_dict[pfwdefs.SW_FILESECT]:
+        elif pfwdefs.SW_FILESECT in module_dict and \
+             args.searchname in module_dict[pfwdefs.SW_FILESECT]:
             search_dict = module_dict[pfwdefs.SW_FILESECT][args.searchname]
         else:
-            raise Exception("Error: Could not find either list or file by name %s in module %s\n" % (args.searchname, args.modulename))
-        nickname = args.searchname
+            raise Exception("Error: Could not find either list or file by name %s in module %s\n" % \
+                            (args.searchname, args.modulename))
     else:
         raise Exception("Error: need to define either list or file or search\n")
 
 
     archive_names = []
 
-    if config[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never':
-        archive_names.append(config[pfwdefs.HOME_ARCHIVE])
+    if config.getfull(pfwdefs.USE_HOME_ARCHIVE_INPUT) != 'never':
+        archive_names.append(config.getfull(pfwdefs.HOME_ARCHIVE))
 
-    if config[pfwdefs.USE_TARGET_ARCHIVE_INPUT] != 'never':
-        archive_names.append(config[pfwdefs.TARGET_ARCHIVE])
-    
+    if config.getfull(pfwdefs.USE_TARGET_ARCHIVE_INPUT) != 'never':
+        archive_names.append(config.getfull(pfwdefs.TARGET_ARCHIVE))
+
     fields = miscutils.fwsplit(search_dict[pfwdefs.SW_QUERYFIELDS].lower())
-    
-    if ('query_run' in config and 'fileclass' in search_dict and 
-        'fileclass' in config and search_dict['fileclass'] == config['fileclass']):
+
+    if ('query_run' in config and 'fileclass' in search_dict and
+            'fileclass' in config and search_dict['fileclass'] == config['fileclass']):
         query_run = config['query_run'].lower()
         if query_run == 'current':
             fields.append('run')
@@ -69,52 +74,52 @@ def main(argv):
                 block_num = config['current']['curr_blocknum']
                 if block_num > 0:
                     fields.append('run')
-    
+
     query = {}
     qtable = search_dict['query_table']
-    for f in fields:
+    for fld in fields:
         table = qtable
-        if '.' in f:
-            table, f = f.split('.')
+        if '.' in fld:
+            table, fld = fld.split('.')
 
-        if f in search_dict:
-            value = search_dict[f]
-        elif f in module_dict:
-            value = module_dict[f]
-        elif f in config:
-            value = config[f]
+        if fld in search_dict:
+            value = search_dict[fld]
+        elif fld in module_dict:
+            value = module_dict[fld]
+        elif fld in config:
+            value = config.getfull(fld)
         else:
-            raise Exception("Error: blockmain could not find value for query field %s\n" % (f))
-    
-        value = config.interpolate(value)
+            raise Exception("Error: blockmain could not find value for query field %s\n" % (fld))
+
+        value = config.getfull(value)
         if ',' in value:
             value = miscutils.fwsplit(value)
 
         if ':' in value:
             value = miscutils.fwsplit(value)
-    
+
         if table not in query:
             query[table] = {}
 
         if 'key_vals' not in query[table]:
             query[table]['key_vals'] = {}
-        
-        query[table]['key_vals'][f] = value
-    
-    
+
+        query[table]['key_vals'][fld] = value
+
+
     # if specified, insert join into query hash
     if 'join' in search_dict:
         joins = miscutils.fwsplit(search_dict['join'].lower())
         for j in joins:
-            m = re.search("(\S+)\.(\S+)\s*=\s*(\S+)", j)
-            if m:
-                table = m.group(1)
+            jmatch = re.search(r"(\S+)\.(\S+)\s*=\s*(\S+)", j)
+            if jmatch:
+                table = jmatch.group(1)
                 if table not in query:
                     query[table] = {}
                 if 'join' not in query[table]:
                     query[table]['join'] = j
                 else:
-                    query[m.group(1)]['join'] += "," + j
+                    query[jmatch.group(1)]['join'] += "," + j
         #query[table]['join']=search_dict['join']
 
 
@@ -126,10 +131,10 @@ def main(argv):
 
 
         for ofield in output_fields:
-            m = re.search("(\S+)\.(\S+)", ofield)
-            if m:
-                table = m.group(1)
-                field = m.group(2)
+            ofmatch = re.search(r"(\S+)\.(\S+)", ofield)
+            if ofmatch:
+                table = ofmatch.group(1)
+                field = ofmatch.group(2)
             else:
                 table = qtable
                 field = ofield
@@ -141,9 +146,9 @@ def main(argv):
                 query[table]['select_fields'].append(field)
 
 
-    for t in query:
-        if 'select_fields' in query[t]:
-            query[t]['select_fields'] = ','.join(query[t]['select_fields'])
+    for tbl in query:
+        if 'select_fields' in query[tbl]:
+            query[tbl]['select_fields'] = ','.join(query[tbl]['select_fields'])
 
     if len(archive_names) > 0:
         #query[qtable]['join'] = "%s.filename=file_archive_info.filename" % qtable
@@ -154,47 +159,19 @@ def main(argv):
     print "Calling gen_file_list with the following query:\n"
     miscutils.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
     print "\n\n"
-    dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+    dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+                      config.getfull('submit_des_db_section'))
     files = queryutils.gen_file_list(dbh, query)
-    
+
     if len(files) == 0:
-        raise Exception("genquery: query returned zero results for %s\nAborting\n" % args.searchname)
-    
-    
-#    ## if asked, parse values from filenames
-#    #    set up pattern outside loop
-#    parsename = None
-#    if 'parsename' in search_dict:
-#        parsename = search_dict['parsename']
-#    
-#        parsevars = []
-#        m = re.search('\$\{(\w+)\}', parsename)
-#        while m:
-#            pvar = m.group(1)
-#            parsename = parsename.replace('\$\{'+pvar+'\}/', '\(\\S+\)')
-#            parsevars.append(pvar)
-#            m = re.search('\$\{(\w+)\}', parsename)
-#    
-#        for fname, filedict in files.items():
-#            vals = re.search(parsename, filedict['filename'])
-#            if vals is None:
-#                raise Exception("Problems finding pattern '%s' in filename %s\n" % (parsename, filedict['filename']))
-#    
-#            for var in vals:
-#                if not var in filedict or filedict[var] is None or filedict[var] == 0:
-#                    if var.lower() == 'ccd':
-#                        filedict[var] = "%02d" % val
-#                    else:
-#                        filedict[var] = val
-#                    #print "Saving %s=%s" % (var, filedict[var])
-#                else:
-#                    print "Var already exists: %s '%s'\n" % (var, filedict[var])
-    
+        raise Exception("genquery: query returned zero results for %s\nAborting\n" % \
+                        args.searchname)
+
     ## output list
     lines = queryutils.convert_single_files_to_lines(files)
     queryutils.output_lines(args.qoutfile, lines, args.qouttype)
 
-    return(0)
+    return 0
 
 if __name__ == "__main__":
     print ' '.join(sys.argv)

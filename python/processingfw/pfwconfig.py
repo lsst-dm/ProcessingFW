@@ -24,8 +24,9 @@ from intgutils.wcl import WCL
 import processingfw.pfwdb as pfwdb
 
 # order in which to search for values
-PFW_SEARCH_ORDER = [pfwdefs.SW_FILESECT, pfwdefs.SW_LISTSECT, 'exec', 'job', 
-                    pfwdefs.SW_MODULESECT, pfwdefs.SW_BLOCKSECT, 'archive', 'site']
+PFW_SEARCH_ORDER = [pfwdefs.SW_FILESECT, pfwdefs.SW_LISTSECT, 'exec', 'job',
+                    pfwdefs.SW_MODULESECT, pfwdefs.SW_BLOCKSECT,
+                    pfwdefs.SW_ARCHIVESECT, pfwdefs.SW_SITESECT]
 
 class PfwConfig(WCL):
     """ Contains configuration and state information for PFW """
@@ -50,12 +51,12 @@ class PfwConfig(WCL):
                 with open(args['wclfile'], "r") as wclfh:
                     wclobj.read(wclfh, filename=args['wclfile'])
                 print "DONE (%0.2f secs)" % (time.time()-starttime)
-                wclobj['wclfile'] = args['wclfile']
+                #wclobj['wclfile'] = args['wclfile']
             except IOError as err:
                 miscutils.fwdie("Error: Problem reading wcl file '%s' : %s" % \
                                 (args['wclfile'], err), pfwdefs.PF_EXIT_FAILURE)
 
-        print "here"
+        # location of des services file
         if 'submit_des_services' in args and args['submit_des_services'] is not None:
             wclobj['submit_des_services'] = args['submit_des_services']
         elif 'submit_des_services' not in wclobj:
@@ -65,6 +66,7 @@ class PfwConfig(WCL):
                 # let it default to $HOME/.desservices.init
                 wclobj['submit_des_services'] = None
 
+        # which section to use in des services file
         if 'submit_des_db_section' in args and args['submit_des_db_section'] is not None:
             wclobj['submit_des_db_section'] = args['submit_des_db_section']
         elif 'submit_des_db_section' not in wclobj:
@@ -122,7 +124,7 @@ class PfwConfig(WCL):
         if 'current' not in self:
             self['current'] = OrderedDict({'curr_block': '',
                                            'curr_archive': '',
-                                           'curr_software': '',
+                                           #'curr_software': '',
                                            'curr_site' : ''})
             self[pfwdefs.PF_WRAPNUM] = '0'
             self[pfwdefs.PF_BLKNUM] = '1'
@@ -131,14 +133,14 @@ class PfwConfig(WCL):
 
         if pfwdefs.SW_BLOCKLIST in self:
             block_array = miscutils.fwsplit(self[pfwdefs.SW_BLOCKLIST])
-            self['num_blocks'] = len(block_array)
-            if self[pfwdefs.PF_BLKNUM] <= self['num_blocks']:
+            if self[pfwdefs.PF_BLKNUM] <= len(block_array):
                 self.set_block_info()
 
     ###########################################################################
     # assumes already run through chk
     def set_submit_info(self):
         """ Initialize submit time values """
+
         self['des_home'] = os.path.abspath(os.path.dirname(__file__)) + "/.."
         self['submit_dir'] = os.getcwd()
         self['submit_host'] = os.uname()[1]
@@ -148,7 +150,7 @@ class PfwConfig(WCL):
         else:
             submit_epoch = time.time()
             submit_time = time.strftime("%Y%m%d%H%M%S", time.localtime(submit_epoch))
-        self['submit_time'] = submit_time
+            self['submit_time'] = submit_time
 
         self['submit_epoch'] = submit_epoch
         self[pfwdefs.PF_JOBNUM] = '0'
@@ -156,34 +158,37 @@ class PfwConfig(WCL):
         self[pfwdefs.PF_TASKNUM] = '0'
         self[pfwdefs.PF_WRAPNUM] = '0'
         self[pfwdefs.UNITNAME] = self.getfull(pfwdefs.UNITNAME)
+
+        self.reset_blknum()
         self.set_block_info()
 
-        self['submit_run'] = replfuncs.replace_vars("${unitname}_r${reqnum}p${attnum:2}", self, None)
-        print self['submit_run'] 
-        sys.exit(1)
+        self['submit_run'] = replfuncs.replace_vars_single("${unitname}_r${reqnum}p${attnum:2}", 
+                                                           self, None)
         self['submit_%s' % pfwdefs.REQNUM] = self.getfull(pfwdefs.REQNUM)
         self['submit_%s' % pfwdefs.UNITNAME] = self.getfull(pfwdefs.UNITNAME)
         self['submit_%s' % pfwdefs.ATTNUM] = self.getfull(pfwdefs.ATTNUM)
-        self['run'] = self['submit_run']
+        self['run'] = self.getfull('submit_run')
 
 
         work_dir = ''
         if pfwdefs.SUBMIT_RUN_DIR in self:
             work_dir = self.getfull(pfwdefs.SUBMIT_RUN_DIR)
             if work_dir[0] != '/':    # submit_run_dir was relative path
-                work_dir = self['submit_dir'] + '/' + work_dir
+                work_dir = self.getfull('submit_dir') + '/' + work_dir
 
         else:  # make a timestamp-based directory in cwd
-            work_dir = "%s/%s_%s" % (self['submit_dir'],
+            work_dir = "%s/%s_%s" % (self.getfull('submit_dir'),
                                      os.path.splitext(self['submitwcl'])[0],
                                      submit_time)
 
         self['work_dir'] = work_dir
         self['uberctrl_dir'] = work_dir + "/uberctrl"
 
-        if pfwdefs.MASTER_SAVE_FILE in self:
-            if self[pfwdefs.MASTER_SAVE_FILE] not in pfwdefs.VALID_MASTER_SAVE_FILE:
-                match = re.match(r'rand_(\d\d)', self[pfwdefs.MASTER_SAVE_FILE].lower())
+        (exists, master_save_file) = self.search(pfwdefs.MASTER_SAVE_FILE, 
+                                                 {intgdefs.REPLACE_VARS: True})
+        if exists:
+            if master_save_file not in pfwdefs.VALID_MASTER_SAVE_FILE:
+                match = re.match(r'rand_(\d\d)', master_save_file.lower())
                 if match:
                     if random.randrange(100) <= int(match.group(1)):
                         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
@@ -198,7 +203,7 @@ class PfwConfig(WCL):
                 else:
                     miscutils.fwdie("Error:  Invalid value for %s (%s)" % \
                                     (pfwdefs.MASTER_SAVE_FILE,
-                                     self[pfwdefs.MASTER_SAVE_FILE]),
+                                     master_save_file),
                                     pfwdefs.PF_EXIT_FAILURE)
         else:
             self[pfwdefs.MASTER_SAVE_FILE] = pfwdefs.MASTER_SAVE_FILE_DEFAULT
@@ -232,17 +237,12 @@ class PfwConfig(WCL):
         # update current target site name
         (exists, site) = self.search('target_site')
         if not exists:
-            # if target archive specified, get site associated to it
-            (exists, archive) = self.search(pfwdefs.TARGET_ARCHIVE)
-            if not exists:
-                miscutils.fwdie("Error:  Cannot determine target site (missing both " \
-                                "target_site and target_archive)", pfwdefs.PF_EXIT_FAILURE)
-            site = self['archive'][archive]['site']
+            miscutils.fwdie("Error:  Cannot determine target site.", pfwdefs.PF_EXIT_FAILURE)
 
         site = site.lower()
-        if site not in self['site']:
+        if site not in self[pfwdefs.SW_SITESECT]:
             print "Error: invalid site value (%s)" % (site)
-            print "\tsite contains: ", self['site']
+            print "\tsite defs contain entries for sites: ", self[pfwdefs.SW_SITESECT].keys()
             miscutils.fwdie("Error: Invalid site value (%s)" % (site), pfwdefs.PF_EXIT_FAILURE)
         curdict['curr_site'] = site
         self['runsite'] = site
@@ -260,9 +260,9 @@ class PfwConfig(WCL):
                                 pfwdefs.USE_TARGET_ARCHIVE_OUTPUT), pfwdefs.PF_EXIT_FAILURE)
 
             archive = archive.lower()
-            if archive not in self['archive']:
+            if archive not in self[pfwdefs.SW_ARCHIVESECT]:
                 print "Error: invalid target_archive value (%s)" % archive
-                print "\tarchive contains: ", self['archive']
+                print "\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT]
                 miscutils.fwdie("Error: Invalid target_archive value (%s)" % archive,
                                 pfwdefs.PF_EXIT_FAILURE)
 
@@ -286,12 +286,11 @@ class PfwConfig(WCL):
                                 pfwdefs.PF_EXIT_FAILURE)
 
             archive = archive.lower()
-            if archive not in self['archive']:
+            if archive not in self[pfwdefs.SW_ARCHIVESECT]:
                 print "Error: invalid home_archive value (%s)" % archive
-                print "\tarchive contains: ", self['archive']
+                print "\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT]
                 miscutils.fwdie("Error: Invalid home_archive value (%s)" % archive,
                                 pfwdefs.PF_EXIT_FAILURE)
-
             curdict['curr_archive'] = archive
         else:
             # make sure to reset curr_archive from possible prev block value
@@ -465,7 +464,7 @@ class PfwConfig(WCL):
             searchopts['required'] = origreq
 
         retval = filenamepat
-        
+
         if (searchopts is None or intgdefs.REPLACE_VARS not in searchopts or
                miscutils.convertBool(searchopts[intgdefs.REPLACE_VARS])):
             sopt2 = {}

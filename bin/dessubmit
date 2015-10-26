@@ -101,7 +101,7 @@ def save_submit_file(submitfile, config):
     """ save original submit file as is, after includes expanded and with db defaults """
     print 'Saving submit file...',
 
-    uberctrl = config['uberctrl_dir']
+    uberctrl = config.getfull('uberctrl_dir')
 
     origfile = config.get_filename(filepat='config',
                                    searchopts={pfwdefs.PF_CURRVALS: {'cfglabel': 'orig'}})
@@ -117,10 +117,12 @@ def save_submit_file(submitfile, config):
         expwcl.read(infh)
     with open("%s/%s" % (uberctrl, expwclfile), 'w') as outfh:
         expwcl.write(outfh, True, 4)
+        #if config['usePFWconfig'] is None:
+        #    config['usePFWconfig'] = True
 
     # save config with expanded wcl, db values
     sopts = {pfwdefs.PF_CURRVALS: {'cfglabel': 'full'},
-                                   intgdefs.REPLACE_VARS: True}
+             intgdefs.REPLACE_VARS: True}
     fullwclfile = config.get_filename(filepat='config', searchopts=sopts)
     with open("%s/%s" % (uberctrl, fullwclfile), 'w') as outfh:
         config.write(outfh, True, 4)
@@ -148,21 +150,24 @@ def check_submit_file(config):
 def submit_attempt(config, maindag, logfh):
     """ Submit processing attempt to condor queue """
     condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
-    if (miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]) and
+    if (miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)) and
             condorid is not None):
         print "Saving run's condorid into PFW tables...",
         import processingfw.pfwdb as pfwdb
-        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+                          config.getfull('submit_des_db_section'))
         dbh.update_attempt_cid(config, condorid)
         print 'DONE'
+    print 'Submission of processing attempt completed'
 
 ################################################################
 def get_attnum(config):
     """ Save attnum in config from either DB or give it default value """
-    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+    if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         print 'Inserting run into PFW tables...',
         import processingfw.pfwdb as pfwdb   # import late
-        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+                          config.getfull('submit_des_db_section'))
         dbh.insert_run(config)
         dbh.insert_attempt_val(config)
         dbh.insert_attempt_label(config)
@@ -189,7 +194,8 @@ def main(argv):
         config = pfwconfig.PfwConfig(args)
 
         if args['gensubmit']:
-            config.write(args['gensubmit'])
+            with open(args['gensubmit'], 'w') as outfh:
+                config.write(outfh)
         else:
             print '\tMinimal checks of submit wcl...',
             pfwsubmit.min_wcl_checks(config)
@@ -200,12 +206,15 @@ def main(argv):
             print 'Checking system:'
             pfwsubmit.run_sys_checks()
 
+            print 'Checking if need proxy:'
+            pfwsubmit.check_proxy(config)
+
             config.set_submit_info()
 
             print 'Creating submit dirs:'
             pfwsubmit.create_submitside_dirs(config)
 
-            uberctrl = config['uberctrl_dir']
+            uberctrl = config.getfull('uberctrl_dir')
 
             # log file for dessubmit
             logfile = '%s/dessubmit.log' % (uberctrl)
@@ -224,7 +233,8 @@ def main(argv):
             if pfwdefs.SW_BLOCKLIST in config:
                 config[pfwdefs.SW_BLOCKLIST] = config[pfwdefs.SW_BLOCKLIST].lower()
             maindag = create_dags(config, logfh)
-            config.write('%s/config.des' % uberctrl)
+            with open('%s/config.des' % uberctrl, 'w') as cfgfh:
+                config.write(cfgfh)
             print 'DONE'
 
             submit_attempt(config, maindag, logfh)

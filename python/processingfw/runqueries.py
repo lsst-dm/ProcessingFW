@@ -13,19 +13,17 @@ import os
 import time
 import traceback
 
-import processingfw.pfwdefs as pfwdefs
-import intgutils.intgdefs as intgdefs
-import processingfw.pfwutils as pfwutils
 import despymisc.miscutils as miscutils
+import intgutils.intgdefs as intgdefs
+import intgutils.replace_funcs as replfuncs
+import processingfw.pfwdefs as pfwdefs
+import processingfw.pfwutils as pfwutils
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
-#import processingfw.pfwblock as pfwblock
-
-
 
 ###########################################################
-def create_master_list(config, modname, moddict,
+def create_master_list(config, configfile, modname, moddict,
                        search_name, search_dict, search_type):
     """ Create master data list for a module's list or file def """
     miscutils.fwdebug_print("BEG")
@@ -64,7 +62,7 @@ def create_master_list(config, modname, moddict,
 
         prog = "%s/libexec/genquerydb.py" % (dirgenquery)
         args = "--qoutfile %s --qouttype %s --config %s --module %s --search %s" % \
-               (qoutfile, qouttype, config['wclfile'], modname, search_name)
+               (qoutfile, qouttype, configfile, modname, search_name)
 
     if not prog:
         print "\tWarning: %s in module %s does not have exec or %s defined" % \
@@ -74,15 +72,17 @@ def create_master_list(config, modname, moddict,
     search_dict['qoutfile'] = qoutfile
     search_dict['qlog'] = qlog
 
-    prog = config.interpolate(prog, {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname},
-                                     'searchobj':search_dict})
+    prog = replfuncs.replace_vars_single(prog, config, 
+                                  {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname},
+                                   'searchobj':search_dict})
 
     # handle both outputxml and outputfile args
-    args = config.interpolate(args, {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname,
-                                                          'outputxml':qoutfile,
-                                                          'outputfile':qoutfile,
-                                                          'qoutfile':qoutfile},
-                                     'searchobj':search_dict})
+    args = replfuncs.replace_vars_single(args, 
+                                  {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname,
+                                                        'outputxml':qoutfile,
+                                                        'outputfile':qoutfile,
+                                                        'qoutfile':qoutfile},
+                                   'searchobj':search_dict})[0]
 
 
 
@@ -100,7 +100,7 @@ def create_master_list(config, modname, moddict,
 
     # call code
     query_tid = None
-    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+    if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         pfw_dbh = pfwdb.PFWDB()
         query_tid = pfw_dbh.insert_data_query(config, modname, datatype, search_name,
                                               prog, args, query_version)
@@ -120,7 +120,7 @@ def create_master_list(config, modname, moddict,
     exitcode = None
     try:
         exitcode = pfwutils.run_cmd_qcf(cmd, qlog, query_tid, os.path.basename(prog),
-                                        5000, config[pfwdefs.PF_USE_QCF])
+                                        5000, config.getfull(pfwdefs.PF_USE_QCF))
     except:
         print "******************************"
         print "Error: "
@@ -131,7 +131,7 @@ def create_master_list(config, modname, moddict,
 
     print "\t\tCreating master list - end ", time.time()
     sys.stdout.flush()
-    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+    if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         pfw_dbh = pfwdb.PFWDB()
         pfw_dbh.end_task(query_tid, exitcode, True)
         pfw_dbh.close()
@@ -145,7 +145,7 @@ def create_master_list(config, modname, moddict,
 
 
 
-def runqueries(config, modname, modules_prev_in_list):
+def runqueries(config, configfile, modname, modules_prev_in_list):
     """ Run any queries for a particular module """
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
@@ -163,7 +163,7 @@ def runqueries(config, modname, modules_prev_in_list):
                 list_dict['depends'] not in modules_prev_in_list:
                 print "\t%s-%s: creating master list\n" % \
                       (modname, listname)
-                create_master_list(config, modname,
+                create_master_list(config, configfile, modname,
                                    moddict, listname, list_dict, pfwdefs.SW_LISTSECT)
 
     # process each "file" in each module
@@ -173,7 +173,7 @@ def runqueries(config, modname, modules_prev_in_list):
                 not file_dict['depends'] not in modules_prev_in_list:
                 print "\t%s-%s: creating master list\n" % \
                       (modname, filename)
-                create_master_list(config, modname,
+                create_master_list(config, configfile, modname,
                                    moddict, filename, file_dict, pfwdefs.SW_FILESECT)
 
 def main(argv=None):
@@ -203,11 +203,9 @@ def main(argv=None):
         if modname not in config[pfwdefs.SW_MODULESECT]:
             miscutils.fwdie("Error: Could not find module description for module %s\n" % \
                             (modname), pfwdefs.PF_EXIT_FAILURE)
-        runqueries(config, modname, modules_prev_in_list)
+        runqueries(config, configfile, modname, modules_prev_in_list)
         modules_prev_in_list[modname] = True
 
-    #pfwblock.read_master_lists(config, modname, masterdata, modules_prev_in_list)
-    #pfwblock.create_stage_archive_list(config)
     return 0
 
 

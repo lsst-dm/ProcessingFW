@@ -50,15 +50,30 @@ MASTER_SAVE_FILE = 'master_savefiles'
 VALID_MASTER_SAVE_FILE = ['always', 'failure', 'file', 'never']   # + rand_##
 MASTER_SAVE_FILE_DEFAULT = 'file'
 
+
+# __UCFILE__ = uncompressed file, __CFILE__ = compressed file
+VALID_MASTER_COMPRESSION = ['notfailure', 'file', 'never']
+MASTER_COMPRESSION_DEFAULT = 'file'
+MASTER_COMPRESSION = 'master_compression'
+COMPRESS_FILE_EXEC = 'fpack'
+COMPRESS_FILE_ARGS = '${__UCFILE__}'
+
+
 ALLOW_MISSING = 'allow_missing'
 DIV_LIST_BY_COL = 'div_list_by_col'
 DATA_DEPENDS = 'depends'
 
 
+# top level section names
+SW_FILEPATSECT = 'filename_pattern'
+DIRPATSECT = 'directory_pattern'
+SW_BLOCKSECT = 'block'
+SW_MODULESECT = 'module'
+SW_ARCHIVESECT = 'archive'
+SW_SITESECT = 'site'
+SW_EXEC_DEF = 'exec_def'
 
 DIRPAT = 'dirpat'
-DIRPATSECT = 'directory_pattern'
-
 
 SW_LABEL = 'label'
 SW_SAVE_RUN_VALS = 'save_run_vals'
@@ -71,13 +86,9 @@ SW_PARENTCHILD = SW_ANCESTRY
 SW_EXECNAME = 'execname'
 SW_WRAPPERNAME = 'wrappername'
 SW_CMDARGS = 'cmdline'
-SW_EXEC_DEF = 'exec_def'
 SW_FILEPAT = 'filepat'
-SW_FILEPATSECT = 'filename_pattern'
 SW_BLOCKLIST = 'blocklist'
 SW_MODULELIST = 'modulelist'
-SW_BLOCKSECT = 'block'
-SW_MODULESECT = 'module'
 SW_LISTSECT = 'list'
 SW_FILESECT = 'file'
 SW_QUERYFIELDS = 'query_fields'

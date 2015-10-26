@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # $Id$
 # $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
 # pylint: disable=print-statement
@@ -9,11 +9,12 @@
 """ Utilities for interactions with Condor """
 
 import subprocess
-import time, datetime
+from datetime import datetime
 import shlex
 import os
 import re
 import despymisc.miscutils as miscutils
+import processingfw.pfwdefs as pfwdefs
 
 class CondorException(Exception):
     "class for Condor exceptions"
@@ -31,9 +32,9 @@ def condor_version():
     cmd = 'condor_version'
 
     try:
-        process = subprocess.Popen(cmd.split(), shell=False, 
-                                    stdout=subprocess.PIPE, 
-                                    stderr=subprocess.STDOUT)
+        process = subprocess.Popen(cmd.split(), shell=False,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
         process.wait()
         if process.returncode != 0:
             raise CondorException('Problem running condor_version - non-zero exit code')
@@ -42,10 +43,11 @@ def condor_version():
 
     version = ''
     out = process.communicate()[0]
-    result = re.search('CondorVersion: (\d+)\.(\d+)\.(\d+)', out)
+    result = re.search(r'CondorVersion: (\d+)\.(\d+)\.(\d+)', out)
     if result:
-        version = '%03d.%03d.%03d' % (int(result.group(1)), 
-            int(result.group(2)), int(result.group(3)))
+        version = '%03d.%03d.%03d' % (int(result.group(1)),
+                                      int(result.group(2)), 
+                                      int(result.group(3)))
     else:
         raise CondorException('Could not determine condor_version (%s)' % out)
 
@@ -56,29 +58,31 @@ def condor_version():
 ###########################################################################
 def compare_condor_version(ver2):
     """Compare running condor version against given version"""
-    # similar to strcmp 
+    # similar to strcmp
     # < 0 if current < ver2
-    #   0 if current = ver2 
+    #   0 if current = ver2
     # > 0 if current > ver2
 
     if isinstance(ver2, float):
         ver2 = str(ver2)
     elif not isinstance(ver2, str):
-        print "Invalid ver2 type: ", type(ver2), ver2 
+        print "Invalid ver2 type: ", type(ver2), ver2
         raise Exception("Invalid ver2 type")
 
     comp = 0
-     
-    # repad numbers to ensure easy comparision 
-    result = re.search('(\d+)\.(\d+)\.(\d+)', ver2)
+
+    # repad numbers to ensure easy comparision
+    result = re.search(r'(\d+)\.(\d+)\.(\d+)', ver2)
     if result:
-        ver2 = '%03d.%03d.%03d' % (int(result.group(1)), 
-               int(result.group(2)), int(result.group(3)))
+        ver2 = '%03d.%03d.%03d' % (int(result.group(1)),
+                                   int(result.group(2)), 
+                                   int(result.group(3)))
     else:
-        result = re.search('(\d+)\.(\d+)', ver2)
+        result = re.search(r'(\d+)\.(\d+)', ver2)
         if result:
-            ver2 = '%03d.%03d.%03d' % (int(result.group(1)), 
-                   int(result.group(2)), 0)
+            ver2 = '%03d.%03d.%03d' % (int(result.group(1)),
+                                       int(result.group(2)), 
+                                       0)
         else:
             raise CondorException('Invalid version format')
 
@@ -89,7 +93,7 @@ def compare_condor_version(ver2):
         comp = -1
     else:
         comp = 1
-    
+
     return comp
 
 
@@ -108,7 +112,7 @@ def condor_submit(submitfile):
     except:
         raise CondorException('Error: Could not run condor_submit.  Check PATH.')
 
-    return (process.returncode, process.communicate())
+    return process.returncode, process.communicate()
 
 
 ###########################################################################
@@ -162,13 +166,13 @@ def create_rsl(info):
 
     if 'batchtype' in info:
         batchtype = info['batchtype'].lower()
-        if batchtype != 'fork': 
+        if batchtype != 'fork':
             # used psn to distinguish from DESDM project
-            if 'psn' in info:  
+            if 'psn' in info:
                 rslparts.append('(project=%s)' % info['psn'])
-                
-            batchkeys = ('maxwalltime', 'maxtime', 'queue', 'jobtype', 
-                         'maxmemory', 'minmemory', 'hostxcount', 'xcount', 
+
+            batchkeys = ('maxwalltime', 'maxtime', 'queue', 'jobtype',
+                         'maxmemory', 'minmemory', 'hostxcount', 'xcount',
                          'hosttypes', 'count', 'reservationid')
             for key in batchkeys:
                 if key in info:
@@ -176,10 +180,10 @@ def create_rsl(info):
 
     if 'globusextra' in info:
         rslparts.append('%s' % info['globusextra'])
-            
+
     if 'environment' in info:
         env = ''
-        infoenv = info['environment'] 
+        infoenv = info['environment']
         if isinstance(infoenv, dict):
             for (key, val) in infoenv.items():
                 env += '(%s %s)' % (key.upper(), val)
@@ -198,24 +202,24 @@ def create_condor_env(envvars):
 
     if isinstance(envvars, dict):
         for (key, val) in envvars.items():
-            # Any literal double quote marks within the string must 
+            # Any literal double quote marks within the string must
             # be escaped by repeating the double quote mark
-            val = val.replace('"', '""')  
+            val = val.replace('"', '""')
 
-            # To insert a literal single quote mark, repeat the 
-            # single quote mark anywhere inside of a section surrounded 
+            # To insert a literal single quote mark, repeat the
+            # single quote mark anywhere inside of a section surrounded
             # by single quote marks
             result = re.search("'", val)
             if result:
                 val = "'%s'" % val.replace("'", "''")
 
             # Each environment entry has the form <name>=<value>
-            # Use white space (space or tab characters) to separate 
-            #     environment entries. 
+            # Use white space (space or tab characters) to separate
+            #     environment entries.
             envparts.append('%s=%s' % (key.upper(), val))
     elif isinstance(envvars, str):
         envparts.append(envvars)
-    
+
     # put double quote marks around the entire argument string.
     return '"%s"' % ' '.join(envparts)
 
@@ -223,7 +227,7 @@ def create_condor_env(envvars):
 
 
 def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
-    """Creates <name>.condor description file 
+    """Creates <name>.condor description file
        Assumes info contains valid condor key, value"""
 
     #print 'write_condor_descfile', jobname
@@ -265,42 +269,43 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
 
 def parse_condor_user_log(logfilename):
     """parses a condor log into a dictionary"""
-     
+
     #print "parse_condor_user_log:  logfilename=", logfilename
     log = open(logfilename)
-    lines = log.read().split('\n...\n') 
+    lines = log.read().split('\n...\n')
     log.close()
 
-    logmdate = datetime.datetime.fromtimestamp((os.path.getmtime(logfilename)))
+    logmdate = datetime.fromtimestamp((os.path.getmtime(logfilename)))
     logmonth = logmdate.month
     logyear = logmdate.year
 
     jobinfo = {}
     for line in lines:
-        if re.search('\S', line):
-            splitline = line.split('\n')   
-            result = re.match('(\d+)\s+\((\d+).\d+.\d+\)\s+(\d+\/\d+\s+\d+:\d+:\d+)\s+(.+)', splitline[0])
+        if re.search(r'\S', line):
+            splitline = line.split('\n')
+            result = re.match(r'(\d+)\s+\((\d+).\d+.\d+\)\s+(\d+\/\d+\s+\d+:\d+:\d+)\s+(.+)', \
+                              splitline[0])
             if result:
                 code = result.group(1)
                 jobnum = result.group(2)
                 eventtime = result.group(3)
-                eventdate = datetime.datetime.strptime(eventtime, '%m/%d %H:%M:%S')
+                eventdate = datetime.strptime(eventtime, '%m/%d %H:%M:%S')
                 if eventdate.month == logmonth:
                     eventdate = eventdate.replace(year=logyear)
                 else:
                     eventdate = eventdate.replace(year=logyear-1)
 
                 #desc = result.group(4)
-    
+
                 if code == '000':
-                    jobinfo[jobnum] = { 'jobid':jobnum,
-                                        'clusterid':jobnum,
-                                        'machine':'',
-                                        'jobstat':'UNSUB',
-                                        'submittime':eventdate,
-                                        'csubmittime':eventdate }
+                    jobinfo[jobnum] = {'jobid':jobnum,
+                                       'clusterid':jobnum,
+                                       'machine':'',
+                                       'jobstat':'UNSUB',
+                                       'submittime':eventdate,
+                                       'csubmittime':eventdate}
                     if len(splitline) > 1:
-                        result = re.match('\s*DAG Node:\s+(\S+)\s*', splitline[1])
+                        result = re.match(r'\s*DAG Node:\s+(\S+)\s*', splitline[1])
                         if result:
                             jobinfo[jobnum]['jobname'] = result.group(1)
                 elif code == '001':
@@ -315,7 +320,7 @@ def parse_condor_user_log(logfilename):
                 elif code == '005':
                     jobinfo[jobnum]['jobstat'] = 'DONE'
                     jobinfo[jobnum]['endtime'] = eventdate
-                    result = re.search('return value (\d+)', splitline[1]) 
+                    result = re.search(r'return value (\d+)', splitline[1])
                     if result:
                         jobinfo[jobnum]['retval'] = result.group(1)
                 #elif code == '006':
@@ -333,16 +338,16 @@ def parse_condor_user_log(logfilename):
                         jobinfo[jobnum]['abortreason'] = None
                 #elif code == '010':
                 #    pass  # Job was suspended
-                #elif code == '011': 
+                #elif code == '011':
                 #    pass  # Job was unsuspended
                 elif code == '012':
                     jobinfo[jobnum]['jobstat'] = 'ERR'
-                    #result = re.search('(\S+)', splitline[1])
+                    #result = re.search(r'(\S+)', splitline[1])
                     #if result:
                     #    jobinfo[jobnum]['holdreason'] = result.group(1)
                     jobinfo[jobnum]['holdreason'] = splitline[1].strip()
                     if len(splitline) > 2:
-                        result = re.search('Code (\d+) Subcode (\d+)', splitline[2])
+                        result = re.search(r'Code (\d+) Subcode (\d+)', splitline[2])
                         if result:
                             jobinfo[jobnum]['holdcode'] = result.group(1)
                             jobinfo[jobnum]['holdsubcode'] = result.group(2)
@@ -353,7 +358,7 @@ def parse_condor_user_log(logfilename):
                     jobinfo[jobnum]['jobstat'] = 'UNSUB'
                 #elif code == '014':
                 #    pass  # Parallel Node executed
-                #elif code == '015': 
+                #elif code == '015':
                 #    pass  # Parallel Node terminated
                 elif code == '016':
              #016 (471.000.000) 04/11 11:48:08 POST Script terminated.
@@ -361,7 +366,7 @@ def parse_condor_user_log(logfilename):
              #    DAG Node: fail
              #...
                     jobinfo[jobnum]['endtime'] = eventdate
-                    result = re.search('return value (\d+)', splitline[1]) 
+                    result = re.search(r'return value (\d+)', splitline[1])
                     if result:
                         retval = result.group(1)
                         if retval == 100:
@@ -370,27 +375,27 @@ def parse_condor_user_log(logfilename):
                             jobinfo[jobnum]['jobstat'] = 'DONE'
                 elif code == '017':  #  Job submitted to Globus
                     #  Beware of out of order log entries
-                    if ('starttime' not in jobinfo[jobnum] or 
-                        (jobinfo[jobnum]['starttime'] != eventdate)):
+                    if ('starttime' not in jobinfo[jobnum] or
+                            (jobinfo[jobnum]['starttime'] != eventdate)):
                         jobinfo[jobnum]['jobstat'] = 'PEND'
-                    result = re.search('RM-Contact:\s+(\S+)', splitline[1])
+                    result = re.search(r'RM-Contact:\s+(\S+)', splitline[1])
                     if result:
                         jobinfo[jobnum]['gridresource'] = result.group(1)
-                #elif code == '018': 
+                #elif code == '018':
                 #    pass  # Globus Submit failed
-                #elif code == '019':  
+                #elif code == '019':
                 #    pass  # Globus Resource Up
-                #elif code == '020': 
+                #elif code == '020':
                 #    pass  # Globus Resource Down
-                #elif code == '021': 
+                #elif code == '021':
                 #    pass  # Remote Error
-                elif code == '027': 
+                elif code == '027':
                     jobinfo[jobnum]['gsubmittime'] = eventdate
-                else: 
+                else:
                     jobinfo[jobnum]['jobstat'] = 'U%s' % (code)
             else:
                 print 'warning unknown line: %s'  % (line)
-            
+
 
     return jobinfo
 
@@ -407,12 +412,12 @@ def condor_q(args_str=''):
     condorq_cmd.extend(shlex.split(args_str))
     if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
         miscutils.fwdebug_print("condorq_cmd  = %s" % condorq_cmd)
-    
+
     process = None
     try:
-        process = subprocess.Popen(condorq_cmd, 
-                                   shell=False, 
-                                   stdout=subprocess.PIPE, 
+        process = subprocess.Popen(condorq_cmd,
+                                   shell=False,
+                                   stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         out = ""
         buf = os.read(process.stdout.fileno(), 5000)
@@ -425,7 +430,7 @@ def condor_q(args_str=''):
                 miscutils.fwdebug_print(buf)
     except Exception as err:
         raise CondorException('Error: Could not run condor_q. Check PATH.\n'+str(err))
-            
+
 
     if process.returncode != 0:
         print "Problem running condor_q - non-zero exit code"
@@ -433,20 +438,20 @@ def condor_q(args_str=''):
         #print process.communicate()[0]
         print process.communicate()[1]
         raise CondorException('Problem running condor_q - non-zero exit code')
-        
-    
+
+
     lines = out.split('\n')
     for line in lines:
         if re.match('--', line):  # skip condor_q line starting with --
             pass
-        elif not re.search('\S', line):
+        elif not re.search(r'\S', line):
             if len(job) > 0:   # blank lines separate jobs
                 qjobs[condorid] = dict(job)
                 job.clear()
                 condorid = -9999
         else:
             # divide line into key/value pair
-            result = re.search('(\S+)\s*=\s*(\S+)', line)
+            result = re.search(r'(\S+)\s*=\s*(\S+)', line)
             key = result.group(1).lower()
             value = re.sub('"', '', result.group(2))
 
@@ -456,7 +461,7 @@ def condor_q(args_str=''):
             job[key] = value
             if re.match('clusterid', key):
                 condorid = value   # save clusterid as key for qjobs dict
- 
+
     # don't forget to save the last job into big hash table
     if len(job) > 0:
         qjobs[condorid] = dict(job)
@@ -472,13 +477,13 @@ def condorq_dag(args_str=''):
 
     top_jobs = []  # top dagman jobs
     orphan_jobs = []  # jobs whose parents aren't in queue or non-dagman jobs
- 
+
     for jobid, jobinfo in qjobs.iteritems():
         if not 'children' in jobinfo:
             jobinfo['children'] = []
 
         if 'dagmanjobid' in jobinfo: # should have parent
-            if jobinfo['dagmanjobid'] in qjobs:  # if have parent 
+            if jobinfo['dagmanjobid'] in qjobs:  # if have parent
                 if 'children' in qjobs[jobinfo['dagmanjobid']]:
                     qjobs[jobinfo['dagmanjobid']]['children'].append(jobid)
                 else:
@@ -486,24 +491,24 @@ def condorq_dag(args_str=''):
             else:
                 orphan_jobs.append(jobid)  # lost parent
         else:
-            if 'dagman' in os.path.basename(qjobs[jobid]['cmd']): 
+            if 'dagman' in os.path.basename(qjobs[jobid]['cmd']):
                 top_jobs.append(jobid)
             else:  # either saveruntime job or operator manually running job
-                orphan_jobs.append(jobid)  
+                orphan_jobs.append(jobid)
 
-    return (qjobs, top_jobs, orphan_jobs)
-     
+    return qjobs, top_jobs, orphan_jobs
+
 
 
 ######################################################################
 def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
-    """ Create the condor description file for a DAG with added attributes """ 
+    """ Create the condor description file for a DAG with added attributes """
     print "add2dag: cwd =", os.getcwd()
     cmd = 'condor_submit_dag -f -no_submit -notification never '
 
-    assert(type(cmdopts) == dict)
-    assert(type(attributes) == dict)
-        
+    assert type(cmdopts) == dict
+    assert type(attributes) == dict
+
     if compare_condor_version('7.6.0') >= 0:
         cmd += ' -autorescue 0 -no_recurse '
     elif compare_condor_version('7.1.0') >= 0:
@@ -525,7 +530,7 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
 
     # write additional lines to file and ask condor_submit_dag to include
     #    note: insert_sub_file works with empty file
-    if compare_condor_version("7.1") > 0: 
+    if compare_condor_version("7.1") > 0:
         addfile = dagfile + '.add.txt'
         with open(addfile, 'w') as addfh:
             if initialdir:
@@ -555,12 +560,12 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
         condorfh.close()
 
         # Work around condor_submit_dag bug (6.7.20, 6.8.0-6.8.3, 6.9.1)
-        # 'The OnExitRemove expression generated for DAGMan by 
-        # condor_submit_dag evaluated to UNDEFINED for some values 
+        # 'The OnExitRemove expression generated for DAGMan by
+        # condor_submit_dag evaluated to UNDEFINED for some values
         # of ExitCode, causing condor_dagman to go on hold.'
-        result = re.search('on_exit_remove\s*=\s*\(\s*ExitSignal\s*==\s*11\s*||\s*\(ExitCode\s*>=0\s*&&\s*ExitCode\s*<=\s*2\)\)', condorstr)
-        if result:            
-            condorstr.replace('on_exit_remove\s+=[^\n]+\n', 
+        result = re.search(r'on_exit_remove\s*=\s*\(\s*ExitSignal\s*==\s*11\s*||\s*\(ExitCode\s*>=0\s*&&\s*ExitCode\s*<=\s*2\)\)', condorstr)
+        if result:
+            condorstr.replace(r'on_exit_remove\s+=[^\n]+\n',
                 'on_exit_remove = ( ExitSignal =?= 11 || (ExitCode =!= UNDEFINED && ExitCode >=0 && ExitCode <= 2))\n')
 
 #        if attributes and len(attributes) > 0:
@@ -583,7 +588,7 @@ def add2condor(condorstr, attributes, debugfh):
     debugfh.write(condorstr)
     debugfh.write('\n============\n')
 
-    # add attributes to condor submit file 
+    # add attributes to condor submit file
     print attributes
     info = ''
     for key, val in attributes.items():
@@ -606,14 +611,14 @@ def check_condor(minver):
     cmd = 'condor_submit notthere.condor'
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT)
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
         if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print("\t\tTrying %s" % cmd)
         process.wait()
-    except OSError as e:
+    except OSError as exc:
         raise CondorException('Could not find condor_submit\n' + \
-               'Make sure Condor binaries are in your path (%s)' % str(e))
+               'Make sure Condor binaries are in your path (%s)' % str(exc))
 
     if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
         miscutils.fwdebug_print("\t\tFinished %s" % cmd)
@@ -622,8 +627,8 @@ def check_condor(minver):
     cmd = 'condor_q'
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT)
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
         if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print("\t\tTrying %s" % cmd)
 
@@ -640,10 +645,10 @@ def check_condor(minver):
         if process.returncode:
             raise CondorException('Problems running condor_q.   Condor might not be running on this machine.   ' + \
                                   'Contact your condor administrator.')
-    except OSError as e:
+    except OSError as exc:
         raise CondorException('Could not find condor_q\n' + \
-               'Make sure Condor binaries are in your path (%s)' % str(e))
-    
+               'Make sure Condor binaries are in your path (%s)' % str(exc))
+
     if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
         miscutils.fwdebug_print("\t\tFinished %s" % cmd)
 
@@ -672,11 +677,12 @@ def get_grid_proxy_timeleft():
 
 
 def get_job_status_str(jobnum, qjobs):
+    """ Return a status string for a particular condor job """
     statusstr = "UNK"
 
-    # Condor Job Status: 
+    # Condor Job Status:
     #    1 = Idle, 2 = Running, 3 = Removed, 4 = Completed, and 5 = Held
-    condorstatus = {'1':"PEND", '2':"RUN",'3':"DEL",'4':"DONE",'5':"ERR"}
+    condorstatus = {'1':"PEND", '2':"RUN", '3':"DEL", '4':"DONE", '5':"ERR"}
     # Grid job status:
     #    1 = Pend, 2 = Running, 32 = Unsub
     gridstatus = {'1':"PEND", '2':"RUN", '32':"UNSUB"}
@@ -696,7 +702,7 @@ def get_job_status_str(jobnum, qjobs):
                 if qjobs[jobnum]['globusstatus'] in gridstatus:
                     statusstr = gridstatus[qjobs[jobnum]['globusstatus']]
 
-    return(statusstr)
+    return statusstr
 
 def condor_rm(args_str=''):
     """Given condor_rm args, calls condor_rm [args]"""
@@ -707,9 +713,9 @@ def condor_rm(args_str=''):
     condorrm_cmd.extend(args_str.split())
 
     try:
-        process = subprocess.Popen(condorrm_cmd, 
-                                   shell=False, 
-                                   stdout=subprocess.PIPE, 
+        process = subprocess.Popen(condorrm_cmd,
+                                   shell=False,
+                                   stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         out = ""
         buf = os.read(process.stdout.fileno(), 5000)
@@ -722,9 +728,63 @@ def condor_rm(args_str=''):
             raise CondorException('Problem running condor_rm - non-zero exit code'+process.communicate()[0])
     except Exception as err:
         raise CondorException('Error: Could not run condor_rm. Check PATH.\n'+str(err))
-        
-    
 
 
-if __name__ ==  '__main__' :
+#######################################################################
+def status_target_jobs(job, qjobs):
+    """ Convert condor/grid status """
+
+    numtjobs = 'UNK'
+    if '%snumjobs' % pfwdefs.ATTRIB_PREFIX in qjobs[qjobs[job]['children'][0]]:
+        numtjobs = qjobs[qjobs[job]['children'][0]]['%snumjobs' % pfwdefs.ATTRIB_PREFIX]
+    else:
+        print "Could not find %snumjobs in qjobs for job %s" % (pfwdefs.ATTRIB_PREFIX, job)
+
+    chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'ERR': 0}
+    for childjob in qjobs[job]['children']:
+        jobstat = get_job_status_str(childjob, qjobs)
+        if jobstat in chstat:  # ignore other status, e.g. DONE
+            chstat[jobstat] += 1
+    status = "(%s/%s/%s/%s)" % (chstat['ERR'],
+                                chstat['PEND'] + chstat['UNSUB'],
+                                chstat['RUN'],
+                                numtjobs)
+    return status
+
+
+#######################################################################
+def get_attempt_info(topjob, qjobs):
+    """ Massage condor_q dag information into attempt information """
+
+    info = {}
+    if '%soperator' % pfwdefs.ATTRIB_PREFIX not in qjobs[topjob]:
+        if 'owner' in qjobs[topjob]:
+            qjobs[topjob]['%soperator' % pfwdefs.ATTRIB_PREFIX] = qjobs[topjob]['owner'].replace('"', '')
+        else:
+            qjobs[topjob]['%soperator' % pfwdefs.ATTRIB_PREFIX] = "UNK"
+
+    # find innermost dag job
+    jobid = topjob
+    while len(qjobs[jobid]['children']) == 1 and \
+          ('%sblock' % pfwdefs.ATTRIB_PREFIX not in qjobs[jobid] or \
+           'pipe' not in qjobs[jobid]['%sblock' % pfwdefs.ATTRIB_PREFIX]):
+        jobid = qjobs[jobid]['children'][0]
+
+    # grab DESDM from job attributes
+    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator']:
+        info[key] = ""
+        if pfwdefs.ATTRIB_PREFIX + key in qjobs[jobid]:
+            info[key] = qjobs[jobid][pfwdefs.ATTRIB_PREFIX + key]
+
+    info['status'] = get_job_status_str(jobid, qjobs)
+
+    # If pipeline mngr, count number of pending, running, etc target jobs
+    if len(qjobs[jobid]['children']) > 0:
+        info['status'] = status_target_jobs(jobid, qjobs)
+        info['subblock'] = "pipelines"
+        info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % pfwdefs.ATTRIB_PREFIX]
+
+    return info
+
+if __name__ == '__main__':
     pass

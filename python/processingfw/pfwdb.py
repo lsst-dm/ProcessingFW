@@ -37,13 +37,16 @@ class PFWDB (desdmdbi.DesDmDbi):
         filetypes and to ingest metadata associated with those headers.
     """
 
-    def __init__ (self, *args, **kwargs):
+    def __init__ (self, desfile=None, section=None):
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
-            miscutils.fwdebug_print(args)
+            miscutils.fwdebug_print("%s, %s" % (desfile, section))
         try:
-            desdmdbi.DesDmDbi.__init__ (self, *args, **kwargs)
+            desdmdbi.DesDmDbi.__init__ (self, desfile, section)
         except Exception as err:
-            miscutils.fwdie("Error: problem connecting to database: %s\n\tCheck desservices file and environment variables" % err, pfwdefs.PF_EXIT_FAILURE)
+            raise
+            #miscutils.fwdie("Error: problem connecting to database: %s\n" % err +
+            #                "\tCheck desservices file and environment variables",
+            #                pfwdefs.PF_EXIT_FAILURE)
 
 
     def get_database_defaults(self):
@@ -51,14 +54,14 @@ class PFWDB (desdmdbi.DesDmDbi):
 
         result = OrderedDict()
 
-        result['archive'] = self.get_archive_info()
+        result[pfwdefs.SW_ARCHIVESECT] = self.get_archive_info()
         result['archive_transfer'] = self.get_archive_transfer_info()
         result['job_file_mvmt'] = self.get_job_file_mvmt_info()
 
         result[pfwdefs.DIRPATSECT] = self.get_database_table('OPS_DIRECTORY_PATTERN', 'NAME')
         result[pfwdefs.SW_FILEPATSECT] = self.get_filename_pattern()
 
-        result['site'] = self.get_site_info()
+        result[pfwdefs.SW_SITESECT] = self.get_site_info()
         result[pfwdefs.SW_EXEC_DEF] = self.get_database_table('OPS_EXEC_DEF', 'NAME')
 
         result['filetype_metadata'] = self.get_all_filetype_metadata()
@@ -90,7 +93,10 @@ class PFWDB (desdmdbi.DesDmDbi):
     ##### request, unit, attempt #####
     def insert_run(self, config):
         """ Insert entries into the pfw_request, pfw_unit, pfw_attempt tables for a single run submission
-            Saves task id in config """
+            Saves attempt and task id in config """
+
+        pfw_attempt_id = self.get_seq_next_value('pfw_attempt_seq') 
+
         maxtries = 1
         from_dual = self.from_dual()
 
@@ -103,12 +109,12 @@ class PFWDB (desdmdbi.DesDmDbi):
                                                  label = None,
                                                  i_am_root = True,
                                                  do_commit = False)
-        allparams['reqnum'] = config[pfwdefs.REQNUM]
-        allparams['unitname'] =  config.get(pfwdefs.UNITNAME, {intgdefs.REPLACE_VARS: True})
-        allparams['project'] = config.get('project', {intgdefs.REPLACE_VARS: True})
-        allparams['jiraid'] = config.get('jira_id', {intgdefs.REPLACE_VARS: True})
-        allparams['pipeline'] = config.get('pipeline', {intgdefs.REPLACE_VARS: True})
-        allparams['operator'] =  config.get('operator', {intgdefs.REPLACE_VARS: True})
+        allparams['reqnum'] = config.getfull(pfwdefs.REQNUM)
+        allparams['unitname'] =  config.getfull(pfwdefs.UNITNAME)
+        allparams['project'] = config.getfull('project')
+        allparams['jiraid'] = config.getfull('jira_id')
+        allparams['pipeline'] = config.getfull('pipeline')
+        allparams['operator'] =  config.getfull('operator')
         allparams['numexpblk'] = len(miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST]))
 
         if 'DESDM_PIPEPROD' in os.environ:
@@ -158,8 +164,9 @@ class PFWDB (desdmdbi.DesDmDbi):
                     miscutils.fwdebug_print("Inserting to pfw_request table\n")
                 sql =  "insert into pfw_request (reqnum, project, campaign, jira_id, pipeline) "
                 sql += "select %s, %s, %s, %s, %s %s where not exists (select null from pfw_request where reqnum=%s)" % \
-                       (namebinds['reqnum'], namebinds['project'], namebinds['campaign'], namebinds['jiraid'], namebinds['pipeline'],
-                       from_dual, namebinds['reqnum'])
+                       (namebinds['reqnum'], namebinds['project'], namebinds['campaign'], 
+                        namebinds['jiraid'], namebinds['pipeline'],
+                        from_dual, namebinds['reqnum'])
                 if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
                     miscutils.fwdebug_print("\t%s\n" % sql)
 
@@ -210,13 +217,17 @@ class PFWDB (desdmdbi.DesDmDbi):
                 allparams['attnum'] = maxatt + 1
                 namebinds['attnum'] = self.get_named_bind_string('attnum')
 
+                allparams['id'] = pfw_attempt_id
+                namebinds['id'] = self.get_named_bind_string('id')
+
                 # execute will fail if extra params
                 params = {}
-                needed_vals = ['reqnum', 'unitname', 'attnum', 'operator',
+                needed_vals = ['id', 'reqnum', 'unitname', 'attnum', 'operator',
                                'numexpblk', 'basket', 'group_submit_id',
                                'task_id', 'subpipeprod', 'subpipever']
                 for k in needed_vals:
                     params[k]=allparams[k]
+
                 if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
                     miscutils.fwdebug_print("\t%s\n" % params)
 
@@ -236,6 +247,7 @@ class PFWDB (desdmdbi.DesDmDbi):
 
                 config[pfwdefs.ATTNUM] = allparams['attnum']
                 config['task_id'] = {'attempt': allparams['task_id'], 'block': {}, 'job': {}}
+                config['pfw_attempt_id'] = pfw_attempt_id
                 done = True
             except Exception:
                 print "\n\n"
@@ -265,12 +277,14 @@ class PFWDB (desdmdbi.DesDmDbi):
             miscutils.fwdebug_print("Inserting into pfw_attempt_label table\n")
 
         row = {}
-        row['reqnum'] = config[pfwdefs.REQNUM]
-        row['unitname'] = config.get(pfwdefs.UNITNAME, {intgdefs.REPLACE_VARS: True})
-        row['attnum'] = config[pfwdefs.ATTNUM]
+        row['pfw_attempt_id'] = config['pfw_attempt_id']
+        row['reqnum'] = config.getfull(pfwdefs.REQNUM)
+        row['reqnum'] = config.getfull(pfwdefs.REQNUM)
+        row['unitname'] = config.getfull(pfwdefs.UNITNAME)
+        row['attnum'] = config.getfull(pfwdefs.ATTNUM)
 
         if pfwdefs.SW_LABEL in config:
-            labels = config.get(pfwdefs.SW_LABEL, {intgdefs.REPLACE_VARS: True})
+            labels = config.getfull(pfwdefs.SW_LABEL)
             labels = miscutils.fwsplit(labels,',')
             for label in labels:
                 row['label'] = label
@@ -283,16 +297,17 @@ class PFWDB (desdmdbi.DesDmDbi):
             miscutils.fwdebug_print("Inserting into pfw_attempt_val table\n")
 
         row = {}
-        row['reqnum'] = config[pfwdefs.REQNUM]
-        row['unitname'] =  config.get(pfwdefs.UNITNAME, {intgdefs.REPLACE_VARS: True})
-        row['attnum'] = config[pfwdefs.ATTNUM]
+        row['pfw_attempt_id'] = config['pfw_attempt_id']
+        row['reqnum'] = config.getfull(pfwdefs.REQNUM)
+        row['unitname'] =  config.getfull(pfwdefs.UNITNAME)
+        row['attnum'] = config.getfull(pfwdefs.ATTNUM)
 
         if pfwdefs.SW_SAVE_RUN_VALS in config:
-            keys2save = config.get(pfwdefs.SW_SAVE_RUN_VALS, {intgdefs.REPLACE_VARS: True})
+            keys2save = config.getfull(pfwdefs.SW_SAVE_RUN_VALS)
             keys = miscutils.fwsplit(keys2save,',')
             for key in keys:
                 row['key'] = key
-                val = config.get(key, {intgdefs.REPLACE_VARS: True, 'expand': True})
+                val = config.getfull(key)
                 if isinstance(val, list):
                     for v in val:
                         row['val'] = v
@@ -306,10 +321,11 @@ class PFWDB (desdmdbi.DesDmDbi):
         """ update row in pfw_attempt with relative path in archive """
 
         updatevals = {}
-        updatevals['archive_path'] = config.get(pfwdefs.ATTEMPT_ARCHIVE_PATH, {intgdefs.REPLACE_VARS: True})
+        updatevals['archive_path'] = config.getfull(pfwdefs.ATTEMPT_ARCHIVE_PATH)
 
         wherevals = {}
-        wherevals['task_id'] = config['task_id']['attempt']
+        wherevals['id'] = config['pfw_attempt_id']
+        ###wherevals['task_id'] = config['task_id']['attempt']
 
         self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
 
@@ -322,33 +338,12 @@ class PFWDB (desdmdbi.DesDmDbi):
         updatevals['condorid'] = condorid
 
         wherevals = {}
-        wherevals['reqnum'] = config[pfwdefs.REQNUM]
-        wherevals['unitname'] = config[pfwdefs.UNITNAME]
-        wherevals['attnum'] = config[pfwdefs.ATTNUM]
+        wherevals['id'] = config['pfw_attempt_id']
+        #wherevals['reqnum'] = config.getfull(pfwdefs.REQNUM)
+        #wherevals['unitname'] = config.getfull(pfwdefs.UNITNAME)
+        #wherevals['attnum'] = config.getfull(pfwdefs.ATTNUM)
 
         self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
-
-
-    #def update_attempt_beg (self, config):
-    #    """ update row in pfw_attempt with beg of attempt info """
-    #
-    #
-    #    updatevals = {}
-    #    updatevals['starttime'] = self.get_current_timestamp_str()
-    #
-    #    wherevals = {}
-    #    wherevals['reqnum'] = config[pfwdefs.REQNUM]
-    #    wherevals['unitname'] = config[pfwdefs.UNITNAME]
-    #    wherevals['attnum'] = config[pfwdefs.ATTNUM]
-    #
-    #    self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
-
-
-    #def update_attempt_end (self, config, exitcode):
-    #    """ update row in pfw_attempt with end of attempt info """
-    #
-    #    self.update_attempt_end_vals(config[pfwdefs.REQNUM], config[pfwdefs.UNITNAME],
-    #                                 config[pfwdefs.ATTNUM], exitcode)
 
 
     def update_attempt_end_vals (self, reqnum, unitname, attnum, exitcode):
@@ -361,9 +356,10 @@ class PFWDB (desdmdbi.DesDmDbi):
         updatevals['status'] = exitcode
 
         wherevals = {}
-        wherevals['reqnum'] = reqnum
-        wherevals['unitname'] = unitname
-        wherevals['attnum'] = attnum
+        wherevals['id'] = config['pfw_attempt_id']
+        #wherevals['reqnum'] = reqnum
+        #wherevals['unitname'] = unitname
+        #wherevals['attnum'] = attnum
 
         self.update_PFW_row ('PFW_ATTEMPT', updatevals, wherevals)
 
@@ -374,21 +370,22 @@ class PFWDB (desdmdbi.DesDmDbi):
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("Inserting to pfw_block table\n")
 
-        blknum = config.get(pfwdefs.PF_BLKNUM, {intgdefs.REPLACE_VARS: False})
+        blknum = config.getfull(pfwdefs.PF_BLKNUM)
         if blknum == '1':  # attempt is starting
             #self.update_attempt_beg(config)
             self.begin_task(config['task_id']['attempt'], True)
 
-        blkname = config.get('blockname', {intgdefs.REPLACE_VARS: True})
+        blkname = config.getfull('blockname')
 
         row = {}
-        row['reqnum'] = config[pfwdefs.REQNUM]
-        row['unitname'] = config[pfwdefs.UNITNAME]
-        row['attnum'] = config[pfwdefs.ATTNUM]
+        row['pfw_attempt_id'] = config['pfw_attempt_id']
+        row['reqnum'] = config.getfull(pfwdefs.REQNUM)
+        row['unitname'] = config.getfull(pfwdefs.UNITNAME)
+        row['attnum'] = config.getfull(pfwdefs.ATTNUM)
         row['blknum'] = blknum
-        row['name'] = config.get('blockname', {intgdefs.REPLACE_VARS: True})
-        row['target_site'] = config.get('target_site', {intgdefs.REPLACE_VARS: True})
-        row['modulelist'] = config.get(pfwdefs.SW_MODULELIST, {intgdefs.REPLACE_VARS: True})
+        row['name'] = config.getfull('blockname')
+        row['target_site'] = config.getfull('target_site')
+        row['modulelist'] = config.getfull(pfwdefs.SW_MODULELIST)
         row['task_id'] =  self.create_task(name = 'block',
                                            info_table = 'pfw_block',
                                            parent_task_id = int(config['task_id']['attempt']),
@@ -408,10 +405,11 @@ class PFWDB (desdmdbi.DesDmDbi):
         updatevals['numexpjobs'] = numexpjobs
 
         wherevals = {}
-        wherevals['reqnum'] = config[pfwdefs.REQNUM]
-        wherevals['unitname'] = config[pfwdefs.UNITNAME]
-        wherevals['attnum'] = config[pfwdefs.ATTNUM]
-        wherevals['blknum'] = config.get(pfwdefs.PF_BLKNUM, {intgdefs.REPLACE_VARS: False})
+        wherevals['pfw_attempt_id'] = config['pfw_attempt_id']
+        #wherevals['reqnum'] = config.getfull(pfwdefs.REQNUM)
+        #wherevals['unitname'] = config.getfull(pfwdefs.UNITNAME)
+        #wherevals['attnum'] = config.getfull(pfwdefs.ATTNUM)
+        wherevals['blknum'] = config.getfull(pfwdefs.PF_BLKNUM)
 
         self.update_PFW_row ('PFW_BLOCK', updatevals, wherevals)
 
@@ -423,6 +421,7 @@ class PFWDB (desdmdbi.DesDmDbi):
             miscutils.fwdebug_print("Inserting to pfw_job table\n")
 
         row = {}
+        row['pfw_attempt_id'] = wcl['pfw_attempt_id']
         row['reqnum'] = wcl[pfwdefs.REQNUM]
         row['unitname'] = wcl[pfwdefs.UNITNAME]
         row['attnum'] = wcl[pfwdefs.ATTNUM]
@@ -460,6 +459,10 @@ class PFWDB (desdmdbi.DesDmDbi):
             setvals.append('target_job_id=%s' % self.get_named_bind_string('target_job_id'))
             params['target_job_id'] = target_batch_id
 
+        if 'jobroot' in wcl:
+            setvals.append('jobroot=%s' % self.get_named_bind_string('jobroot'))
+            params['jobroot'] = wcl['jobroot']
+
         if len(setvals) > 0:
             params['task_id'] = wcl['task_id']['job']
 
@@ -481,11 +484,12 @@ class PFWDB (desdmdbi.DesDmDbi):
                 raise
 
             if curs.rowcount == 0:
-                self.insert_message(wcl['task_id']['job'], pfwdefs.PFWDB_MSG_ERROR,
+                self.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['job'], pfwdefs.PFWDB_MSG_ERROR,
                                     "Job attempted to run more than once")
 
                 print "******************************"
                 print "Error:  This job has already been run before."
+                print "pfw_attempt_id = ", wcl['pfw_attempt_id']
                 print "reqnum = ", wcl[pfwdefs.REQNUM]
                 print "unitname = ", wcl[pfwdefs.UNITNAME]
                 print "attnum = ", wcl[pfwdefs.ATTNUM]
@@ -570,7 +574,7 @@ class PFWDB (desdmdbi.DesDmDbi):
 
 
     #def update_tjob_info(self, wcl, jobnum, jobinfo, taskinfo):
-    def update_tjob_info(self, wcl, jobnum, jobinfo):
+    def update_tjob_info(self, wcl, task_id, jobinfo):
         """ update a row in the task table because couldn't do so at run time """
 
         #wherevals = {}
@@ -578,16 +582,17 @@ class PFWDB (desdmdbi.DesDmDbi):
         #self.basic_update_row ('task', taskinfo, wherevals)
 
         wherevals = {}
-        wherevals['task_id'] = wcl['task_id']['job'][jobnum]
+        wherevals['task_id'] = task_id
         self.basic_update_row ('pfw_job', jobinfo, wherevals)
         self.commit()
 
 
     ##### MSG #####
-    def insert_message(self, task_id, msglevel, msg):
+    def insert_message(self, pfw_attempt_id, task_id, msglevel, msg):
         """ Insert an entry into the pfw_message table """
 
         row = {}
+        row['pfw_attempt_id'] = pfw_attempt_id
         row['task_id'] = task_id
         row['msgtime'] = self.get_current_timestamp_str()
         row['msglevel'] = msglevel
@@ -601,6 +606,7 @@ class PFWDB (desdmdbi.DesDmDbi):
         """ insert row into pfw_wrapper """
 
         row = {}
+        row['pfw_attempt_id'] = wcl['pfw_attempt_id']
         row['reqnum'] = wcl[pfwdefs.REQNUM]
         row['unitname'] = wcl[pfwdefs.UNITNAME]
         row['attnum'] = wcl[pfwdefs.ATTNUM]
@@ -616,12 +622,14 @@ class PFWDB (desdmdbi.DesDmDbi):
         row['blknum'] = wcl[pfwdefs.PF_BLKNUM]
         row['jobnum'] = wcl[pfwdefs.PF_JOBNUM]
         row['inputwcl'] = os.path.split(iwfilename)[-1]
+        if 'wrapkeys' in wcl:
+            row['wrapkeys'] = wcl['wrapkeys']
 
         self.insert_PFW_row('PFW_WRAPPER', row)
         return row['task_id']
 
 
-    def update_wrapper_end (self, wcl, owclfile, logfile, exitcode):
+    def update_wrapper_end (self, wcl, owclfile, logfile, exitcode, diskusage):
         """ update row in pfw_wrapper with end of wrapper info """
 
         self.end_task(wcl['task_id']['wrapper'], exitcode, True)
@@ -631,10 +639,15 @@ class PFWDB (desdmdbi.DesDmDbi):
             updatevals['outputwcl'] = os.path.split(owclfile)[-1]
         if logfile is not None:
             updatevals['log'] = os.path.split(logfile)[-1]
+        if diskusage is not None:
+            updatevals['diskusage'] = diskusage
+        
         wherevals = {}
         wherevals['task_id'] = wcl['task_id']['wrapper']
 
         self.update_PFW_row ('PFW_WRAPPER', updatevals, wherevals)
+
+
 
     ##### PFW_EXEC
     def insert_exec (self, wcl, sect):
@@ -645,6 +658,7 @@ class PFWDB (desdmdbi.DesDmDbi):
             miscutils.fwdebug_print(wcl[sect])
 
         row = {}
+        row['pfw_attempt_id'] = wcl['pfw_attempt_id']
         row['reqnum'] = wcl[pfwdefs.REQNUM]
         row['unitname'] = wcl[pfwdefs.UNITNAME]
         row['attnum'] = wcl[pfwdefs.ATTNUM]
@@ -742,6 +756,7 @@ class PFWDB (desdmdbi.DesDmDbi):
         parent_tid = wcl['task_id']['begblock']
 
         row = {}
+        row['pfw_attempt_id'] = wcl['pfw_attempt_id']
         row['reqnum'] = wcl[pfwdefs.REQNUM]
         row['unitname'] = wcl[pfwdefs.UNITNAME]
         row['attnum'] = wcl[pfwdefs.ATTNUM]
@@ -951,9 +966,9 @@ class PFWDB (desdmdbi.DesDmDbi):
 
         if archive is not None:   # limit to files on a specified archive
             gtt_name = self.load_filename_gtt(filelist)
-            sqlstr = "SELECT f.filename FROM file_archive_info a, %s f WHERE a.filename=f.filename and a.archive_name=%s" % (gtt_name, self.get_named_bind_string('archive'))
+            sqlstr = "SELECT f.filename FROM file_archive_info a, %s f WHERE a.filename=f.filename and a.archive_name=%s" % (gtt_name, self.get_named_bind_string('archive_name'))
             cursor = self.cursor()
-            cursor.execute(sqlstr, {'archive':archive})
+            cursor.execute(sqlstr, {'archive_name':archive})
             results = cursor.fetchall()
             cursor.close()
             self.empty_gtt(gtt_name)

@@ -245,7 +245,7 @@ def query_attempt(dbh, colnames, argsdict):
 
 
 def query_details(dbh, attempts):
-    """ Query the db for block and job info """ 
+    """ Query the db for block and job info """
 
     # insert reqnum,unitname,attnum into global temp table to do joins in queries
     rows = []

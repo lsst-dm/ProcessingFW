@@ -10,6 +10,7 @@
 
 import processingfw.pfwdefs as pfwdefs
 import intgutils.intgmisc as intgmisc
+import intgutils.intgdefs as intgdefs
 import despymisc.miscutils as miscutils
 import processingfw.pfwutils as pfwutils
 import filemgmt.filemgmt_defs as fmdefs
@@ -25,7 +26,6 @@ CLEANCNT_POS = 3
 def check_globals(config, indent=''):
     """ Check global settings """
 
-
     print "%sChecking globals..." % (indent)
 
     # initialize counters
@@ -35,7 +35,7 @@ def check_globals(config, indent=''):
     # TODO: unitname might need to be expanded to discover missing variables ???
     for key in ['pipeline', 'pipeprod', 'pipever', 'project',
                 pfwdefs.REQNUM, pfwdefs.ATTNUM, pfwdefs.UNITNAME,
-                'jira_id', 'target_site', 'site',
+                'jira_id', 'target_site', pfwdefs.SW_SITESECT,
                 'filename_pattern', 'directory_pattern',
                 'job_file_mvmt', pfwdefs.ATTEMPT_ARCHIVE_PATH,
                 pfwdefs.PF_USE_QCF, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT,
@@ -51,7 +51,7 @@ def check_globals(config, indent=''):
 
 
     if pfwdefs.PF_USE_DB_IN in config:
-        if miscutils.convertBool(config[pfwdefs.PF_USE_DB_IN]):
+        if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_IN)):
             if 'submit_des_db_section' not in config:
                 print "%s    Error:  using DB (%s), but missing submit_des_db_section" % \
                       (indent, pfwdefs.PF_USE_DB_IN)
@@ -62,7 +62,7 @@ def check_globals(config, indent=''):
                 cnts[ERRCNT_POS] += 1
 
     if pfwdefs.PF_USE_DB_OUT in config:
-        if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
+        if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             if 'submit_des_db_section' not in config:
                 print "%s    Error:  using DB (%s), but missing submit_des_db_section" % \
                       (indent, pfwdefs.PF_USE_DB_OUT)
@@ -74,9 +74,9 @@ def check_globals(config, indent=''):
 
     # if using QCF must also be writing run info into DB
     if (pfwdefs.PF_USE_QCF in config and
-        miscutils.convertBool(config[pfwdefs.PF_USE_QCF]) and
+        miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)) and
         (pfwdefs.PF_USE_DB_OUT in config and
-         not miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]))):
+         not miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)))):
         print "%s    Error: if %s is true, %s must also be set to true" % \
               (indent, pfwdefs.PF_USE_QCF, pfwdefs.PF_USE_DB_OUT)
         cnts[ERRCNT_POS] += 1
@@ -84,19 +84,19 @@ def check_globals(config, indent=''):
     if 'operator' not in config:
         print '%s    Error:  Must specify operator' % (indent)
         cnts[ERRCNT_POS] += 1
-    elif config['operator'] in ['bcs']:
+    elif config.getfull('operator') in ['bcs']:
         print '%s    Error:  Operator cannot be shared login (%s).' % \
-              (indent, config['operator'])
+              (indent, config.getfull('operator'))
         cnts[ERRCNT_POS] += 1
 
     print '%s    Checking %s...' % (indent, pfwdefs.SW_SAVE_RUN_VALS)
     if pfwdefs.SW_SAVE_RUN_VALS in config:
-        keys2save = config.search(pfwdefs.SW_SAVE_RUN_VALS, {'interpolate': True})[1]
+        keys2save = config.getfull(pfwdefs.SW_SAVE_RUN_VALS)
         keys = miscutils.fwsplit(keys2save, ',')
         for key in keys:
             exists = False
             try:
-                exists = config.search(key, {'interpolate': True, 'expand': True})[0]
+                (exists, _) = config.search(key, {intgdefs.REPLACE_VARS: True, 'expand': True})
             except SystemExit:
                 pass
 
@@ -128,7 +128,7 @@ def check_block(config, indent=''):
         print "%sChecking block %s..." % (indent, blockname)
         config.set_block_info()
 
-        if (pfwdefs.PF_USE_DB_IN in config and miscutils.convertBool(config[pfwdefs.PF_USE_DB_IN])):
+        if (pfwdefs.PF_USE_DB_IN in config and miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_IN))):
             (found, val) = config.search('target_des_db_section')
             if not found:
                 print "%s    Error:  using DB (%s), but missing target_des_db_section" % \
@@ -142,7 +142,7 @@ def check_block(config, indent=''):
                 cnts[ERRCNT_POS] += 1
 
         if (pfwdefs.PF_USE_DB_OUT in config and
-            miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT])):
+            miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT))):
             (found, val) = config.search('target_des_db_section')
             if not found:
                 print "%s    Error:  using DB (%s), but missing target_des_db_section" % \
@@ -192,7 +192,7 @@ def check_target_archive(config, indent=''):
     for blockname in blocklist:
         config.set_block_info()
 
-        (found_input, use_target_archive_input) = config.search(pfwdefs.USE_TARGET_ARCHIVE_INPUT, 
+        (found_input, use_target_archive_input) = config.search(pfwdefs.USE_TARGET_ARCHIVE_INPUT,
                                                                 {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
         (found_output, use_target_archive_output) = config.search(pfwdefs.USE_TARGET_ARCHIVE_OUTPUT, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
         (found_archive, target_archive) = config.search(pfwdefs.TARGET_ARCHIVE, {pfwdefs.PF_CURRVALS: {'curr_block': blockname}})
@@ -217,10 +217,10 @@ def check_target_archive(config, indent=''):
             if not found_archive:
                 print "%s    Error: block %s - Missing %s value" % (indent, blockname, pfwdefs.TARGET_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
-            elif 'archive' not in config:
+            elif pfwdefs.SW_ARCHIVESECT not in config:
                 print "%s    Error: block %s - Needs archive section which doesn't exist" % (indent, blockname)
                 cnts[ERRCNT_POS] += 1
-            elif pfwdefs.TARGET_ARCHIVE not in config['archive']:
+            elif pfwdefs.TARGET_ARCHIVE not in config[pfwdefs.SW_ARCHIVESECT]:
                 print "%s    Error: block %s - Invalid %s value" % (indent, blockname, pfwdefs.TARGET_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
             else:
@@ -270,10 +270,10 @@ def check_home_archive(config, indent=''):
             if not found_archive:
                 print "%s    Error: block %s - Missing %s value" % (indent, blockname, pfwdefs.HOME_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
-            elif 'archive' not in config:
+            elif pfwdefs.SW_ARCHIVESECT not in config:
                 print "%s    Error: block %s - Needs archive section which doesn't exist" % (indent, blockname)
                 cnts[ERRCNT_POS] += 1
-            elif home_archive not in config['archive']:
+            elif home_archive not in config[pfwdefs.SW_ARCHIVESECT]:
                 print "%s    Error: block %s - Invalid %s value" % (indent, blockname, pfwdefs.HOME_ARCHIVE)
                 cnts[ERRCNT_POS] += 1
             else:
@@ -494,7 +494,7 @@ def check_file_valid_output(config, blockname, modname, fname, fdict, indent='')
 
         # check that any given filename pattern has a definition
         if pfwdefs.SW_FILEPAT in fdict:
-            cnts2 = check_filepat_valid(config, fdict[pfwdefs.SW_FILEPAT], 
+            cnts2 = check_filepat_valid(config, fdict[pfwdefs.SW_FILEPAT],
                                         blockname, modname, fname, fdict, indent + '    ')
             cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
 
@@ -694,14 +694,7 @@ def check_exec_cmd(config, blockname, modname, dataobjs, xsectname, xsectdict, i
                 (found, val) = config.search(var, {pfwdefs.PF_CURRVALS: curvals,
                                                    'searchobj': xsectdict,
                                                    'required':False,
-                                                   'interpolate': True})
-#                if found:
-#                    val2 = config.interpolate(val, { pfwdefs.PF_CURRVALS: {'curr_block': blockname, 'curr_module': modname}, 'searchobj': xsectdict, 'interpolate': True, 'required':False})
-
-
-
-
-
+                                                   intgdefs.REPLACE_VARS: True})
 
         # check that all values in args exist?/
         # check for value names that look like file/list names but are missing file/list in front

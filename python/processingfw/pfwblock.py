@@ -418,13 +418,11 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                                                   'expand': False,
                                                   intgdefs.REPLACE_VARS:False})
 
-        print "MMG: filename = ", filename
         fileinfo = replfuncs.replace_vars(filename, config, {pfwdefs.PF_CURRVALS: currvals,
                                                      'searchobj': sobj,
                                                      'expand': True,
                                                      intgdefs.REPLACE_VARS:True,
                                                      'keepvars': True})
-        print "MMG: fileinfo = ", fileinfo
         if fileinfo is None:
             miscutils.fwdie('empty fileinfo %s %s' % (modname, fkey), pfwdefs.PF_EXIT_FAILURE)
 
@@ -433,15 +431,11 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
         filelist = []
         if isinstance(fnames, list):
             for cnt in range(0, len(fnames)):
-                print "filename =", fnames[cnt]
                 finfo = fileinfo[1][cnt]
-                print "finfo =", finfo
                 finfo['filename'] = fnames[cnt]
                 filelist.append(finfo)
         else:
-            print "filename =", fnames
             finfo = fileinfo[1]
-            print "finfo =", finfo
             finfo['filename'] = fnames
             filelist.append(finfo)
 

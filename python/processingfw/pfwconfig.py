@@ -94,9 +94,13 @@ class PfwConfig(WCL):
             self.update(pfwcfg_wcl)
             print "DONE (%0.2f secs)" % (time.time()-starttime)
 
-        if (pfwdefs.PF_USE_DB_IN in wclobj and
-                miscutils.convertBool(wclobj[pfwdefs.PF_USE_DB_IN]) and
-                'get_db_config' in args and args['get_db_config']):
+        use_db_in = None
+        if pfwdefs.PF_USE_DB_IN in wclobj:
+            use_db_in = miscutils.convertBool(wclobj[pfwdefs.PF_USE_DB_IN])
+        elif pfwdefs.PF_USE_DB_IN in self:
+            use_db_in = miscutils.convertBool(self[pfwdefs.PF_USE_DB_IN])
+
+        if (use_db_in and 'get_db_config' in args and args['get_db_config']):
             print "\tGetting defaults from DB...",
             sys.stdout.flush()
             starttime = time.time()

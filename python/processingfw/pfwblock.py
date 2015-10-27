@@ -1067,7 +1067,7 @@ def write_jobwcl(config, jobkey, jobdict):
                      'output_transfer_semname',
                      'transfer_semname']:
         if tsemname in config:
-            jobwcl[tsemname] = config[tsemname]
+            jobwcl[tsemname] = config.getfull(tsemname)
 
     if pfwdefs.MASTER_SAVE_FILE in config:
         jobwcl[pfwdefs.MASTER_SAVE_FILE] = config.getfull(pfwdefs.MASTER_SAVE_FILE)

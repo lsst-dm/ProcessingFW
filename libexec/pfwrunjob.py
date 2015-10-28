@@ -429,11 +429,16 @@ def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
         for ldict in wcl[pfwdefs.IW_LISTSECT].values():
             list_filenames.append(ldict['fullname'])
 
+        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+            miscutils.fwdebug_print("registering lists list_filenames=%s" % list_filenames)
+
         filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
         pfw_save_file_info(pfw_dbh, filemgmt, 'list', list_filenames, wcl['pfw_attempt_id'],
                            wcl['task_id']['attempt'], wcl['task_id']['jobwrapper'],
                            wcl['task_id']['attempt'],
                            False, None)
+
+        jobfiles['outfullnames'].extend(list_filenames)
 
     # make directories for output files, get input files from targetnode
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):

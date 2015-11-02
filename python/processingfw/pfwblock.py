@@ -152,31 +152,32 @@ def create_sublist_file(config, moddict, fname, finfo, currvals):
         miscutils.fwdie("Error: Could not find filename pattern for %s" % filepat,
                         pfwdefs.PF_EXIT_FAILURE, 2)
 
-    # get list of pairs (filename, filedict) by expanding variables in the filename pattern
-    filepairs = replfuncs.replace_vars(filenamepat, config,
-                                       {pfwdefs.PF_CURRVALS: currvals,
-                                        'searchobj': finfo,
-                                        intgdefs.REPLACE_VARS: True,
-                                        'expand': True,
-                                        'keepvars': True})
+    # get 2 list (filename, filedict) by expanding variables in the filename pattern
+    newfileinfo = replfuncs.replace_vars(filenamepat, config,
+                                         {pfwdefs.PF_CURRVALS: currvals,
+                                          'searchobj': finfo,
+                                          intgdefs.REPLACE_VARS: True,
+                                          'expand': True,
+                                          'keepvars': True})
 
     # convert to same format as if read from file created by query
     filelist_wcl = None
-    if len(filepairs) > 0:
+    if len(newfileinfo) > 0:
         if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
-            miscutils.fwdebug_print("filepairs = %s" % str(filepairs))
+            miscutils.fwdebug_print("newfileinfo = %s" % str(newfileinfo))
         filedict_list = []
-        for pair in filepairs:
+        for fcnt in range(0, len(newfileinfo[0])):
             if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
-                miscutils.fwdebug_print("pair = %s" % str(pair))
-            file1 = pair[1]
-            file1['filename'] = pair[0]
+                miscutils.fwdebug_print("name = %s" % str(newfileinfo[0][fcnt]))
+                miscutils.fwdebug_print("info = %s" % str(newfileinfo[1][fcnt]))
+            file1 = newfileinfo[1][fcnt]
+            file1['filename'] = newfileinfo[0][fcnt]
 
             # merge particular file information with file definition
             sinfo = copy.deepcopy(finfo)
             sinfo.update(file1)
 
-            file1['fullname'] = add_runtime_path(config, currvals, fname, sinfo, pair[0])[0]
+            file1['fullname'] = add_runtime_path(config, currvals, fname, sinfo, file1['filename'])[0]
             filedict_list.append(file1)
         filelist_wcl = queryutils.convert_single_files_to_lines(filedict_list)
 

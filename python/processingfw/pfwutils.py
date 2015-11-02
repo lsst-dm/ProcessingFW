@@ -415,10 +415,17 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
 
 ######################################################################
 def diskusage(path):
-    """ Calls du to get disk space used by given path """
-    process = subprocess.Popen(['du', '-s', path], shell=False, 
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    process.wait()
-    out = process.communicate()[0]
-    (diskusage, _) = out.split()
-    return int(diskusage)
+#    """ Calls du to get disk space used by given path """
+#    process = subprocess.Popen(['du', '-s', path], shell=False, 
+#                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+#    process.wait()
+#    out = process.communicate()[0]
+#    (diskusage, _) = out.split()
+#    return int(diskusage)
+    """ Walks the path returning the sum of the filesizes """
+    ### doesn't avoid adding hardlinks twice
+    sum = 0
+    for (dirpath, _, filenames) in os.walk(path):
+        for name in filenames:
+            sum += os.path.getsize('%s/%s' % (dirpath, name))
+    return sum

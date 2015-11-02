@@ -59,7 +59,7 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("\tmachine = %s\n" % localmachine)
     mailfh.write("\tPROCESSINGFW_DIR = %s\n" % os.environ['PROCESSINGFW_DIR'])
     mailfh.write("\torig config = %s/%s\n" % \
-                 (config.getfull('submit_dir'), config.getfull('config_filename')))
+                 (config.getfull('submit_dir'), config.getfull('submitwcl')))
     mailfh.write("\tdirectory = %s\n\n" % config.getfull('work_dir'))
 
 

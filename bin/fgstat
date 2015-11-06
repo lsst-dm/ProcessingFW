@@ -46,10 +46,10 @@ def main():
 
 
     # print headers
-    print "%10s %20s %5s %20s  %15s %10s %10s %35s" % \
+    print "%10s %20s %5s %20s  %20s %10s %10s %40s" % \
            ('FG CID', 'FG user/DES user', 'stat', 'qdate', 'remotehost',
             'wallclock', 'DES CID', 'DES label')
-    print '-'*140
+    print '-'*145
 
     # sort on FermiGrid condor id
     for j in sorted(jobs.keys()):
@@ -94,7 +94,7 @@ def main():
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print "%10s %20s %5s %20s  %15s %10s %10s %35s" % \
+        print "%10s %20s %5s %20s  %20s %10s %10s %40s" % \
                (j, name, pfwcondor.get_job_status_str(j, jobs),
                 datetime.fromtimestamp(int(jdict['qdate'])),
                 remotehost, wallclock, submit_condorid, label)

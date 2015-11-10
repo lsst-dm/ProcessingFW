@@ -43,8 +43,8 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.write("pipeline = %s\n" % config.getfull('pipeline'))
     mailfh.write("project = %s\n" % project)
     mailfh.write("run = %s\n" % run)
-    if 'PFW_ATTEMPT_ID' in config:
-        mailfh.write("pfw_attempt_id = %s\n" % config['PFW_ATTEMPT_ID'])
+    if 'pfw_attempt_id' in config:
+        mailfh.write("pfw_attempt_id = %s\n" % config['pfw_attempt_id'])
     if 'task_id' in config and 'attempt' in config['task_id']:
         mailfh.write("pfw_attempt task_id = %s\n" % config['task_id']['attempt'])
     

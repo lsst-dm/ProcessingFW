@@ -278,6 +278,7 @@ def submit_main_dag(config, dagfile, logfh):
         print '\nImage processing successfully submitted to condor:'
         print '\tRun = %s' % (config.getfull('submit_run'))
         print "\tpfw_attempt_id = %s" % (config['pfw_attempt_id'])
+        print "\tpfw_attempt task_id = %s" % (config['task_id']['attempt'])
     print '\n'
 
     # for completeness, log condorid of pipeline manager

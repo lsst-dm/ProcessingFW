@@ -747,6 +747,40 @@ class PFWDB (desdmdbi.DesDmDbi):
             self.basic_update_row('TASK', updatevals, wherevals)
         self.commit()
 
+
+    ###################################################################### 
+    def insert_compress_task(self, task_id, exec_name, exec_version, exec_args, files_to_compress):
+
+        # get sum of filesizes before compression
+        gtt_name = self.load_filename_gtt(files_to_compress)
+        sql = "select sum(filesize) from desfile d, %s g where g.filename=d.filename and d.compression is NULL" % gtt_name
+        curs = self.cursor()
+        curs.execute(sql)
+        tot_bytes_before = curs.fetchone()[0]
+        self.empty_gtt(gtt_name)
+        
+        params = {'task_id': task_id,
+                  'name': exec_name,
+                  'version': exec_version,
+                  'cmdargs': exec_args,
+                  'num_requested': len(files_to_compress),
+                  'tot_bytes_before': tot_bytes_before}
+        sql = "insert into compress_task (%s) values (%s)" % (','.join(params.keys()), 
+               ','.join([self.get_named_bind_string(x) for x in params.keys()])) 
+        curs = self.cursor()
+        curs.execute(sql, params)
+        self.commit()
+
+
+    ###################################################################### 
+    def update_compress_task(self, task_id, errcnt, tot_bytes_after):
+        wherevals = {'task_id': task_id}
+        updatevals = {'num_failed': errcnt,
+                      'tot_bytes_after': tot_bytes_after}
+        self.basic_update_row('COMPRESS_TASK', updatevals, wherevals)
+        self.commit()
+        
+
     #####
     def insert_data_query (self, wcl, modname, datatype, dataname, execname, cmdargs, version):
         """ insert row into pfw_data_query table """
@@ -975,3 +1009,4 @@ class PFWDB (desdmdbi.DesDmDbi):
             filelist = [x[0] for x in results]
 
         return filelist
+

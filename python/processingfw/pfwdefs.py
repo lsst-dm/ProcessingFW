@@ -3,26 +3,31 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+""" Constants used across various files to make changes easier """
+
 # when changing values, check if change also needed in $PROCESSINGFW_DIR/etc/pfwconfig.des
 #
 # SW_  submit wcl
 # IW_  (wrapper) input wcl
 # OW_  (wrapper) output wcl
-# PF_  processing fw 
+# PF_  processing fw
 # DB_  database table/column names
 ######################################################################
 
-FILETYPE  = 'filetype'
-FILENAME  = 'filename'
+
+
+
+FILETYPE = 'filetype'
+FILENAME = 'filename'
 METATABLE = 'metadata_table'
-USED  = 'used'
-WGB   = 'was_generated_by'
-WDF   = 'was_derived_from'
+USED = 'used'
+WGB = 'was_generated_by'
+WDF = 'was_derived_from'
 
 REQNUM = 'reqnum'
 ATTNUM = 'attnum'
 UNITNAME = 'unitname'
-ATTRIB_PREFIX='des_'
+ATTRIB_PREFIX = 'des_'
 
 SUBMIT_RUN_DIR = 'submit_run_dir'
 ATTEMPT_ARCHIVE_PATH = 'ops_run_dir'
@@ -36,7 +41,7 @@ VALID_HOME_ARCHIVE_OUTPUT = ['wrapper', 'job', 'block', 'run', 'never']
 
 
 TARGET_ARCHIVE = 'target_archive'
-USE_TARGET_ARCHIVE_INPUT =  'use_target_archive_input'
+USE_TARGET_ARCHIVE_INPUT = 'use_target_archive_input'
 USE_TARGET_ARCHIVE_OUTPUT = 'use_target_archive_output'
 VALID_TARGET_ARCHIVE_INPUT = ['job', 'never']
 VALID_TARGET_ARCHIVE_OUTPUT = ['wrapper', 'job', 'never']
@@ -55,8 +60,12 @@ MASTER_SAVE_FILE_DEFAULT = 'file'
 VALID_MASTER_COMPRESSION = ['notfailure', 'file', 'never']
 MASTER_COMPRESSION_DEFAULT = 'file'
 MASTER_COMPRESSION = 'master_compression'
-COMPRESS_FILE_EXEC = 'fpack'
-COMPRESS_FILE_ARGS = '${__UCFILE__}'
+COMPRESSION_EXEC = 'compression_exec'
+COMPRESSION_SUFFIX = 'compression_suffix'
+COMPRESSION_ARGS = 'compression_args'
+COMPRESSION_CLEANUP = 'compress_cleanup'
+COMPRESSION_CLEANUP_DEFAULT = True
+COMPRESS_FILES = 'compress_files'
 
 
 ALLOW_MISSING = 'allow_missing'

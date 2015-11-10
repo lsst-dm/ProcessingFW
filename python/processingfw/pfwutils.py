@@ -363,6 +363,7 @@ def index_wrapper_info(wrapinfo):
 def should_save_file(mastersave, filesave, exitcode):
     """ Determine whether should save the file """
     msave = mastersave.lower()
+    fsave = miscutils.convertBool(filesave)
 
     if msave == 'failure':
         if exitcode != 0:
@@ -370,7 +371,34 @@ def should_save_file(mastersave, filesave, exitcode):
         else:
             msave = 'file'
 
-    retval = ((msave == 'always') or (msave == 'file' and filesave))
+    retval = ((msave == 'always') or (msave == 'file' and fsave))
+    print "should_save_file: ", retval, type(retval)
+    return retval
+
+
+#######################################################################
+def should_compress_file(mastercompress, filecompress, exitcode):
+    """ Determine whether should compress the file """
+
+    if miscutils.fwdebug_check(6, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("BEG: master=%s, file=%s, exitcode=%s" % (mastercompress, filecompress, exitcode))
+
+    mcompress = mastercompress
+    if isinstance(mastercompress, str):
+        mcompress = mastercompress.lower()
+
+    fcompress = miscutils.convertBool(filecompress)
+
+    if mcompress == 'success':
+        if exitcode != 0:
+            mcompress = 'never'
+        else:
+            mcompress = 'file'
+
+    retval = (mcompress == 'file' and fcompress)
+
+    if miscutils.fwdebug_check(6, "PFWUTILS_DEBUG"):
+        miscutils.fwdebug_print("END - retval = %s" % retval)
     return retval
 
 
@@ -416,7 +444,7 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
 ######################################################################
 def diskusage(path):
 #    """ Calls du to get disk space used by given path """
-#    process = subprocess.Popen(['du', '-s', path], shell=False, 
+#    process = subprocess.Popen(['du', '-s', path], shell=False,
 #                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 #    process.wait()
 #    out = process.communicate()[0]
@@ -424,8 +452,8 @@ def diskusage(path):
 #    return int(diskusage)
     """ Walks the path returning the sum of the filesizes """
     ### doesn't avoid adding hardlinks twice
-    sum = 0
+    usum = 0
     for (dirpath, _, filenames) in os.walk(path):
         for name in filenames:
-            sum += os.path.getsize('%s/%s' % (dirpath, name))
-    return sum
+            usum += os.path.getsize('%s/%s' % (dirpath, name))
+    return usum

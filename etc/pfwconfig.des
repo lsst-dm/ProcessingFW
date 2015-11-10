@@ -17,6 +17,15 @@ use_target_archive_output = never  # wrapper, job, never
 use_home_archive_input = wrapper #
 use_home_archive_output = job # wrapper, job, block, run, never
 
+
+MASTER_COMPRESSION = file # never, file, success
+COMPRESSION_EXEC = fpack
+COMPRESSION_CLEANUP = false
+COMPRESSION_SUFFIX = .fz
+# __UCFILE__ = uncompressed file, __CFILE__ = compressed file
+COMPRESSION_ARGS = ${__UCFILE__}
+
+
 # framework patterns
 tmpfile_prefix = tmp_${unitname}_r${reqnum}p${attnum:2}w${wrapnum:5}_${modulename}
 modnamepat = ${unitname}_r${reqnum}p${attnum:2}w${wrapnum}_${modulename}

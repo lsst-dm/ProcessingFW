@@ -863,7 +863,7 @@ def finish_wrapper_inst(config, modname, winst, outfsect):
                 miscutils.fwdebug_print("fullname = %s" % (winst[pfwdefs.IW_FILESECT][fname]['fullname']))
 
             for k in ['filetype', metadefs.WCL_META_REQ, metadefs.WCL_META_OPT,
-                      pfwdefs.SAVE_FILE_ARCHIVE, pfwdefs.DIRPAT]:
+                      pfwdefs.SAVE_FILE_ARCHIVE, pfwdefs.COMPRESS_FILES,pfwdefs.DIRPAT]:
                 if k in fdict:
                     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                         miscutils.fwdebug_print("%s copying %s" % (fname, k))
@@ -1059,6 +1059,26 @@ def write_jobwcl(config, jobkey, jobdict):
     if 'transfer_stats' in config:
         jobwcl['transfer_stats'] = config.getfull('transfer_stats')
 
+    # compression 
+    if pfwdefs.MASTER_COMPRESSION in config:
+        jobwcl[pfwdefs.MASTER_COMPRESSION] = config.getfull(pfwdefs.MASTER_COMPRESSION).lower()
+    else:
+        jobwcl[pfwdefs.MASTER_COMPRESSION] = pfwdefs.MASTER_COMPRESSION_DEFAULT.lower()
+
+    if pfwdefs.COMPRESSION_CLEANUP in config:
+        jobwcl[pfwdefs.COMPRESSION_CLEANUP] = config.getfull(pfwdefs.COMPRESSION_CLEANUP)
+    else:
+        jobwcl[pfwdefs.COMPRESSION_CLEANUP] = pfwdefs.COMPRESSION_CLEANUP_DEFAULT
+
+    if jobwcl[pfwdefs.MASTER_COMPRESSION] != 'never':
+        for key in [pfwdefs.COMPRESSION_EXEC,
+                    pfwdefs.COMPRESSION_ARGS,
+                    pfwdefs.COMPRESSION_SUFFIX,
+                    pfwdefs.COMPRESSION_CLEANUP]:
+            if key in config:
+                jobwcl[key] = config.get(key)
+
+
     # copy transfer_semname keys to jobwcl
     for tsemname in ['input_transfer_semname_target',
                      'input_transfer_semname_home',
@@ -1074,6 +1094,7 @@ def write_jobwcl(config, jobkey, jobdict):
         jobwcl[pfwdefs.MASTER_SAVE_FILE] = config.getfull(pfwdefs.MASTER_SAVE_FILE)
     else:
         jobwcl[pfwdefs.MASTER_SAVE_FILE] = pfwdefs.MASTER_SAVE_FILE_DEFAULT
+
 
     target_archive = init_use_archive_info(config, jobwcl, pfwdefs.USE_TARGET_ARCHIVE_INPUT,
                                            pfwdefs.USE_TARGET_ARCHIVE_OUTPUT, pfwdefs.TARGET_ARCHIVE)

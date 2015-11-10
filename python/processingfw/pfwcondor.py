@@ -451,7 +451,7 @@ def condor_q(args_str=''):
                 condorid = -9999
         else:
             # divide line into key/value pair
-            result = re.search(r'(\S+)\s*=\s*(\S+)', line)
+            result = re.search(r'(\S+)\s*=\s*(.+)$', line)
             key = result.group(1).lower()
             value = re.sub('"', '', result.group(2))
 

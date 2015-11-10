@@ -46,8 +46,8 @@ def main():
 
 
     # print headers
-    print "%10s %20s %5s %20s  %20s %10s %10s %40s" % \
-           ('FG CID', 'FG user/DES user', 'stat', 'qdate', 'remotehost',
+    print "%10s %20s %5s %20s %6s  %20s %10s %10s %40s" % \
+           ('FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
             'wallclock', 'DES CID', 'DES label')
     print '-'*145
 
@@ -87,6 +87,11 @@ def main():
             wallclock = now - jobstartdate
             wallclock = str(timedelta(seconds=wallclock.seconds))
 
+        flavor = ""
+        if 'requirements' in jdict:
+            if 'IS_CLOUD_WNITB' in jdict['requirements']:
+                flavor='himem'
+
         # try to print a string that describes the job in framework terms
         label = ""
         if 'transferinput' in jdict:
@@ -94,9 +99,9 @@ def main():
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print "%10s %20s %5s %20s  %20s %10s %10s %40s" % \
+        print "%10s %20s %5s %20s %6s  %20s %10s %10s %40s" % \
                (j, name, pfwcondor.get_job_status_str(j, jobs),
-                datetime.fromtimestamp(int(jdict['qdate'])),
+                datetime.fromtimestamp(int(jdict['qdate'])), flavor,
                 remotehost, wallclock, submit_condorid, label)
 
 

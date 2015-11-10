@@ -279,9 +279,7 @@ class PfwConfig(WCL):
             else:
                 self['list_target_archives'] = archive
         elif ((pfwdefs.USE_HOME_ARCHIVE_INPUT in self and
-               miscutils.convertBool(self[pfwdefs.USE_TARGET_ARCHIVE_INPUT])) or
-              (pfwdefs.USE_HOME_ARCHIVE_OUTPUT in self and
-               self[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never')):
+               self[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never')):
             (exists, archive) = self.search(pfwdefs.HOME_ARCHIVE)
             if not exists:
                 miscutils.fwdie("Error: Cannot determine home_archive value.\n" \

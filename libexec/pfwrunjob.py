@@ -1359,6 +1359,7 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
             provdefs.PROV_WGB: {'exec_1': provdefs.PROV_DELIM.join(wgb_fnames)},
             provdefs.PROV_WDF: create_compression_wdf(used_fnames, wgb_fnames)}
     filemgmt.ingest_provenance(prov, {'exec_1': task_id})
+    force_update_desfile_filetype(filemgmt, filelist)
     filemgmt.commit()
 
     if pfw_dbh is not None:
@@ -1367,6 +1368,22 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
     if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END")
 
+################################################################################
+def force_update_desfile_filetype(dbh, filelist):
+    """ Force update filetype in desfile table for compressed files """
+
+    sql = "update desfile set filetype=%s where filename=%s and compression = %s" % \
+        (dbh.get_named_bind_string('filetype'),
+        dbh.get_named_bind_string('filename'),
+        dbh.get_named_bind_string('compression')) 
+    curs = dbh.cursor()
+    curs.prepare(sql)
+    for dinfo in filelist:
+        params = {'filename': dinfo['filename'],
+                  'compression': dinfo['compression'],
+                  'filetype': dinfo['filetype']}
+        curs.execute(None, params)
+    dbh.commit()
 
 ################################################################################
 def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):

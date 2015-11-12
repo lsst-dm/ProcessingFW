@@ -184,7 +184,7 @@ def jobpost(argv=None):
 
         # get job information from the condor job log
         logfilename = 'runjob.log'
-        if os.path.exists(logfilename):   # if made it to submitting/running jobs
+        if os.path.exists(logfilename) and os.path.getsize(logfilename) > 0:  # if made it to submitting/running jobs
             try:
                 # update job info in DB from condor log
                 print "Updating job info in DB from condor log"
@@ -215,7 +215,6 @@ def jobpost(argv=None):
                         tjobinfo_task['status'] = pfwdefs.PF_EXIT_OPDELETE
                     else:
                         tjobinfo_task['status'] = pfwdefs.PF_EXIT_CONDOR
-                    print "MMG", tjobinfo_task
                 else:
                     print "NOTTHERE"
             except Exception:

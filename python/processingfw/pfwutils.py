@@ -372,7 +372,6 @@ def should_save_file(mastersave, filesave, exitcode):
             msave = 'file'
 
     retval = ((msave == 'always') or (msave == 'file' and fsave))
-    print "should_save_file: ", retval, type(retval)
     return retval
 
 
@@ -407,15 +406,15 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
                          label, classname, extra_info):
     """ Dynamically load a class save timing info in task table """
 
-    task_id = -1
-    if pfw_dbh is not None:
-        task_id = pfw_dbh.create_task(name='dynclass',
-                                      info_table=None,
-                                      parent_task_id=parent_tid,
-                                      root_task_id=attempt_task_id,
-                                      label=label,
-                                      do_begin=True,
-                                      do_commit=True)
+    #task_id = -1
+    #if pfw_dbh is not None:
+    #    task_id = pfw_dbh.create_task(name='dynclass',
+    #                                  info_table=None,
+    #                                  parent_task_id=parent_tid,
+    #                                  root_task_id=attempt_task_id,
+    #                                  label=label,
+    #                                  do_begin=True,
+    #                                  do_commit=True)
 
     the_class_obj = None
     try:
@@ -431,12 +430,13 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
         msg = "Error: creating %s object - %s - %s" % (label, extype, exvalue)
         print "\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.insert_message(wcl['pfw_attempt_id'], task_id, pfwdefs.PFWDB_MSG_ERROR, msg)
-            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+            pfw_dbh.insert_message(wcl['pfw_attempt_id'], parent_tid, pfwdefs.PFWDB_MSG_ERROR, msg)
+            #pfw_dbh.insert_message(wcl['pfw_attempt_id'], task_id, pfwdefs.PFWDB_MSG_ERROR, msg)
+            #pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
 
-    if pfw_dbh is not None:
-        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+    #if pfw_dbh is not None:
+    #    pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
     return the_class_obj
 

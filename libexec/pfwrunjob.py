@@ -157,15 +157,15 @@ def dynam_load_filemgmt(wcl, pfw_dbh, archive_info, parent_tid):
 def dynam_load_jobfilemvmt(wcl, pfw_dbh, tstats, parent_tid):
     """ Dynamically load job file mvmt class """
 
-    task_id = -1
-    if pfw_dbh is not None:
-        task_id = pfw_dbh.create_task(name='dynclass',
-                                      info_table=None,
-                                      parent_task_id=parent_tid,
-                                      root_task_id=wcl['task_id']['attempt'],
-                                      label='jobfmv',
-                                      do_begin=True,
-                                      do_commit=True)
+    #task_id = -1
+    #if pfw_dbh is not None:
+    #    task_id = pfw_dbh.create_task(name='dynclass',
+    #                                  info_table=None,
+    #                                  parent_task_id=parent_tid,
+    #                                  root_task_id=wcl['task_id']['attempt'],
+    #                                  label='jobfmv',
+    #                                  do_begin=True,
+    #                                  do_commit=True)
     jobfilemvmt = None
     try:
         jobfilemvmt_class = miscutils.dynamically_load_class(wcl['job_file_mvmt']['mvmtclass'])
@@ -177,11 +177,12 @@ def dynam_load_jobfilemvmt(wcl, pfw_dbh, tstats, parent_tid):
         msg = "Error: creating job_file_mvmt object\n%s" % err
         print "ERROR\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.insert_message(wcl['pfw_attempt_id'], task_id, pfwdefs.PFWDB_MSG_ERROR, msg)
-            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+            pfw_dbh.insert_message(wcl['pfw_attempt_id'], parent_tid, pfwdefs.PFWDB_MSG_ERROR, msg)
+            #pfw_dbh.insert_message(wcl['pfw_attempt_id'], task_id, pfwdefs.PFWDB_MSG_ERROR, msg)
+            #pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise
-    if pfw_dbh is not None:
-        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
+    #if pfw_dbh is not None:
+    #    pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
     return jobfilemvmt
 
@@ -191,9 +192,9 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
                        pfw_attempt_id, attempt_tid, parent_tid, wgb_tid,
                        do_update, update_info):
     """ Call and time filemgmt.register_file_data routine for pfw created files """
-    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG (%s, %s)" % (ftype, parent_tid))
-    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("fullnames=%s" % (fullnames))
         miscutils.fwdebug_print("do_update=%s, update_info=%s" % (do_update, update_info))
 
@@ -829,7 +830,6 @@ def copy_output_to_archive(pfw_dbh, wcl, jobfiles, fileinfo, loginfo, exitcode):
     transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, 'wrapper',
                              wcl['task_id']['jobwrapper'], 'wrapper_output', exitcode)
 
-    print "# output", len(jobfiles['output_putinfo'])
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
 
@@ -1246,8 +1246,8 @@ def run_job(args):
 
     # if should transfer at end of job
     if len(jobfiles['output_putinfo']) > 0:
-        print "\n\nCalling file transfer for end of job"
-        print "len(jobfiles['outfullnames'])=%s" % (len(jobfiles['output_putinfo']))
+        print "\n\nCalling file transfer for end of job (%s files)" % \
+              (len(jobfiles['output_putinfo']))
         transfer_job_to_archives(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'],
                                  'job', job_task_id, 'job_output', exitcode)
     else:
@@ -1280,7 +1280,7 @@ def create_compression_wdf(used_fnames, wgb_fnames):
         cnt += 1
 
     return wdf
-        
+
 
 ###############################################################################
 def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
@@ -1375,7 +1375,7 @@ def force_update_desfile_filetype(dbh, filelist):
     sql = "update desfile set filetype=%s where filename=%s and compression = %s" % \
         (dbh.get_named_bind_string('filetype'),
         dbh.get_named_bind_string('filename'),
-        dbh.get_named_bind_string('compression')) 
+        dbh.get_named_bind_string('compression'))
     curs = dbh.cursor()
     curs.prepare(sql)
     for dinfo in filelist:
@@ -1510,8 +1510,8 @@ def parse_args(argv):
 ######################################################################
 def get_semaphore(wcl, stype, dest, trans_task_id):
     """ create semaphore if being used """
-    miscutils.fwdebug(3, "PFWRUNJOB_DEBUG",
-                      "get_semaphore: stype=%s dest=%s tid=%s" % (stype, dest, trans_task_id))
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("get_semaphore: stype=%s dest=%s tid=%s" % (stype, dest, trans_task_id))
 
     sem = None
     if wcl['use_db']:
@@ -1527,7 +1527,8 @@ def get_semaphore(wcl, stype, dest, trans_task_id):
 
         if semname is not None and semname != '__NONE__':
             sem = dbsem.DBSemaphore(semname, trans_task_id)
-            miscutils.fwdebug(3, "PFWRUNJOB_DEBUG", "Semaphore info: %s" % str(sem))
+            if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+                miscutils.fwdebug_print("Semaphore info: %s" % str(sem))
     return sem
 
 if __name__ == '__main__':

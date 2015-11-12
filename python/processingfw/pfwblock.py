@@ -2187,7 +2187,6 @@ d2=`/bin/date "+%s"`
 echo "PFW: pfwrunjob endtime: $d2"
 echo ""
 echo ""
-du -s .
 shd2=`/bin/date "+%s"`
 echo "PFW: job_shell_script endtime: $shd2"
 echo "PFW: job_shell_script exit_status: $rjstat"

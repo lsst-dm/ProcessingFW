@@ -396,7 +396,6 @@ class PFWDB (desdmdbi.DesDmDbi):
         self.insert_PFW_row('PFW_BLOCK', row)
 
         config['task_id']['block'][str(row['blknum'])] = row['task_id']
-        print config['task_id']
 
 
     def update_block_numexpjobs (self, config, numexpjobs):
@@ -721,15 +720,13 @@ class PFWDB (desdmdbi.DesDmDbi):
         if len(updatevals) > 0:
             wherevals = {}
             wherevals['task_id'] = taskid
-            print "updatevals = ", updatevals
-            print "wherevals = ", updatevals
 
             self.update_PFW_row('PFW_EXEC', updatevals, wherevals)
 
         # update task table
         updatevals = {}
-        if 'task_info' in execwcl and 'run_command' in execwcl['task_info']:
-            wcl_task_info = execwcl['task_info']['run_command']
+        if 'task_info' in execwcl and 'run_exec' in execwcl['task_info']:
+            wcl_task_info = execwcl['task_info']['run_exec']
             if 'start_time' in wcl_task_info:
                 updatevals['start_time'] = datetime.fromtimestamp(float(wcl_task_info['start_time']))
             if 'end_time' in wcl_task_info:
@@ -742,8 +739,6 @@ class PFWDB (desdmdbi.DesDmDbi):
         if len(updatevals) > 0:
             wherevals = {}
             wherevals['id'] = taskid
-            print "updatevals = ", updatevals
-            print "wherevals = ", updatevals
             self.basic_update_row('TASK', updatevals, wherevals)
         self.commit()
 

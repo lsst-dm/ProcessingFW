@@ -131,8 +131,12 @@ def pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, file_prov, prov_task_i
         archive_info = wcl['home_archive_info']
     elif pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
         archive_info = wcl['target_archive_info']
+    elif pfwdefs.USE_HOME_ARCHIVE_INPUT in wcl and wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT].lower() != 'never':
+        archive_info = wcl['home_archive_info']
+    elif pfwdefs.USE_TARGET_ARCHIVE_INPUT in wcl and wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT].lower() != 'never':
+        archive_info = wcl['target_archive_info']
     else:
-        raise Exception('Error: Could not determine archive for output files');
+        raise Exception('Error: Could not determine archive for output files. Check USE_*_ARCHIVE_* WCL vars.');
 
         
     task_id = -1

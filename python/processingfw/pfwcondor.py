@@ -130,7 +130,7 @@ def create_resource(info):
             gridtype = info['gridtype'].lower()
             if gridtype == 'prews':  # handle deprecated prews keyword
                 gridtype = 'gt2'
-            elif gridtype != 'gt2' and gridtype != 'gt5':
+            elif gridtype != 'gt2' and gridtype != 'gt5' and gridtype != 'condor-ce':
                 raise CondorException('Invalid gridtype %s' % gridtype)
         else:
             gridtype = 'gt5'
@@ -140,16 +140,24 @@ def create_resource(info):
         else:
             raise CondorException('Missing gridhost')
 
-        if 'batchtype' in info:
-            batchtype = info['batchtype'].lower()
-        else:
-            raise CondorException('Missing batchtype')
-
         # create gridresource string
-        gridresource = gridtype + ' ' + gridhost
+        gridresource = None
+        if gridtype == 'gt2' or gridtype == 'gt5':
+            gridresource = gridtype
+        elif gridtype == 'condor-ce':
+            gridresource = 'condor ' + gridhost
+
+        gridresource += ' ' + gridhost
+
         if 'gridport' in info:
             gridresource += ':' + info['gridport']
-        gridresource += '/jobmanager-' + batchtype
+
+        if gridtype == 'gt2' or gridtype == 'gt5':
+            if 'batchtype' in info:
+                batchtype = info['batchtype'].lower()
+                gridresource += '/jobmanager-' + batchtype
+            else:
+                raise CondorException('Missing batchtype')
 
     return gridresource
 
@@ -166,7 +174,7 @@ def create_rsl(info):
 
     if 'batchtype' in info:
         batchtype = info['batchtype'].lower()
-        if batchtype != 'fork':
+        if batchtype != 'fork' and batchtype != 'condor-ce':
             # used psn to distinguish from DESDM project
             if 'psn' in info:
                 rslparts.append('(project=%s)' % info['psn'])

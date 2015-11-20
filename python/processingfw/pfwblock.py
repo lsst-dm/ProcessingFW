@@ -2347,6 +2347,7 @@ def create_runjob_condorfile(config, scriptfile):
         jobattribs['grid_resource'] = pfwcondor.create_resource(targetinfo)
         jobattribs['stream_output'] = 'False'
         jobattribs['stream_error'] = 'False'
+        jobattribs['use_x509userproxy'] = 'True'   # required for condor-ce, defaults true for gt5
         use_condor_transfer_output = True
         if 'use_condor_transfer_output' in config:
             use_condor_transfer_output = miscutils.convertBool(config.getfull('use_condor_transfer_output'))
@@ -2355,6 +2356,11 @@ def create_runjob_condorfile(config, scriptfile):
         globus_rsl = pfwcondor.create_rsl(targetinfo)
         if len(globus_rsl) > 0:
             jobattribs['globus_rsl'] = globus_rsl
+        if targetinfo['gridtype'] == 'condor-ce':
+            if 'request_memory' in config: 
+                userattribs['maxMemory'] = int(config['request_memory'])
+            if 'request_cpus' in config:
+                userattribs['request_cpus'] = int(config['request_cpus'])
 
     if len(reqs) > 0:
         jobattribs['requirements'] = ' && '.join(reqs)

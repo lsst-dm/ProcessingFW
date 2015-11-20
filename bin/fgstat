@@ -37,20 +37,9 @@ from datetime import timedelta
 
 import processingfw.pfwcondor as pfwcondor
 
-def main():
-    """ Entry point """
 
-    fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
-    now = datetime.now()
-    jobs = pfwcondor.condor_q(fermigrid)
-
-
-    # print headers
-    print "%10s %20s %5s %20s %6s  %20s %10s %10s %40s" % \
-           ('FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
-            'wallclock', 'DES CID', 'DES label')
-    print '-'*145
-
+def print_jobs(chost, jobs, now):
+    """ Print jobs for a single FermiGrid condor pool """
     # sort on FermiGrid condor id
     for j in sorted(jobs.keys()):
         jdict = jobs[j]
@@ -70,6 +59,10 @@ def main():
         submit_condorid = ""
         if 'env' in jdict:
             match = re.search(r"SUBMIT_CONDORID=(\d+)", jdict['env'])
+            if match:
+                submit_condorid = match.group(1)
+        if 'environment' in jdict:
+            match = re.search(r"SUBMIT_CONDORID=(\d+)", jdict['environment'])
             if match:
                 submit_condorid = match.group(1)
         if submit_condorid == "":  # not a framework job, so skip
@@ -99,10 +92,29 @@ def main():
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print "%10s %20s %5s %20s %6s  %20s %10s %10s %40s" % \
-               (j, name, pfwcondor.get_job_status_str(j, jobs),
+        print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %45s" % \
+               (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
                 datetime.fromtimestamp(int(jdict['qdate'])), flavor,
                 remotehost, wallclock, submit_condorid, label)
+
+
+def main():
+    """ Entry point """
+
+    fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
+    fermigridCE = "-name gpce02.fnal.gov -pool gpce02.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
+    now = datetime.now()
+    jobs = pfwcondor.condor_q(fermigrid)
+    jobsCE = pfwcondor.condor_q(fermigridCE)
+
+
+    # print headers
+    print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %45s" % \
+           ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
+            'wallclock', 'DES CID', 'DES label')
+    print '-'*166
+    print_jobs('fnpcosg1', jobs, now)
+    print_jobs('gpce02', jobsCE, now)
 
 
 if __name__ == '__main__':

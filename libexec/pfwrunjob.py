@@ -52,10 +52,10 @@ def get_batch_id_from_job_ad(jobad_file):
 
         # GlobalJobId currently too long to store as target job id
         # Print it here so have it in stdout just in case
-        print "PFW: GlobalJobId = ", info['globaljobid']
+        print "PFW: GlobalJobId:", info['globaljobid']
 
         batch_id = "%s.%s" % (info['clusterid'], info['procid'])
-        print "PFW: batchid = ", batch_id
+        print "PFW: batchid:", batch_id
     except Exception as ex:
         miscutils.fwdebug_print("Problem getting condor job id from job ad: %s" % (str(ex)))
         miscutils.fwdebug_print("Continuing without condor job id")
@@ -139,14 +139,18 @@ def dynam_load_filemgmt(wcl, pfw_dbh, archive_info, parent_tid):
     """ Dynamically load filemgmt class """
 
     if archive_info is None:
-        if (pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and
-                wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() != 'never'):
+        if ((pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and
+             wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() != 'never') or
+                (pfwdefs.USE_HOME_ARCHIVE_INPUT in wcl and
+                 wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT].lower() != 'never')):
             archive_info = wcl['home_archive_info']
-        elif (pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and
-              wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never'):
+        elif ((pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and
+               wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never') or
+              (pfwdefs.USE_TARGET_ARCHIVE_INPUT in wcl and
+               wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT].lower() != 'never')):
             archive_info = wcl['target_archive_info']
         else:
-            raise Exception('Error: Could not determine archive for output files')
+            raise Exception('Error: Could not determine archive for output files. Check USE_*_ARCHIVE_* WCL vars.')
 
     filemgmt = pfwutils.pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, wcl['task_id']['attempt'],
                                              #'filemgmt', archive_info['filemgmt'], archive_info)
@@ -538,7 +542,7 @@ def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
 
     # get execnames to put on command line for QC Framework
     wcl['execnames'] = wcl['wrapper']['wrappername'] + ',' + get_exec_names(wcl)
- 
+
     # get output filenames
     outfiles = get_wrapper_outputs(pfw_dbh, wcl)
 
@@ -1264,7 +1268,6 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
     if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
 
-    job_task_id = jobwcl['task_id']['job']
     task_id = None
     compress_ver = pfwutils.get_version(jobwcl[pfwdefs.COMPRESSION_EXEC],
                                         jobwcl[pfwdefs.IW_EXEC_DEF])
@@ -1349,8 +1352,8 @@ def force_update_desfile_filetype(dbh, filelist):
 
     sql = "update desfile set filetype=%s where filename=%s and compression = %s" % \
         (dbh.get_named_bind_string('filetype'),
-        dbh.get_named_bind_string('filename'),
-        dbh.get_named_bind_string('compression'))
+         dbh.get_named_bind_string('filename'),
+         dbh.get_named_bind_string('compression'))
     curs = dbh.cursor()
     curs.prepare(sql)
     for dinfo in filelist:

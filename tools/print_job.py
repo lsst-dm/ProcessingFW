@@ -75,7 +75,8 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
                 #print "wrapnum in job =", wrap_byjob[jobnum].keys()
                 maxwrap = max(wrap_byjob[jobnum].keys())
                 modname = wrap_byjob[jobnum][maxwrap]['modname']    
-                wrapkeys = wrap_byjob[jobnum][maxwrap]['wrapkeys']
+                if 'wrapkeys' in wrap_byjob[jobnum][maxwrap]:  # 1.1 compat
+                    wrapkeys = wrap_byjob[jobnum][maxwrap]['wrapkeys']
             
             jobkeys = ""
             if jobdict['jobkeys'] is not None:
@@ -96,6 +97,8 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
                     print "done"
                 else:
                     print "fail %s" % jobdict['status']
+            elif numwraps == expnumwrap and wrap_byjob[jobnum][maxwrap]['end_time'] is not None:
+                    print "end job tasks"
             else:
                 print ""
                 

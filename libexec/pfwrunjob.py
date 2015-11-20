@@ -46,10 +46,10 @@ def get_batch_id_from_job_ad(jobad_file):
 
         # GlobalJobId currently too long to store as target job id
         # Print it here so have it in stdout just in case
-        print "PFW: GlobalJobId = ", info['globaljobid']
+        print "PFW: GlobalJobId:", info['globaljobid']
 
         batch_id = "%s.%s" % (info['clusterid'], info['procid'])
-        print "PFW: batchid = ", batch_id
+        print "PFW: batchid: ", batch_id
     except Exception as ex:
         miscutils.fwdebug(0, "PFWRUNJOB_DEBUG",  "Problem getting condor job id from job ad: %s" % (str(ex)))
         miscutils.fwdebug(0, "PFWRUNJOB_DEBUG",  "Continuing without condor job id")
@@ -131,8 +131,12 @@ def pfw_save_file_info(pfw_dbh, wcl, artifacts, filemeta, file_prov, prov_task_i
         archive_info = wcl['home_archive_info']
     elif pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
         archive_info = wcl['target_archive_info']
+    elif pfwdefs.USE_HOME_ARCHIVE_INPUT in wcl and wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT].lower() != 'never':
+        archive_info = wcl['home_archive_info']
+    elif pfwdefs.USE_TARGET_ARCHIVE_INPUT in wcl and wcl[pfwdefs.USE_HOME_ARCHIVE_INPUT].lower() != 'never':
+        archive_info = wcl['target_archive_info']
     else:
-        raise Exception('Error: Could not determine archive for output files');
+        raise Exception('Error: Could not determine archive for output files. Check USE_*_ARCHIVE_* WCL vars.');
 
         
     task_id = -1

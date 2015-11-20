@@ -8,6 +8,7 @@
 
 import sys
 import os
+import time
 import traceback
 
 import processingfw.pfwdefs as pfwdefs
@@ -62,7 +63,7 @@ def blockpost(argv=None):
     debugfh.close()
     os.chmod('blockpost.out', 0666)
     os.rename('blockpost.out', new_log_name)
-    debugfh = open(new_log_name, 'a+')
+    debugfh = open(new_log_name, 'a+', 0)
     sys.stdout = debugfh
     sys.stderr = debugfh
 
@@ -86,7 +87,8 @@ def blockpost(argv=None):
     wrap_bymod = {}
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         try:
-            dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+            miscutils.fwdebug_print("Connecting to DB")
+            dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                               config.getfull('submit_des_db_section'))
 
             print "\n\nChecking non-job block task status from task table in DB (%s is success)" % \
@@ -96,14 +98,22 @@ def blockpost(argv=None):
             if ('block' in config['task_id'] and
                     str(blknum) in config['task_id']['block']):
                 blktid = config['task_id']['block'][str(blknum)]
+                miscutils.fwdebug_print("Getting block task info from DB")
+                start_time = time.time()
                 bltasks = dbh.get_block_task_info(blktid)
+                end_time = time.time()
+                miscutils.fwdebug_print("Done getting block task info from DB (%s secs)" % (end_time - start_time))
             else:
                 msg = "Could not find task id for block %s in config.des" % blockname
                 print "Error:", msg
                 if 'attempt' in config['task_id']:
-                    dbh.insert_message(config['pfw_attempt_id'], 
-                                       config['task_id']['attempt'], 
+                    miscutils.fwdebug_print("Saving pfw message")
+                    start_time = time.time()
+                    dbh.insert_message(config['pfw_attempt_id'],
+                                       config['task_id']['attempt'],
                                        pfwdefs.PFWDB_MSG_WARN, msg)
+                    end_time = time.time()
+                    miscutils.fwdebug_print("Done saving pfw message (%s secs)" % (end_time-start_time))
                 print "all the task ids:", config['task_id']
 
             for bltdict in bltasks.values():
@@ -119,10 +129,18 @@ def blockpost(argv=None):
             print "\n\nChecking job status from pfw_job table in DB (%s is success)" % \
                   pfwdefs.PF_EXIT_SUCCESS
 
+            miscutils.fwdebug_print("Getting job info from DB")
+            start_time = time.time()
             jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname,
                                         'attnum': attnum, 'blknum': blknum})
+            end_time = time.time()
+            miscutils.fwdebug_print("Done getting job info from DB (%s secs)" % (end_time-start_time))
 
+            miscutils.fwdebug_print("Getting wrapper info from DB")
+            start_time = time.time()
             wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
+            end_time = time.time()
+            miscutils.fwdebug_print("Done getting wrapper info from DB (%s secs)" % (end_time-start_time))
             dbh.close()
 
             print "len(jobinfo) = ", len(jobinfo)
@@ -202,14 +220,18 @@ def blockpost(argv=None):
             traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
             retval = pfwdefs.PF_EXIT_FAILURE
 
-        print "lastwraps = ", lastwraps
+        miscutils.fwdebug_print("lastwraps = %s" % lastwraps)
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)) and len(lastwraps) > 0:
             try:
                 import qcframework.qcfdb as qcfdb
-                dbh = qcfdb.QCFDB(config.getfull('submit_des_services'), 
+                dbh = qcfdb.QCFDB(config.getfull('submit_des_services'),
                                   config.getfull('submit_des_db_section'))
+                miscutils.fwdebug_print("Querying QCF messages")
+                start_time = time.time()
                 wrapmsg = dbh.get_qcf_messages_for_wrappers(lastwraps)
-                print "wrapmsg = ", wrapmsg
+                end_time = time.time()
+                miscutils.fwdebug_print("Done querying QCF messages (%s secs)" % (end_time-start_time))
+                miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
                 dbh.close()
 
                 MAXMESG = 3

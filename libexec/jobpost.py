@@ -39,7 +39,10 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                     if line.startswith('PFW:'): 
                         parts = line.split()
                         if parts[1] == 'batchid':
-                            tjobinfo['target_job_id'] = parts[2]
+                            if parts[2] == '=':   # older pfwrunjob.py
+                                tjobinfo['target_job_id'] = parts[3]
+                            else:
+                                tjobinfo['target_job_id'] = parts[2]
                         elif parts[1] == 'condorid':
                             tjobinfo['condor_job_id'] = parts[2]
                         elif parts[1] == 'job_shell_script':

@@ -46,10 +46,10 @@ def get_batch_id_from_job_ad(jobad_file):
 
         # GlobalJobId currently too long to store as target job id
         # Print it here so have it in stdout just in case
-        print "PFW: GlobalJobId = ", info['globaljobid']
+        print "PFW: GlobalJobId:", info['globaljobid']
 
         batch_id = "%s.%s" % (info['clusterid'], info['procid'])
-        print "PFW: batchid = ", batch_id
+        print "PFW: batchid: ", batch_id
     except Exception as ex:
         miscutils.fwdebug(0, "PFWRUNJOB_DEBUG",  "Problem getting condor job id from job ad: %s" % (str(ex)))
         miscutils.fwdebug(0, "PFWRUNJOB_DEBUG",  "Continuing without condor job id")

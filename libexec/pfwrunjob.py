@@ -18,6 +18,7 @@ import tarfile
 import copy
 import traceback
 import socket
+from collections import OrderedDict
 
 import despydmdb.dbsemaphore as dbsem
 import despymisc.miscutils as miscutils
@@ -405,123 +406,9 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, paren
     return transinfo
 
 
-
 ######################################################################
-def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
-    """ Create output directories, get files from archive, and other setup work """
-
-    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-        miscutils.fwdebug_print("BEG")
-
-    wcl['pre_disk_usage'] = pfwutils.diskusage(wcl['jobroot'])
-
-
-    # make directory for log file
-    logdir = os.path.dirname(logfilename)
-    miscutils.coremakedirs(logdir)
-
-    # make directory for outputwcl
-    #outputwclfile = wcl[pfwdefs.IW_WRAPSECT]['outputwcl']
-    #outputwcldir = os.path.dirname(outputwclfile)
-    #miscutils.coremakedirs(outputwcldir)
-
-    wcl['task_id']['exec'] = {}
-
-    # register any list files for this wrapper
-    if pfwdefs.IW_LISTSECT in wcl and pfw_dbh is not None:
-        list_filenames = []
-        for ldict in wcl[pfwdefs.IW_LISTSECT].values():
-            list_filenames.append(ldict['fullname'])
-
-        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-            miscutils.fwdebug_print("registering lists list_filenames=%s" % list_filenames)
-
-        filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
-        pfw_save_file_info(pfw_dbh, filemgmt, 'list', list_filenames, wcl['pfw_attempt_id'],
-                           wcl['task_id']['attempt'], wcl['task_id']['jobwrapper'],
-                           wcl['task_id']['attempt'],
-                           False, None)
-
-        jobfiles['outfullnames'].extend(list_filenames)
-
-    # make directories for output files, get input files from targetnode
-    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-        miscutils.fwdebug_print("section loop beg")
-    execnamesarr = [wcl['wrapper']['wrappername']]
-    outfiles = {}
-    execs = intgmisc.get_exec_sections(wcl, pfwdefs.IW_EXECPREFIX)
-    for sect in sorted(execs):
-        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-            miscutils.fwdebug_print("section %s" % sect)
-        if 'execname' not in wcl[sect]:
-            print "Error: Missing execname in input wcl.  sect =", sect
-            print "wcl[sect] = ", miscutils.pretty_print_dict(wcl[sect])
-            miscutils.fwdie("Error: Missing execname in input wcl", pfwdefs.PF_EXIT_FAILURE)
-
-        execname = wcl[sect]['execname']
-        execnamesarr.append(execname)
-
-        if 'execnum' not in wcl[sect]:
-            result = re.match(r'%s(\d+)' % pfwdefs.IW_EXECPREFIX, sect)
-            if not result:
-                miscutils.fwdie("Error:  Cannot determine execnum for input wcl sect %s" % \
-                                sect, pfwdefs.PF_EXIT_FAILURE)
-            wcl[sect]['execnum'] = result.group(1)
-
-        if pfw_dbh is not None:
-            wcl['task_id']['exec'][sect] = pfw_dbh.insert_exec(wcl, sect)
-
-        #if pfwdefs.IW_EXEC_DEF in wcl:
-        #    task_id = -1
-        #    if pfw_dbh is not None:
-        #        task_id = pfw_dbh.create_task(name='get_version',
-        #                                      info_table=None,
-        #                                      parent_task_id=wcl['task_id']['jobwrapper'],
-        #                                      root_task_id=wcl['task_id']['attempt'],
-        #                                      label=sect,
-        #                                      do_begin=True,
-        #                                      do_commit=True)
-        #    wcl[sect]['version'] = pfwutils.get_version(execname, wcl[pfwdefs.IW_EXEC_DEF])
-        #    if pfw_dbh is not None:
-        #        pfw_dbh.update_exec_version(wcl['task_id']['exec'][sect], wcl[sect]['version'])
-        #        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
-
-
-        #starttime = time.time()
-        #task_id = -1
-        #if pfw_dbh is not None:
-        #    task_id = pfw_dbh.create_task(name='make_output_dirs',
-        #                                  info_table=None,
-        #                                  parent_task_id=wcl['task_id']['jobwrapper'],
-        #                                  root_task_id=wcl['task_id']['attempt'],
-        #                                  label=sect,
-        #                                  do_begin=True,
-        #                                  do_commit=True)
-        #if pfwdefs.IW_OUTPUTS in wcl[sect]:
-        #    for outfile in miscutils.fwsplit(wcl[sect][pfwdefs.IW_OUTPUTS]):
-        #        outfiles[outfile] = True
-        #        fullnames = pfwutils.get_wcl_value(outfile+'.fullname', wcl)
-        #        #print "fullnames = ", fullnames
-        #        if '$RNMLST{' in fullnames:
-        #            m = re.search(r"\$RNMLST{\${(.+)},(.+)}", fullnames)
-        #            if m:
-        #                pattern = pfwutils.get_wcl_value(m.group(1), wcl)
-        #            else:
-        #                if pfw_dbh is not None:
-        #                    pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
-        #                raise Exception("Could not parse $RNMLST")
-        #        else:
-        #            outfile_names = miscutils.fwsplit(fullnames)
-        #            for outfile in outfile_names:
-        #                outfile_dir = os.path.dirname(outfile)
-        #                miscutils.coremakedirs(outfile_dir)
-        #else:
-        #    print "\tInfo: 0 output files (%s) in exec section %s" % (pfwdefs.IW_OUTPUTS, sect)
-        #
-        #if pfw_dbh is not None:
-        #    pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
-        #else:
-        #    print "DESDMTIME: make_output_dirs %0.3f" % (time.time()-starttime)
+def get_wrapper_inputs(pfw_dbh, wcl, jobfiles, outfiles):
+    """ Transfer any inputs needed for this wrapper """
 
     if 'wrapinputs' in wcl and \
        wcl[pfwdefs.PF_WRAPNUM] in wcl['wrapinputs'] and \
@@ -569,7 +456,94 @@ def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
     else:
         print "\tInfo: 0 wrapinputs"
 
-    wcl['execnames'] = ','.join(execnamesarr)
+######################################################################
+def get_exec_names(wcl):
+    """ Return string containing comma separated list of executable names """
+
+    execnamesarr = []
+    exec_sectnames = intgmisc.get_exec_sections(wcl, pfwdefs.IW_EXECPREFIX)
+    for sect in sorted(exec_sectnames):
+        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+            miscutils.fwdebug_print("section %s" % sect)
+        if 'execname' not in wcl[sect]:
+            print "Error: Missing execname in input wcl.  sect =", sect
+            print "wcl[sect] = ", miscutils.pretty_print_dict(wcl[sect])
+            miscutils.fwdie("Error: Missing execname in input wcl", pfwdefs.PF_EXIT_FAILURE)
+
+        execnamesarr.append(wcl[sect]['execname'])
+
+    return ','.join(execnamesarr)
+
+
+######################################################################
+def create_exec_tasks(pfw_dbh, wcl):
+    """ Create exec tasks saving task_ids in wcl """
+
+    wcl['task_id']['exec'] = OrderedDict()
+
+    exec_sectnames = intgmisc.get_exec_sections(wcl, pfwdefs.IW_EXECPREFIX)
+    for sect in sorted(exec_sectnames):
+        # make sure execnum in the exec section in wcl for the insert_exec function
+        if 'execnum' not in wcl[sect]:
+            result = re.match(r'%s(\d+)' % pfwdefs.IW_EXECPREFIX, sect)
+            if not result:
+                miscutils.fwdie("Error:  Cannot determine execnum for input wcl sect %s" % \
+                                sect, pfwdefs.PF_EXIT_FAILURE)
+            wcl[sect]['execnum'] = result.group(1)
+
+        if pfw_dbh is not None:
+            wcl['task_id']['exec'][sect] = pfw_dbh.insert_exec(wcl, sect)
+
+######################################################################
+def get_wrapper_outputs(wcl, jobfiles):
+    """ get output filenames for this wrapper """
+    # placeholder - needed for multiple exec sections
+    return {}
+
+######################################################################
+def register_list_files(wcl, jobfiles, pfw_dbh):
+    """ register any list files for this wrapper """
+
+    if pfwdefs.IW_LISTSECT in wcl and pfw_dbh is not None:
+        list_filenames = []
+        for ldict in wcl[pfwdefs.IW_LISTSECT].values():
+            list_filenames.append(ldict['fullname'])
+
+        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+            miscutils.fwdebug_print("registering lists list_filenames=%s" % list_filenames)
+
+        filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
+        pfw_save_file_info(pfw_dbh, filemgmt, 'list', list_filenames, wcl['pfw_attempt_id'],
+                           wcl['task_id']['attempt'], wcl['task_id']['jobwrapper'],
+                           wcl['task_id']['attempt'],
+                           False, None)
+
+        jobfiles['outfullnames'].extend(list_filenames)
+
+######################################################################
+def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
+    """ Create output directories, get files from archive, and other setup work """
+
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("BEG")
+
+    wcl['pre_disk_usage'] = pfwutils.diskusage(wcl['jobroot'])
+
+
+    # make directory for log file
+    logdir = os.path.dirname(logfilename)
+    miscutils.coremakedirs(logdir)
+
+    register_list_files(wcl, jobfiles, pfw_dbh)
+
+    # get execnames to put on command line for QC Framework
+    wcl['execnames'] = wcl['wrapper']['wrappername'] + ',' + get_exec_names(wcl)
+ 
+    # get output filenames
+    outfiles = get_wrapper_outputs(pfw_dbh, wcl)
+
+    # get input files from targetnode
+    get_wrapper_inputs(pfw_dbh, wcl, jobfiles, outfiles)
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
@@ -1083,21 +1057,22 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
                                                                    label=None,
                                                                    do_begin=True,
                                                                    do_commit=True)
-                wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
-                                                                   wcl['task_id']['jobwrapper'])
             else:
                 wcl['task_id']['jobwrapper'] = -1
-                wcl['task_id']['wrapper'] = -1
 
             print "%04d: Setup" % (int(task['wrapnum']))
             setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'])
 
             if pfw_dbh is not None:
+                wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
+                                                                   wcl['task_id']['jobwrapper'])
+                create_exec_tasks(pfw_dbh, wcl)
                 exectid = determine_exec_task_id(pfw_dbh, wcl)
                 pfw_dbh.begin_task(wcl['task_id']['wrapper'], True)
                 pfw_dbh.close()
                 pfw_dbh = None
             else:
+                wcl['task_id']['wrapper'] = -1
                 exectid = -1
 
             print "%04d: Running wrapper: %s" % (int(task['wrapnum']), wrappercmd)

@@ -375,8 +375,11 @@ class PfwConfig:
                     self.config['list_target_archives'] += ',' + archive
             else:
                 self.config['list_target_archives'] = archive
-        elif ((pfwdefs.USE_HOME_ARCHIVE_INPUT in self and miscutils.convertBool(self[pfwdefs.USE_TARGET_ARCHIVE_INPUT])) or
-            (pfwdefs.USE_HOME_ARCHIVE_OUTPUT in self and self[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never')):
+
+        elif ((pfwdefs.USE_HOME_ARCHIVE_INPUT  in self and self[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never') or
+              (pfwdefs.USE_HOME_ARCHIVE_OUTPUT in self and self[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never')):
+        #elif ((pfwdefs.USE_HOME_ARCHIVE_INPUT  in self and miscutils.convertBool(self[pfwdefs.USE_TARGET_ARCHIVE_INPUT])) or
+        #      (pfwdefs.USE_HOME_ARCHIVE_OUTPUT in self and self[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never')):
             (exists, archive) = self.search(pfwdefs.HOME_ARCHIVE)
             if not exists:
                 miscutils.fwdie("Error: Cannot determine home_archive value.   \n\tEither set home_archive or set correctly both %s and %s" % (pfwdefs.USE_HOME_ARCHIVE_INPUT, pfwdefs.USE_HOME_ARCHIVE_OUTPUT), pfwdefs.PF_EXIT_FAILURE)

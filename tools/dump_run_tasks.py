@@ -53,7 +53,8 @@ def recurs_dump(tasks, tids, indent=''):
     """ Recursively print task information """
     tlist = [tasks[t] for t in tids]
     #for taskd in sorted(tlist, key=lambda x: get_start_time(x), reverse=False):
-    for taskd in sorted(tlist, key=lambda x: x['id'], reverse=False):
+    for taskd in sorted(tlist, key=lambda x: x['created_date'], reverse=False):
+    #for taskd in sorted(tlist, key=lambda x: x['id'], reverse=False):
         print_task(taskd, indent)
         if len(taskd['children']) > 0:
             recurs_dump(tasks, taskd['children'], indent+'    ')

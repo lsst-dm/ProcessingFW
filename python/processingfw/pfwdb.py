@@ -127,19 +127,19 @@ class PFWDB (desdmdbi.DesDmDbi):
         else:
             allparams['subpipever'] = None
 
-        (exists, value) = config.search('basket', {intgdefs.REPLACE_VARS: True})
+        (exists, value) = config.search('basket', {intgdefs.REPLACE_VARS: True, 'expand': True})
         if exists:
             allparams['basket'] = value
         else:
             allparams['basket'] = None
 
-        (exists, value) = config.search('group_submit_id', {intgdefs.REPLACE_VARS: True})
+        (exists, value) = config.search('group_submit_id', {intgdefs.REPLACE_VARS: True, 'expand': True})
         if exists:
             allparams['group_submit_id'] = value
         else:
             allparams['group_submit_id'] = None
 
-        (exists, value) = config.search('campaign', {intgdefs.REPLACE_VARS: True})
+        (exists, value) = config.search('campaign', {intgdefs.REPLACE_VARS: True, 'expand': True})
         if exists:
             allparams['campaign'] = value
         else:

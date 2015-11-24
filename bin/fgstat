@@ -87,7 +87,13 @@ def print_jobs(chost, jobs, now):
 
         # try to print a string that describes the job in framework terms
         label = ""
-        if 'transferinput' in jdict:
+        if 'des_subblock' in jdict:
+            label = 'j%s_' % jdict['des_subblock']
+        if 'des_block' in jdict:
+            label += '%s_' % jdict['des_block']
+        if 'des_run' in jdict:
+            label += jdict['des_run']
+        if label == "" and 'transferinput' in jdict:
             match = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')

@@ -2066,18 +2066,7 @@ echo "Creating empty job output files to guarantee condor job nice exit"
 touch $envfile
 tar -cvf $outputtar --files-from /dev/null
 
-if [ ! -r %(eups)s ]; then
-    echo "Error: eups setup script is not readable (%(eups)s)"
-    shd2=`/bin/date "+%%s"`
-    echo "PFW: job_shell_script endtime: $shd2"
-    echo "PFW: job_shell_script exit_status: %(eupsfail)s"
-    exit $mystat    # note exit code not passed back through grid universe jobs
-fi
 
-echo "Sourcing script to set up EUPS (%(eups)s)"
-source %(eups)s
-
-echo "Using eups to setup up %(pipe)s %(ver)s"
 d1=`/bin/date "+%%s"`
 echo "PFW: eups_setup starttime: $d1"
 cnt=0
@@ -2086,14 +2075,26 @@ mydelay=300
 mystat=1
 while [ $mystat -ne 0 -a $cnt -lt $maxtries ]; do
     let cnt=cnt+1
-    setup --nolock %(pipe)s %(ver)s
-    mystat=$?
-    if [ $mystat -ne 0 ]; then
-        echo "Warning: eups setup had non-zero exit code ($mystat)"
-        if [ $cnt -lt $maxtries ]; then
-            echo "Sleeping then retrying..."
-            sleep $mydelay
+    if [ ! -r %(eups)s ]; then
+        echo "Error: eups setup script is not readable (%(eups)s)"
+        edir=`dirname %(eups)s`
+        echo $edir
+        ls -l $edir || sleep 60
+        mystat=1
+    else
+        echo "Sourcing script to set up EUPS (%(eups)s)"
+        source %(eups)s
+
+        echo "Using eups to setup up %(pipe)s %(ver)s"
+        setup --nolock %(pipe)s %(ver)s
+        mystat=$?
+        if [ $mystat -ne 0 ]; then
+            echo "Warning: eups setup had non-zero exit code ($mystat)"
         fi
+    fi
+    if [ $mystat -ne 0 -a $cnt -lt $maxtries ]; then
+        echo "Sleeping then retrying..."
+        sleep $mydelay
     fi
 done
 d2=`/bin/date "+%%s"`
@@ -2291,6 +2292,18 @@ def create_runjob_condorfile(config, scriptfile):
 
 
     userattribs = config.get_condor_attributes(blkname, '$(jobnum)')
+
+    # set any job environment variables at the condor job level
+    jobattribs['environment'] = {}
+    for key, val in userattribs.items():
+        jobattribs['environment'][key] = str(val)
+
+    if 'condor_job_environment' in config:
+        for key, val in config.get('condor_job_environment').items():
+            jobattribs['environment'][key.upper()] = str(val)
+
+
+
     targetinfo = config.get_grid_info()
     if 'gridtype' not in targetinfo:
         miscutils.fwdie("Error:  Missing gridtype", pfwdefs.PF_EXIT_FAILURE)
@@ -2364,6 +2377,9 @@ def create_runjob_condorfile(config, scriptfile):
 
     if len(reqs) > 0:
         jobattribs['requirements'] = ' && '.join(reqs)
+
+        
+    
     pfwcondor.write_condor_descfile('runjob', condorfile, jobattribs, userattribs)
 
     miscutils.fwdebug_print("END\n\n")

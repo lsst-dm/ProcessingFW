@@ -71,7 +71,6 @@ def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cn
                 fname_compressed = fname + compresssuffix
 
                 # create command
-                print "argsorig=", argsorig
                 args = copy.deepcopy(argsorig)
                 args = replfuncs.replace_vars_single(args,
                                                      {'__UCFILE__': fname,

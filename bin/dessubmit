@@ -206,8 +206,14 @@ def main(argv):
             print 'Checking system:'
             pfwsubmit.run_sys_checks()
 
-            print 'Checking if need proxy:'
-            pfwsubmit.check_proxy(config)
+            print 'Checking if need proxy...',
+            try:
+                pfwsubmit.check_proxy(config)
+            except AssertionError:
+                print 'ERROR\nABORTING SUBMISSION'
+                print 'Error: Cannot find valid proxy'
+                return pfwdefs.PF_EXIT_FAILURE  # exit on error
+            print 'DONE'
 
             config.set_submit_info()
 

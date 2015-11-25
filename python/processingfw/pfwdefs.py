@@ -85,6 +85,7 @@ SW_EXEC_DEF = 'exec_def'
 DIRPAT = 'dirpat'
 
 SW_LABEL = 'label'
+SW_CHECK_PROXY = 'check_proxy'
 SW_SAVE_RUN_VALS = 'save_run_vals'
 SW_JOB_ENVIRONMENT = 'job_environment'
 SW_DIVIDE_JOBS_BY = 'divide_jobs_by'

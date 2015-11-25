@@ -62,7 +62,7 @@ def check_proxy(config):
             miscutils.fwdebug_print("Checking block %s..." % (blockname))
         config.set_block_info()
 
-        (exists, check_proxy) = config.search(pfwdefs.SW_LABEL, {intgdefs.REPLACE_VARS: True})
+        (exists, check_proxy) = config.search(pfwdefs.SW_CHECK_PROXY, {intgdefs.REPLACE_VARS: True})
         if exists and miscutils.convertBool(check_proxy):
             timeleft = pfwcondor.get_grid_proxy_timeleft()
             assert timeleft > 0

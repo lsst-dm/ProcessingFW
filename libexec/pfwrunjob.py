@@ -812,6 +812,18 @@ def copy_output_to_archive(pfw_dbh, wcl, jobfiles, fileinfo, loginfo, exitcode):
         miscutils.fwdebug_print("END\n\n")
 
 
+######################################################################
+def get_pfw_hdrupd(wcl):
+    """ Create the dictionary with PFW values to be written to fits file header """
+    hdrupd = {}
+    hdrupd['pipeline'] = "%s/DESDM pipeline name/str" %  wcl.get('wrapper.pipeline')
+    hdrupd['reqnum'] = "%s/DESDM processing request number/int" % wcl.get('reqnum')
+    hdrupd['unitname'] = "%s/DESDM processing unit name/str" % wcl.get('unitname')
+    hdrupd['attnum'] = "%s/DESDM processing attempt number/int" % wcl.get('attnum')
+    hdrupd['eupsprod'] = "%s/eups pipeline meta-package name/str" % wcl.get('wrapper.pipeprod')
+    hdrupd['eupsver'] = "%s/eups pipeline meta-package version/str" % wcl.get('wrapper.pipever')
+    return hdrupd
+
 
 ######################################################################
 def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
@@ -867,6 +879,7 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
 
         # handle output files - file metadata, prov, copying to archive
         if outputwcl is not None and len(outputwcl) > 0:
+            pfw_hdrupd = get_pfw_hdrupd(wcl)
             execs = intgmisc.get_exec_sections(outputwcl, pfwdefs.OW_EXECPREFIX)
             for sect in execs:
                 if pfw_dbh is not None:
@@ -901,19 +914,7 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                                 updatedef.update(val)
 
                         # add pfw hdrupd values
-                        updatedef['hdrupd_pfw'] = {}
-                        updatedef['hdrupd_pfw']['pipeline'] = "%s/DESDM pipeline name/str" % \
-                                                              wcl.get('wrapper.pipeline')
-                        updatedef['hdrupd_pfw']['reqnum'] = "%s/DESDM processing request number/int" % \
-                                                              wcl.get('reqnum')
-                        updatedef['hdrupd_pfw']['unitname'] = "%s/DESDM processing unit name/str" % \
-                                                              wcl.get('unitname')
-                        updatedef['hdrupd_pfw']['attnum'] = "%s/DESDM processing attempt number/int" % \
-                                                              wcl.get('attnum')
-                        updatedef['hdrupd_pfw']['eupsprod'] = "%s/eups pipeline meta-package name/str" % \
-                                                              wcl.get('wrapper.pipeline')
-                        updatedef['hdrupd_pfw']['eupsver'] = "%s/eups pipeline meta-package version/str" % \
-                                                             wcl.get('wrapper.pipever')
+                        updatedef['hdrupd_pfw'] = pfw_hdrupd
 
                         for ekey, elist in byexec.items():
                             fullnames = miscutils.fwsplit(elist, ',')

@@ -1840,7 +1840,8 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("%s (%s): Initializing wrapper section (%s)"% (modname, wrapinst[pfwdefs.PF_WRAPNUM], pfwdefs.IW_WRAPSECT))
         wrapperwcl[pfwdefs.IW_WRAPSECT] = OrderedDict()
-    wrapperwcl[pfwdefs.IW_WRAPSECT]['pipeline'] = config.getfull('pipeprod')
+    wrapperwcl[pfwdefs.IW_WRAPSECT]['pipeline'] = config.getfull('pipeline')
+    wrapperwcl[pfwdefs.IW_WRAPSECT]['pipeprod'] = config.getfull('pipeprod')
     wrapperwcl[pfwdefs.IW_WRAPSECT]['pipever'] = config.getfull('pipever')
 
     wrapperwcl[pfwdefs.IW_WRAPSECT]['wrappername'] = wrapinst['wrappername']

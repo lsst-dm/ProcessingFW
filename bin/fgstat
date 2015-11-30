@@ -110,7 +110,7 @@ def print_jobs(chost, jobs, now):
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %47s" % \
+        print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %s" % \
                (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
                 datetime.fromtimestamp(int(jdict['qdate'])), flavor,
                 remotehost, wallclock, submit_condorid, label)
@@ -127,7 +127,7 @@ def main():
 
 
     # print headers
-    print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %47s" % \
+    print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %s" % \
            ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
             'wallclock', 'DES CID', 'DES label')
     print '-'*168

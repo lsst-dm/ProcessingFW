@@ -93,44 +93,72 @@ def determine_exec_task_id(pfw_dbh, wcl):
 
 
 ######################################################################
-def transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, level,
-                             parent_tid, task_label, exitcode):
-    """ Call the appropriate transfers based upon which archives job is using """
-    #  level: current calling point: wrapper or job
+def save_trans_end_of_job(pfw_dbh, wcl, jobfiles, putinfo):
+    """ If transfering at end of job, save file info for later """
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-        miscutils.fwdebug_print("BEG %s %s %s" % (level, parent_tid, task_label))
+        miscutils.fwdebug_print("BEG")
         miscutils.fwdebug_print("len(putinfo) = %d" % len(putinfo))
-        miscutils.fwdebug_print("USE_TARGET_ARCHIVE_OUTPUT = %s" % \
-                                wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower())
-        miscutils.fwdebug_print("USE_HOME_ARCHIVE_OUTPUT = %s" % \
-                                wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower())
 
-    level = level.lower()
+    job2target = 'never'
+    if pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl:
+       job2target = wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower()
+    job2home = 'never'
+    if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl:
+       job2home = wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower()
+
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("job2target = %s" % job2target)
+        miscutils.fwdebug_print("job2home = %s" % job2home)
 
     if len(putinfo) > 0:
-        if pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and \
-           level == wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower():
-            transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, 'target',
-                                           parent_tid, task_label, exitcode)
-
-        if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and \
-           level == wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower():
-            transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, 'home',
-                                           parent_tid, task_label, exitcode)
-
-
         # if not end of job and transferring at end of job, save file info for later
-        if (level != 'job' and
-                (pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl and
-                 wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() == 'job' or
-                 pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl and
-                 wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() == 'job')):
+        if job2target == 'job' or job2home == 'job':
             if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
                 miscutils.fwdebug_print("Adding %s files to save later" % len(putinfo))
             jobfiles['output_putinfo'].update(putinfo)
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("END\n\n")
+
+
+######################################################################
+def transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, level,
+                             parent_tid, task_label, exitcode):
+    """ Call the appropriate transfers based upon which archives job is using """
+    #  level: current calling point: wrapper or job
+
+    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("BEG %s %s %s" % (level, parent_tid, task_label))
+        miscutils.fwdebug_print("len(putinfo) = %d" % len(putinfo))
+        miscutils.fwdebug_print("putinfo = %s" % putinfo)
+
+    level = level.lower()
+    job2target = 'never'
+    if pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in wcl:
+       job2target = wcl[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower()
+    job2home = 'never'
+    if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl:
+       job2home = wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower()
+
+    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("job2target = %s" % job2target)
+        miscutils.fwdebug_print("job2home = %s" % job2home)
+
+    if len(putinfo) > 0:
+        saveinfo = None
+        if (level == job2target or level == job2home):
+            saveinfo = output_transfer_prep(pfw_dbh, wcl, jobfiles, putinfo, parent_tid, task_label, exitcode)
+        
+        if level == job2target:
+            transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, 'target',
+                                           parent_tid, task_label, exitcode)
+
+        if level == job2home:
+            transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, 'home',
+                                           parent_tid, task_label, exitcode)
+
+    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
 
 
@@ -611,9 +639,42 @@ def register_files_in_archive(pfw_dbh, wcl, archive_info, fileinfo, task_label, 
         miscutils.fwdebug_print("END\n\n")
 
 
+######################################################################
+def output_transfer_prep(pfw_dbh, wcl, jobfiles, putinfo, parent_tid, task_label, exitcode):
+    """ Compress files if necessary and make archive rel paths """
+
+    mastersave = wcl.get(pfwdefs.MASTER_SAVE_FILE).lower()
+    mastercompress = wcl.get(pfwdefs.MASTER_COMPRESSION)
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("mastersave = %s" % mastersave)
+        miscutils.fwdebug_print("mastercompress = %s" % mastercompress)
+
+    # make archive rel paths for transfer
+    saveinfo = {}
+    for key, fdict in putinfo.items():
+        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+            miscutils.fwdebug_print("putinfo[%s] = %s" % (key, fdict))
+        should_save = pfwutils.should_save_file(mastersave, fdict['filesave'], exitcode)
+        if should_save:
+            if 'path' not in fdict:
+                if pfw_dbh is not None:
+                    pfw_dbh.end_task(parent_tid, pfwdefs.PF_EXIT_FAILURE, True)
+                miscutils.fwdebug_print("Error: Missing path (archivepath) in file definition")
+                print key, fdict
+                sys.exit(1)
+            should_compress = pfwutils.should_compress_file(mastercompress, fdict['filecompress'], exitcode)
+            fdict['filecompress'] = should_compress
+            fdict['dst'] = "%s/%s" % (fdict['path'], os.path.basename(fdict['src']))
+            saveinfo[key] = fdict
+
+    compress_files(pfw_dbh, wcl, jobfiles, saveinfo, exitcode)
+    miscutils.fwdebug_print("saveinfo = %s" % (saveinfo))
+
+    return saveinfo
+
 
 ######################################################################
-def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest,
+def transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, dest,
                                    parent_tid, task_label, exitcode):
     """ Handle the transfer of files from the job directory to a single archive """
 
@@ -630,26 +691,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest,
                                             do_begin=True,
                                             do_commit=True)
 
-
     archive_info = wcl['%s_archive_info' % dest.lower()]
-    mastersave = wcl[pfwdefs.MASTER_SAVE_FILE].lower()
-
-    # make archive rel paths for transfer
-    saveinfo = {}
-    for key, fdict in putinfo.items():
-        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-            miscutils.fwdebug_print("putinfo[%s] = %s" % (key, fdict))
-        if pfwutils.should_save_file(mastersave, fdict['filesave'], exitcode):
-            if 'path' not in fdict:
-                if pfw_dbh is not None:
-                    pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
-                miscutils.fwdebug_print("Error: Missing path (archivepath) in file definition")
-                print key, fdict
-                sys.exit(1)
-            fdict['dst'] = "%s/%s" % (fdict['path'], os.path.basename(fdict['src']))
-            saveinfo[key] = fdict
-
-
     tstats = None
     if 'transfer_stats' in wcl:
         tstats = pfwutils.pfw_dynam_load_class(pfw_dbh, wcl, trans_task_id,
@@ -677,7 +719,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, putinfo, dest,
         raise
 
     # tranfer files to archive
-    #pretty_print_dict(putinfo)
+    miscutils.pretty_print_dict(saveinfo)
     starttime = time.time()
     sem = get_semaphore(wcl, 'output', dest, trans_task_id)
     if dest.lower() == 'target':
@@ -755,9 +797,12 @@ def save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile):
         filename = miscutils.parse_fullname(logfile, miscutils.CU_PARSE_FILENAME)
         putinfo[filename] = {'src': logfile,
                              'filename': filename,
+                             'fullname': logfile,
                              'compression': None,
                              'path': wcl['log_archive_path'],
-                             'filesave': True}
+                             'filetype': 'log',
+                             'filesave': True,
+                             'filecompress': False}
     else:
         miscutils.fwdebug_print("Warning: log doesn't exist (%s)" % logfile)
 
@@ -767,46 +812,36 @@ def save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile):
 
 
 ######################################################################
-def copy_output_to_archive(pfw_dbh, wcl, jobfiles, fileinfo, loginfo, exitcode):
+def copy_output_to_archive(pfw_dbh, wcl, jobfiles, fileinfo, level, parent_task_id, task_label, exitcode):
     """ If requested, copy output file(s) to archive """
     # fileinfo[filename] = {filename, fullname, sectname}
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
-        miscutils.fwdebug_print("loginfo = %s" % loginfo)
-    mastersave = wcl[pfwdefs.MASTER_SAVE_FILE].lower()
-    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-        miscutils.fwdebug_print("mastersave = %s" % mastersave)
-
     putinfo = {}
 
-    # unless mastersave is never, always save log file
-    if mastersave != 'never' and loginfo is not None and len(loginfo) > 0:
-        putinfo.update(loginfo)
 
     # check each output file definition to see if should save file
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("Checking for save_file_archive")
+
     for (filename, fdict) in fileinfo.items():
-        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-            miscutils.fwdebug_print("filename %s, fullname=%s" % (filename, fdict['fullname']))
-        infdict = wcl[pfwdefs.IW_FILESECT][fdict['sectname']]
+        if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+            miscutils.fwdebug_print("filename %s, fdict=%s" % (filename, fdict))
         (filename, compression) = miscutils.parse_fullname(fdict['fullname'],
                                        miscutils.CU_PARSE_FILENAME|miscutils.CU_PARSE_COMPRESSION)
 
-        filesave = miscutils.checkTrue(pfwdefs.SAVE_FILE_ARCHIVE, infdict, True)
         putinfo[filename] = {'src': fdict['fullname'],
                              'compression': compression,
                              'filename': filename,
                              'filetype': fdict['filetype'],
-                             'filesave': filesave}
-
-        if 'archivepath' in infdict:
-            putinfo[filename]['path'] = infdict['archivepath']
+                             'filesave': fdict['filesave'],
+                             'filecompress': fdict['filecompress'],
+                             'path': fdict['path']}
 
     # transfer_job_to_archives(pfw_dbh, wcl, putinfo, level, parent_tid, task_label, exitcode):
-    transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, 'wrapper',
-                             wcl['task_id']['jobwrapper'], 'wrapper_output', exitcode)
+    transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, level,
+                             parent_task_id, task_label, exitcode)
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
@@ -848,10 +883,12 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
 
     filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
 
+    finfo = {}
+
     # always try to save log file
     logfinfo = save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile)
-    #print "outfullnames = ", jobfiles['outfullnames']
-    finfo = {}
+    if logfinfo is not None and len(logfinfo) > 0:
+        finfo.update(logfinfo)
 
     outputwcl = WCL()
     if outputwclfile and os.path.exists(outputwclfile):
@@ -894,18 +931,8 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                     wrap_output_files = []
                     for sectname, byexec in outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT].items():
                         sectdict = wcl[pfwdefs.IW_FILESECT][sectname]
-                        mcompress = wcl.get(pfwdefs.MASTER_COMPRESSION)
-                        fcompress = False
-                        if pfwdefs.COMPRESS_FILES in sectdict:
-                            fcompress = sectdict[pfwdefs.COMPRESS_FILES]
-
-                        msave = wcl.get(pfwdefs.MASTER_SAVE_FILE).lower()
-                        fsave = False
-                        if pfwdefs.SAVE_FILE_ARCHIVE in sectdict:
-                            fsave = sectdict[pfwdefs.SAVE_FILE_ARCHIVE]
-
-                        should_compress = pfwutils.should_compress_file(mcompress, fcompress, exitcode)
-                        should_save = pfwutils.should_save_file(msave, fsave, exitcode)
+                        filesave = miscutils.checkTrue(pfwdefs.SAVE_FILE_ARCHIVE, sectdict, True)
+                        filecompress = miscutils.checkTrue(pfwdefs.COMPRESS_FILES, sectdict, False)
 
                         updatedef = {}
                         # get any hdrupd secton from inputwcl
@@ -925,13 +952,14 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                                                wcl['task_id']['jobwrapper'],
                                                task_id, True, updatedef)
 
-                            if should_save:
-                                for fname in fullnames:
-                                    finfo[fname] = {'sectname': sectname,
-                                                    'filetype': sectdict['filetype'],
-                                                    'fullname': fname}
-                                    if should_compress:
-                                        jobfiles['to_compress'].append(fname)
+                            for fname in fullnames:
+                                finfo[fname] = {'sectname': sectname,
+                                                'filetype': sectdict['filetype'],
+                                                'filesave': filesave,
+                                                'filecompress': filecompress,
+                                                'fullname': fname}
+                                if 'archivepath' in sectdict:
+                                    finfo[fname]['path'] = sectdict['archivepath']
 
                     jobfiles['outfullnames'].extend(wrap_output_files)
 
@@ -945,12 +973,14 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                     filemgmt.ingest_provenance(prov, execids)
             filemgmt.commit()
 
-    copy_output_to_archive(pfw_dbh, wcl, jobfiles, finfo, logfinfo, exitcode)
+    save_trans_end_of_job(pfw_dbh, wcl, jobfiles, finfo)
+    copy_output_to_archive(pfw_dbh, wcl, jobfiles, finfo, 'wrapper', wcl['task_id']['jobwrapper'], 'wrapper_output', exitcode)
 
-    # clean up any input files no longer needed
+    # clean up any input files no longer needed - TODO
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
+# end postwrapper
 
 
 ######################################################################
@@ -1138,7 +1168,7 @@ def run_job(args):
     jobwcl = WCL()
     jobfiles = {'infullnames': [args.config, args.workflow],
                 'outfullnames': [],
-                'to_compress': [],
+                #'to_compress': [],
                 'output_putinfo': {}}
 
     jobstart = time.time()
@@ -1218,8 +1248,8 @@ def run_job(args):
     #print 'C outfullnames', jobfiles['outfullnames']
 
     # compress files as specified
-    if jobwcl.get(pfwdefs.MASTER_COMPRESSION) and len(jobfiles['to_compress']) > 0:
-        compress_files(pfw_dbh, jobwcl, jobfiles, exitcode)
+    #if jobwcl.get(pfwdefs.MASTER_COMPRESSION) and len(jobfiles['to_compress']) > 0:
+    #    compress_files(pfw_dbh, jobwcl, jobfiles, exitcode)
 
     # create junk tarball with any unknown files
     create_junk_tarball(pfw_dbh, jobwcl, jobfiles, exitcode)
@@ -1228,8 +1258,10 @@ def run_job(args):
     if len(jobfiles['output_putinfo']) > 0:
         print "\n\nCalling file transfer for end of job (%s files)" % \
               (len(jobfiles['output_putinfo']))
-        transfer_job_to_archives(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'],
-                                 'job', job_task_id, 'job_output', exitcode)
+
+        #copy_output_to_archive(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'], None, 'job', exitcode)
+        copy_output_to_archive(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'], 'job', job_task_id, 'job_output', exitcode)
+        #transfer_job_to_archives(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'], 'job', job_task_id, 'job_output', exitcode)
     else:
         print "\n\n0 files to transfer for end of job"
         if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
@@ -1263,10 +1295,10 @@ def create_compression_wdf(used_fnames, wgb_fnames):
 
 
 ###############################################################################
-def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
+def compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
     """ Compress output files as specified """
 
-    if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
 
     task_id = None
@@ -1283,10 +1315,18 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
         # add to compress_task table
         pfw_dbh.insert_compress_task(task_id, jobwcl[pfwdefs.COMPRESSION_EXEC],
                                      compress_ver, jobwcl[pfwdefs.COMPRESSION_ARGS],
-                                     jobfiles['to_compress'])
+                                     putinfo)
 
 
-    (results, tot_bytes_before, tot_bytes_after) = pfwcompress.compress_files(jobfiles['to_compress'],
+    # determine which files need to be compressed
+    to_compress = []
+    for fname, fdict in putinfo.items():
+        if fdict['filecompress']:
+            to_compress.append(fdict['src'])
+            
+
+    miscutils.fwdebug_print("to_compress = %s" % to_compress)
+    (results, tot_bytes_before, tot_bytes_after) = pfwcompress.compress_files(to_compress,
                                                                               jobwcl[pfwdefs.COMPRESSION_SUFFIX],
                                                                               jobwcl[pfwdefs.COMPRESSION_EXEC],
                                                                               jobwcl[pfwdefs.COMPRESSION_ARGS],
@@ -1297,7 +1337,7 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
     errcnt = 0
     filelist = []
     for fname, fdict in results.items():
-        if miscutils.fwdebug_check(6, 'PFWRUNJOB_DEBUG'):
+        if miscutils.fwdebug_check(0, 'PFWRUNJOB_DEBUG'):
             miscutils.fwdebug_print("%s = %s" % (fname, fdict))
 
         if fdict['err'] is None:
@@ -1307,21 +1347,23 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
             # update jobfiles['output_putinfo'] for transfer
             (filename, compression) = miscutils.parse_fullname(fdict['outname'],
                                                                miscutils.CU_PARSE_FILENAME | miscutils.CU_PARSE_EXTENSION)
-            if filename in jobfiles['output_putinfo']:
+            if filename in putinfo:
                 # info for desfile entry
                 dinfo = diskutils.get_single_file_disk_info(fdict['outname'],
                                                             save_md5sum=True,
                                                             archive_root=None)
+                # compressed file should be one saved to archive
+                putinfo[filename]['src'] = fdict['outname']
+                putinfo[filename]['compression'] = compression
+                putinfo[filename]['dst'] += compression
+
                 del dinfo['path']
                 dinfo['fullname'] = fdict['outname']
                 dinfo['pfw_attempt_id'] = int(jobwcl['pfw_attempt_id'])
-                dinfo['filetype'] = jobfiles['output_putinfo'][filename]['filetype']
+                dinfo['filetype'] = putinfo[filename]['filetype']
                 dinfo['wgb_task_id'] = task_id
                 filelist.append(dinfo)
 
-                # compressed file should be one saved to archive
-                jobfiles['output_putinfo'][filename]['src'] = fdict['outname']
-                jobfiles['output_putinfo'][filename]['compression'] = compression
             else:
                 miscutils.fwdie("Error: compression mismatch %s" % filename, pfwdefs.PF_EXIT_FAILURE)
         else:  # errstr
@@ -1331,7 +1373,7 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
     # register compressed file with file manager, save used provenance info
     filemgmt = dynam_load_filemgmt(jobwcl, pfw_dbh, None, task_id)
     filemgmt.create_artifacts(filelist)
-    used_fnames = [os.path.basename(x) for x in jobfiles['to_compress']]
+    used_fnames = [os.path.basename(x) for x in to_compress]
     wgb_fnames = [os.path.basename(x['fullname']) for x in filelist]
 
     prov = {provdefs.PROV_USED: {'exec_1': provdefs.PROV_DELIM.join(used_fnames)},
@@ -1344,7 +1386,7 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, exitcode):
     if pfw_dbh is not None:
         pfw_dbh.update_compress_task(task_id, errcnt, tot_bytes_after)
 
-    if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END")
 
 ################################################################################
@@ -1456,9 +1498,12 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
                                     'filename': filename,
                                     'compression': compression,
                                     'path': wcl['junktar_archive_path'],
-                                    'filesave': True}}
+                                    'filetype': 'junk_tar',
+                                    'filesave': True,
+                                    'filecompress': False}}
 
-        # if save setting is wrapper, save here, otherwise save at end of job
+        # if save setting is wrapper, save junktar here, otherwise save at end of job
+        save_trans_end_of_job(pfw_dbh, wcl, jobfiles, putinfo)
         transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, 'wrapper',
                                  job_task_id, 'junktar', exitcode)
 

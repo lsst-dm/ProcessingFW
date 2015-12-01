@@ -130,6 +130,7 @@ def begblock(argv):
                 filemgmt.register_file_data('list', jobdict['inlist'], attempt_tid, False, None)
                 pfwblock.copy_input_lists_home_archive(config, filemgmt, 
                                                        archive_info, jobdict['inlist'])
+                filemgmt.commit()
             jobdict['inputwcltar'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'],
                                                              jobdict['inwcl'] + jobdict['inlist'])
             if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):

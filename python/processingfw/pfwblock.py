@@ -23,6 +23,7 @@ import despydmdb.dbsemaphore as dbsem
 
 import filemgmt.archive_transfer_utils as archive_transfer_utils
 import filemgmt.metadefs as metadefs
+import filemgmt.fmutils as fmutils
 
 from intgutils.wcl import WCL
 import intgutils.intgdefs as intgdefs
@@ -1961,9 +1962,9 @@ def divide_into_jobs(config, modname, winst, joblist):
 
 
     if key not in joblist:
-        joblist[key] = {'tasks':[], 'inlist':[], 'wrapinputs':OrderedDict()}
+        joblist[key] = {'tasks':[], 'inwcl':[], 'inlist':[], 'wrapinputs':OrderedDict()}
     joblist[key]['tasks'].append([winst[pfwdefs.PF_WRAPNUM], winst['wrappername'], winst['inputwcl'], winst['wrapdebug'], winst['log']])
-    joblist[key]['inlist'].append(winst['inputwcl'])
+    joblist[key]['inwcl'].append(winst['inputwcl'])
     if winst['wrapinputs'] is not None and len(winst['wrapinputs']) > 0:
         joblist[key]['wrapinputs'][winst[pfwdefs.PF_WRAPNUM]] = winst['wrapinputs']
     if pfwdefs.IW_LISTSECT in winst:
@@ -2457,3 +2458,54 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
         miscutils.coremakedirs(wcldir)
         with open(filename, 'w', 0) as wclfh:
             wrapperwcl.write(wclfh, True, 4)
+
+######################################################################
+def copy_input_lists_home_archive(config, filemgmt, archive_info, listfullnames):
+    """ Copy list files to home archive """
+
+    archdir = '%s' % config.getfull(pfwdefs.ATTEMPT_ARCHIVE_PATH)
+    if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
+        miscutils.fwdebug_print('archive rel path = %s' % archdir)
+
+    # copy the files to the home archive
+    files2copy = {}
+    for lfname in listfullnames:
+        relpath = os.path.dirname(lfname)
+        filename = miscutils.parse_fullname(lfname, miscutils.CU_PARSE_FILENAME)
+        archfname = '%s/%s/%s' % (archdir, relpath, filename)
+        files2copy[lfname] = {'src': lfname, 
+                              'filename': filename,
+                              'dst': archfname,
+                              'fullname': lfname}
+        
+    if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
+        miscutils.fwdebug_print('files2copy = %s' % files2copy)
+
+    # load file mvmt class
+    submit_files_mvmt = config.getfull('submit_files_mvmt')
+    if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
+        miscutils.fwdebug_print('submit_files_mvmt = %s' % submit_files_mvmt)
+    filemvmt_class = miscutils.dynamically_load_class(submit_files_mvmt)
+    valdict = fmutils.get_config_vals(config['job_file_mvmt'], config,
+                                      filemvmt_class.requested_config_vals())
+    filemvmt = filemvmt_class(archive_info, None, None, None, valdict)
+
+    results = filemvmt.job2home(files2copy)
+    if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
+        miscutils.fwdebug_print('trans results = %s' % results)
+
+    # save info for files that we just copied into archive
+    files2register = []
+    problemfiles = {}
+    for fname, finfo in results.items():
+        if 'err' in finfo:
+            problemfiles[fname] = finfo
+            print "Warning: Error trying to copy file %s to archive: %s" % (fname, finfo['err'])
+        else:
+            files2register.append(finfo)
+
+    # call function to do the register
+    if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
+        miscutils.fwdebug_print('files2register = %s' % files2register)
+        miscutils.fwdebug_print('archive = %s' % archive_info['name'])
+    filemgmt.register_file_in_archive(files2register, archive_info['name'])

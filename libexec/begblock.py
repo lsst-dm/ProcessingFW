@@ -111,8 +111,27 @@ def begblock(argv):
                 miscutils.fwdebug_print("jobnum = %s, jobkey = %s:" % (jobkey, jobdict['jobnum']))
             jobdict['tasksfile'] = write_workflow_taskfile(config, jobdict['jobnum'],
                                                            jobdict['tasks'])
+            if (len(jobdict['inlist']) > 0 and
+                    config.getfull(pfwdefs.USE_HOME_ARCHIVE_OUTPUT) != 'never' and
+                    'submit_files_mvmt' in config and
+                    (pfwdefs.PF_DRYRUN not in config or
+                     not miscutils.convertBool(config.getfull(pfwdefs.PF_DRYRUN)))):
+                # get home archive info
+                home_archive = config.getfull('home_archive')
+                archive_info = config[pfwdefs.SW_ARCHIVESECT][home_archive]
+
+                # load filemgmt class
+                attempt_tid = config['task_id']['attempt']
+                filemgmt = pfwutils.pfw_dynam_load_class(dbh, config, 
+                                                         attempt_tid, attempt_tid,
+                                                         "filemgmt", archive_info['filemgmt'],
+                                                         archive_info)
+                # save file information
+                filemgmt.register_file_data('list', jobdict['inlist'], attempt_tid, False, None)
+                pfwblock.copy_input_lists_home_archive(config, filemgmt, 
+                                                       archive_info, jobdict['inlist'])
             jobdict['inputwcltar'] = pfwblock.tar_inputfiles(config, jobdict['jobnum'],
-                                                             jobdict['inlist'])
+                                                             jobdict['inwcl'] + jobdict['inlist'])
             if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
                 dbh.insert_job(config, jobdict)
             pfwblock.write_jobwcl(config, jobkey, jobdict)

@@ -648,7 +648,8 @@ def output_transfer_prep(pfw_dbh, wcl, jobfiles, putinfo, parent_tid, task_label
             saveinfo[key] = fdict
 
     compress_files(pfw_dbh, wcl, jobfiles, saveinfo, exitcode)
-    miscutils.fwdebug_print("saveinfo = %s" % (saveinfo))
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("After compress saveinfo = %s" % (saveinfo))
 
     return saveinfo
 
@@ -699,7 +700,6 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, dest,
         raise
 
     # tranfer files to archive
-    miscutils.pretty_print_dict(saveinfo)
     starttime = time.time()
     sem = get_semaphore(wcl, 'output', dest, trans_task_id)
     if dest.lower() == 'target':
@@ -1290,7 +1290,8 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
             to_compress.append(fdict['src'])
             
 
-    miscutils.fwdebug_print("to_compress = %s" % to_compress)
+    if miscutils.fwdebug_print(6, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("to_compress = %s" % to_compress)
     (results, tot_bytes_before, tot_bytes_after) = pfwcompress.compress_files(to_compress,
                                                                               jobwcl[pfwdefs.COMPRESSION_SUFFIX],
                                                                               jobwcl[pfwdefs.COMPRESSION_EXEC],

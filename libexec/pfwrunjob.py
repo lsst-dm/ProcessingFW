@@ -128,7 +128,7 @@ def transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, level,
     """ Call the appropriate transfers based upon which archives job is using """
     #  level: current calling point: wrapper or job
 
-    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG %s %s %s" % (level, parent_tid, task_label))
         miscutils.fwdebug_print("len(putinfo) = %d" % len(putinfo))
         miscutils.fwdebug_print("putinfo = %s" % putinfo)
@@ -141,7 +141,7 @@ def transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, level,
     if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in wcl:
        job2home = wcl[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower()
 
-    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("job2target = %s" % job2target)
         miscutils.fwdebug_print("job2home = %s" % job2home)
 
@@ -158,7 +158,7 @@ def transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, level,
             transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, 'home',
                                            parent_tid, task_label, exitcode)
 
-    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
 
 
@@ -181,7 +181,6 @@ def dynam_load_filemgmt(wcl, pfw_dbh, archive_info, parent_tid):
             raise Exception('Error: Could not determine archive for output files. Check USE_*_ARCHIVE_* WCL vars.')
 
     filemgmt = pfwutils.pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, wcl['task_id']['attempt'],
-                                             #'filemgmt', archive_info['filemgmt'], archive_info)
                                              'filemgmt', archive_info['filemgmt'], None)
     return filemgmt
 
@@ -335,6 +334,11 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
     """ Call the appropriate transfers based upon which archives job is using """
     # transfer files from target/home archives to job scratch dir
 
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("BEG")
+    if miscutils.fwdebug_check(6, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("neededfiles = %s" % neededfiles)
+
     files2get = neededfiles.keys()
     if len(files2get) > 0 and wcl[pfwdefs.USE_TARGET_ARCHIVE_INPUT].lower() != 'never':
         results = transfer_single_archive_to_job(pfw_dbh, wcl, files2get, neededfiles,
@@ -355,7 +359,6 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
             files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
                 print "Warning: had problems getting input files from target archive"
-                #print "\t", problemfiles
                 print "\t", problemfiles.keys()
                 files2get += problemfiles.keys()
         else:
@@ -385,12 +388,13 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
             if len(problemfiles) != 0:
                 print "Warning: had problems getting input files from home archive"
                 print "\t", problemfiles.keys()
-                #print "\t", problemfiles
                 files2get += problemfiles.keys()
         else:
             print "Warning: had problems getting input files from home archive."
             print "\ttransfer function returned no results"
 
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+        miscutils.fwdebug_print("END\n\n")
     return files2get
 
 
@@ -425,11 +429,9 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, paren
         print "\tInfo: 0 files found on %s" % archive_info['name']
         print "\t\tfilemgmt = %s" % archive_info['filemgmt']
 
-    #archroot = archive_info['root']
     transinfo = {}
     for name, info in fileinfo_archive.items():
         transinfo[name] = copy.deepcopy(info)
-        #transinfo[name]['src'] = '%s/%s' % (archroot, info['rel_filename'])
         transinfo[name]['src'] = info['rel_filename']
         transinfo[name]['dst'] = jobfiles[name]
 
@@ -471,7 +473,7 @@ def get_wrapper_inputs(pfw_dbh, wcl, jobfiles, outfiles):
 
             # double-check: check that files are now on filesystem
             errcnt = 0
-            for infile in jobfiles['infullnames']:
+            for infile in wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values():
                 if not os.path.exists(infile) and not infile in outfiles and \
                    not miscutils.parse_fullname(infile, miscutils.CU_PARSE_FILENAME) in files2get:
                     msg = "Error: input file doesn't exist despite transfer success (%s)" % infile
@@ -533,26 +535,6 @@ def get_wrapper_outputs(wcl, jobfiles):
     return {}
 
 ######################################################################
-def register_list_files(wcl, jobfiles, pfw_dbh):
-    """ register any list files for this wrapper """
-
-    if pfwdefs.IW_LISTSECT in wcl and pfw_dbh is not None:
-        list_filenames = []
-        for ldict in wcl[pfwdefs.IW_LISTSECT].values():
-            list_filenames.append(ldict['fullname'])
-
-        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
-            miscutils.fwdebug_print("registering lists list_filenames=%s" % list_filenames)
-
-        filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
-        pfw_save_file_info(pfw_dbh, filemgmt, 'list', list_filenames, wcl['pfw_attempt_id'],
-                           wcl['task_id']['attempt'], wcl['task_id']['jobwrapper'],
-                           wcl['task_id']['attempt'],
-                           False, None)
-
-        jobfiles['outfullnames'].extend(list_filenames)
-
-######################################################################
 def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
     """ Create output directories, get files from archive, and other setup work """
 
@@ -565,8 +547,6 @@ def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
     # make directory for log file
     logdir = os.path.dirname(logfilename)
     miscutils.coremakedirs(logdir)
-
-    register_list_files(wcl, jobfiles, pfw_dbh)
 
     # get execnames to put on command line for QC Framework
     wcl['execnames'] = wcl['wrapper']['wrappername'] + ',' + get_exec_names(wcl)
@@ -760,8 +740,6 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, dest,
         print "ERROR\n\n\nError: putting %d files into archive %s" % \
               (len(problemfiles), archive_info['name'])
         print "\t", problemfiles.keys()
-        #for file in problemfiles:
-        #    print file, problemfiles[file]
         if pfw_dbh is not None:
             pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
         raise Exception("Error: problems putting %d files into archive %s" %
@@ -826,7 +804,7 @@ def copy_output_to_archive(pfw_dbh, wcl, jobfiles, fileinfo, level, parent_task_
         miscutils.fwdebug_print("Checking for save_file_archive")
 
     for (filename, fdict) in fileinfo.items():
-        if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
             miscutils.fwdebug_print("filename %s, fdict=%s" % (filename, fdict))
         (filename, compression) = miscutils.parse_fullname(fdict['fullname'],
                                        miscutils.CU_PARSE_FILENAME|miscutils.CU_PARSE_COMPRESSION)
@@ -967,7 +945,6 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                 execids = None
                 if pfwdefs.OW_PROVSECT in outputwcl and \
                    len(outputwcl[pfwdefs.OW_PROVSECT].keys()) > 0:
-                    #print "prov exists...calling ingest_provenance"
                     prov = outputwcl[pfwdefs.OW_PROVSECT]
                     execids = wcl['task_id']['exec']
                     filemgmt.ingest_provenance(prov, execids)
@@ -1002,23 +979,21 @@ def parse_wrapper_line(line, linecnt):
 
 
 ######################################################################
-def gather_inwcl_fullnames(workflow, jobfiles):
-    """ save input wcl fullnames in input list so won't appear in junk tarball """
-    linecnt = 0
-    with open(workflow, 'r') as workflowfh:
-        # for each task
-        line = workflowfh.readline()
-        linecnt += 1
-        while line:
-            task = None
-            try:
-                task = parse_wrapper_line(line, linecnt)
-                jobfiles['infullnames'].append(task['wclfile'])
-            except Exception as exc:
-                print "Error: parsing task file line %s (%s)" % (linecnt, str(exc))
-                return 1
-            line = workflowfh.readline()
+def gather_initial_fullnames():
+    """ save fullnames for files initially in job scratch directory 
+        so won't appear in junk tarball """
 
+    infullnames = []
+    for (dirpath, dirnames, filenames) in os.walk('.'):
+        dpath = dirpath[2:]
+        if len(dpath) > 0:
+            dpath += '/'
+        for fname in filenames:
+            infullnames.append('%s%s' % (dpath, fname))
+
+    if miscutils.fwdebug_check(6, 'PFWRUNJOB_DEBUG'):
+        miscutils.fwdebug_print("initial infullnames=%s" % infullnames)
+    return infullnames
 
 ######################################################################
 def exechost_status(wrapnum):
@@ -1144,7 +1119,6 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
 
             print "%04d: Post-steps (exit: %s)" % (int(task['wrapnum']), exitcode)
             post_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], exitcode)
-            #print "after post_wrapper - ", len(jobfiles['output_putinfo'])
             if wcl['wrap_usage'] > jobwcl['job_max_usage']:
                 jobwcl['job_max_usage'] = wcl['wrap_usage']
 
@@ -1168,7 +1142,6 @@ def run_job(args):
     jobwcl = WCL()
     jobfiles = {'infullnames': [args.config, args.workflow],
                 'outfullnames': [],
-                #'to_compress': [],
                 'output_putinfo': {}}
 
     jobstart = time.time()
@@ -1229,7 +1202,7 @@ def run_job(args):
     # run the tasks (i.e., each wrapper execution)
     pfw_dbh = None
     try:
-        exitcode = gather_inwcl_fullnames(args.workflow, jobfiles)
+        jobfiles['infullnames'] = gather_initial_fullnames()
         exitcode = job_workflow(args.workflow, jobfiles, jobwcl)
     except Exception:
         (extype, exvalue, trback) = sys.exc_info()
@@ -1245,12 +1218,6 @@ def run_job(args):
     if jobwcl['use_db'] and pfw_dbh is None:
         pfw_dbh = pfwdb.PFWDB()
 
-    #print 'C outfullnames', jobfiles['outfullnames']
-
-    # compress files as specified
-    #if jobwcl.get(pfwdefs.MASTER_COMPRESSION) and len(jobfiles['to_compress']) > 0:
-    #    compress_files(pfw_dbh, jobwcl, jobfiles, exitcode)
-
     # create junk tarball with any unknown files
     create_junk_tarball(pfw_dbh, jobwcl, jobfiles, exitcode)
 
@@ -1259,9 +1226,7 @@ def run_job(args):
         print "\n\nCalling file transfer for end of job (%s files)" % \
               (len(jobfiles['output_putinfo']))
 
-        #copy_output_to_archive(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'], None, 'job', exitcode)
         copy_output_to_archive(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'], 'job', job_task_id, 'job_output', exitcode)
-        #transfer_job_to_archives(pfw_dbh, jobwcl, jobfiles, jobfiles['output_putinfo'], 'job', job_task_id, 'job_output', exitcode)
     else:
         print "\n\n0 files to transfer for end of job"
         if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
@@ -1298,7 +1263,7 @@ def create_compression_wdf(used_fnames, wgb_fnames):
 def compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
     """ Compress output files as specified """
 
-    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
 
     task_id = None
@@ -1337,7 +1302,7 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
     errcnt = 0
     filelist = []
     for fname, fdict in results.items():
-        if miscutils.fwdebug_check(0, 'PFWRUNJOB_DEBUG'):
+        if miscutils.fwdebug_check(3, 'PFWRUNJOB_DEBUG'):
             miscutils.fwdebug_print("%s = %s" % (fname, fdict))
 
         if fdict['err'] is None:
@@ -1386,7 +1351,7 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
     if pfw_dbh is not None:
         pfw_dbh.update_compress_task(task_id, errcnt, tot_bytes_after)
 
-    if miscutils.fwdebug_check(0, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END")
 
 ################################################################################
@@ -1496,6 +1461,7 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
         # gather "disk" metadata about tarball
         putinfo = {wcl['junktar']: {'src': wcl['junktar'],
                                     'filename': filename,
+                                    'fullname': wcl['junktar'],
                                     'compression': compression,
                                     'path': wcl['junktar_archive_path'],
                                     'filetype': 'junk_tar',

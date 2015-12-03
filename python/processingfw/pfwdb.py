@@ -18,6 +18,7 @@
 __version__ = "$Rev$"
 
 import os
+import socket
 import sys
 import traceback
 from datetime import datetime
@@ -731,6 +732,13 @@ class PFWDB (desdmdbi.DesDmDbi):
                 updatevals['start_time'] = datetime.fromtimestamp(float(wcl_task_info['start_time']))
             if 'end_time' in wcl_task_info:
                 updatevals['end_time'] =  datetime.fromtimestamp(float(wcl_task_info['end_time']))
+            else:
+                updatevals['end_time'] = self.get_current_timestamp_str()
+            if 'exec_host' in wcl_task_info:
+                updatevals['exec_host'] = wcl_task_info['exec_host']
+            else:
+                updatevals['exec_host'] = socket.gethostname() 
+
             if 'status' in wcl_task_info:
                 updatevals['status'] = wcl_task_info['status']
             else:    # assume failure

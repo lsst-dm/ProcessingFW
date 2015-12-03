@@ -2476,7 +2476,7 @@ def copy_input_lists_home_archive(config, filemgmt, archive_info, listfullnames)
         files2copy[lfname] = {'src': lfname, 
                               'filename': filename,
                               'dst': archfname,
-                              'fullname': lfname}
+                              'fullname': archfname}
         
     if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
         miscutils.fwdebug_print('files2copy = %s' % files2copy)

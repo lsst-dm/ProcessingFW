@@ -727,7 +727,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, dest,
             if pfw_dbh:
                 pfw_dbh.insert_message(wcl['pfw_attempt_id'], trans_task_id, pfwdefs.PFWDB_MSG_WARN, msg)
         else:
-            files2register.append(finfo['dst'])
+            files2register.append(finfo)
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("Registering %s file(s) in archive..." % len(files2register))

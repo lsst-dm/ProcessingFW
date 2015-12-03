@@ -97,7 +97,7 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
                     print "done"
                 else:
                     print "fail %s" % jobdict['status']
-            elif numwraps == expnumwrap and wrap_byjob[jobnum][maxwrap]['end_time'] is not None:
+            elif numwraps == expnumwrap and 'end_time' in wrap_byjob[jobnum][maxwrap] and wrap_byjob[jobnum][maxwrap]['end_time'] is not None:
                     print "end job tasks"
             else:
                 print ""

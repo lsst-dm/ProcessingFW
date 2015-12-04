@@ -35,7 +35,7 @@ def get_hdrup_sections(wcl, prefix):
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
             miscutils.fwdebug_print("\tsearching for hdrup prefix in %s" % key)
 
-        if re.search(r"^%s\d+$" % prefix, key):
+        if re.search(r"^%s\S+$" % prefix, key):
             if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
                 miscutils.fwdebug_print("\tFound hdrup prefex %s" % key)
             hdrups[key] = val

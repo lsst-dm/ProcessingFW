@@ -915,11 +915,13 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                         updatedef = {}
                         # get any hdrupd secton from inputwcl
                         for key, val in sectdict.items():
-                            if key.startswith('hrdupd'):
-                                updatedef.update(val)
+                            if key.startswith('hdrupd'):
+                                updatedef[key] = val
 
                         # add pfw hdrupd values
                         updatedef['hdrupd_pfw'] = pfw_hdrupd
+                        if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+                            miscutils.fwdebug_print("sectname %s, updatedef=%s" % (sectname, updatedef))
 
                         for ekey, elist in byexec.items():
                             fullnames = miscutils.fwsplit(elist, ',')

@@ -647,7 +647,7 @@ def output_transfer_prep(pfw_dbh, wcl, jobfiles, putinfo, parent_tid, task_label
             fdict['dst'] = "%s/%s" % (fdict['path'], os.path.basename(fdict['src']))
             saveinfo[key] = fdict
 
-    compress_files(pfw_dbh, wcl, jobfiles, saveinfo, exitcode)
+    call_compress_files(pfw_dbh, wcl, jobfiles, saveinfo, exitcode)
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("After compress saveinfo = %s" % (saveinfo))
 
@@ -952,8 +952,9 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                     filemgmt.ingest_provenance(prov, execids)
             filemgmt.commit()
 
-    save_trans_end_of_job(pfw_dbh, wcl, jobfiles, finfo)
-    copy_output_to_archive(pfw_dbh, wcl, jobfiles, finfo, 'wrapper', wcl['task_id']['jobwrapper'], 'wrapper_output', exitcode)
+    if len(finfo) > 0:
+        save_trans_end_of_job(pfw_dbh, wcl, jobfiles, finfo)
+        copy_output_to_archive(pfw_dbh, wcl, jobfiles, finfo, 'wrapper', wcl['task_id']['jobwrapper'], 'wrapper_output', exitcode)
 
     # clean up any input files no longer needed - TODO
 
@@ -1262,7 +1263,7 @@ def create_compression_wdf(used_fnames, wgb_fnames):
 
 
 ###############################################################################
-def compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
+def call_compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
     """ Compress output files as specified """
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
@@ -1292,64 +1293,67 @@ def compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
             to_compress.append(fdict['src'])
             
 
-    if miscutils.fwdebug_print(6, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(6, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("to_compress = %s" % to_compress)
-    (results, tot_bytes_before, tot_bytes_after) = pfwcompress.compress_files(to_compress,
-                                                                              jobwcl[pfwdefs.COMPRESSION_SUFFIX],
-                                                                              jobwcl[pfwdefs.COMPRESSION_EXEC],
-                                                                              jobwcl[pfwdefs.COMPRESSION_ARGS],
-                                                                              3, jobwcl[pfwdefs.COMPRESSION_CLEANUP])
-    if pfw_dbh is not None:
-        pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
     errcnt = 0
-    filelist = []
-    for fname, fdict in results.items():
-        if miscutils.fwdebug_check(3, 'PFWRUNJOB_DEBUG'):
-            miscutils.fwdebug_print("%s = %s" % (fname, fdict))
+    tot_bytes_after = 0
+    if len(to_compress) > 0:
+        (results, tot_bytes_before, tot_bytes_after) = pfwcompress.compress_files(to_compress,
+                                                                                  jobwcl[pfwdefs.COMPRESSION_SUFFIX],
+                                                                                  jobwcl[pfwdefs.COMPRESSION_EXEC],
+                                                                                  jobwcl[pfwdefs.COMPRESSION_ARGS],
+                                                                                  3, jobwcl[pfwdefs.COMPRESSION_CLEANUP])
+        if pfw_dbh is not None:
+            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
-        if fdict['err'] is None:
-            # add new filename to jobfiles['outfullnames'] so not junk
-            jobfiles['outfullnames'].append(fdict['outname'])
+        filelist = []
+        for fname, fdict in results.items():
+            if miscutils.fwdebug_check(3, 'PFWRUNJOB_DEBUG'):
+                miscutils.fwdebug_print("%s = %s" % (fname, fdict))
 
-            # update jobfiles['output_putinfo'] for transfer
-            (filename, compression) = miscutils.parse_fullname(fdict['outname'],
-                                                               miscutils.CU_PARSE_FILENAME | miscutils.CU_PARSE_EXTENSION)
-            if filename in putinfo:
-                # info for desfile entry
-                dinfo = diskutils.get_single_file_disk_info(fdict['outname'],
-                                                            save_md5sum=True,
-                                                            archive_root=None)
-                # compressed file should be one saved to archive
-                putinfo[filename]['src'] = fdict['outname']
-                putinfo[filename]['compression'] = compression
-                putinfo[filename]['dst'] += compression
+            if fdict['err'] is None:
+                # add new filename to jobfiles['outfullnames'] so not junk
+                jobfiles['outfullnames'].append(fdict['outname'])
 
-                del dinfo['path']
-                dinfo['fullname'] = fdict['outname']
-                dinfo['pfw_attempt_id'] = int(jobwcl['pfw_attempt_id'])
-                dinfo['filetype'] = putinfo[filename]['filetype']
-                dinfo['wgb_task_id'] = task_id
-                filelist.append(dinfo)
+                # update jobfiles['output_putinfo'] for transfer
+                (filename, compression) = miscutils.parse_fullname(fdict['outname'],
+                                                                   miscutils.CU_PARSE_FILENAME | miscutils.CU_PARSE_EXTENSION)
+                if filename in putinfo:
+                    # info for desfile entry
+                    dinfo = diskutils.get_single_file_disk_info(fdict['outname'],
+                                                                save_md5sum=True,
+                                                                archive_root=None)
+                    # compressed file should be one saved to archive
+                    putinfo[filename]['src'] = fdict['outname']
+                    putinfo[filename]['compression'] = compression
+                    putinfo[filename]['dst'] += compression
 
-            else:
-                miscutils.fwdie("Error: compression mismatch %s" % filename, pfwdefs.PF_EXIT_FAILURE)
-        else:  # errstr
-            miscutils.fwdebug_print("WARN: problem compressing file - %s" % fdict['err'])
-            errcnt += 1
+                    del dinfo['path']
+                    dinfo['fullname'] = fdict['outname']
+                    dinfo['pfw_attempt_id'] = int(jobwcl['pfw_attempt_id'])
+                    dinfo['filetype'] = putinfo[filename]['filetype']
+                    dinfo['wgb_task_id'] = task_id
+                    filelist.append(dinfo)
 
-    # register compressed file with file manager, save used provenance info
-    filemgmt = dynam_load_filemgmt(jobwcl, pfw_dbh, None, task_id)
-    filemgmt.create_artifacts(filelist)
-    used_fnames = [os.path.basename(x) for x in to_compress]
-    wgb_fnames = [os.path.basename(x['fullname']) for x in filelist]
+                else:
+                    miscutils.fwdie("Error: compression mismatch %s" % filename, pfwdefs.PF_EXIT_FAILURE)
+            else:  # errstr
+                miscutils.fwdebug_print("WARN: problem compressing file - %s" % fdict['err'])
+                errcnt += 1
 
-    prov = {provdefs.PROV_USED: {'exec_1': provdefs.PROV_DELIM.join(used_fnames)},
-            provdefs.PROV_WGB: {'exec_1': provdefs.PROV_DELIM.join(wgb_fnames)},
-            provdefs.PROV_WDF: create_compression_wdf(used_fnames, wgb_fnames)}
-    filemgmt.ingest_provenance(prov, {'exec_1': task_id})
-    force_update_desfile_filetype(filemgmt, filelist)
-    filemgmt.commit()
+        # register compressed file with file manager, save used provenance info
+        filemgmt = dynam_load_filemgmt(jobwcl, pfw_dbh, None, task_id)
+        filemgmt.create_artifacts(filelist)
+        used_fnames = [os.path.basename(x) for x in to_compress]
+        wgb_fnames = [os.path.basename(x['fullname']) for x in filelist]
+
+        prov = {provdefs.PROV_USED: {'exec_1': provdefs.PROV_DELIM.join(used_fnames)},
+                provdefs.PROV_WGB: {'exec_1': provdefs.PROV_DELIM.join(wgb_fnames)},
+                provdefs.PROV_WDF: create_compression_wdf(used_fnames, wgb_fnames)}
+        filemgmt.ingest_provenance(prov, {'exec_1': task_id})
+        force_update_desfile_filetype(filemgmt, filelist)
+        filemgmt.commit()
 
     if pfw_dbh is not None:
         pfw_dbh.update_compress_task(task_id, errcnt, tot_bytes_after)

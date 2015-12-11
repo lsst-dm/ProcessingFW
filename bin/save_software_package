@@ -36,7 +36,8 @@ def parse_file(filename):
 
 def save_meta_package(dbh, name, version, note):
     """ save the meta package information """
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("BEG")
 
     from_dual = dbh.from_dual()
     row = {}
@@ -48,17 +49,19 @@ def save_meta_package(dbh, name, version, note):
              (select null from ops_meta_package where name=%s and version=%s)""" % \
           (','.join(row.keys()), ','.join(row.values()), from_dual,
            row['name'], row['version'])
-    miscutils.fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("\t%s\n" % sql)
     curs = dbh.cursor()
     curs.execute(sql)
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG',
-                      "Number of rows inserted into ops_meta_package: %s" % curs.rowcount)
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "END")
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package: %s" % curs.rowcount)
+        miscutils.fwdebug_print("END")
 
 
 def save_indiv_packages(dbh, packages):
     """ Save information about the individual packages inside metapackage """
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("BEG")
 
     from_dual = dbh.from_dual()
     curs = dbh.cursor()
@@ -71,17 +74,19 @@ def save_indiv_packages(dbh, packages):
                  (select null from ops_indiv_package where name=%s and version=%s)""" % \
               (','.join(row.keys()), ','.join(row.values()), from_dual,
                row['name'], row['version'])
-        miscutils.fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+        if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+            miscutils.fwdebug_print("\t%s\n" % sql)
         curs.execute(sql)
         inscnt += curs.rowcount
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG',
-                      "Number of rows inserted into ops_indiv_package: %s" % inscnt)
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "END")
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("Number of rows inserted into ops_indiv_package: %s" % inscnt)
+        miscutils.fwdebug_print("END")
 
 
 def save_meta_contents(dbh, metaname, metaversion, packages):
     """ Tie individual packages to meta package """
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "BEG")
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("BEG")
 
     from_dual = dbh.from_dual()
     row = {}
@@ -100,13 +105,15 @@ def save_meta_contents(dbh, metaname, metaversion, packages):
                   meta_version=%s and indiv_name=%s and indiv_version=%s)""" % \
               (','.join(row.keys()), ','.join(row.values()), from_dual,
                row['meta_name'], row['meta_version'], row['indiv_name'], row['indiv_version'])
-        miscutils.fwdebug(4, 'SAVESOFT_DEBUG', "\t%s\n" % sql)
+        if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+            miscutils.fwdebug_print("\t%s\n" % sql)
         curs.execute(sql)
         inscnt += curs.rowcount
         cnt += 1
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG',
-                      "Number of rows inserted into ops_meta_package_contents: %s" % inscnt)
-    miscutils.fwdebug(3, 'SAVESOFT_DEBUG', "END")
+    if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
+        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package_contents: %s" % \
+                                inscnt)
+        miscutils.fwdebug_print("END")
 
 
 def save_software_info(dbh, name, version, contents, note=None):

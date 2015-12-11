@@ -3,6 +3,8 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+# pylint: disable=print-statement
+
 """
     Define some exceptions.
 

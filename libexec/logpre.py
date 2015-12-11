@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # $Id$
 # $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit. 
+# $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
+
+""" Bookkeeping steps executed submit-side prior to certain submit-side tasks """
 
 import sys
 import os
@@ -10,60 +12,57 @@ import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
-import processingfw.pfwdb as pfwdb
 
-def logpre(argv = None):
+def logpre(argv=None):
+    """ Program entry point """
     if argv is None:
         argv = sys.argv
 
-    debugfh = open('logpre.out', 'w', 0) 
+    default_log = 'logpre.out'
+    debugfh = open(default_log, 'w', 0)
     sys.stdout = debugfh
     sys.stderr = debugfh
-    
+
     print ' '.join(sys.argv) # command line for debugging
-    
+
     if len(argv) < 5:
         print 'Usage: logpre configfile block subblocktype subblock'
         debugfh.close()
-        return(pfwdefs.PF_EXIT_FAILURE)
+        return pfwdefs.PF_EXIT_FAILURE
 
     configfile = sys.argv[1]
     blockname = sys.argv[2]    # could also be uberctrl
     subblocktype = sys.argv[3]
     subblock = sys.argv[4]
-    
+
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
 
-    if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]): 
-        dbh = pfwdb.PFWDB(config['submit_des_services'], config['submit_des_db_section'])
-        #dbh.insert_blktask(config, "", subblock)
-
     # now that have more information, can rename output file
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "getting new_log_name")
-    blockname = config['blockname']
-    blkdir = config['block_dir']
-    new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS:
-                                                    {'flabel': '${subblock}_logpre',
-                                                     'subblock': subblock,
-                                                     'fsuffix':'out'}})
+    miscutils.fwdebug_print("getting new_log_name")
+    blockname = config.getfull('blockname')
+    blkdir = config.getfull('block_dir')
+    new_log_name = config.get_filename('block',
+                                       {pfwdefs.PF_CURRVALS: {'subblock': subblock,
+                                                              'flabel': '${subblock}_logpre',
+                                                              'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
-    miscutils.fwdebug(0, 'PFWPOST_DEBUG', "new_log_name = %s" % new_log_name)
+    miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
     debugfh.close()
 
-    os.chmod('logpre.out', 0666)
-    os.rename('logpre.out', new_log_name)
+    os.chmod(default_log, 0666)
+    os.rename(default_log, new_log_name)
 
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
-    
-    
+
+
     log_pfw_event(config, blockname, subblock, subblocktype, ['pretask'])
-    
+
     print "logpre done"
     debugfh.close()
-    return(pfwdefs.PF_EXIT_SUCCESS)
+    return pfwdefs.PF_EXIT_SUCCESS
 
 if __name__ == "__main__":
     sys.exit(logpre(sys.argv))

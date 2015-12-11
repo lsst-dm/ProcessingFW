@@ -39,6 +39,7 @@ import processingfw.pfwcondor as pfwcondor
 
 
 def print_jobs(chost, jobs, now):
+    """ Print jobs for a single FermiGrid condor pool """
     # sort on FermiGrid condor id
     for j in sorted(jobs.keys()):
         jdict = jobs[j]
@@ -86,12 +87,30 @@ def print_jobs(chost, jobs, now):
 
         # try to print a string that describes the job in framework terms
         label = ""
-        if 'transferinput' in jdict:
+        if 'des_subblock' in jdict:
+            label = 'j%s_' % jdict['des_subblock']
+        if 'des_block' in jdict:
+            label += '%s_' % jdict['des_block']
+        if 'des_run' in jdict:
+            label += jdict['des_run']
+        if label == "" and 'env' in jdict and 'DES_RUN' in jdict['env']:
+            envdict = {}
+            for piece in jdict['env'].split(';'):
+                if piece.startswith('DES_'):
+                    k,v = piece.split('=')
+                    envdict[k.lower()] = v
+            if 'des_subblock' in envdict:
+                label = 'j%s_' % envdict['des_subblock']
+            if 'des_block' in envdict:
+                label += '%s_' % envdict['des_block']
+            if 'des_run' in envdict:
+                label += envdict['des_run']
+        if label == "" and 'transferinput' in jdict:
             match = re.search("([^,]+_job_[^,]+).wcl", jdict['transferinput'])
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %45s" % \
+        print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %s" % \
                (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
                 datetime.fromtimestamp(int(jdict['qdate'])), flavor,
                 remotehost, wallclock, submit_condorid, label)
@@ -108,10 +127,10 @@ def main():
 
 
     # print headers
-    print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %45s" % \
+    print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %s" % \
            ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
             'wallclock', 'DES CID', 'DES label')
-    print '-'*166
+    print '-'*168
     print_jobs('fnpcosg1', jobs, now)
     print_jobs('gpce02', jobsCE, now)
 

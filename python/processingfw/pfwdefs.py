@@ -3,26 +3,31 @@
 # $LastChangedBy::                        $:  # Author of last commit.
 # $LastChangedDate::                      $:  # Date of last commit.
 
+""" Constants used across various files to make changes easier """
+
 # when changing values, check if change also needed in $PROCESSINGFW_DIR/etc/pfwconfig.des
 #
 # SW_  submit wcl
 # IW_  (wrapper) input wcl
 # OW_  (wrapper) output wcl
-# PF_  processing fw 
+# PF_  processing fw
 # DB_  database table/column names
 ######################################################################
 
-FILETYPE  = 'filetype'
-FILENAME  = 'filename'
+
+
+
+FILETYPE = 'filetype'
+FILENAME = 'filename'
 METATABLE = 'metadata_table'
-USED  = 'used'
-WGB   = 'was_generated_by'
-WDF   = 'was_derived_from'
+USED = 'used'
+WGB = 'was_generated_by'
+WDF = 'was_derived_from'
 
 REQNUM = 'reqnum'
 ATTNUM = 'attnum'
 UNITNAME = 'unitname'
-ATTRIB_PREFIX='des_'
+ATTRIB_PREFIX = 'des_'
 
 SUBMIT_RUN_DIR = 'submit_run_dir'
 ATTEMPT_ARCHIVE_PATH = 'ops_run_dir'
@@ -36,7 +41,7 @@ VALID_HOME_ARCHIVE_OUTPUT = ['wrapper', 'job', 'block', 'run', 'never']
 
 
 TARGET_ARCHIVE = 'target_archive'
-USE_TARGET_ARCHIVE_INPUT =  'use_target_archive_input'
+USE_TARGET_ARCHIVE_INPUT = 'use_target_archive_input'
 USE_TARGET_ARCHIVE_OUTPUT = 'use_target_archive_output'
 VALID_TARGET_ARCHIVE_INPUT = ['job', 'never']
 VALID_TARGET_ARCHIVE_OUTPUT = ['wrapper', 'job', 'never']
@@ -50,17 +55,37 @@ MASTER_SAVE_FILE = 'master_savefiles'
 VALID_MASTER_SAVE_FILE = ['always', 'failure', 'file', 'never']   # + rand_##
 MASTER_SAVE_FILE_DEFAULT = 'file'
 
+
+# __UCFILE__ = uncompressed file, __CFILE__ = compressed file
+VALID_MASTER_COMPRESSION = ['notfailure', 'file', 'never']
+MASTER_COMPRESSION_DEFAULT = 'file'
+MASTER_COMPRESSION = 'master_compression'
+COMPRESSION_EXEC = 'compression_exec'
+COMPRESSION_SUFFIX = 'compression_suffix'
+COMPRESSION_ARGS = 'compression_args'
+COMPRESSION_CLEANUP = 'compress_cleanup'
+COMPRESSION_CLEANUP_DEFAULT = True
+COMPRESS_FILES = 'compress_files'
+
+
 ALLOW_MISSING = 'allow_missing'
 DIV_LIST_BY_COL = 'div_list_by_col'
 DATA_DEPENDS = 'depends'
 
 
+# top level section names
+SW_FILEPATSECT = 'filename_pattern'
+DIRPATSECT = 'directory_pattern'
+SW_BLOCKSECT = 'block'
+SW_MODULESECT = 'module'
+SW_ARCHIVESECT = 'archive'
+SW_SITESECT = 'site'
+SW_EXEC_DEF = 'exec_def'
 
 DIRPAT = 'dirpat'
-DIRPATSECT = 'directory_pattern'
-
 
 SW_LABEL = 'label'
+SW_CHECK_PROXY = 'check_proxy'
 SW_SAVE_RUN_VALS = 'save_run_vals'
 SW_JOB_ENVIRONMENT = 'job_environment'
 SW_DIVIDE_JOBS_BY = 'divide_jobs_by'
@@ -71,13 +96,9 @@ SW_PARENTCHILD = SW_ANCESTRY
 SW_EXECNAME = 'execname'
 SW_WRAPPERNAME = 'wrappername'
 SW_CMDARGS = 'cmdline'
-SW_EXEC_DEF = 'exec_def'
 SW_FILEPAT = 'filepat'
-SW_FILEPATSECT = 'filename_pattern'
 SW_BLOCKLIST = 'blocklist'
 SW_MODULELIST = 'modulelist'
-SW_BLOCKSECT = 'block'
-SW_MODULESECT = 'module'
 SW_LISTSECT = 'list'
 SW_FILESECT = 'file'
 SW_QUERYFIELDS = 'query_fields'
@@ -122,6 +143,7 @@ OW_ANCESTRY = WDF
 OW_EXECPREFIX = IW_EXECPREFIX
 OW_PROVSECT = 'provenance'
 OW_METASECT = 'file_metadata'
+OW_OUTPUTS_BY_SECT = 'outputs_by_sect'
 
 PF_RUN_PAT = '%(unitname)s_r%(reqnum)dp%(attnum)02d'
 PF_TASKNUM = 'tasknum'
@@ -141,3 +163,8 @@ PF_EXIT_DRYRUN = 2
 PF_EXIT_WARNINGS = 3
 PF_BLKNUM = 'blknum'
 PF_CURRVALS = 'currentvals'
+
+
+PFWDB_MSG_ERROR = 3
+PFWDB_MSG_WARN = 2
+PFWDB_MSG_INFO = 1

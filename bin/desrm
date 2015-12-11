@@ -16,9 +16,8 @@ import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdb as pfwdb
 
-def update_db(task_id):
+def update_db(dbh, task_id):
     """ Tell DB that attempt was deleted """
-    dbh = pfwdb.PFWDB()
 
     # end task for all tasks in attempt that don't already have end
     sql = """select id from task where root_task_id=%s and start_time is not NULL and
@@ -33,7 +32,6 @@ def update_db(task_id):
 
     # set attempt's data state to junk
     dbh.basic_update_row('PFW_ATTEMPT', {'data_state': 'JUNK'}, {'task_id': task_id})
-    dbh.commit()
 
 
 def get_attempt_from_condor_id(givcondorid):
@@ -67,10 +65,9 @@ def parse_attempt_str(attempt):
     attnum = str(int(match.group(3)))
     return (reqnum, unitname, attnum)
 
-def get_attempt_info_from_db(reqnum, unitname, attnum):
+def get_attempt_info_from_db(dbh, reqnum, unitname, attnum):
     """ Get condor job id and task id from DB for the attempt """
 
-    dbh = pfwdb.PFWDB()
     sql = """select condorid, task_id from pfw_attempt where reqnum='%s' and
              unitname='%s' and attnum='%s'""" % (reqnum, unitname, attnum)
     #print sql
@@ -93,6 +90,9 @@ def get_attempt_info_from_db(reqnum, unitname, attnum):
 def main(argv=None):
     """ Entry point """
     parser = argparse.ArgumentParser(description='desrm')
+    parser.add_argument('--des_services', action='store', help='')
+    parser.add_argument('--section', action='store',
+                        help='Must be specified if not set in environment')
     parser.add_argument('attempt', nargs=1, action='store', default=None)
     args = parser.parse_args(argv)
 
@@ -112,7 +112,8 @@ def main(argv=None):
 
     (reqnum, unitname, attnum) = parse_attempt_str(attempt)
 
-    (condorid, attempt_task_id) = get_attempt_info_from_db(reqnum, unitname, attnum)
+    dbh = pfwdb.PFWDB(args.des_services, args.section)
+    (condorid, attempt_task_id) = get_attempt_info_from_db(dbh, reqnum, unitname, attnum)
     if givcondorid is not None and givcondorid != condorid:
         print "Error:  Condor id from DB doesn't match given condor id.  Not deleting attempt"
         print "(%s, %s)" % (givcondorid, condorid)
@@ -134,7 +135,8 @@ def main(argv=None):
     pfwcondor.condor_rm(condorid)
     time.sleep(10)
 
-    update_db(attempt_task_id)
+    update_db(dbh, attempt_task_id)
+    dbh.commit()
     return 0
 
 if __name__ == "__main__":

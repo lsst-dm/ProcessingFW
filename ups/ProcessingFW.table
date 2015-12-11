@@ -1,6 +1,7 @@
+# loads IntegrationUtils and DatabaseApps
+setupRequired(FileMgmt) 
+setupRequired(QCFramework)
+
 envPrepend(PATH, ${PRODUCT_DIR}/bin)
 envPrepend(PATH, ${PRODUCT_DIR}/tools)
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
-#####envSet(CPN_LOCK_BASE,/grid/data)
-
-#setupRequired(despyDMdb)   # which sets up despydb and despymisc

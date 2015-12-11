@@ -1995,7 +1995,7 @@ def write_runjob_script(config):
     envfile = config.get_filename('envfile', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:"9999"}})
     envfile = envfile.replace("j9999", "j${padjnum}")
 
-    scriptstr = """#!/bin/sh
+    scriptstr = """#!/usr/bin/env sh
 echo "PFW: job_shell_script cmd: $0 $@";
 if [ $# -ne 6 ]; then
     echo "Usage: $0 <jobnum> <input tar> <job wcl> <tasklist> <env file> <output tar>";
@@ -2009,7 +2009,7 @@ if [ $lenjobnum == 4 ]; then
     padjnum=$jobnum
 else
     jobnum=$(echo $jobnum | sed 's/^0*//')
-    padjnum=`/usr/bin/printf %04d $jobnum`
+    padjnum=`printf %04d $jobnum`
 fi
 echo "jobnum = '$jobnum'"
 echo "padjnum = '$padjnum'"
@@ -2019,7 +2019,7 @@ jobwcl=$3
 tasklist=$4
 envfile=$5
 outputtar=$6
-initdir=`/bin/pwd`
+initdir=`pwd`
 
 """
 
@@ -2031,30 +2031,30 @@ initdir=`/bin/pwd`
     # setup job environment
     scriptstr += """
 export SHELL=/bin/bash    # needed for setup to work in Condor environment
-shd1=`/bin/date "+%%s"`
+shd1=`date "+%%s"`
 echo "PFW: job_shell_script starttime: $shd1"
 echo -n "PFW: job_shell_script exechost: "
-/bin/hostname
+hostname
 echo ""
 
 BATCHID=""
-if /usr/bin/test -n "$SUBMIT_CONDORID"; then
+if test -n "$SUBMIT_CONDORID"; then
     echo "PFW: condorid $SUBMIT_CONDORID"
 fi
 
 ### Output batch jobid for record keeping
 ### specific to batch scheduler
-if /usr/bin/test -n "$PBS_JOBID"; then
-   BATCHID=`echo $PBS_JOBID | /bin/cut -d'.' -f1`
-   NP=`/bin/awk 'END {print NR}' $PBS_NODEFILE`
+if test -n "$PBS_JOBID"; then
+   BATCHID=`echo $PBS_JOBID | cut -d'.' -f1`
+   NP=`awk 'END {print NR}' $PBS_NODEFILE`
 fi
-if /usr/bin/test -n "$LSB_JOBID"; then
+if test -n "$LSB_JOBID"; then
    BATCHID=$LSB_JOBID
 fi
-if /usr/bin/test -n "$LOADL_STEP_ID"; then
-   BATCHID=`echo $LOADL_STEP_ID | /bin/awk -F "." '{print $(NF-1) "." $(NF) }'`
+if test -n "$LOADL_STEP_ID"; then
+   BATCHID=`echo $LOADL_STEP_ID | awk -F "." '{print $(NF-1) "." $(NF) }'`
 fi
-if /usr/bin/test -n "$BATCHID"; then
+if test -n "$BATCHID"; then
     echo "PFW: batchid $BATCHID"
 fi
 
@@ -2069,7 +2069,7 @@ touch $envfile
 tar -cvf $outputtar --files-from /dev/null
 
 
-d1=`/bin/date "+%%s"`
+d1=`date "+%%s"`
 echo "PFW: eups_setup starttime: $d1"
 cnt=0
 maxtries=%(max_eups_tries)s
@@ -2099,11 +2099,11 @@ while [ $mystat -ne 0 -a $cnt -lt $maxtries ]; do
         sleep $mydelay
     fi
 done
-d2=`/bin/date "+%%s"`
+d2=`date "+%%s"`
 echo "PFW: eups_setup endtime: $d2"
 if [ $mystat != 0 ]; then
     echo "Error: eups setup had non-zero exit code ($mystat)"
-    shd2=`/bin/date "+%%s"`
+    shd2=`date "+%%s"`
     echo "PFW: job_shell_script endtime: $shd2"
     echo "PFW: job_shell_script exit_status: %(eupsfail)s"
     exit $mystat    # note exit code not passed back through grid universe jobs
@@ -2153,10 +2153,10 @@ cd $jobdir
     scriptstr += """
 echo ""
 echo "Untaring input tar: $intar"
-d1=`/bin/date "+%s"`
+d1=`date "+%s"`
 echo "PFW: untaring_input_tar starttime: $d1"
 tar -xzf $initdir/$intar
-d2=`/bin/date "+%s"`
+d2=`date "+%s"`
 echo "PFW: untaring_input_tar endtime: $d2"
 """
     if not usedb:
@@ -2166,11 +2166,11 @@ echo "PFW: untaring_input_tar endtime: $d2"
     # save initial directory to job wcl file
     scriptstr += """
 echo "Copying job wcl and task list to job working directory"
-d1=`/bin/date "+%s"`
+d1=`date "+%s"`
 echo "PFW: copy_job_setup starttime: $d1"
 cp $initdir/$jobwcl $jobwcl
 cp $initdir/$tasklist $tasklist
-d2=`/bin/date "+%s"`
+d2=`date "+%s"`
 echo "PFW: copy_job_setup endtime: $d2"
 echo "condor_job_init_dir = " $initdir >> $jobwcl
 """
@@ -2182,15 +2182,15 @@ echo "condor_job_init_dir = " $initdir >> $jobwcl
 echo ""
 echo "Calling pfwrunjob.py"
 echo "cmd> ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist"
-d1=`/bin/date "+%s"`
+d1=`date "+%s"`
 echo "PFW: pfwrunjob starttime: $d1"
 ${PROCESSINGFW_DIR}/libexec/pfwrunjob.py --config $jobwcl $tasklist
 rjstat=$?
-d2=`/bin/date "+%s"`
+d2=`date "+%s"`
 echo "PFW: pfwrunjob endtime: $d2"
 echo ""
 echo ""
-shd2=`/bin/date "+%s"`
+shd2=`date "+%s"`
 echo "PFW: job_shell_script endtime: $shd2"
 echo "PFW: job_shell_script exit_status: $rjstat"
 """

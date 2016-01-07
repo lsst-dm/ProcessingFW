@@ -78,12 +78,18 @@ def print_jobs(chost, jobs, now):
         if 'jobstartdate' in jdict:
             jobstartdate = datetime.fromtimestamp(int(jdict['jobstartdate']))
             wallclock = now - jobstartdate
-            wallclock = str(timedelta(seconds=wallclock.seconds))
+            if wallclock.days > 1:
+                wallclock = str(wallclock).replace(" days, ", "+")
+            elif wallclock.days == 1:
+                wallclock = str(wallclock).replace(" day, ", "+")
+            else:
+                wallclock = "0+" + str(wallclock)
+            wallclock = wallclock.split('.')[0]
 
         flavor = ""
         if 'requirements' in jdict:
             if 'IS_CLOUD_WNITB' in jdict['requirements']:
-                flavor='himem'
+                flavor = 'himem'
 
         # try to print a string that describes the job in framework terms
         label = ""
@@ -97,7 +103,7 @@ def print_jobs(chost, jobs, now):
             envdict = {}
             for piece in jdict['env'].split(';'):
                 if piece.startswith('DES_'):
-                    k,v = piece.split('=')
+                    k, v = piece.split('=')
                     envdict[k.lower()] = v
             if 'des_subblock' in envdict:
                 label = 'j%s_' % envdict['des_subblock']
@@ -110,7 +116,7 @@ def print_jobs(chost, jobs, now):
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %s" % \
+        print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
                (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
                 datetime.fromtimestamp(int(jdict['qdate'])), flavor,
                 remotehost, wallclock, submit_condorid, label)
@@ -127,7 +133,7 @@ def main():
 
 
     # print headers
-    print "%10s %10s %20s %5s %20s %6s  %20s %10s %10s %s" % \
+    print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
            ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
             'wallclock', 'DES CID', 'DES label')
     print '-'*168

@@ -136,6 +136,12 @@ def begblock(argv):
             if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
                 dbh.insert_job(config, jobdict)
             pfwblock.write_jobwcl(config, jobkey, jobdict)
+            if ('glidein_use_wall' in config and
+                miscutils.convertBool(config.getfull('glidein_use_wall')) and
+                'jobwalltime' in config):
+                jobdict['wall'] = config['jobwalltime']
+              
+            
         miscutils.fwdebug_print("Creating job files - END")
 
         numjobs = len(joblist)

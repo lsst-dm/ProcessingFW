@@ -2242,6 +2242,8 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
             dagfh.write('VARS %s exec="../%s"\n' % (tjpad, scriptfile))
             dagfh.write('VARS %s args="%s %s %s %s %s %s"\n' % (tjpad, jobnum, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile'], jobdict['envfile'], jobdict['outputwcltar']))
             dagfh.write('VARS %s transinput="%s,%s,%s"\n' % (tjpad, jobdict['inputwcltar'], jobdict['jobwclfile'], jobdict['tasksfile']))
+            if 'wall' in jobdict:
+                dagfh.write('VARS %s wall="%s"\n' % (tjpad, jobdict['wall']))
 
             if use_condor_transfer_output:
                 dagfh.write('VARS %s transoutput="%s,%s"\n' % (tjpad, jobdict['outputwcltar'], jobdict['envfile']))
@@ -2338,7 +2340,7 @@ def create_runjob_condorfile(config, scriptfile):
             reqs.append('(Memory != -1)')
 
             if 'glidein_use_wall' in config and miscutils.convertBool(config.getfull('glidein_use_wall')):
-                reqs.append(r"(TimeToLive > \$(wall)*60)")   # wall is in mins, TimeToLive is in secs
+                reqs.append(r"(TimeToLive > $(wall)*60)")   # wall is in mins, TimeToLive is in secs
 
         elif targetinfo['batchtype'] == 'local':
             jobattribs['universe'] = 'vanilla'

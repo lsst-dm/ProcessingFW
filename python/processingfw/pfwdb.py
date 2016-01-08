@@ -372,10 +372,6 @@ class PFWDB (desdmdbi.DesDmDbi):
             miscutils.fwdebug_print("Inserting to pfw_block table\n")
 
         blknum = config.getfull(pfwdefs.PF_BLKNUM)
-        if blknum == '1':  # attempt is starting
-            #self.update_attempt_beg(config)
-            self.begin_task(config['task_id']['attempt'], True)
-
         blkname = config.getfull('blockname')
 
         row = {}

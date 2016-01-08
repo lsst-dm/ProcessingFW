@@ -87,6 +87,7 @@ def begrun(argv):
             import processingfw.pfwdb as pfwdb
             pfw_dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
                                   config.getfull('submit_des_db_section'))
+            pfw_dbh.begin_task(config['task_id']['attempt'], True)
 
         # the three wcl files to copy to the home archive
         origwcl = config['origwcl']

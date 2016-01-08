@@ -71,6 +71,8 @@ def print_jobs(chost, jobs, now):
         remotehost = ""
         if 'remotehost' in jdict:
             remotehost = jdict['remotehost'].replace('.fnal.gov', '')
+        elif 'lastremotehost' in jdict:
+            remotehost = '*%s' % jdict['lastremotehost'].replace('.fnal.gov', '')
 
         # calculate wallclock
         jobstartdate = ""

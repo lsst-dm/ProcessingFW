@@ -2031,8 +2031,8 @@ initdir=`pwd`
     # setup job environment
     scriptstr += """
 export SHELL=/bin/bash    # needed for setup to work in Condor environment
-shd1=`date "+%%s"`
-echo "PFW: job_shell_script starttime: $shd1"
+export PFW_JOB_START_EPOCH=`date "+%%s"`
+echo "PFW: job_shell_script starttime: $PFW_JOB_START_EPOCH"
 echo -n "PFW: job_shell_script exechost: "
 hostname
 echo ""
@@ -2198,7 +2198,7 @@ echo "PFW: job_shell_script exit_status: $rjstat"
     if not usedb:
         scriptstr += """
 echo "DESDMTIME: pfwrunjob.py $((d2-d1)) secs"
-echo "DESDMTIME: job_shell_script $((shd2-shd1)) secs"
+echo "DESDMTIME: job_shell_script $((shd2-PFW_JOB_START_EPOCH)) secs"
 """
 
     scriptstr += "exit $rjstat"

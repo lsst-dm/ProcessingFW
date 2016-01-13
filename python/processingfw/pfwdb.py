@@ -523,11 +523,21 @@ class PFWDB (desdmdbi.DesDmDbi):
                 raise Exception("Error: job attempted to run more than once")
 
         if exechost is not None:
-            wherevals = {}
-            wherevals['id'] = wcl['task_id']['job']
-            updatevals = {}
-            updatevals['exec_host'] = exechost
-            self.update_PFW_row ('TASK', updatevals, wherevals)
+            sql = "update task set exec_host='%s'" % (exechost)
+
+            if 'PFW_JOB_START_EPOCH' in os.environ:
+                # doing conversion on DB to avoid any timezone issues
+                sql += ", start_time = to_timestamp('1970-01-01','YYYY-MM-DD') + numtodsinterval(%s,'SECOND')" % (os.environ['PFW_JOB_START_EPOCH'])
+
+            sql += ' where id=%s' % (wcl['task_id']['job'])
+            curs = self.cursor()
+            curs.execute(sql)
+            self.commit()
+            #wherevals = {}
+            #wherevals['id'] = wcl['task_id']['job']
+            #updatevals = {}
+            #updatevals['exec_host'] = exechost
+            #self.update_PFW_row ('TASK', updatevals, wherevals)
 
 
     def update_job_junktar (self, wcl, junktar=None):

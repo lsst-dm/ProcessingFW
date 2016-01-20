@@ -1847,8 +1847,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
 
     wrapperwcl[pfwdefs.IW_WRAPSECT]['wrappername'] = wrapinst['wrappername']
     wrapperwcl[pfwdefs.IW_WRAPSECT]['outputwcl'] = wrapinst['outputwcl']
-    wrapperwcl[pfwdefs.IW_WRAPSECT]['tmpfile_prefix'] = config.getfull('tmpfile_prefix',
-                                {pfwdefs.PF_CURRVALS: currvals}),
+    wrapperwcl[pfwdefs.IW_WRAPSECT]['tmpfile_prefix'] = config.getfull('tmpfile_prefix', {pfwdefs.PF_CURRVALS: currvals})
     wrapperwcl['log'] = wrapinst['log']
     wrapperwcl['log_archive_path'] = wrapinst['log_archive_path']
 

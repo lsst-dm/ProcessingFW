@@ -77,14 +77,13 @@ def create_master_list(config, configfile, modname, moddict,
                                    'searchobj':search_dict})
 
     # handle both outputxml and outputfile args
-    args = replfuncs.replace_vars_single(args, 
+    args = replfuncs.replace_vars_single(args, config, 
                                   {pfwdefs.PF_CURRVALS:{pfwdefs.SW_MODULESECT:modname,
                                                         'outputxml':qoutfile,
                                                         'outputfile':qoutfile,
                                                         'qoutfile':qoutfile},
-                                   'searchobj':search_dict})[0]
-
-
+                                   #intgdefs.REPLACE_VARS: True,
+                                   'searchobj':search_dict})
 
     # get version for query code
     query_version = None

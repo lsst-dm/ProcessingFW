@@ -41,6 +41,7 @@ def begblock(argv):
     if exists and submit_des_db_section is not None:
         os.environ['DES_DB_SECTION'] = submit_des_db_section
 
+    dbh = None
     blktid = -1
     if miscutils.fwdebug_check(3, 'PFWBLOCK_DEBUG'):
         miscutils.fwdebug_print("blknum = %s" % (config[pfwdefs.PF_BLKNUM]))

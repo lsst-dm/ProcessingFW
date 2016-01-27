@@ -1956,8 +1956,8 @@ def divide_into_jobs(config, modname, winst, joblist):
     key = '_nokey'
     if pfwdefs.SW_DIVIDE_JOBS_BY in config:
         key = ""
-        for divb in miscutils.fwsplit(config[pfwdefs.SW_DIVIDE_JOBS_BY], ','):
-            key += '_'+config.getfull(divb, None, {pfwdefs.PF_CURRVALS: {'curr_module':modname}, 'searchobj': winst})
+        for divb in miscutils.fwsplit(config.getfull(pfwdefs.SW_DIVIDE_JOBS_BY, {pfwdefs.PF_CURRVALS: {'curr_module':modname}, 'searchobj': winst}), ','):
+            key += '_' + config.getfull(divb, {pfwdefs.PF_CURRVALS: {'curr_module':modname}, 'searchobj': winst})
 
 
     if key not in joblist:

@@ -11,6 +11,8 @@ import sys
 import re
 import despymisc.miscutils as miscutils
 import intgutils.queryutils as queryutils
+import intgutils.intgdefs as intgdefs
+import intgutils.replace_funcs as replfuncs
 import processingfw.pfwdb as pfwdb
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
@@ -89,9 +91,16 @@ def main(argv):
         elif fld in config:
             value = config.getfull(fld)
         else:
-            raise Exception("Error: blockmain could not find value for query field %s\n" % (fld))
+            raise Exception("Error: genquery could not find value for query field %s\n" % (fld))
 
-        value = config.getfull(value)
+        value = replfuncs.replace_vars(value, config,
+                                       {pfwdefs.PF_CURRVALS: {'modulename': args.modulename},
+                                        'searchobj': search_dict,
+                                        intgdefs.REPLACE_VARS: True,
+                                        'expand': True})[0]
+        if value is None:
+            raise Exception("Value=None for query field %s\n" % (fld))
+
         if ',' in value:
             value = miscutils.fwsplit(value)
 

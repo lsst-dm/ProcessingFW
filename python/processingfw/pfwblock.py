@@ -2374,9 +2374,16 @@ def create_runjob_condorfile(config, scriptfile):
             jobattribs['globus_rsl'] = globus_rsl
         if targetinfo['gridtype'] == 'condor-ce':
             if 'request_memory' in config: 
-                userattribs['maxMemory'] = int(config['request_memory'])
+                userattribs['maxMemory'] = int(config.getfull('request_memory'))
             if 'request_cpus' in config:
-                userattribs['request_cpus'] = int(config['request_cpus'])
+                userattribs['xcount'] = int(config.getfull('request_cpus'))
+            if 'request_disk' in config:
+                jobattribs['request_disk'] = int(config.getfull('request_disk'))
+            if 'condorjobclass' in config:
+                userattribs['jobclass'] = config.getfull('condorjobclass')
+            if 'condorjobreq' in config:
+                reqs.append(config.getfull('condorjobreq'))
+                
 
     if len(reqs) > 0:
         jobattribs['requirements'] = ' && '.join(reqs)

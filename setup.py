@@ -10,7 +10,7 @@ share_files = glob.glob("share/condor/*")
 
 # The main call
 setup(name='ProcessingFW',
-      version ='2.0.4',
+      version ='2.0.5',
       license = "GPL",
       description = "DESDM's processing framework",
       author = "Michelle Gower",

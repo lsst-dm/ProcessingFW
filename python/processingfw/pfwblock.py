@@ -2375,6 +2375,7 @@ def create_runjob_condorfile(config, scriptfile):
         if targetinfo['gridtype'] == 'condor-ce':
             if 'request_memory' in config: 
                 userattribs['maxMemory'] = int(config.getfull('request_memory'))
+                jobattribs['request_memory'] = int(config.getfull('request_memory'))
             if 'request_cpus' in config:
                 userattribs['xcount'] = int(config.getfull('request_cpus'))
             if 'request_disk' in config:

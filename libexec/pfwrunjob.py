@@ -1269,43 +1269,42 @@ def call_compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
 
-    task_id = None
-    compress_ver = pfwutils.get_version(jobwcl[pfwdefs.COMPRESSION_EXEC],
-                                        jobwcl[pfwdefs.IW_EXEC_DEF])
-    if pfw_dbh is not None:
-        task_id = pfw_dbh.create_task(name='compress_files',
-                                      info_table='compress_task',
-                                      parent_task_id=jobwcl['task_id']['job'],
-                                      root_task_id=jobwcl['task_id']['attempt'],
-                                      label=None,
-                                      do_begin=True,
-                                      do_commit=True)
-        # add to compress_task table
-        pfw_dbh.insert_compress_task(task_id, jobwcl[pfwdefs.COMPRESSION_EXEC],
-                                     compress_ver, jobwcl[pfwdefs.COMPRESSION_ARGS],
-                                     putinfo)
-
-
     # determine which files need to be compressed
     to_compress = []
     for fname, fdict in putinfo.items():
         if fdict['filecompress']:
             to_compress.append(fdict['src'])
             
-
     if miscutils.fwdebug_check(6, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("to_compress = %s" % to_compress)
 
-    errcnt = 0
-    tot_bytes_after = 0
-    if len(to_compress) > 0:
+    if len(to_compress) == 0:
+        miscutils.fwdebug_print("0 files to compress")
+    else:
+        task_id = None
+        compress_ver = pfwutils.get_version(jobwcl[pfwdefs.COMPRESSION_EXEC],
+                                            jobwcl[pfwdefs.IW_EXEC_DEF])
+        if pfw_dbh is not None:
+            task_id = pfw_dbh.create_task(name='compress_files',
+                                          info_table='compress_task',
+                                          parent_task_id=jobwcl['task_id']['job'],
+                                          root_task_id=jobwcl['task_id']['attempt'],
+                                          label=None,
+                                          do_begin=True,
+                                          do_commit=True)
+            # add to compress_task table
+            pfw_dbh.insert_compress_task(task_id, jobwcl[pfwdefs.COMPRESSION_EXEC],
+                                         compress_ver, jobwcl[pfwdefs.COMPRESSION_ARGS],
+                                         putinfo)
+
+
+        errcnt = 0
+        tot_bytes_after = 0
         (results, tot_bytes_before, tot_bytes_after) = pfwcompress.compress_files(to_compress,
                                                                                   jobwcl[pfwdefs.COMPRESSION_SUFFIX],
                                                                                   jobwcl[pfwdefs.COMPRESSION_EXEC],
                                                                                   jobwcl[pfwdefs.COMPRESSION_ARGS],
                                                                                   3, jobwcl[pfwdefs.COMPRESSION_CLEANUP])
-        if pfw_dbh is not None:
-            pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_SUCCESS, True)
 
         filelist = []
         for fname, fdict in results.items():
@@ -1355,8 +1354,9 @@ def call_compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
         force_update_desfile_filetype(filemgmt, filelist)
         filemgmt.commit()
 
-    if pfw_dbh is not None:
-        pfw_dbh.update_compress_task(task_id, errcnt, tot_bytes_after)
+        if pfw_dbh is not None:
+            pfw_dbh.end_task(task_id, errcnt, True)
+            pfw_dbh.update_compress_task(task_id, errcnt, tot_bytes_after)
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END")

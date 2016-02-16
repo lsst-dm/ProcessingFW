@@ -2140,9 +2140,18 @@ ls -l $envfile
 echo ""
 jobdir=%(full_job_dir)s
 echo "Making target job's directory ($jobdir)"
-if [ ! -e $jobdir ]; then
-    mkdir -p $jobdir
+if [ -e $jobdir ]; then
+    echo "Job scratch directory already exists ($jobdir).   Aborting";
+    exit 1;
 fi
+
+mkdir -p $jobdir
+
+if [ ! -e $jobdir ]; then
+    echo "Could not make job scratch directory ($jobdir).   Aborting";
+    exit 1;
+fi
+
 cd $jobdir
         """ % ({'full_job_dir': full_job_dir})
     else:

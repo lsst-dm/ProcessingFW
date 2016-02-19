@@ -2198,6 +2198,31 @@ d2=`date "+%s"`
 echo "PFW: pfwrunjob endtime: $d2"
 echo ""
 echo ""
+"""
+
+    purge_job_dir = 'success'
+    if 'purge_job_dir' in config:
+        purge_job_dir = config.getfull('purge_job_dir').lower()
+
+    if purge_job_dir == 'success': 
+        scriptstr += """
+if [ $rjstat -eq 0 ]; then
+    cd $initdir;
+    echo "Purging job scratch directory ($jobdir)";
+    rm -rf $jobdir;
+else
+    echo "Non-zero exit code, skipping purge of job scratch directory ($jobdir)";
+fi
+"""
+    elif purge_job_dir == 'always':
+        scriptstr += """
+cd $initdir;
+echo "Purging job scratch directory ($jobdir)";
+rm -rf $jobdir;
+"""
+
+
+    scriptstr += """
 shd2=`date "+%s"`
 echo "PFW: job_shell_script endtime: $shd2"
 echo "PFW: job_shell_script exit_status: $rjstat"

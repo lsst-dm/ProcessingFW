@@ -2364,7 +2364,7 @@ def create_runjob_condorfile(config, scriptfile):
                 miscutils.fwdie("Error: Cannot determine uiddomain for matching to a glidein", pfwdefs.PF_EXIT_FAILURE)
             reqs.append('(UidDomain == "%s")' % config.getfull('uiddomain'))
             if 'glidein_name' in config and config.getfull('glidein_name').lower() != 'none':
-                reqs.append('(GLIDEIN_NAME == "%s")' % config.getfull('glidein_name'))
+                reqs.append('(Target.GLIDEIN_NAME == "%s")' % config.getfull('glidein_name'))
 
             reqs.append('(FileSystemDomain != "")')
             reqs.append('(Arch != "")')

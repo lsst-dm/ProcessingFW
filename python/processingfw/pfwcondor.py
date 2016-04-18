@@ -349,7 +349,7 @@ def parse_condor_user_log(logfilename):
                 #elif code == '011':
                 #    pass  # Job was unsuspended
                 elif code == '012':
-                    jobinfo[jobnum]['jobstat'] = 'ERR'
+                    jobinfo[jobnum]['jobstat'] = 'HOLD'
                     #result = re.search(r'(\S+)', splitline[1])
                     #if result:
                     #    jobinfo[jobnum]['holdreason'] = result.group(1)
@@ -690,7 +690,7 @@ def get_job_status_str(jobnum, qjobs):
 
     # Condor Job Status:
     #    1 = Idle, 2 = Running, 3 = Removed, 4 = Completed, and 5 = Held
-    condorstatus = {'1':"PEND", '2':"RUN", '3':"DEL", '4':"DONE", '5':"ERR"}
+    condorstatus = {'1':"PEND", '2':"RUN", '3':"DEL", '4':"DONE", '5':"HOLD"}
     # Grid job status:
     #    1 = Pend, 2 = Running, 32 = Unsub
     gridstatus = {'1':"PEND", '2':"RUN", '32':"UNSUB"}
@@ -748,12 +748,12 @@ def status_target_jobs(job, qjobs):
     else:
         print "Could not find %snumjobs in qjobs for job %s" % (pfwdefs.ATTRIB_PREFIX, job)
 
-    chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'ERR': 0}
+    chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'HOLD': 0}
     for childjob in qjobs[job]['children']:
         jobstat = get_job_status_str(childjob, qjobs)
         if jobstat in chstat:  # ignore other status, e.g. DONE
             chstat[jobstat] += 1
-    status = "(%s/%s/%s/%s)" % (chstat['ERR'],
+    status = "(%s/%s/%s/%s)" % (chstat['HOLD'],
                                 chstat['PEND'] + chstat['UNSUB'],
                                 chstat['RUN'],
                                 numtjobs)

@@ -128,23 +128,9 @@ class PFWDB (desdmdbi.DesDmDbi):
         else:
             allparams['subpipever'] = None
 
-        (exists, value) = config.search('basket', {intgdefs.REPLACE_VARS: True, 'expand': True})
-        if exists:
-            allparams['basket'] = value
-        else:
-            allparams['basket'] = None
-
-        (exists, value) = config.search('group_submit_id', {intgdefs.REPLACE_VARS: True, 'expand': True})
-        if exists:
-            allparams['group_submit_id'] = value
-        else:
-            allparams['group_submit_id'] = None
-
-        (exists, value) = config.search('campaign', {intgdefs.REPLACE_VARS: True, 'expand': True})
-        if exists:
-            allparams['campaign'] = value
-        else:
-            allparams['campaign'] = None
+        allparams['basket'] = config.getfull('basket')
+        allparams['group_submit_id'] = config.getfull('group_submit_id')
+        allparams['campaign'] = config.getfull('campaign')
 
         # create named bind strings for all parameters
         namebinds = {}

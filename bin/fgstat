@@ -14,7 +14,9 @@ to debug a "why is my job not running" issue.  Example condor_q
 commands below.
 
 Example condor_q commands:
-    condor_q -name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov [OPTS]
+#OLD    condor_q -name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov [OPTS]
+        condor_q -name gpce01.fnal.gov -pool gpce01.fnal.gov:9619 [OPTS]
+        condor_q -name gpce02.fnal.gov -pool gpce02.fnal.gov:9619 [OPTS]
 
 [OPTS]
     Limit to DES users (not necessarily framework jobs):
@@ -127,11 +129,13 @@ def print_jobs(chost, jobs, now):
 def main():
     """ Entry point """
 
-    fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
-    fermigridCE = "-name gpce02.fnal.gov -pool gpce02.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
+    #OLD fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
+    fermigridCE1 = "-name gpce01.fnal.gov -pool gpce01.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
+    fermigridCE2 = "-name gpce02.fnal.gov -pool gpce02.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
     now = datetime.now()
-    jobs = pfwcondor.condor_q(fermigrid)
-    jobsCE = pfwcondor.condor_q(fermigridCE)
+    #OLD jobs = pfwcondor.condor_q(fermigrid)
+    jobsCE1 = pfwcondor.condor_q(fermigridCE1)
+    jobsCE2 = pfwcondor.condor_q(fermigridCE2)
 
 
     # print headers
@@ -139,8 +143,9 @@ def main():
            ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
             'wallclock', 'DES CID', 'DES label')
     print '-'*168
-    print_jobs('fnpcosg1', jobs, now)
-    print_jobs('gpce02', jobsCE, now)
+    #OLD print_jobs('fnpcosg1', jobs, now)
+    print_jobs('gpce01', jobsCE1, now)
+    print_jobs('gpce02', jobsCE2, now)
 
 
 if __name__ == '__main__':

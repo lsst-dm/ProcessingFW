@@ -222,7 +222,7 @@ def dynam_load_jobfilemvmt(wcl, pfw_dbh, tstats, parent_tid):
 ######################################################################
 def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
                        pfw_attempt_id, attempt_tid, parent_tid, wgb_tid,
-                       do_update, update_info):
+                       do_update, update_info, filepat):
     """ Call and time filemgmt.register_file_data routine for pfw created files """
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG (%s, %s)" % (ftype, parent_tid))
@@ -242,7 +242,7 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
                                       do_commit=True)
 
     try:
-        filemgmt.register_file_data(ftype, fullnames, wgb_tid, do_update, update_info)
+        filemgmt.register_file_data(ftype, fullnames, wgb_tid, do_update, update_info, filepat)
         filemgmt.commit()
 
         if pfw_dbh is not None:
@@ -762,11 +762,14 @@ def save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile):
         if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
             miscutils.fwdebug_print("log exists (%s)" % logfile)
 
+        # TODO: get one level down filename pattern for log files
+        filepat = wcl['filename_pattern']['log']
+        
         # Register log file
         pfw_save_file_info(pfw_dbh, filemgmt, 'log', [logfile], wcl['pfw_attempt_id'],
                            wcl['task_id']['attempt'], wcl['task_id']['jobwrapper'],
                            wcl['task_id']['jobwrapper'],
-                           False, None)
+                           False, None, filepat)
 
         # since able to register log file, save as not junk file
         jobfiles['outfullnames'].append(logfile)
@@ -908,7 +911,11 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                    len(outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT]) > 0:
                     wrap_output_files = []
                     for sectname, byexec in outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT].items():
-                        sectdict = wcl[pfwdefs.IW_FILESECT][sectname]
+                        print sectname
+                        sectkeys = sectname.split('.')
+                        print '%s.%s' % (pfwdefs.IW_FILESECT, sectkeys[-1])
+                        sectdict = wcl.get('%s.%s' % (pfwdefs.IW_FILESECT, sectkeys[-1]))
+                        print sectdict
                         filesave = miscutils.checkTrue(pfwdefs.SAVE_FILE_ARCHIVE, sectdict, True)
                         filecompress = miscutils.checkTrue(pfwdefs.COMPRESS_FILES, sectdict, False)
 
@@ -927,10 +934,19 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode):
                             fullnames = miscutils.fwsplit(elist, ',')
                             task_id = wcl['task_id']['exec'][ekey]
                             wrap_output_files.extend(fullnames)
+                            filepat = None
+                            if 'filepat' in sectdict:
+                                if sectdict['filepat'] in wcl['filename_pattern']:
+                                    filepat = wcl['filename_pattern'][sectdict['filepat']]
+                                else:
+                                    raise KeyError('Missing file pattern (%s, %s, %s)' % (sectname, 
+                                                                                          sectdict['filetype'], 
+                                                                                          sectdict['filepat']))
+
                             pfw_save_file_info(pfw_dbh, filemgmt, sectdict['filetype'], fullnames, wcl['pfw_attempt_id'],
                                                wcl['task_id']['attempt'],
                                                wcl['task_id']['jobwrapper'],
-                                               task_id, True, updatedef)
+                                               task_id, True, updatedef, filepat)
 
                             for fname in fullnames:
                                 finfo[fname] = {'sectname': sectname,
@@ -1414,7 +1430,7 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
     cwd = '.'
     for (dirpath, _, filenames) in os.walk(cwd):
         for walkname in filenames:
-            if miscutils.fwdebug_check(6, "PFWRUNJOB_DEBUG"):
+            if miscutils.fwdebug_check(12, "PFWRUNJOB_DEBUG"):
                 miscutils.fwdebug_print("walkname = %s" % walkname)
             if walkname not in notjunk:
                 if miscutils.fwdebug_check(6, "PFWRUNJOB_DEBUG"):
@@ -1460,7 +1476,7 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
         filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, job_task_id)
         pfw_save_file_info(pfw_dbh, filemgmt, 'junk_tar', [wcl['junktar']], wcl['pfw_attempt_id'],
                            wcl['task_id']['attempt'], job_task_id, job_task_id,
-                           False, None)
+                           False, None, wcl['filename_pattern']['junktar'])
 
         parsemask = miscutils.CU_PARSE_FILENAME|miscutils.CU_PARSE_COMPRESSION
         (filename, compression) = miscutils.parse_fullname(wcl['junktar'], parsemask)

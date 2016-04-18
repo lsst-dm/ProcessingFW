@@ -36,6 +36,85 @@ import processingfw.pfwutils as pfwutils
 import processingfw.pfwcondor as pfwcondor
 #from processingfw.pfwwrappers import write_wrapper_wcl
 
+
+
+#######################################################################
+def get_datasect_types(config, modname):
+    """ tell which data sections (files, lists) are inputs vs outputs """
+
+    miscutils.fwdebug_print("BEG %s" % modname)
+
+    #infsect = which_are_inputs(config, modname)
+    #outfsect = which_are_outputs(config, modname)
+
+    inputs = {pfwdefs.SW_FILESECT: [], pfwdefs.SW_LISTSECT: []}
+    outfiles = OrderedDict()
+    intermedfiles = OrderedDict()
+
+    # For wrappers with more than 1 exec section, the inputs of one exec can
+    #     be the inputs of a 2nd exec the framework should not attempt to stage
+    #     these intermediate files
+    execs = intgmisc.get_exec_sections(config[pfwdefs.SW_MODULESECT][modname],
+                                       pfwdefs.SW_EXECPREFIX)
+    for _, einfo in sorted(execs.items()):
+        if pfwdefs.SW_OUTPUTS in einfo:
+            for outfile in miscutils.fwsplit(einfo[pfwdefs.OW_OUTPUTS]):
+                parts = miscutils.fwsplit(outfile, '.')
+                outfiles['.'.join(parts[1:])] = True
+                intermedfiles[outfile] = True
+
+        if pfwdefs.SW_INPUTS in einfo:
+            inarr = miscutils.fwsplit(einfo[pfwdefs.SW_INPUTS].lower())
+            inarr2 = []
+            for inname in inarr:
+                print inname
+                numdots = inname.count('.')
+                print "numdots = ", numdots
+                if numdots == 1:
+                    inarr2.append(inname)
+                else:
+                    parts = miscutils.fwsplit(inname, '.')
+                    inarr2.append('.'.join(parts[0:2]))
+                    inarr2.append('file.%s'% (parts[2]))
+
+            for inname in inarr2:
+                if inname not in intermedfiles:
+                    parts = miscutils.fwsplit(inname, '.')
+                    inputs[parts[0]].append('.'.join(parts[1:]))
+
+    miscutils.fwdebug_print('inputs=%s' % inputs)
+    miscutils.fwdebug_print('outputs=%s' % outfiles.keys())
+    miscutils.fwdebug_print("END")
+    return (inputs, outfiles.keys())
+
+
+
+#######################################################################
+def copy_master(masterdata, nickname=None):
+    """ For master data list that has multiple files per line, copy set of files """
+
+    lines = {}
+    linecnt = 1
+    for masterline in masterdata['list'][intgdefs.LISTENTRY].values():
+        try:
+            print masterline['file'].keys()
+            if nickname is not None:
+                if nickname not in masterline['file']:
+                    raise KeyError("Line doesn't have file with nickname %s" % nickname)
+                else:
+                    lines[linecnt] = {'file': {'file0001': masterline['file'][nickname]}}
+            elif len(masterline['file']) == 1:
+                lines[linecnt] = {'file': {'file0001': masterline['file'].values()[0]}}
+            else:
+                raise ValueError("Problem copying master line - nickname count mismatch") 
+
+            linecnt += 1
+        except:
+            print "line %s: masterline['file'] = %s" % (linecnt, masterline['file'])
+            print "line %s: nickname = %s" % (linecnt, masterline['file'])
+            raise
+    return {'list': {intgdefs.LISTENTRY: lines}}
+
 #######################################################################
 def add_runtime_path(config, currvals, fname, finfo, filename):
     """ Add runtime path to filename """
@@ -68,9 +147,8 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
         #print "compression: %s, %s" % (finfo['compression'], type(finfo['compression']))
         cmpext = finfo['compression']
 
-    fullname = None
+    fullname = []
     if isinstance(filename, list):
-        fullname = []
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("%s has multiple names, number of names = %s" % (fname, len(filename)))
         for name in filename:
@@ -164,8 +242,12 @@ def create_sublist_file(config, moddict, fname, finfo, currvals):
     # convert to same format as if read from file created by query
     filelist_wcl = None
     if len(newfileinfo) > 0:
+        if isinstance(newfileinfo[0], str):
+            newfileinfo = ([newfileinfo[0]], [newfileinfo[1]])
+
         if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("newfileinfo = %s" % str(newfileinfo))
+
         filedict_list = []
         for fcnt in range(0, len(newfileinfo[0])):
             if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
@@ -222,13 +304,13 @@ def get_match_keys(sdict):
 
     if 'loopkey' in sdict:
         mkeys = miscutils.fwsplit(sdict['loopkey'].lower())
-        mkeys.sort()
+        #mkeys.sort()
     elif 'match' in sdict:
         mkeys = miscutils.fwsplit(sdict['match'].lower())
-        mkeys.sort()
+        #mkeys.sort()
     elif 'divide_by' in sdict:
         mkeys = miscutils.fwsplit(sdict['divide_by'].lower())
-        mkeys.sort()
+        #mkeys.sort()
 
     return mkeys
 
@@ -249,6 +331,7 @@ def find_sublist(objdef, objinst, sublists):
         index = ""
         for mkey in matchkeys:
             if mkey not in objinst:
+                print "objdef: ", objdef
                 miscutils.fwdie("Error: Cannot find match key %s in inst %s" % (mkey, objinst),
                                 pfwdefs.PF_EXIT_FAILURE)
             index += objinst[mkey] + '_'
@@ -257,6 +340,7 @@ def find_sublist(objdef, objinst, sublists):
             miscutils.fwdebug_print("sublist index = "+index)
 
         if index not in sublists:
+            print "objdef: ", objdef
             miscutils.fwdie("Error: Cannot find sublist matching "+index, pfwdefs.PF_EXIT_FAILURE)
         sublist = sublists[index]
     else:
@@ -307,6 +391,7 @@ def which_are_outputs(config, modname):
                                        pfwdefs.SW_EXECPREFIX)
     for ekey, einfo in sorted(execs.items()):
         if pfwdefs.SW_OUTPUTS in einfo:
+            print "MMG: einfo[OW_OUTPUTS] =", einfo[pfwdefs.OW_OUTPUTS]
             for outfile in miscutils.fwsplit(einfo[pfwdefs.OW_OUTPUTS]):
                 parts = miscutils.fwsplit(outfile, '.')
                 outfiles['.'.join(parts[1:])] = True
@@ -330,13 +415,25 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
         miscutils.fwdebug_print("BEG: Working on file %s" % fsectname)
         miscutils.fwdebug_print("theinputs: %s" % theinputs)
         miscutils.fwdebug_print("outputs: %s" % theoutputs)
+        miscutils.fwdebug_print("is_iter_obj: %s" % is_iter_obj)
 
     if 'listonly' in finfo and miscutils.convertBool(finfo['listonly']):
+        for osectname in theoutputs:
+            if osectname.endswith('.'+fsectname):
+                winst[pfwdefs.IW_FILESECT][fsectname] = OrderedDict()
+                miscutils.fwdebug_print("Added %s a listonly key to the file section" % fsectname)
+
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("Skipping %s due to listonly key" % fsectname)
         return
 
     modname = moddict['modulename']
+
+    if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+        miscutils.fwdebug_print("modname = %s" % modname)
+        miscutils.fwdebug_print("winst: %s" % winst)
+        miscutils.fwdebug_print("currvals: %s" % currvals)
+
 
     if pfwdefs.IW_FILESECT not in winst:
         winst[pfwdefs.IW_FILESECT] = OrderedDict()
@@ -354,6 +451,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                 print skeys[i],
             print "\n"
             print "\t# files = ", len(sublist['list'][intgdefs.LISTENTRY])
+            print miscutils.pretty_print_dict(sublist['list'][intgdefs.LISTENTRY])
 
             print "\tCheck divide_by/match"
             miscutils.fwdie("Error: more than 1 line to choose from for file (%s)" % \
@@ -363,6 +461,7 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
             miscutils.fwdie("Error: 0 file in line" + str(line), pfwdefs.PF_EXIT_FAILURE)
 
         if len(line['file']) > 1:
+            print miscutils.pretty_print_dict(line['file'])
             raise Exception("more than 1 file to choose from for file" + line['file'])
         finfo = line['file'].values()[0]
         if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
@@ -375,8 +474,10 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
         # In order to preserve capitalization, put on right side of =,
         #    using dummy count for left side
         if fsectname in theinputs[pfwdefs.SW_FILESECT]:
+            miscutils.fwdebug_print("Added to wrapinputs %s" % fullname)
             winst['wrapinputs'][len(winst['wrapinputs'])+1] = fullname
         elif fsectname in theoutputs:
+            miscutils.fwdebug_print("Added to wrapoutputs %s" % fullname)
             winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = fullname
 
         if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
@@ -388,8 +489,10 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
             miscutils.fwdebug_print("Copied fullname for %s = %s" % \
                                     (fsectname, winst[pfwdefs.IW_FILESECT][fsectname]))
         if fsectname in theinputs[pfwdefs.SW_FILESECT]:
+            miscutils.fwdebug_print("Added to wrapinputs %s" % moddict[pfwdefs.SW_FILESECT][fsectname]['fullname'])
             winst['wrapinputs'][len(winst['wrapinputs'])+1] = moddict[pfwdefs.SW_FILESECT][fsectname]['fullname']
         elif fsectname in theoutputs:
+            miscutils.fwdebug_print("Added to wrapoutputs %s" % moddict[pfwdefs.SW_FILESECT][fsectname]['fullname'])
             winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = moddict[pfwdefs.SW_FILESECT][fsectname]['fullname']
     else:
         sobj = copy.deepcopy(winst)
@@ -461,10 +564,12 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
         fullname = add_runtime_path(config, currvals, fsectname, sobj, winst[pfwdefs.IW_FILESECT][fsectname]['filename'])
         if fsectname in theinputs[pfwdefs.SW_FILESECT]:
             for name in fullname:
+                miscutils.fwdebug_print("Added to wrapinputs %s" % name)
                 winst['wrapinputs'][len(winst['wrapinputs'])+1] = name
         elif fsectname in theoutputs:
             for name in fullname:
-                winst['wrapoutputs'][len(winst['wrapinputs'])+1] = name
+                miscutils.fwdebug_print("Added to wrapoutputs %s" % name)
+                winst['wrapoutputs'][len(winst['wrapoutputs'])+1] = name
 
         winst[pfwdefs.IW_FILESECT][fsectname]['fullname'] = ','.join(fullname)
         #print winst[pfwdefs.IW_FILESECT][fsectname]['fullname']
@@ -477,19 +582,22 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
     if finfo is not None and is_iter_obj:
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("is_iter_obj = true")
+        winst['iter_obj_info'] = {}
         for key, val in finfo.items():
-            if key not in ['fullname', 'filename', 'dirpat', 'filetype', 'compression']:
+            if key not in ['fullname', 'filename', 'filepat', 'dirpat', 'filetype', 'compression']:
                 if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                     miscutils.fwdebug_print("is_iter_obj: saving %s" % key)
-                winst[key] = val
+                winst['iter_obj_info'][key] = val
 
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("END: Done working on file %s" % fsectname)
+        miscutils.fwdebug_print("END: winst=%s" % winst)
 
 
 
 #######################################################################
-def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict, sublists):
+def assign_list_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals,
+                                winst, lname, ldict, sublists):
     """ Assign list to wrapper instance """
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("BEG: Working on list %s from %s" % (lname, moddict['modulename']))
@@ -530,9 +638,21 @@ def assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict, 
         sublist = find_sublist(ldict, winst, sublists[lkey])
 
     if sublist is not None:
+        if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
+            miscutils.fwdebug_print("lname = %s, sublist has %s lines" % (lname, len(sublist['list'][intgdefs.LISTENTRY])))
+
         for llabel, lldict in sublist['list'][intgdefs.LISTENTRY].items():
+            print "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM"
+            if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
+                miscutils.fwdebug_print("llabel = %s, ldict = %s" % (llabel, ldict))
             for flabel, fdict in lldict['file'].items():
-                winst['wrapinputs'][len(winst['wrapinputs'])+1] = fdict['fullname']
+                if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
+                    miscutils.fwdebug_print("flabel = %s, theinputs = %s" % (flabel, theinputs))
+                
+                if flabel in theinputs['file']:
+                    miscutils.fwdebug_print("Added to wrapinputs %s" % fdict['fullname'])
+                    winst['wrapinputs'][len(winst['wrapinputs'])+1] = fdict['fullname']
+            
 
         ### create an object that has values from ldict and winst
         msobj = copy.deepcopy(ldict)
@@ -605,11 +725,14 @@ def assign_data_wrapper_inst(config, modname, winst, masterdata, sublists,
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("iter_obj %s %s" % (iter_obj_name, iter_obj_sect))
         if iter_obj_sect.lower() == pfwdefs.SW_FILESECT.lower():
-            assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst, iter_obj_name, iter_obj_dict, masterdata, sublists, True)
+            assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst,
+                                        iter_obj_name, iter_obj_dict, masterdata, sublists, True)
         elif iter_obj_sect.lower() == pfwdefs.SW_LISTSECT.lower():
-            assign_list_to_wrapper_inst(config, moddict, currvals, winst, iter_obj_name, iter_obj_dict, sublists)
+            assign_list_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst,
+                                        iter_obj_name, iter_obj_dict, sublists)
         else:
-            miscutils.fwdie("Error: unknown iter_obj_sect (%s)" % iter_obj_sect, pfwdefs.PF_EXIT_FAILURE)
+            miscutils.fwdie("Error: unknown iter_obj_sect (%s)" % iter_obj_sect,
+                            pfwdefs.PF_EXIT_FAILURE)
 
 
     if pfwdefs.SW_FILESECT in moddict:
@@ -618,7 +741,8 @@ def assign_data_wrapper_inst(config, modname, winst, masterdata, sublists,
                iter_obj_sect.lower() == pfwdefs.SW_FILESECT.lower() and \
                iter_obj_name.lower() == fname.lower():
                 continue    # already did iter_obj
-            assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst, fname, fdict, masterdata, sublists, False)
+            assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst,
+                                        fname, fdict, masterdata, sublists, False)
 
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("currvals " + str(currvals))
@@ -633,7 +757,8 @@ def assign_data_wrapper_inst(config, modname, winst, masterdata, sublists,
                 if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                     miscutils.fwdebug_print("skipping list %s as already did for it as iter_obj" % lname)
                 continue    # already did iter_obj
-            assign_list_to_wrapper_inst(config, moddict, currvals, winst, lname, ldict, sublists)
+            assign_list_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals, winst,
+                                        lname, ldict, sublists)
 
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
@@ -844,6 +969,12 @@ def finish_wrapper_inst(config, modname, winst, outfsect):
     for fname in winst['wrapoutputs'].values():
         output_filenames.append(miscutils.parse_fullname(fname, miscutils.CU_PARSE_FILENAME))
 
+    if 'iter_obj_info' in winst:
+        for key, val in winst['iter_obj_info'].items():
+            if key not in winst:
+                winst[key] = val
+        del winst['iter_obj_info']
+
     # create searching options
     currvals = {'curr_module': modname, pfwdefs.PF_WRAPNUM: winst[pfwdefs.PF_WRAPNUM]}
     searchopts = {pfwdefs.PF_CURRVALS: currvals,
@@ -854,18 +985,30 @@ def finish_wrapper_inst(config, modname, winst, outfsect):
 
     if pfwdefs.SW_FILESECT in moddict:
         for fname, fdict in moddict[pfwdefs.SW_FILESECT].items():
-            if 'listonly' in fdict and miscutils.convertBool(fdict['listonly']):
-                if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
-                    miscutils.fwdebug_print("Skipping %s due to listonly key" % fname)
-                continue
+            #print "fname = %s" % fname
+            is_output_file = False
+            for ofsect in outfsect: 
+                #print "ofsect = %s" % ofsect
+                if ofsect == fname or ofsect.endswith('.'+fname):
+                    is_output_file = True
+            #print "is_output_file = %s" % is_output_file
+
+            if 'listonly' in fdict and miscutils.convertBool(fdict['listonly']): 
+                if not is_output_file:
+                    if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
+                        miscutils.fwdebug_print("Skipping %s due to listonly key" % fname)
+                    continue
 
             if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                 miscutils.fwdebug_print('%s: working on file: %s' % (winst[pfwdefs.PF_WRAPNUM], fname))
-                miscutils.fwdebug_print("fullname = %s" % (winst[pfwdefs.IW_FILESECT][fname]['fullname']))
+                if 'fullname' in winst[pfwdefs.IW_FILESECT][fname]:
+                    miscutils.fwdebug_print("fullname = %s" % (winst[pfwdefs.IW_FILESECT][fname]['fullname']))
 
-            for k in ['filetype', metadefs.WCL_META_REQ, metadefs.WCL_META_OPT,
-                      pfwdefs.SAVE_FILE_ARCHIVE, pfwdefs.COMPRESS_FILES,pfwdefs.DIRPAT]:
-                if k in fdict:
+            #for k in ['filetype', metadefs.WCL_META_REQ, metadefs.WCL_META_OPT,
+            #          pfwdefs.SAVE_FILE_ARCHIVE, pfwdefs.COMPRESS_FILES,pfwdefs.DIRPAT]:
+            #    if k in fdict:
+            for k in fdict:
+                if k not in ['keyvals']:
                     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                         miscutils.fwdebug_print("%s copying %s" % (fname, k))
                     winst[pfwdefs.IW_FILESECT][fname][k] = copy.deepcopy(fdict[k])
@@ -887,12 +1030,12 @@ def finish_wrapper_inst(config, modname, winst, outfsect):
             # save OPS path for archive
             if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
                 miscutils.fwdebug_print("Is fname (%s) in outputfiles? %s" % \
-                                        (fname, fname in outfsect))
+                                        (fname, is_output_file))
             filesave = miscutils.checkTrue(pfwdefs.SAVE_FILE_ARCHIVE, fdict, True)
             if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
                 miscutils.fwdebug_print("Is save_file_archive true? %s" % (filesave))
             mastersave = config.getfull(pfwdefs.MASTER_SAVE_FILE)
-            if fname in outfsect:
+            if is_output_file:
                 winst[pfwdefs.IW_FILESECT][fname][pfwdefs.SAVE_FILE_ARCHIVE] = filesave  # canonicalize
                 if pfwdefs.DIRPAT not in fdict:
                     print "Warning: Could not find %s in %s's section" % (pfwdefs.DIRPAT, fname)
@@ -914,7 +1057,7 @@ def finish_wrapper_inst(config, modname, winst, outfsect):
     # input wcl fullname
     inputwcl_name = config.get_filename('inputwcl', searchopts)
     inputwcl_path = config.get_filepath('runtime', 'inputwcl', searchopts)
-    print inputwcl_name, inputwcl_path
+    #print inputwcl_name, inputwcl_path
     winst['inputwcl'] = inputwcl_path + '/' + inputwcl_name
 
 
@@ -973,12 +1116,12 @@ def add_file_metadata(config, modname):
                             miscutils.fwdie(msg, pfwdefs.PF_EXIT_FAILURE)
 
                         fdict = moddict[pfwdefs.SW_FILESECT][fname]
+                        if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
+                            miscutils.fwdebug_print("output file dictionary for %s = %s" % (outfile, fdict))
                         filetype = fdict['filetype'].lower()
                     elif miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                         miscutils.fwdebug_print("output file %s doesn't have definition (%s) " % (k, pfwdefs.SW_FILESECT))
 
-                if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
-                    miscutils.fwdebug_print("output file dictionary for %s = %s" % (outfile, fdict))
             elif miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                 miscutils.fwdebug_print("No was_generated_by for %s" % (k))
 
@@ -1026,7 +1169,7 @@ def write_jobwcl(config, jobkey, jobdict):
 
     jobdict['envfile'] = config.get_filename('envfile')
 
-    jobwcl = WCL({'pfw_attempt_id': config['pfw_attempt_id'], 
+    jobwcl = WCL({'pfw_attempt_id': config['pfw_attempt_id'],
               pfwdefs.REQNUM: config.getfull(pfwdefs.REQNUM),
               pfwdefs.UNITNAME:config.getfull(pfwdefs.UNITNAME),
               pfwdefs.ATTNUM: config.getfull(pfwdefs.ATTNUM),
@@ -1060,7 +1203,7 @@ def write_jobwcl(config, jobkey, jobdict):
     if 'transfer_stats' in config:
         jobwcl['transfer_stats'] = config.getfull('transfer_stats')
 
-    # compression 
+    # compression
     if pfwdefs.MASTER_COMPRESSION in config:
         jobwcl[pfwdefs.MASTER_COMPRESSION] = config.getfull(pfwdefs.MASTER_COMPRESSION).lower()
     else:
@@ -1157,6 +1300,8 @@ def write_jobwcl(config, jobkey, jobdict):
 
     jobwcl['filetype_metadata'] = config['filetype_metadata']
     jobwcl['file_header'] = config['file_header']
+    jobwcl['filename_pattern'] = config['filename_pattern']
+    jobwcl['directory_pattern'] = config['directory_pattern']
     jobwcl[pfwdefs.IW_EXEC_DEF] = config[pfwdefs.SW_EXEC_DEF]
     jobwcl['wrapinputs'] = jobdict['wrapinputs']
 
@@ -1223,21 +1368,43 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
                 if ':' in nval:
                     nval = nval.split(':')[0]
 
-                if '.' not in nval:
-                    (found, val) = config.search(nval,
-                                   {pfwdefs.PF_CURRVALS: {'curr_module': modname},
-                                    'searchobj': wrapinst,
-                                    'required': True,
-                                    intgdefs.REPLACE_VARS: False})
-                    if not found:
-                        print "WHYYYYYYYYY"
+                #if '.' not in nval:
+                #    (found, val) = config.search(nval,
+                #                   {pfwdefs.PF_CURRVALS: {'curr_module': modname},
+                #                    'searchobj': wrapinst,
+                #                    'required': True,
+                #                    intgdefs.REPLACE_VARS: False})
+                #    if not found:
+                #        print "WHYYYYYYYYY"
+                #else:
+                #    try:
+                #        val = pfwutils.get_wcl_value(nval, wrapwcl)
+                #    except KeyError as err:
+                #        print "----- Searching for value in wcl:", nval
+                #        print wrapwcl.write()
+                #        raise err
+
+                #######   MMG filepat changes
+                if nval in ('qoutfile'):
+                    val = nval
                 else:
                     try:
-                        val = pfwutils.get_wcl_value(nval, wrapwcl)
-                    except KeyError as err:
-                        print "----- Searching for value in wcl:", nval
-                        print wrapwcl.write()
-                        raise err
+                        (found, val) = config.search(nval,
+                                                    {pfwdefs.PF_CURRVALS: {'curr_module': modname},
+                                                    'searchobj': wrapinst,
+                                                    'required': False,
+                                                    intgdefs.REPLACE_VARS: False})
+                    except:
+                        print "Why  config.search threw an error"
+                    
+                    if not found:
+                        try:
+                            val = pfwutils.get_wcl_value(nval, wrapwcl)
+                        except KeyError as err:
+                            print "----- Searching for value in wcl:", nval
+                            print wrapwcl.write()
+                            raise err
+                
 
 
                 if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
@@ -1278,9 +1445,9 @@ def create_wrapper_inst(config, modname, loopvals):
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("loopkeys = %s" % loopkeys)
         loopkeys = miscutils.fwsplit(loopkeys.lower())
-        loopkeys.sort()  # sort so can make same key easily
+        #loopkeys.sort()  # sort so can make same key easily
 
-        for instvals in loopvals:
+        for instvals in sorted(loopvals): # MMG sort loopvals
             if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                 miscutils.fwdebug_print("creating instance for %s" % str(instvals))
 
@@ -1320,6 +1487,162 @@ def create_wrapper_inst(config, modname, loopvals):
     return wrapperinst
 
 
+
+#####################################################################
+def create_new_filename(config, fsectname, fsectdict, sobj, currvals):
+
+    miscutils.fwdebug_print("BEG")
+    miscutils.fwdebug_print("fsectname=%s" % fsectname)
+    miscutils.fwdebug_print("fsectdict=%s" % fsectdict)
+    miscutils.fwdebug_print("sobj=%s" % sobj)
+    miscutils.fwdebug_print("currvals=%s" % currvals)
+
+
+    new_sobj = copy.deepcopy(fsectdict)
+    new_sobj.update(sobj)
+
+    # see if wcl specifies filename directly
+    if 'filename' in fsectdict:
+        if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+            miscutils.fwdebug_print("filename in %s" % fsectname)
+
+        filename = config.get('filename', {pfwdefs.PF_CURRVALS: currvals,
+                                           'searchobj': sobj,
+                                           'expand': False,
+                                           'required': True,
+                                           intgdefs.REPLACE_VARS:False})
+
+        if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+            miscutils.fwdebug_print("filename = %s" % filename)
+    else:
+        # create filename from pattern
+        if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+            miscutils.fwdebug_print("creating filename for %s" % fsectname)
+            miscutils.fwdebug_print("\tfsectdict = %s" % fsectdict)
+            miscutils.fwdebug_print("\tsobj = %s" % sobj)
+            miscutils.fwdebug_print("\tnews_obj = %s" % new_sobj)
+
+        filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
+                                              'searchobj': new_sobj,
+                                              'expand': False,
+                                              intgdefs.REPLACE_VARS:False})
+
+    fileinfo = replfuncs.replace_vars(filename, config, 
+                                      {pfwdefs.PF_CURRVALS: currvals,
+                                       'searchobj': new_sobj,
+                                       'expand': True,
+                                       intgdefs.REPLACE_VARS:True,
+                                       'keepvars': True})
+    if fileinfo is None:
+        miscutils.fwdie('empty fileinfo %s %s' % (modname, fkey), pfwdefs.PF_EXIT_FAILURE)
+
+    # save file info as if we read from query
+    fnames = fileinfo[0]
+    filelist = []
+    if isinstance(fnames, list):
+        for cnt in range(0, len(fnames)):
+            finfo = fileinfo[1][cnt]
+            finfo['filename'] = fnames[cnt]
+            filelist.append(finfo)
+    else:
+        finfo = fileinfo[1]
+        finfo['filename'] = fnames
+        filelist.append(finfo)
+
+    return filelist
+
+
+#####################################################################
+def create_new_depends_filenames(config, master, modname, flabel):
+    """ Create new filenames for output files that depended upon input data """
+
+    miscutils.fwdebug_print("BEG %s %s" % (modname, flabel))
+
+    moddict = config[pfwdefs.SW_MODULESECT][modname]
+    currvals = {'curr_module': modname}
+    fsectdict = moddict[pfwdefs.SW_FILESECT][flabel]
+
+    for _, ldict in master['list'][intgdefs.LISTENTRY].items():
+        for fnickname in ldict['file'].keys():
+            newfinfo = copy.deepcopy(ldict['file'][fnickname])
+            if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+                miscutils.fwdebug_print("fnickname=%s, newfinfo=%s" % (fnickname, newfinfo))
+
+            if 'filename' in newfinfo:
+                del newfinfo['filename']
+                if 'compression' in newfinfo:
+                    del newfinfo['compression']
+                if 'fullname' in newfinfo:
+                    del newfinfo['fullname']
+
+                sobj = copy.deepcopy(newfinfo)
+                sobj.update(fsectdict)
+                #print "MMG newinfo", miscutils.pretty_print_dict(sobj)
+
+                filelist = create_new_filename(config, flabel, fsectdict, sobj, currvals)
+                #print type(filelist), filelist
+                if len(filelist) == 1:
+                    ###newfinfo = filelist[0]
+                    newfinfo.update(filelist[0])
+                if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+                    miscutils.fwdebug_print("fnickname=%s, newfinfo=%s" % (fnickname, newfinfo))
+                ldict['file'][fnickname] = newfinfo
+                #print "MMG newinfo", miscutils.pretty_print_dict(newfinfo)
+
+    miscutils.fwdebug_print("END\n\n")
+
+            
+
+#####################################################################
+def fix_master_lists(config, modname, masterdata, theoutputs):
+    """ Replace filename for master data copied as depend for output file """
+
+    miscutils.fwdebug_print("BEG %s" % modname)
+
+    # create python list of files and lists for this module
+    searchobj = config.combine_lists_files(modname)
+
+    for (sname, sdict) in searchobj:
+        miscutils.fwdebug_print("sname=%s" % sname)
+        if 'depends-newname' in sdict:   # depends
+            miscutils.fwdebug_print("need to fix filenames %s" % sname)
+            master = masterdata[modname][sname]
+            checksect = sname
+            if checksect.startswith(pfwdefs.SW_LISTSECT):
+                columns = get_list_all_columns(sdict, False)
+                if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+                    miscutils.fwdebug_print("columns=%s" % columns)
+
+                for collist in columns:
+                    for col in collist:
+                        match = re.search(r"(\S+).fullname", col)
+                        if match:
+                            flabel = match.group(1)
+                            if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+                                miscutils.fwdebug_print("flabel=%s" % flabel)
+                            create_new_depends_filenames(config, master, modname, flabel)
+                        else:
+                            if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+                                miscutils.fwdebug_print("skipping column %s since not file name" % col)
+            else:  # file
+                miscutils.fwdebug_print("sname=%s" % sname)
+                match = re.search(r"%s-(\S+)" % pfwdefs.SW_FILESECT, sname)
+                if match:
+                    flabel = match.group(1)
+                    if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
+                        miscutils.fwdebug_print("flabel=%s" % flabel)
+                    create_new_depends_filenames(config, master, modname, flabel)
+                else:
+                    raise KeyError("Bad file section name %s" % sname)
+
+            #with open('%s_%s_fix.list' % (modname, sname), 'w') as fh:
+            #    miscutils.pretty_print_dict(master, fh)
+
+    #sys.exit(1)
+    miscutils.fwdebug_print("END\n\n")
+
+
+
 #####################################################################
 def read_master_lists(config, modname, masterdata, modules_prev_in_list):
     """ Read master lists and files from files created earlier """
@@ -1328,7 +1651,10 @@ def read_master_lists(config, modname, masterdata, modules_prev_in_list):
     # create python list of files and lists for this module
     searchobj = config.combine_lists_files(modname)
 
+    #print "read master list order:  ", searchobj
+
     for (sname, sdict) in searchobj:
+        #print sname
         # get filename for file containing dataset
         if 'qoutfile' in sdict:
             qoutfile = sdict['qoutfile']
@@ -1369,17 +1695,28 @@ def read_master_lists(config, modname, masterdata, modules_prev_in_list):
             if modname not in masterdata:
                 masterdata[modname] = OrderedDict()
             masterdata[modname][sname] = master
-        elif pfwdefs.DATA_DEPENDS in sdict:   # depends
+        elif pfwdefs.DATA_DEPENDS in sdict or 'depends-newname' in sdict:   # depends
             # = modname.filesect.filelabel
             # = modname.listsect.listlabel.filelabel
             if modname not in masterdata:
                 masterdata[modname] = OrderedDict()
 
             print "\t\t%s-%s: depends in sdict" % (modname, sname)
-            depends = miscutils.fwsplit(sdict[pfwdefs.DATA_DEPENDS], '.')
+            depends = None
+            if pfwdefs.DATA_DEPENDS in sdict:
+                depends = miscutils.fwsplit(sdict[pfwdefs.DATA_DEPENDS], '.')
+            else:
+                depends = miscutils.fwsplit(sdict['depends-newname'], '.')
+
             dkey = "%s-%s" % (depends[1], depends[2])
             if depends[0] in masterdata and dkey in masterdata[depends[0]]:
-                masterdata[modname][sname] = masterdata[depends[0]][dkey]
+                if len(depends) == 3:
+                    masterdata[modname][sname] = copy_master(masterdata[depends[0]][dkey], None)
+                else:
+                    masterdata[modname][sname] = copy_master(masterdata[depends[0]][dkey], depends[3])
+                #print sname, masterdata[modname][sname]
+                #with open('%s_%s_read.list' % (modname, sname), 'w') as fh:
+                #    miscutils.pretty_print_dict(masterdata[modname][sname], fh)
             else:
                 print "Error.  Debugging info:"
                 print 'modname = ', modname
@@ -1434,7 +1771,7 @@ def get_list_all_columns(ldict, with_format=True):
         miscutils.fwdebug_print("columns not in ldict, so defaulting to fullname")
         columns.append(['fullname'])
 
-    print "get_list_all_columns: columns=", columns
+    #print "get_list_all_columns: columns=", columns
     return columns
 
 
@@ -1474,7 +1811,7 @@ def create_fullnames(config, modname, masterdata):
                                 dictcurr[flabel] = copy.deepcopy(moddict[pfwdefs.SW_FILESECT][flabel])
                                 dictcurr[flabel]['curr_module'] = modname
                             else:
-                                #print "list files = ", moddict[pfwdefs.SW_FILESECT].keys()
+                                print "list files = ", moddict[pfwdefs.SW_FILESECT].keys()
                                 miscutils.fwdie("Error: Looking at list columns - could not find %s def in dataset" % flabel, pfwdefs.PF_EXIT_FAILURE)
                 if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
                     miscutils.fwdebug_print("dictcurr=%s" % dictcurr)
@@ -1487,7 +1824,7 @@ def create_fullnames(config, modname, masterdata):
                             if flabel in dictcurr:
                                 fdict['fullname'] = add_runtime_path(config, dictcurr[flabel],
                                                                      flabel, fdict,
-                                                                     fdict['filename'])
+                                                                     fdict['filename'])[0]
                             elif len(dictcurr) == 1:
                                 fdict['fullname'] = add_runtime_path(config, dictcurr.values()[0],
                                                                      flabel, fdict,
@@ -1511,6 +1848,8 @@ def create_fullnames(config, modname, masterdata):
                     for flabel, fdict in ldict['file'].items():
                         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
                             miscutils.fwdebug_print("file sect: flabel=%s" % flabel)
+                        if miscutils.fwdebug_check(10, "PFWBLOCK_DEBUG"):
+                            miscutils.fwdebug_print("fdict: fdict=%s" % fdict)
                         fdict['fullname'] = add_runtime_path(config, currvals, flabel,
                                                              fdict, fdict['filename'])[0]
         else:
@@ -1554,9 +1893,13 @@ def create_sublists(config, modname, masterdata):
                     sdict['keyvals'][index] = listkeys
                     if index not in sublists[sname]:
                         sublists[sname][index] = {'list': {intgdefs.LISTENTRY: OrderedDict()}}
-                    sublists[sname][index]['list'][intgdefs.LISTENTRY][linenick] = linedict
+                    sublists[sname][index]['list'][intgdefs.LISTENTRY][linenick] = copy.deepcopy(linedict)
+                    if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
+                        miscutils.fwdebug_print("index = %s" % index)
+                        miscutils.fwdebug_print("listkeys = %s" % listkeys)
+            
             else:
-                sublists[sname]['onlyone'] = master
+                sublists[sname]['onlyone'] = copy.deepcopy(master)
 
             #del masterdata[modname][sname]
 
@@ -1605,7 +1948,7 @@ def get_wrapper_loopvals(config, modname):
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("\tloopkeys = %s" % loopkeys)
         loopkeys = miscutils.fwsplit(loopkeys.lower())
-        loopkeys.sort()  # sort so can make same key easily
+        #loopkeys.sort()  # sort so can make same key easily
 
 
         ## determine which list/file would determine loop values
@@ -1621,6 +1964,10 @@ def get_wrapper_loopvals(config, modname):
                 loopvals = loopdict['keyvals'].values()
             else:
                 miscutils.fwdebug_print("Warning: Couldn't find keyvals for loopobj %s" % moddict['loopobj'])
+                if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
+                    miscutils.fwdebug_print("iter_obj_key=%s" % iter_obj_key)
+                    miscutils.fwdebug_print("moddict=%s" % moddict)
+                
 
         if len(loopvals) == 0:
             print "\tDefaulting to wcl values"
@@ -1674,7 +2021,15 @@ def get_value_from_line(line, key, nickname=None, numvals=None):
     if 'file' in line:
         if nickname is not None:
             if nickname in line['file'] and key in line['file'][nickname]:
-                valhash[line['file'][nickname][key]] = True
+                try:
+                    valhash[line['file'][nickname][key]] = True
+                except:
+                    miscutils.fwdebug_print("ERROR")
+                    miscutils.fwdebug_print("valhash=%s" % valhash)
+                    miscutils.fwdebug_print("line['file'][%s]=%s" % (nickname, line['file'][nickname]))
+                    miscutils.fwdebug_print("line['file'][%s][%s]=%s" % (nickname, key, line['file'][nickname][key]))
+                    miscutils.fwdebug_print("type(x)=%s" % (type(line['file'][nickname][key])))
+                    raise
         else:
             for fnickname, fdict in line['file'].items():
                 if key in fdict:
@@ -1722,13 +2077,26 @@ def get_wcl_metadata_keys(filetype, wrapper_wcl, currvals, config):
     return wclkeys
 
 #######################################################################
-def get_filetypes_output_files(outputfiles, wrapperwcl):
+def get_filetypes_output_files(moddict, outputfiles, wrapperwcl):
     """ Get the filetypes for all the output files """
+
+    print "MMG"
+    print 'outputfiles =', outputfiles
     filetypes = []
-    filesect = wrapperwcl[pfwdefs.IW_FILESECT]
+    filesect = moddict[pfwdefs.SW_FILESECT]
+    print "filesect.keys() = ", filesect.keys()
     for ofile in outputfiles:
-        ofsect = ofile.split('.')[1].lower()
-        filetypes.append(filesect[ofsect]['filetype'])
+        ofsectkeys = ofile.split('.')
+        ofsect = ofsectkeys[-1].lower()
+        try:
+            filetypes.append(filesect[ofsect]['filetype'])
+        except:
+            print 'ofile =', ofile
+            print 'ofsect =', ofsect
+            print "filesect.keys() = ", filesect.keys()
+            raise
+
+
     return filetypes
 
 
@@ -1780,7 +2148,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
 
         # get filetypes for adding wcl metadata to wrapper input wcl
         if pfwdefs.SW_OUTPUTS in execsect:
-            filetypes = get_filetypes_output_files(miscutils.fwsplit(execsect[pfwdefs.OW_OUTPUTS]), 
+            filetypes = get_filetypes_output_files(moddict, miscutils.fwsplit(execsect[pfwdefs.OW_OUTPUTS]),
                                                    wrapperwcl)
             wclkeys = set()   # set to eliminate duplicates
             for ftype in filetypes:
@@ -1788,7 +2156,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
 
             for wkey in list(wclkeys):
                 if wkey not in wrapperwcl:
-                    wrapperwcl[wkey] = config.getfull(wkey, 
+                    wrapperwcl[wkey] = config.getfull(wkey,
                                                       {pfwdefs.PF_CURRVALS: currvals,
                                                        'searchobj': wrapinst})
 
@@ -1805,10 +2173,10 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                 iwexkey = key
 
             if key != 'cmdline':
-                wrapperwcl[iwkey][iwexkey] = replfuncs.replace_vars_single(val, config, 
-                                             {pfwdefs.PF_CURRVALS: currvals, 
+                wrapperwcl[iwkey][iwexkey] = replfuncs.replace_vars_single(val, config,
+                                             {pfwdefs.PF_CURRVALS: currvals,
                                               'searchobj': val,
-                                              'required': True, 
+                                              'required': True,
                                               intgdefs.REPLACE_VARS: True})
             else:
                 wrapperwcl[iwkey]['cmdline'] = copy.deepcopy(val)
@@ -2330,7 +2698,7 @@ def create_runjob_condorfile(config, scriptfile):
                 miscutils.fwdie("Error: Cannot determine uiddomain for matching to a glidein", pfwdefs.PF_EXIT_FAILURE)
             reqs.append('(UidDomain == "%s")' % config.getfull('uiddomain'))
             if 'glidein_name' in config and config.getfull('glidein_name').lower() != 'none':
-                reqs.append('(GLIDEIN_NAME == "%s")' % config.getfull('glidein_name'))
+                reqs.append('(Target.GLIDEIN_NAME == "%s")' % config.getfull('glidein_name'))
 
             reqs.append('(FileSystemDomain != "")')
             reqs.append('(Arch != "")')
@@ -2373,7 +2741,7 @@ def create_runjob_condorfile(config, scriptfile):
         if len(globus_rsl) > 0:
             jobattribs['globus_rsl'] = globus_rsl
         if targetinfo['gridtype'] == 'condor-ce':
-            if 'request_memory' in config: 
+            if 'request_memory' in config:
                 userattribs['maxMemory'] = int(config.getfull('request_memory'))
                 jobattribs['request_memory'] = int(config.getfull('request_memory'))
             if 'request_cpus' in config:
@@ -2384,13 +2752,13 @@ def create_runjob_condorfile(config, scriptfile):
                 userattribs['jobclass'] = config.getfull('condorjobclass')
             if 'condorjobreq' in config:
                 reqs.append(config.getfull('condorjobreq'))
-                
+
 
     if len(reqs) > 0:
         jobattribs['requirements'] = ' && '.join(reqs)
 
-        
-    
+
+
     pfwcondor.write_condor_descfile('runjob', condorfile, jobattribs, userattribs)
 
     miscutils.fwdebug_print("END\n\n")
@@ -2482,11 +2850,11 @@ def copy_input_lists_home_archive(config, filemgmt, archive_info, listfullnames)
         relpath = os.path.dirname(lfname)
         filename = miscutils.parse_fullname(lfname, miscutils.CU_PARSE_FILENAME)
         archfname = '%s/%s/%s' % (archdir, relpath, filename)
-        files2copy[lfname] = {'src': lfname, 
+        files2copy[lfname] = {'src': lfname,
                               'filename': filename,
                               'dst': archfname,
                               'fullname': archfname}
-        
+
     if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
         miscutils.fwdebug_print('files2copy = %s' % files2copy)
 

@@ -69,7 +69,7 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                                                config['task_id']['job'][jobnum],
                                                pfwdefs.PFWDB_MSG_ERROR, line)
                     elif 'No such file or directory: ' in line and \
-                          config['target_des_services'] in line:
+                          config.getfull('target_des_services') in line:
                         print "Found:", line
                         if dbh:
                             dbh.insert_message(config['pfw_attempt_id'], 

@@ -175,6 +175,8 @@ def get_attnum(config):
     elif pfwdefs.ATTNUM not in config:
         print '\tNo DB.  Defaulting %s to 0' % pfwdefs.ATTNUM
         config[pfwdefs.ATTNUM] = 0
+        config['pfw_attempt_id'] = 0
+        config['task_id'] = {'attempt': 0}
 
 ################################################################
 def main(argv):

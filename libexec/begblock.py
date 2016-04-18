@@ -66,13 +66,21 @@ def begblock(argv):
         joblist = {}
         masterdata = OrderedDict()
         for modname in modulelist:
+            print "XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname
             if modname not in config[pfwdefs.SW_MODULESECT]:
                 miscutils.fwdie("Error: Could not find module description for module %s\n" % \
                                 (modname), pfwdefs.PF_EXIT_FAILURE)
 
+            (infsect, outfsect) = pfwblock.get_datasect_types(config, modname)
             runqueries(config, configfile, modname, modules_prev_in_list)
             pfwblock.read_master_lists(config, modname, masterdata, modules_prev_in_list)
+
+            pfwblock.fix_master_lists(config, modname, masterdata, outfsect)
             pfwblock.create_fullnames(config, modname, masterdata)
+            if miscutils.fwdebug_check(9, 'PFWBLOCK_DEBUG') and modname in masterdata:
+                with open('%s-masterdata.txt' % modname, 'w') as fh:
+                    miscutils.pretty_print_dict(masterdata[modname], fh)
+            
             pfwblock.add_file_metadata(config, modname)
             sublists = pfwblock.create_sublists(config, modname, masterdata)
             if sublists is not None:
@@ -80,8 +88,6 @@ def begblock(argv):
                     miscutils.fwdebug_print("sublists.keys() = %s" % (sublists.keys()))
             loopvals = pfwblock.get_wrapper_loopvals(config, modname)
             wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
-            infsect = pfwblock.which_are_inputs(config, modname)
-            outfsect = pfwblock.which_are_outputs(config, modname)
             wcnt = 1
             for winst in wrapinst.values():
                 stime = time.time()
@@ -100,6 +106,10 @@ def begblock(argv):
                     miscutils.fwdebug_print("winst %d - %s - END" % (wcnt, etime-stime))
                 wcnt += 1
             modules_prev_in_list[modname] = True
+
+            if miscutils.fwdebug_check(9, 'PFWBLOCK_DEBUG') and modname in masterdata:
+                with open('%s-masterdata.txt' % modname, 'w') as fh:
+                    miscutils.pretty_print_dict(masterdata[modname], fh)
 
         scriptfile = pfwblock.write_runjob_script(config)
 

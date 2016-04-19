@@ -67,13 +67,10 @@ def summary(argv=None):
     subject = ""
     pfwemail.send_email(config, "processing", status, subject, msg1, '')
 
-    reqnum = config.getfull(pfwdefs.REQNUM)
-    unitname = config.getfull(pfwdefs.UNITNAME)
-    attnum = config.getfull(pfwdefs.ATTNUM)
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
                           config.getfull('submit_des_db_section'))
-        dbh.update_attempt_end_vals(reqnum, unitname, attnum, status)
+        dbh.update_attempt_end_vals(config['pfw_attempt_id'], status)
     print "summary: status = '%s'" % status
     print "summary:", msg1
     print "summary: End"

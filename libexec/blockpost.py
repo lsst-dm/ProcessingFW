@@ -73,6 +73,7 @@ def blockpost(argv=None):
 
     dryrun = config.getfull(pfwdefs.PF_DRYRUN)
     run = config.getfull('run')
+    attid = config['pfw_attempt_id']
     reqnum = config.getfull(pfwdefs.REQNUM)
     unitname = config.getfull(pfwdefs.UNITNAME)
     attnum = config.getfull(pfwdefs.ATTNUM)
@@ -85,6 +86,8 @@ def blockpost(argv=None):
     job_byblk = {}
     wrap_byjob = {}
     wrap_bymod = {}
+    wrapinfo = {}
+    jobinfo = {}
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         try:
             miscutils.fwdebug_print("Connecting to DB")
@@ -95,86 +98,87 @@ def blockpost(argv=None):
                   pfwdefs.PF_EXIT_SUCCESS
             num_bltasks_failed = 0
             bltasks = {}
+            blktid = None
             if ('block' in config['task_id'] and
                     str(blknum) in config['task_id']['block']):
-                blktid = config['task_id']['block'][str(blknum)]
+                blktid = int(config['task_id']['block'][str(blknum)])
                 miscutils.fwdebug_print("Getting block task info from DB")
                 start_time = time.time()
                 bltasks = dbh.get_block_task_info(blktid)
                 end_time = time.time()
                 miscutils.fwdebug_print("Done getting block task info from DB (%s secs)" % (end_time - start_time))
+                for bltdict in bltasks.values():
+                    if bltdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                        num_bltasks_failed += 1
+                        msg2 += "\t%s" % (bltdict['name'])
+                        if bltdict['label'] is not None:
+                            msg2 += " - %s" % (bltdict['label'])
+                        msg2 += " failed"
+                        retval = pfwdefs.PF_EXIT_FAILURE
+
+
+                print "\n\nChecking job status from pfw_job table in DB (%s is success)" % \
+                      pfwdefs.PF_EXIT_SUCCESS
+
+                miscutils.fwdebug_print("Getting job info from DB")
+                start_time = time.time()
+                jobinfo = dbh.get_job_info({'pfw_block_task_id': blktid })
+                end_time = time.time()
+                miscutils.fwdebug_print("Done getting job info from DB (%s secs)" % (end_time-start_time))
+
+                miscutils.fwdebug_print("Getting wrapper info from DB")
+                start_time = time.time()
+                wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attid, pfw_block_task_id=blktid)
+                end_time = time.time()
+                miscutils.fwdebug_print("Done getting wrapper info from DB (%s secs)" % (end_time-start_time))
             else:
                 msg = "Could not find task id for block %s in config.des" % blockname
                 print "Error:", msg
                 if 'attempt' in config['task_id']:
                     miscutils.fwdebug_print("Saving pfw message")
                     start_time = time.time()
-                    dbh.insert_message(config['pfw_attempt_id'],
-                                       config['task_id']['attempt'],
+                    dbh.insert_message(attid, config['task_id']['attempt'],
                                        pfwdefs.PFWDB_MSG_WARN, msg)
                     end_time = time.time()
                     miscutils.fwdebug_print("Done saving pfw message (%s secs)" % (end_time-start_time))
                 print "all the task ids:", config['task_id']
 
-            for bltdict in bltasks.values():
-                if bltdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                    num_bltasks_failed += 1
-                    msg2 += "\t%s" % (bltdict['name'])
-                    if bltdict['label'] is not None:
-                        msg2 += " - %s" % (bltdict['label'])
-                    msg2 += " failed"
-                    retval = pfwdefs.PF_EXIT_FAILURE
 
-
-            print "\n\nChecking job status from pfw_job table in DB (%s is success)" % \
-                  pfwdefs.PF_EXIT_SUCCESS
-
-            miscutils.fwdebug_print("Getting job info from DB")
-            start_time = time.time()
-            jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname': unitname,
-                                        'attnum': attnum, 'blknum': blknum})
-            end_time = time.time()
-            miscutils.fwdebug_print("Done getting job info from DB (%s secs)" % (end_time-start_time))
-
-            miscutils.fwdebug_print("Getting wrapper info from DB")
-            start_time = time.time()
-            wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum, blknum)
-            end_time = time.time()
-            miscutils.fwdebug_print("Done getting wrapper info from DB (%s secs)" % (end_time-start_time))
             dbh.close()
-
             print "len(jobinfo) = ", len(jobinfo)
             print "len(wrapinfo) = ", len(wrapinfo)
             job_byblk = pfwutils.index_job_info(jobinfo)
-            #print "job_byblk:", job_byblk
-            wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
-            #print "wrap_byjob:", wrap_byjob
-            #print "wrap_bymod:", wrap_bymod
+            print "blktid: ", blktid
+            print "job_byblk:", job_byblk
 
-            if blknum not in job_byblk:
+            print job_byblk[blktid]
+            if blktid not in job_byblk:
                 print "Warn: could not find jobs for block %s" % blknum
                 print "      This is ok if attempt died before jobs ran"
-                print "      blknums in job_byblk:" % job_byblk.keys()
+                print "      block task_ids in job_byblk:" % job_byblk.keys()
             else:
-                for jobnum, jobdict in sorted(job_byblk[blknum].items()):
+                wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
+                #print "wrap_byjob:", wrap_byjob
+                #print "wrap_bymod:", wrap_bymod
+                for jobtid, jobdict in sorted(job_byblk[blktid].items()):
                     jobkeys = ""
 
                     if jobdict['jobkeys'] is not None:
                         jobkeys = jobdict['jobkeys']
                         #print "jobkeys = ", jobkeys, type(jobkeys)
 
-                    msg2 += "\n\t%s (%s) " % (pfwutils.pad_jobnum(jobnum), jobkeys)
+                    msg2 += "\n\t%s (%s) " % (pfwutils.pad_jobnum(jobdict['jobnum']), jobkeys)
 
-                    if jobnum not in wrap_byjob:
+                    if jobtid not in wrap_byjob:
                         msg2 += "\tNo wrapper instances"
                     else:
-                        #print "wrapnum in job =", wrap_byjob[jobnum].keys()
-                        maxwrap = max(wrap_byjob[jobnum].keys())
+                        #print "wrapnum in job =", wrap_byjob[jobtid].keys()
+                        maxwrap = max(wrap_byjob[jobtid].keys())
                         #print "maxwrap =", maxwrap
-                        modname = wrap_byjob[jobnum][maxwrap]['modname']
+                        modname = wrap_byjob[jobtid][maxwrap]['modname']
                         #print "modname =", modname
 
-                        msg2 += "%d/%s  %s" % (len(wrap_byjob[jobnum]),
+                        msg2 += "%d/%s  %s" % (len(wrap_byjob[jobtid]),
                                                jobdict['expect_num_wrap'], modname)
 
                     if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
@@ -185,12 +189,12 @@ def blockpost(argv=None):
                         retval = jobdict['status']
                     elif jobdict['status'] is None:
                         msg2 += " - FAIL - NULL status"
-                        if jobnum in wrap_byjob:
-                            lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
+                        if jobtid in wrap_byjob:
+                            lastwraps.append(wrap_byjob[jobtid][maxwrap]['task_id'])
                         retval = pfwdefs.PF_EXIT_FAILURE
                     elif jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                        if jobnum in wrap_byjob:
-                            lastwraps.append(wrap_byjob[jobnum][maxwrap]['task_id'])
+                        if jobtid in wrap_byjob:
+                            lastwraps.append(wrap_byjob[jobtid][maxwrap]['task_id'])
                         msg2 += " - FAIL - Non-zero status"
                         retval = jobdict['status']
 
@@ -199,10 +203,10 @@ def blockpost(argv=None):
                     if 'message' in jobdict:
                         for msgdict in sorted(jobdict['message'], key=lambda k: k['msgtime']):
                             level = int(msgdict['msglevel'])
-                            print level, msgdict['msg'], type(level)
-                            print "PFWDB_MSG_WARN = ", pfwdefs.PFWDB_MSG_WARN, \
-                                  type(pfwdefs.PFWDB_MSG_WARN)
-                            print "PFWDB_MSG_ERROR = ", pfwdefs.PFWDB_MSG_ERROR
+                            #print level, msgdict['msg'], type(level)
+                            #print "PFWDB_MSG_WARN = ", pfwdefs.PFWDB_MSG_WARN, \
+                            #      type(pfwdefs.PFWDB_MSG_WARN)
+                            #print "PFWDB_MSG_ERROR = ", pfwdefs.PFWDB_MSG_ERROR
                             levelstr = 'info'
                             if level == pfwdefs.PFWDB_MSG_WARN:
                                 levelstr = 'WARN'
@@ -236,12 +240,12 @@ def blockpost(argv=None):
 
                 MAXMESG = 3
                 msg2 += "\n\n\nDetails\n"
-                for jobnum, jobdict in sorted(job_byblk[blknum].items()):
-                    maxwrap = max(wrap_byjob[jobnum].keys())
-                    maxwrapid = wrap_byjob[jobnum][maxwrap]['task_id']
-                    modname = wrap_byjob[jobnum][maxwrap]['modname']
+                for jobtid, jobdict in sorted(job_byblk[blknum].items()):
+                    maxwrap = max(wrap_byjob[jobtid].keys())
+                    maxwrapid = wrap_byjob[jobtid][maxwrap]['task_id']
+                    modname = wrap_byjob[jobtid][maxwrap]['modname']
                     if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                        msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobnum), modname)
+                        msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobdict['jobnum']), modname)
                         if maxwrapid in wrapmsg:
                             if len(wrapmsg[maxwrapid]) > MAXMESG:
                                 msg2 += "\t\tOnly printing last %d messages\n" % MAXMESG

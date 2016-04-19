@@ -183,7 +183,7 @@ def jobpost(argv=None):
 
         if dbh and len(tjobinfo) > 0:
             print "tjobinfo: ", tjobinfo
-            dbh.update_tjob_info(config, config['task_id']['job'][jobnum], tjobinfo)
+            dbh.update_tjob_info(config['task_id']['job'][jobnum], tjobinfo)
 
         # get job information from the condor job log
         logfilename = 'runjob.log'

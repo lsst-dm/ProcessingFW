@@ -427,6 +427,7 @@ class PfwConfig(WCL):
 
         if miscutils.fwdebug_check(6, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("given filepat = %s, type = %s" % (filepat, type(filepat)))
+            miscutils.fwdebug_print("given searchopts = %s" % (searchopts))
 
         origreq = False
         if searchopts is not None and 'required' in searchopts:

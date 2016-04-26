@@ -1191,10 +1191,12 @@ def write_jobwcl(config, jobkey, jobdict):
 
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         jobwcl['task_id'] = {'attempt': config['task_id']['attempt'],
+                             'block': config['task_id']['block'][config.getfull(pfwdefs.PF_BLKNUM)],
                              'job': config['task_id']['job'][jobdict['jobnum']] }
     else:
         jobwcl['task_id'] = {'attempt': -1,
-                             'job': -2 }
+                             'block': -2,
+                             'job': -3 }
 
 
     (_, create_junk_tarball) = config.search(pfwdefs.CREATE_JUNK_TARBALL, {intgdefs.REPLACE_VARS: True})

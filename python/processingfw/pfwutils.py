@@ -331,16 +331,16 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, bufsize=5000, use_qcf=False):
 
 #######################################################################
 def index_job_info(jobinfo):
-    """ create dictionary of jobs indexed on blknum """
-    # index jobinfo by blknum
+    """ create dictionary of jobs indexed on blk task id """
     job_byblk = {}
-    for j in jobinfo.keys():
-        blknum = jobinfo[j]['blknum']
-        #print "job = ",j,"blknum =", blknum
-        if blknum not in job_byblk:
-            job_byblk[blknum] = {}
-        job_byblk[blknum][j] = jobinfo[j]
+    for j, jdict in jobinfo.items():
+        blktid = jdict['pfw_block_task_id']
+        #print "job = ",j,"blktid =", blktid
+        if blktid not in job_byblk:
+            job_byblk[blktid] = {}
+        job_byblk[blktid][j] = jdict
 
+    #print "job_byblk = ", job_byblk
     return job_byblk
 
 
@@ -350,9 +350,9 @@ def index_wrapper_info(wrapinfo):
     wrap_byjob = {}
     wrap_bymod = {}
     for wrap in wrapinfo.values():
-        if wrap['jobnum'] not in wrap_byjob:
-            wrap_byjob[wrap['jobnum']] = {}
-        wrap_byjob[wrap['jobnum']][wrap['wrapnum']] = wrap
+        if wrap['pfw_job_task_id'] not in wrap_byjob:
+            wrap_byjob[wrap['pfw_job_task_id']] = {}
+        wrap_byjob[wrap['pfw_job_task_id']][wrap['wrapnum']] = wrap
         if wrap['modname'] not in wrap_bymod:
             wrap_bymod[wrap['modname']] = {}
         wrap_bymod[wrap['modname']][wrap['wrapnum']] = wrap

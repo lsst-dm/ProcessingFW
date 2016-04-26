@@ -243,7 +243,7 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
                                       do_commit=True)
 
     try:
-        filemgmt.register_file_data(ftype, fullnames, wgb_tid, do_update, update_info, filepat)
+        filemgmt.register_file_data(ftype, fullnames, pfw_attempt_id, wgb_tid, do_update, update_info, filepat)
         filemgmt.commit()
 
         if pfw_dbh is not None:
@@ -458,6 +458,7 @@ def get_wrapper_inputs(pfw_dbh, wcl, jobfiles, outfiles):
                 neededinputs[miscutils.parse_fullname(infile, miscutils.CU_PARSE_FILENAME)] = infile
 
         if len(neededinputs) > 0:
+            print "needed inputs", neededinputs
             files2get = transfer_archives_to_job(pfw_dbh, wcl, neededinputs,
                                                  wcl['task_id']['jobwrapper'])
 
@@ -1231,13 +1232,13 @@ def run_job(args):
     try:
         jobfiles['infullnames'] = gather_initial_fullnames()
         exitcode = job_workflow(args.workflow, jobfiles, jobwcl)
-    except Exception:
+    except Exception as ex:
         (extype, exvalue, trback) = sys.exc_info()
         print '!' * 60
         if jobwcl['use_db'] and pfw_dbh is None:
             pfw_dbh = pfwdb.PFWDB()
             pfw_dbh.insert_message(jobwcl['pfw_attempt_id'], job_task_id, pfwdefs.PFWDB_MSG_ERROR,
-                                   "%s: %s" % (extype, str(exvalue)))
+                                   "%s: %s" % (type(ex).__name__, str(exvalue)))
         traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         exitcode = pfwdefs.PF_EXIT_FAILURE
         print "Aborting rest of wrapper executions.  Continuing to end-of-job tasks\n\n"
@@ -1266,7 +1267,7 @@ def run_job(args):
         curr_usage = disku - jobwcl['pre_job_disk_usage']
         if curr_usage > jobwcl['job_max_usage']:
             jobwcl['job_max_usage'] = curr_usage
-        pfw_dbh.update_tjob_info(jobwcl, jobwcl['task_id']['job'],
+        pfw_dbh.update_tjob_info(jobwcl['task_id']['job'],
                                  {'diskusage': jobwcl['job_max_usage']})
         pfw_dbh.commit()
         pfw_dbh.close()
@@ -1278,7 +1279,7 @@ def run_job(args):
 ###############################################################################
 def create_compression_wdf(wgb_fnames):
     """ Create the was derived from provenance for the compression """
-
+    # assumes filename is the same except the compression extension
     wdf = {}
     cnt = 1
     for child in wgb_fnames:
@@ -1334,6 +1335,7 @@ def call_compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
                                                                                   3, jobwcl[pfwdefs.COMPRESSION_CLEANUP])
 
         filelist = []
+        wgb_fnames = []
         for fname, fdict in results.items():
             if miscutils.fwdebug_check(3, 'PFWRUNJOB_DEBUG'):
                 miscutils.fwdebug_print("%s = %s" % (fname, fdict))
@@ -1356,7 +1358,7 @@ def call_compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
                     putinfo[filename]['dst'] += compression
 
                     del dinfo['path']
-                    dinfo['fullname'] = fdict['outname']
+                    wgb_fnames.append(filename + compression)
                     dinfo['pfw_attempt_id'] = int(jobwcl['pfw_attempt_id'])
                     dinfo['filetype'] = putinfo[filename]['filetype']
                     dinfo['wgb_task_id'] = task_id
@@ -1371,15 +1373,15 @@ def call_compress_files(pfw_dbh, jobwcl, jobfiles, putinfo, exitcode):
 
         # register compressed file with file manager, save used provenance info
         filemgmt = dynam_load_filemgmt(jobwcl, pfw_dbh, None, task_id)
-        filemgmt.create_artifacts(filelist)
+        for finfo in filelist:
+            filemgmt.save_desfile(finfo)
         used_fnames = [os.path.basename(x) for x in to_compress]
-        wgb_fnames = [os.path.basename(x['fullname']) for x in filelist]
 
         prov = {provdefs.PROV_USED: {'exec_1': provdefs.PROV_DELIM.join(used_fnames)},
-                provdefs.PROV_WGB: {'exec_1': provdefs.PROV_DELIM.join(wgb_fnames)},
+                #provdefs.PROV_WGB: {'exec_1': provdefs.PROV_DELIM.join(wgb_fnames)},
                 provdefs.PROV_WDF: create_compression_wdf(wgb_fnames)}
         filemgmt.ingest_provenance(prov, {'exec_1': task_id})
-        force_update_desfile_filetype(filemgmt, filelist)
+        #force_update_desfile_filetype(filemgmt, filelist)
         filemgmt.commit()
 
         if pfw_dbh is not None:

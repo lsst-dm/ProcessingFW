@@ -126,10 +126,10 @@ def print_job_info(argv):
         print "Note:  run has finished with status %s" % attinfo['status'] 
 
     # get the block info
-    blockinfo = dbh.get_block_info(reqnum, unitname, attnum)
+    blockinfo = dbh.get_block_info(pfw_attempt_id=attinfo['id'])
 
     # get job info
-    jobinfo = dbh.get_job_info({'reqnum':reqnum, 'unitname':unitname, 'attnum':attnum})
+    jobinfo = dbh.get_job_info({'pfw_attempt_id':attinfo['id']})
     # index jobinfo by blknum
     job_byblk = pfwutils.index_job_info(jobinfo)
 
@@ -139,7 +139,7 @@ def print_job_info(argv):
 
 
     # get wrapper instance information
-    wrapinfo = dbh.get_wrapper_info(reqnum, unitname, attnum)
+    wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attinfo['id'])
     wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
     verbose = 3

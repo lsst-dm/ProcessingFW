@@ -8,9 +8,9 @@ import argparse
 import re
 import sys
 
-#import despymisc.miscutils
-import processingfw.pfwdb as pfwdb
-import processingfw.pfwutils as pfwutils
+from  despymisc import miscutils
+from processingfw import pfwdb
+from processingfw import pfwutils
 
 
 # verbose 0 = (TBD)  high level campaign summary
@@ -49,11 +49,14 @@ def parse_args(argv):
 
     args = vars(parser.parse_args(argv))   # convert to dict
 
-    if args['attempt_str'] is not None:
-        args['reqnum'], args['unitname'], args['attnum'] = parse_attempt_str(args['attempt_str'])
-    elif args['reqnum'] is None:
-        print "Error:  Must specify attempt_str or r,u,a"
-        sys.exit(1)
+    if args['attempt_str'] is None:
+        if args['reqnum'] is None:
+            print "Error:  Must specify attempt_str or r,u,a"
+            sys.exit(1)
+        else:
+            args['attempt_str'] = '%s_r%sp%02d' % (args['unitname'], args['reqnum'], int(args['attnum']))
+
+    args['runs'] = miscutils.fwsplit(args['attempt_str'], ',')
 
     return args
 
@@ -91,7 +94,7 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
                 numwraps = len(wrap_byjob[jobnum])
     
             
-            print "\t%s %d/%d  %s - %s (jk=%s)" % (pfwutils.pad_jobnum(jobnum), numwraps, expnumwrap, modname, wrapkeys, jobkeys),
+            print "\t%s %d/%d  %s - %s (jk=%s)" % (pfwutils.pad_jobnum(jobdict['jobnum']), numwraps, expnumwrap, modname, wrapkeys, jobkeys),
             if 'end_time' in jobdict and jobdict['end_time'] is not None:
                 if jobdict['status'] == 0:
                     print "done"
@@ -109,47 +112,46 @@ def print_job_info(argv):
     """    """
 
     args = parse_args(argv)
-    unitname = args['unitname']
-    reqnum = args['reqnum']
-    attnum = args['attnum']
 
     dbh = pfwdb.PFWDB(args['des_services'], args['section'])
 
     # get the run info
-    attinfo = dbh.get_attempt_info(reqnum, unitname, attnum)
-    if attinfo is None:
-        print "No DB information about the processing attempt"
-        print "(Double check which DB querying vs which DB the attempt used)"
-        sys.exit(0)
+    for run in args['runs']:
+        print run
+        reqnum, unitname, attnum = parse_attempt_str(run)
+        attinfo = dbh.get_attempt_info(reqnum, unitname, attnum)
+        if attinfo is None:
+            print "No DB information about the processing attempt"
+            print "(Double check which DB querying vs which DB the attempt used)"
+        else:
+            if 'endtime' in attinfo and attinfo['endtime'] is not None:
+                print "Note:  run has finished with status %s" % attinfo['status'] 
 
-    if 'endtime' in attinfo and attinfo['endtime'] is not None:
-        print "Note:  run has finished with status %s" % attinfo['status'] 
+            # get the block info
+            blockinfo = dbh.get_block_info(pfw_attempt_id=attinfo['id'])
 
-    # get the block info
-    blockinfo = dbh.get_block_info(pfw_attempt_id=attinfo['id'])
+            # get job info
+            jobinfo = dbh.get_job_info({'pfw_attempt_id':attinfo['id']})
+            # index jobinfo by blknum
+            job_byblk = pfwutils.index_job_info(jobinfo)
 
-    # get job info
-    jobinfo = dbh.get_job_info({'pfw_attempt_id':attinfo['id']})
-    # index jobinfo by blknum
-    job_byblk = pfwutils.index_job_info(jobinfo)
-
-    #print job_byblk.keys()
-    #for b in job_byblk.keys():
-        #print b, job_byblk[b].keys()
+            #print job_byblk.keys()
+            #for b in job_byblk.keys():
+                #print b, job_byblk[b].keys()
 
 
-    # get wrapper instance information
-    wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attinfo['id'])
-    wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
+            # get wrapper instance information
+            wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attinfo['id'])
+            wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
-    verbose = 3
+            verbose = 3
 
-    if verbose == 2:
-        blknum = max(blockinfo.keys())
-        print_single_block(blknum,  blockinfo[blknum], job_byblk, wrap_byjob)
-    elif verbose == 3:
-        for blknum in blockinfo.keys():
-            print_single_block(blknum, blockinfo[blknum], job_byblk, wrap_byjob)
+            if verbose == 2:
+                blknum = max(blockinfo.keys())
+                print_single_block(blknum,  blockinfo[blknum], job_byblk, wrap_byjob)
+            elif verbose == 3:
+                for blknum in blockinfo.keys():
+                    print_single_block(blknum, blockinfo[blknum], job_byblk, wrap_byjob)
 
 
 if __name__ == "__main__":

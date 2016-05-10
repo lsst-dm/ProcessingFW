@@ -90,7 +90,7 @@ def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cn
             if os.path.exists(fname_compressed):
                 miscutils.fwdebug_print("Compression failed.  Removing compressed file.")
                 os.unlink(fname_compressed)
-        elif cleanup: # if successful, remove uncompressed if requested
+        elif miscutils.convertBool(cleanup): # if successful, remove uncompressed if requested
             os.unlink(fname)
 
         if returncode == 0:

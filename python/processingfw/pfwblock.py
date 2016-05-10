@@ -670,10 +670,20 @@ def assign_list_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
                 sobj.update(divcoldict)
                 winst[pfwdefs.IW_LISTSECT][divcolname] = {'fullname': output_list(config, sublist, sobj, lname, currvals),
                                                           'columns': ','.join(convert_col_string_to_list(divcoldict['columns'], False))}
+                lineformat = intgdefs.DEFAULT_LIST_FORMAT
+                if intgdefs.LIST_FORMAT in divcoldict:
+                    lineformat = divcoldict[intgdefs.LIST_FORMAT]
+                winst[pfwdefs.IW_LISTSECT][divcolname][intgdefs.LIST_FORMAT] = lineformat
+
         else:
             cols = get_list_all_columns(msobj, with_format=False)
             winst[pfwdefs.IW_LISTSECT][lname] = {'fullname': output_list(config, sublist, msobj, lname, currvals),
                                                  'columns': ','.join(cols[0])}
+
+            lineformat = intgdefs.DEFAULT_LIST_FORMAT
+            if intgdefs.LIST_FORMAT in ldict:
+                lineformat = ldict[intgdefs.LIST_FORMAT]
+            winst[pfwdefs.IW_LISTSECT][lname][intgdefs.LIST_FORMAT] = lineformat
     else:
         print "Warning: Couldn't find files to put in list %s in %s" % (lname, moddict['modulename'])
 

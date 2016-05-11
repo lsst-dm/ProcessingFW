@@ -221,6 +221,7 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, bufsize=5000, use_qcf=False):
 
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
+        miscutils.fwdebug_print("working dir = %s" % (os.getcwd()))
         miscutils.fwdebug_print("cmd = %s" % cmd)
         miscutils.fwdebug_print("logfilename = %s" % logfilename)
         miscutils.fwdebug_print("wid = %s" % wid)

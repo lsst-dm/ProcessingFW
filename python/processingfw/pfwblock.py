@@ -1169,7 +1169,7 @@ def init_use_archive_info(config, jobwcl, which_use_input, which_use_output, whi
 
 
 #######################################################################
-def write_jobwcl(config, jobkey, jobdict):
+def write_jobwcl(config, jobkey, jobdict, parlist):
     """ write a little config file containing variables needed at the job level """
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("BEG jobnum=%s jobkey=%s" % (jobdict['jobnum'], jobkey))
@@ -1178,6 +1178,12 @@ def write_jobwcl(config, jobkey, jobdict):
     jobdict['outputwcltar'] = config.get_filename('outputwcltar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}, 'required': True, intgdefs.REPLACE_VARS: True})
 
     jobdict['envfile'] = config.get_filename('envfile')
+
+    fwgroups = OrderedDict()
+    for i, key in enumerate(parlist.keys()):
+        fwgroups['g%04i' % (i + 1)] = {'wrapnums': parlist[key]['wrapnums'], 
+                                       'fw_nthread': parlist[key]['fw_nthread']}
+
 
     jobwcl = WCL({'pfw_attempt_id': config['pfw_attempt_id'],
               pfwdefs.REQNUM: config.getfull(pfwdefs.REQNUM),
@@ -2325,7 +2331,7 @@ def create_module_wrapper_wcl(config, modname, winst):
 
 
 #######################################################################
-def divide_into_jobs(config, modname, winst, joblist):
+def divide_into_jobs(config, modname, winst, joblist, parlist):
     """ Divide wrapper instances into jobs """
     if miscutils.fwdebug_check(1, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("BEG")
@@ -2342,6 +2348,13 @@ def divide_into_jobs(config, modname, winst, joblist):
 
     if key not in joblist:
         joblist[key] = {'tasks':[], 'inwcl':[], 'inlist':[], 'wrapinputs':OrderedDict()}
+
+    tkey =  winst['inputwcl'].split("/")[1]
+    if tkey not in parlist:
+        parlist[tkey] = {'wrapnums': '', 'fw_nthread': 0}
+    parlist[tkey]['wrapnums'] += str(winst[pfwdefs.PF_WRAPNUM]) + ","
+    parlist[tkey]['fw_nthread'] += 1
+
     joblist[key]['tasks'].append([winst[pfwdefs.PF_WRAPNUM], winst['wrappername'], winst['inputwcl'], winst['wrapdebug'], winst['log']])
     joblist[key]['inwcl'].append(winst['inputwcl'])
     if winst['wrapinputs'] is not None and len(winst['wrapinputs']) > 0:

@@ -64,6 +64,7 @@ def begblock(argv):
         outputfiles = []
 
         joblist = {}
+        parlist = OrderedDict()
         masterdata = OrderedDict()
         for modname in modulelist:
             print "XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname
@@ -100,7 +101,7 @@ def begblock(argv):
                 inputfiles.extend(modinputs)
                 outputfiles.extend(modoutputs)
                 pfwblock.create_module_wrapper_wcl(config, modname, winst)
-                pfwblock.divide_into_jobs(config, modname, winst, joblist)
+                pfwblock.divide_into_jobs(config, modname, winst, joblist, parlist)
                 etime = time.time()
                 if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
                     miscutils.fwdebug_print("winst %d - %s - END" % (wcnt, etime-stime))
@@ -112,6 +113,10 @@ def begblock(argv):
                     miscutils.pretty_print_dict(masterdata[modname], fh)
 
         scriptfile = pfwblock.write_runjob_script(config)
+
+        for job in parlist.keys():
+            parlist[job]['wrapnums'] = parlist[job]['wrapnums'][:-1]
+            parlist[job]['fw_nthread'] = min(parlist[job]['fw_nthread'], int(config['fw_maxthread']))        
 
         miscutils.fwdebug_print("Creating job files - BEG")
         for jobkey, jobdict in sorted(joblist.items()):
@@ -146,7 +151,7 @@ def begblock(argv):
                                                              jobdict['inwcl'] + jobdict['inlist'])
             if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
                 dbh.insert_job(config, jobdict)
-            pfwblock.write_jobwcl(config, jobkey, jobdict)
+            pfwblock.write_jobwcl(config, jobkey, jobdict, parlist)
             if ('glidein_use_wall' in config and
                 miscutils.convertBool(config.getfull('glidein_use_wall')) and
                 'jobwalltime' in config):

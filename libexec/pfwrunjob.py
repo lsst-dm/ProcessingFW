@@ -1144,7 +1144,9 @@ def exechost_status(wrapnum):
 
 ######################################################################
 def job_thread(argv):
+    """ run a task in a thread """
     try:
+        # break up the input data
         (line, jobfiles, jobwcl, linecnt, multi) = argv
         task = parse_wrapper_line(line, linecnt)
 
@@ -1178,14 +1180,12 @@ def job_thread(argv):
             wcl['task_id']['jobwrapper'] = -1
 
         print "%04d: Setup" % (int(task['wrapnum']))
+        # set up the working directory if needed
         if multi:
             workdir = "temp%04i" % (int(task['wrapnum']))
         else:
             workdir = None
-        try:
-            setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir)
-        except:
-            raise
+        setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir)
         if pfw_dbh is not None:
             wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
                                                                wcl['task_id']['jobwrapper'])
@@ -1252,13 +1252,13 @@ def job_thread(argv):
     except:
         print traceback.format_exc()
         sys.stdout.flush()
-        #return pfwdefs.PF_EXIT_FAILURE
         return (pfwdefs.PF_EXIT_FAILURE, jobfiles)
 
 
 
 ######################################################################
 def results_checker(result):
+    """ method to collec the results  """
     global pool
     global stop_all
     global results
@@ -1268,6 +1268,7 @@ def results_checker(result):
     jobfiles_global['infullnames'] += jobf['infullnames']
     jobfiles_global['outfullnames'] += jobf['outfullnames']
     jobfiles_global['output_putinfo'].update(jobf['output_putinfo'])
+    results.append(res)
     if res != 0 and stop_all:
         pool.terminate()
 
@@ -1285,32 +1286,39 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
         lines = workflowfh.readlines()
 
         inputs = {}
+        # read in all of the lines in dictionaries
         for linecnt, line in enumerate(lines):
             wrapnum = miscutils.fwsplit(line.strip())[0]
             inputs[wrapnum] = (line,jobfiles,jobwcl,linecnt)
+        # get all of the task groupings, they will be run in numerical order
         tasks = jobwcl["fw_groups"].keys()
         tasks.sort()
+        # loop over each grouping
         for l, task in enumerate(tasks):
-            results = []
+            results = []   # the results of running each task in the group
+            # get the maximum number of parallel processes to run at a time
             nproc = int(jobwcl["fw_groups"][task]["fw_nthread"])
             procs = miscutils.fwsplit(jobwcl["fw_groups"][task]["wrapnums"])
             tempproc = []
+            # pare down the list to include only those in this run
             for p in procs:
                 if p in inputs.keys():
                     tempproc.append(p)
             procs = tempproc
 
+            # set up the thread pool
             pool = Pool(processes=nproc)
             if nproc > 1:
                 mult = True
             else:
                 mult = False
-            a = time.time()
+            # attach all the grouped tasks to the pool
             [pool.apply_async(job_thread, args=(inputs[inp] + (mult,),), callback=results_checker) for inp in procs]
-            c = time.time()
             pool.close()
+            # wait until all are complete before continuing
             pool.join()
-            b = time.time()
+
+            # get the results
             jobfiles = jobfiles_global
             if stop_all and max(results) > 0:
                 return max(results),jobfiles

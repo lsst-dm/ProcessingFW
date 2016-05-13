@@ -114,9 +114,17 @@ def begblock(argv):
 
         scriptfile = pfwblock.write_runjob_script(config)
 
+        # set up the multithreading options for each module
         for job in parlist.keys():
+            try:
+                maxthread = int(repfunc.replace_vars_single(config['module'][job]['fw_maxthread'],
+                                                            config,
+                                                            {intgdefs.REPLACE_VARS: True,
+                                                             'expand': True, 'keepvars': False}))
+            except:
+                maxthread = 1
             parlist[job]['wrapnums'] = parlist[job]['wrapnums'][:-1]
-            parlist[job]['fw_nthread'] = min(parlist[job]['fw_nthread'], int(config['fw_maxthread']))        
+            parlist[job]['fw_nthread'] = min(parlist[job]['fw_nthread'], maxthread)
 
         miscutils.fwdebug_print("Creating job files - BEG")
         for jobkey, jobdict in sorted(joblist.items()):

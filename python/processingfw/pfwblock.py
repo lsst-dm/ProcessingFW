@@ -1203,6 +1203,7 @@ def write_jobwcl(config, jobkey, jobdict, parlist):
               'envfile': jobdict['envfile'],
               'junktar': config.get_filename('junktar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}}),
               'junktar_archive_path': config.get_filepath('ops', 'junktar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}}),
+              'fw_groups': fwgroups,
             })
 
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):

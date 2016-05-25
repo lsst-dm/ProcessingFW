@@ -15,6 +15,7 @@ import sys
 import os
 import time
 import tarfile
+import shutil
 import copy
 import traceback
 import socket
@@ -544,34 +545,39 @@ def get_wrapper_outputs(wcl, jobfiles):
     # placeholder - needed for multiple exec sections
     return {}
 
+
 ######################################################################
 def setup_working_dir(workdir, files, jobroot):
-    """ create working directory for fw threads and symlinks """
+    """ create working directory for fw threads and symlinks to inputs """
 
-    miscutils.coremakekdirs(workdir)
+    miscutils.coremakedirs(workdir)
 
+    # create symbolic links for input files
     for file in files:
-        direc, temp = dirfile(file)
-        if direc != "":
-            direc = os.path.join(workdir, direc)
-            miscutils.coremakedirs(direc)
+        # make subdir inside fw thread working dir so match structure of job scratch
+        subdir = os.path.dirname(file)
+        if subdir != "":
+            newdir = os.path.join(workdir, subdir)
+            miscutils.coremakedirs(newdir)
 
-            os.symlink(os.path.join(jobroot, file), os.path.join(workdir, file))
-        else:
-            os.symlink(os.path.join(jobroot, file), os.path.join(workdir, file))
+        os.symlink(os.path.join(jobroot, file), os.path.join(workdir, file))
 
-    # make symlink for log directory
+    # make symlink for log and outputwcl directory (guaranteed unique names by framework)
     os.symlink(os.path.join("..","log"), os.path.join(workdir, "log"))
+    os.symlink(os.path.join("..","outputwcl"), os.path.join(workdir, "outputwcl"))
 
 
 ######################################################################
-def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename):
+def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir):
     """ Create output directories, get files from archive, and other setup work """
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
 
-    wcl['pre_disk_usage'] = pfwutils.diskusage(wcl['jobroot'])
+    if workdir is not None:
+        wcl['pre_disk_usage'] = 0
+    else:
+        wcl['pre_disk_usage'] = pfwutils.diskusage(wcl['jobroot'])
     
 
     # make directory for log file
@@ -881,7 +887,7 @@ def get_pfw_hdrupd(wcl):
 ######################################################################
 def cleanup_dir(dirname, removeRoot=False):
     """ Function to remove empty folders """
-    return
+
     if not os.path.isdir(dirname):
         return
 
@@ -901,16 +907,6 @@ def cleanup_dir(dirname, removeRoot=False):
         except:
             pass
 
-######################################################################
-def dirfile(name):
-    pnt = name.rfind(os.sep)
-    if pnt >= 0:
-        direc = name[:pnt]
-        file = name[pnt + 1:]
-    else:
-        direc = ""
-        file = name
-    return direc,file
 
 ######################################################################
 def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode, workdir):
@@ -919,7 +915,11 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode, workdir):
         miscutils.fwdebug_print("BEG")
 
     # Save disk usage for wrapper execution
-    disku = pfwutils.diskusage(wcl['jobroot'])
+    disku = 0
+    if workdir is not None:
+        disku = pfwutils.diskusage(workdir)
+    else:
+        disku = pfwutils.diskusage(wcl['jobroot'])
     wcl['wrap_usage'] = disku - wcl['pre_disk_usage']
 
     # don't save logfile name if none was actually written
@@ -967,32 +967,35 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode, workdir):
 
         # if running in a fw thread
         if workdir is not None:
-            try:
-                for file in jobfiles['infullnames']:
-                    os.unlink(file)
-            except:   #MMG why bother catching?
-                raise
-            try:
-                jobroot = os.getcwd()[:os.getcwd().find(workdir)]
+            # undo symbolic links to log and outputwcl dirs
+            os.system('find . -exec ls -l {} \;')
+            os.unlink('log') 
+            os.unlink('outputwcl')
 
-                if pfwdefs.OW_OUTPUTS_BY_SECT in outputwcl and \
-                   len(outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT]) > 0:
-                    for item in outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT].values():
-                        itm = str(item.values())
-                        itm = itm.replace("'",'').replace("[","").replace("]","")
-                        files = miscutils.fwsplit(itm)
+            # undo symbolic links to input files
+            for file in jobfiles['infullnames']:
+                os.unlink(file)
+
+            #jobroot = os.getcwd()[:os.getcwd().find(workdir)]
+            jobroot = wcl['jobroot']
+
+            # move any output files from fw thread working dir to job scratch dir
+            if outputwcl is not None and len(outputwcl) > 0 and \
+               pfwdefs.OW_OUTPUTS_BY_SECT in outputwcl and \
+               len(outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT]) > 0:
+                for byexec in outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT].values():
+                    for elist in byexec.values(): 
+                        files = miscutils.fwsplit(elist, ',')
                         for file in files:
-                            direc,name = dirfile(file)
-                            if direc != "":
-                                direc = os.path.join(jobroot, direc)
-                                miscutils.coremakedirs(direc)
+                            subdir = os.path.dirname(file)
+                            if subdir != "":
+                                newdir = os.path.join(jobroot, subdir)
+                                miscutils.coremakedirs(newdir)
 
                             # move file from fw thread working dir to job scratch dir
                             shutil.move(file, os.path.join(jobroot, file))
-            except:   #MMG why bother catching
-                raise
 
-            os.chdir("..")    # change back to job scratch directory from fw thread working dir
+            os.chdir(jobroot)    # change back to job scratch directory from fw thread working dir
             cleanup_dir(workdir, True)
 
         # handle output files - file metadata, prov, copying to archive
@@ -1182,7 +1185,7 @@ def job_thread(argv):
         print "%04d: Setup" % (int(task['wrapnum']))
         # set up the working directory if needed
         if multi:
-            workdir = "temp%04i" % (int(task['wrapnum']))
+            workdir = "fwtemp%04i" % (int(task['wrapnum']))
         else:
             workdir = None
         setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir)
@@ -1312,16 +1315,19 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
                 mult = True
             else:
                 mult = False
-            # attach all the grouped tasks to the pool
-            [pool.apply_async(job_thread, args=(inputs[inp] + (mult,),), callback=results_checker) for inp in procs]
-            pool.close()
-            # wait until all are complete before continuing
-            pool.join()
 
-            # get the results
-            jobfiles = jobfiles_global
-            if stop_all and max(results) > 0:
-                return max(results),jobfiles
+            try:
+                # attach all the grouped tasks to the pool
+                [pool.apply_async(job_thread, args=(inputs[inp] + (mult,),), callback=results_checker) for inp in procs]
+                pool.close()
+                # wait until all are complete before continuing
+                pool.join()
+            finally:
+                # get the results
+                jobfiles = jobfiles_global
+                if stop_all and max(results) > 0:
+                    pool.terminate()
+                    return max(results),jobfiles
 
     return 0, jobfiles
 
@@ -1402,7 +1408,9 @@ def run_job(args):
 
     try:
         jobfiles['infullnames'] = gather_initial_fullnames()
-        exitcode = job_workflow(args.workflow, jobfiles, jobwcl)
+        miscutils.coremakedirs('log')
+        miscutils.coremakedirs('outputwcl')
+        exitcode, jobfiles = job_workflow(args.workflow, jobfiles, jobwcl)
     except Exception as ex:
         (extype, exvalue, trback) = sys.exc_info()
         print '!' * 60
@@ -1593,7 +1601,7 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
         miscutils.fwdebug_print("BEG")
         miscutils.fwdebug_print("# infullnames = %s" % len(jobfiles['infullnames']))
         miscutils.fwdebug_print("# outfullnames = %s" % len(jobfiles['outfullnames']))
-    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(11, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("infullnames = %s" % jobfiles['infullnames'])
         miscutils.fwdebug_print("outfullnames = %s" % jobfiles['outfullnames'])
 
@@ -1608,14 +1616,14 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
     for fname in jobfiles['outfullnames']:
         notjunk[os.path.basename(fname)] = True
 
-    if miscutils.fwdebug_check(6, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(11, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("notjunk = %s" % notjunk.keys())
 
     # walk job directory to get all files
     cwd = '.'
     for (dirpath, _, filenames) in os.walk(cwd):
         for walkname in filenames:
-            if miscutils.fwdebug_check(12, "PFWRUNJOB_DEBUG"):
+            if miscutils.fwdebug_check(13, "PFWRUNJOB_DEBUG"):
                 miscutils.fwdebug_print("walkname = %s" % walkname)
             if walkname not in notjunk:
                 if miscutils.fwdebug_check(6, "PFWRUNJOB_DEBUG"):
@@ -1630,13 +1638,14 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
                 else:
                     fname = walkname
 
-                junklist.append(fname)
+                if not os.path.islink(fname):
+                    junklist.append(fname)
 
 
 
     if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("# in junklist = %s" % len(junklist))
-    if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
+    if miscutils.fwdebug_check(11, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("junklist = %s" % junklist)
 
     putinfo = {}

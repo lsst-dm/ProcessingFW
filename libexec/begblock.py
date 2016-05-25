@@ -6,6 +6,7 @@
 
 """ Program run at beginning of block that performs job setup """
 
+import traceback
 import sys
 import os
 import time
@@ -13,6 +14,7 @@ from collections import OrderedDict
 
 import despymisc.miscutils as miscutils
 import intgutils.intgdefs as intgdefs
+import intgutils.replace_funcs as replfuncs
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwutils as pfwutils
@@ -114,18 +116,6 @@ def begblock(argv):
 
         scriptfile = pfwblock.write_runjob_script(config)
 
-        # set up the multithreading options for each module
-        for job in parlist.keys():
-            try:
-                maxthread = int(repfunc.replace_vars_single(config['module'][job]['fw_maxthread'],
-                                                            config,
-                                                            {intgdefs.REPLACE_VARS: True,
-                                                             'expand': True, 'keepvars': False}))
-            except:
-                maxthread = 1
-            parlist[job]['wrapnums'] = parlist[job]['wrapnums'][:-1]
-            parlist[job]['fw_nthread'] = min(parlist[job]['fw_nthread'], maxthread)
-
         miscutils.fwdebug_print("Creating job files - BEG")
         for jobkey, jobdict in sorted(joblist.items()):
             jobdict['jobnum'] = pfwutils.pad_jobnum(config.inc_jobnum())
@@ -159,7 +149,7 @@ def begblock(argv):
                                                              jobdict['inwcl'] + jobdict['inlist'])
             if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
                 dbh.insert_job(config, jobdict)
-            pfwblock.write_jobwcl(config, jobkey, jobdict, parlist)
+            pfwblock.write_jobwcl(config, jobkey, jobdict)
             if ('glidein_use_wall' in config and
                 miscutils.convertBool(config.getfull('glidein_use_wall')) and
                 'jobwalltime' in config):

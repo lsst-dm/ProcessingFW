@@ -240,7 +240,9 @@ def blockpost(argv=None):
 
                 MAXMESG = 3
                 msg2 += "\n\n\nDetails\n"
-                for jobtid, jobdict in sorted(job_byblk[blknum].items()):
+                print "blknum = %s, %s" % (blknum, type(blknum))
+                print "job_byblk keys = %s" % (job_byblk.keys())
+                for jobtid, jobdict in sorted(job_byblk[blktid].items()):
                     maxwrap = max(wrap_byjob[jobtid].keys())
                     maxwrapid = wrap_byjob[jobtid][maxwrap]['task_id']
                     modname = wrap_byjob[jobtid][maxwrap]['modname']

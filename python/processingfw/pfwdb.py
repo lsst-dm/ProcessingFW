@@ -800,7 +800,6 @@ class PFWDB(desdmdbi.DesDmDbi):
             miscutils.fwdebug_print("sql> %s" % sql)
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("params> %s" % wherevals)
-
         curs = self.cursor()
         curs.execute(sql, wherevals)
         desc = [d[0].lower() for d in curs.description]
@@ -808,7 +807,6 @@ class PFWDB(desdmdbi.DesDmDbi):
         sql2 = "select * from pfw_message where task_id=%s" % self.get_named_bind_string('task_id')
         curs2 = self.cursor()
         curs2.prepare(sql2)
-
         jobinfo = {}
         for line in curs:
             d = dict(zip(desc, line))
@@ -835,7 +833,6 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("sql> %s" % sql)
-
         curs = self.cursor()
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
@@ -859,7 +856,6 @@ class PFWDB(desdmdbi.DesDmDbi):
         
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("sql> %s" % sql)
-
         curs = self.cursor()
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
@@ -874,16 +870,15 @@ class PFWDB(desdmdbi.DesDmDbi):
         """ Get wrapper information for an attempt """
 
         if 'reqnum' in kwargs or 'unitname' in kwargs or 'attnum' in kwargs:   # join to attempt table
-            sql = 'select * from pfw_attempt, pfw_wrapper where pfw_attempt.id=pfw_wrapper.pfw_attempt_id and '
+            sql = 'select * from pfw_attempt, pfw_wrapper, task where pfw_attempt.id=pfw_wrapper.pfw_attempt_id and pfw_attempt.task_id=task.id and '
         else:
-            sql = 'select * from pfw_wrapper where '
+            sql = 'select pw.*,t.* from pfw_wrapper pw, task t where pw.task_id=t.id and '
 
         wherevals = ["%s='%s'" % (k,v) for k,v in kwargs.iteritems()]
         sql += ' and '.join(wherevals)
 
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("sql> %s" % sql)
-        
         curs = self.cursor()
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]

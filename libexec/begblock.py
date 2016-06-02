@@ -6,6 +6,7 @@
 
 """ Program run at beginning of block that performs job setup """
 
+import traceback
 import sys
 import os
 import time
@@ -13,6 +14,7 @@ from collections import OrderedDict
 
 import despymisc.miscutils as miscutils
 import intgutils.intgdefs as intgdefs
+import intgutils.replace_funcs as replfuncs
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwutils as pfwutils
@@ -64,6 +66,7 @@ def begblock(argv):
         outputfiles = []
 
         joblist = {}
+        parlist = OrderedDict()
         masterdata = OrderedDict()
         for modname in modulelist:
             print "XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname
@@ -100,7 +103,7 @@ def begblock(argv):
                 inputfiles.extend(modinputs)
                 outputfiles.extend(modoutputs)
                 pfwblock.create_module_wrapper_wcl(config, modname, winst)
-                pfwblock.divide_into_jobs(config, modname, winst, joblist)
+                pfwblock.divide_into_jobs(config, modname, winst, joblist, parlist)
                 etime = time.time()
                 if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
                     miscutils.fwdebug_print("winst %d - %s - END" % (wcnt, etime-stime))

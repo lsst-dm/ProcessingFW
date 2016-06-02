@@ -8,10 +8,9 @@ import argparse
 import re
 import sys
 
-from  despymisc import miscutils
+from despymisc import miscutils
 from processingfw import pfwdb
 from processingfw import pfwutils
-
 
 # verbose 0 = (TBD)  high level campaign summary
 # verbose 1 = individual run summary
@@ -46,6 +45,7 @@ def parse_args(argv):
     parser.add_argument('-r', '--reqnum', action='store')
     parser.add_argument('-u', '--unitname', action='store')
     parser.add_argument('-a', '--attnum', action='store')
+    parser.add_argument('--listall', action='store_true')
 
     args = vars(parser.parse_args(argv))   # convert to dict
 
@@ -57,13 +57,9 @@ def parse_args(argv):
             args['attempt_str'] = '%s_r%sp%02d' % (args['unitname'], args['reqnum'], int(args['attnum']))
 
     args['runs'] = miscutils.fwsplit(args['attempt_str'], ',')
-
     return args
 
-
-
-
-def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
+def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob, listall=False):
     #print "print_single_block(%s,..." % blknum 
     print blockinfo['name']
 
@@ -75,38 +71,41 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob):
             modname = None
             wrapkeys = ""
             if jobnum in wrap_byjob:
-                #print "wrapnum in job =", wrap_byjob[jobnum].keys()
+
                 maxwrap = max(wrap_byjob[jobnum].keys())
-                modname = wrap_byjob[jobnum][maxwrap]['modname']    
-                if 'wrapkeys' in wrap_byjob[jobnum][maxwrap]:  # 1.1 compat
-                    wrapkeys = wrap_byjob[jobnum][maxwrap]['wrapkeys']
+            for wrapnum in wrap_byjob[jobnum].keys():
+                # skip completed wrappers unless specifically requested
+                if wrapnum != maxwrap and 'end_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['end_time'] is not None and not listall:
+                    continue
+                modname = wrap_byjob[jobnum][wrapnum]['modname']    
+                if 'wrapkeys' in wrap_byjob[jobnum][wrapnum]:  # 1.1 compat
+                    wrapkeys = wrap_byjob[jobnum][wrapnum]['wrapkeys']
+                    #print "WRAPKEYS", wrapkeys
             
-            jobkeys = ""
-            if jobdict['jobkeys'] is not None:
-                jobkeys = jobdict['jobkeys']
+                jobkeys = ""
+                if jobdict['jobkeys'] is not None:
+                    jobkeys = jobdict['jobkeys']
+                #print "JOBKEYS",jobkeys
 
-            expnumwrap = 0
-            if 'expect_num_wrap' in jobdict and jobdict['expect_num_wrap'] is not None:
-                expnumwrap = jobdict['expect_num_wrap']
+                expnumwrap = 0
+                if 'expect_num_wrap' in jobdict and jobdict['expect_num_wrap'] is not None:
+                    expnumwrap = jobdict['expect_num_wrap']
+                #print "ENUMW",expnumwrap
 
-            numwraps = 0
-            if jobnum in wrap_byjob and wrap_byjob[jobnum] is not None:
-                numwraps = len(wrap_byjob[jobnum])
-    
+                #numwraps = 0
+                #if jobnum in wrap_byjob and wrap_byjob[jobnum] is not None:
+                #    numwraps = len(wrap_byjob[jobnum])
             
-            print "\t%s %d/%d  %s - %s (jk=%s)" % (pfwutils.pad_jobnum(jobdict['jobnum']), numwraps, expnumwrap, modname, wrapkeys, jobkeys),
-            if 'end_time' in jobdict and jobdict['end_time'] is not None:
-                if jobdict['status'] == 0:
-                    print "done"
-                else:
-                    print "fail %s" % jobdict['status']
-            elif numwraps == expnumwrap and 'end_time' in wrap_byjob[jobnum][maxwrap] and wrap_byjob[jobnum][maxwrap]['end_time'] is not None:
+                print "\t%s %d/%d  %s - %s (jk=%s)" % (pfwutils.pad_jobnum(jobdict['jobnum']), wrapnum, expnumwrap, modname, wrapkeys, jobkeys),
+                if 'end_time' in jobdict and jobdict['end_time'] is not None:
+                    if jobdict['status'] == 0:
+                        print "done"
+                    else:
+                        print "fail %s" % jobdict['status']
+                elif wrapnum == expnumwrap and 'end_time' in wrap_byjob[jobnum][maxwrap] and wrap_byjob[jobnum][maxwrap]['end_time'] is not None:
                     print "end job tasks"
-            else:
-                print ""
-                
-
-    
+                else:
+                    print ""
 
 def print_job_info(argv):
     """    """
@@ -135,24 +134,17 @@ def print_job_info(argv):
             # index jobinfo by blknum
             job_byblk = pfwutils.index_job_info(jobinfo)
 
-            #print job_byblk.keys()
-            #for b in job_byblk.keys():
-                #print b, job_byblk[b].keys()
-
-
             # get wrapper instance information
             wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attinfo['id'])
             wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
             verbose = 3
-
             if verbose == 2:
                 blknum = max(blockinfo.keys())
-                print_single_block(blknum,  blockinfo[blknum], job_byblk, wrap_byjob)
+                print_single_block(blknum,  blockinfo[blknum], job_byblk, wrap_byjob, args['listall'])
             elif verbose == 3:
                 for blknum in blockinfo.keys():
-                    print_single_block(blknum, blockinfo[blknum], job_byblk, wrap_byjob)
-
+                    print_single_block(blknum, blockinfo[blknum], job_byblk, wrap_byjob, args['listall'])
 
 if __name__ == "__main__":
     print_job_info(sys.argv[1:])

@@ -883,10 +883,24 @@ class PFWDB(desdmdbi.DesDmDbi):
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
         wrappers = {}
+        ptid = None
         for line in curs:
             d = dict(zip(desc, line))
             wrappers[d['task_id']] = d
+            ptid = d['pfw_job_task_id']
 
+        sql2 = 'select * from task where parent_task_id=%i' % (ptid)
+        curs.execute(sql2)
+        desc2 = [td[0].lower() for td in curs.description]
+        tasks = {}
+        for line in curs:
+            td = dict(zip(desc2, line))
+            tasks[td['id']] = td
+        for i,wr in wrappers.iteritems():
+            if 'start_time' in tasks[wr['parent_task_id']]:
+                wr['jwstart'] = tasks[wr['parent_task_id']]['start_time']
+            if 'end_time' in tasks[wr['parent_task_id']]:
+                wr['jwend'] = tasks[wr['parent_task_id']]['end_time']
         return wrappers
 
 

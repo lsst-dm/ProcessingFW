@@ -89,14 +89,29 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob, verbose=False):
                 #numwraps = 0
                 #if jobnum in wrap_byjob and wrap_byjob[jobnum] is not None:
                 #    numwraps = len(wrap_byjob[jobnum])
-            
+                status = 'UKN'
+                if 'jwend' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['jwstart'] is not None:
+                    status = "COMP"
+                elif (('jwend' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['jwstart'] is None) or 
+                      ('jwend' not in wrap_byjob[jobnum][wrapnum])) and 'end_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['end_time'] is not None:
+                    status = "POST"
+                elif (('end_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['end_time'] is None) or
+                      ('end_time' not in wrap_byjob[jobnum][wrapnum])) and 'start_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['start_time'] is not None:
+                    status = "EXEC"
+                elif (('start_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['start_time'] is None) or
+                      ('start_time' not in wrap_byjob[jobnum][wrapnum])) and 'jwstart' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['jwstart'] is not None:
+                    status = "PRE"
+                elif (('jwstart' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['jwstart'] is None) or
+                      ('jwstart' not in wrap_byjob[jobnum][wrapnum])):
+                    status = "START"
+
                 print "\t%s %d/%d  %s - %s (jk=%s)" % (pfwutils.pad_jobnum(jobdict['jobnum']), wrapnum, expnumwrap, modname, wrapkeys, jobkeys),
                 if 'end_time' in jobdict and jobdict['end_time'] is not None:
-                    if jobdict['status'] == 0:
-                        print "done"
+                    if wrap_byjob[jobnum][wrapnum]['status'] == 0:
+                        print status
                     else:
-                        print "fail %s" % jobdict['status']
-                elif wrapnum == expnumwrap and 'end_time' in wrap_byjob[jobnum][maxwrap] and wrap_byjob[jobnum][maxwrap]['end_time'] is not None:
+                        print "fail %s" % wrap_byjob[jobnum][wrapnum]['status']
+                elif wrapnum == expnumwrap and 'end_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['end_time'] is not None:
                     print "end job tasks"
                 else:
                     print ""

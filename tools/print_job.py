@@ -71,8 +71,10 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob, listall=False):
             modname = None
             wrapkeys = ""
             if jobnum in wrap_byjob:
-
                 maxwrap = max(wrap_byjob[jobnum].keys())
+            else:
+                print "No wrappers found for this job (j=%i), perhapse none have run yet." % (jobnum)
+                return
             for wrapnum in wrap_byjob[jobnum].keys():
                 # skip completed wrappers unless specifically requested
                 if wrapnum != maxwrap and 'end_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['end_time'] is not None and not listall:

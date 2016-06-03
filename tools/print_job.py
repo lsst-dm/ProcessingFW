@@ -12,14 +12,6 @@ from despymisc import miscutils
 from processingfw import pfwdb
 from processingfw import pfwutils
 
-# verbose 0 = (TBD)  high level campaign summary
-# verbose 1 = individual run summary
-# verbose 2 = individual run + latest block info
-# verbose 3 = individual run + all block info
-
-# verbose > 1 requires DB access and runs using DB
-
-
 ######################################################################
 def parse_attempt_str(attstr):
     """ Parse attempt string for reqnum, unitname, and attnum """
@@ -45,7 +37,7 @@ def parse_args(argv):
     parser.add_argument('-r', '--reqnum', action='store')
     parser.add_argument('-u', '--unitname', action='store')
     parser.add_argument('-a', '--attnum', action='store')
-    parser.add_argument('--listall', action='store_true')
+    parser.add_argument('--verbose', action='store_true')
 
     args = vars(parser.parse_args(argv))   # convert to dict
 
@@ -59,7 +51,7 @@ def parse_args(argv):
     args['runs'] = miscutils.fwsplit(args['attempt_str'], ',')
     return args
 
-def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob, listall=False):
+def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob, verbose=False):
     #print "print_single_block(%s,..." % blknum 
     print blockinfo['name']
 
@@ -77,7 +69,7 @@ def print_single_block(blknum, blockinfo, job_byblk, wrap_byjob, listall=False):
                 return
             for wrapnum in wrap_byjob[jobnum].keys():
                 # skip completed wrappers unless specifically requested
-                if wrapnum != maxwrap and 'end_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['end_time'] is not None and not listall:
+                if wrapnum != maxwrap and 'end_time' in wrap_byjob[jobnum][wrapnum] and wrap_byjob[jobnum][wrapnum]['end_time'] is not None and not verbose:
                     continue
                 modname = wrap_byjob[jobnum][wrapnum]['modname']    
                 if 'wrapkeys' in wrap_byjob[jobnum][wrapnum]:  # 1.1 compat
@@ -140,13 +132,8 @@ def print_job_info(argv):
             wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attinfo['id'])
             wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
-            verbose = 3
-            if verbose == 2:
-                blknum = max(blockinfo.keys())
-                print_single_block(blknum,  blockinfo[blknum], job_byblk, wrap_byjob, args['listall'])
-            elif verbose == 3:
-                for blknum in blockinfo.keys():
-                    print_single_block(blknum, blockinfo[blknum], job_byblk, wrap_byjob, args['listall'])
+            for blknum in blockinfo.keys():
+                print_single_block(blknum, blockinfo[blknum], job_byblk, wrap_byjob, args['verbose'])
 
 if __name__ == "__main__":
     print_job_info(sys.argv[1:])

@@ -185,7 +185,8 @@ def main(argv):
             for i in range(0, len(info)):
                 newtname = newtname.replace('XXX%dXXX' % (i+1), info[i])
                 logdir = logdir.replace('XXX%dXXX' % (i+1), info[i])
-            newtname += ".des"
+            if not newtname.endswith(".des"):
+                newtname += ".des"
 
 
             if args['force'] or not os.path.exists(newtname):

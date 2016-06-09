@@ -1244,14 +1244,13 @@ def job_thread(argv):
         if pfw_dbh is not None:
             pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
 
+        if exitcode:
+            miscutils.fwdebug_print("Aborting due to non-zero exit code")
+
         sys.stdout.flush()
         sys.stderr.flush()
 
-        if exitcode:
-            print "Aborting due to non-zero exit code"
-            return (exitcode, jobfiles)
-
-        return (0, jobfiles)
+        return (exitcode, jobfiles)
     except:
         print traceback.format_exc()
         sys.stdout.flush()

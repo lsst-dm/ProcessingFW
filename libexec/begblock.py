@@ -141,7 +141,7 @@ def begblock(argv):
                                                          "filemgmt", archive_info['filemgmt'],
                                                          archive_info)
                 # save file information
-                filemgmt.register_file_data('list', jobdict['inlist'], attempt_tid, attempt_tid, False, None)
+                filemgmt.register_file_data('list', jobdict['inlist'], config['pfw_attempt_id'], attempt_tid, False, None, None)
                 pfwblock.copy_input_lists_home_archive(config, filemgmt, 
                                                        archive_info, jobdict['inlist'])
                 filemgmt.commit()

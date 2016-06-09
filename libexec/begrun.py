@@ -111,8 +111,8 @@ def begrun(argv):
                                                      archive_info)
 
             # save file information
-            filemgmt.register_file_data('wcl', [origwcl, expwcl, fullwcl], attempt_tid, 
-                                        attempt_tid, False, None)
+            filemgmt.register_file_data('wcl', [origwcl, expwcl, fullwcl], config['pfw_attempt_id'], 
+                                        attempt_tid, False, None, None)
             copy_files_home(config, archive_info, filemgmt)
             filemgmt.commit()
 

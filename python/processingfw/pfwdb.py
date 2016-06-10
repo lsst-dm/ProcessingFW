@@ -883,13 +883,17 @@ class PFWDB(desdmdbi.DesDmDbi):
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
         wrappers = {}
-        ptid = None
+        ptid = set()
         for line in curs:
             d = dict(zip(desc, line))
             wrappers[d['task_id']] = d
-            ptid = d['pfw_job_task_id']
+            ptid.add(d['pfw_job_task_id'])
+        pstr = ""
+        for p in ptid:
+            pstr += str(p) + ","
+        pstr = pstr[:-1]
 
-        sql2 = 'select * from task where parent_task_id=%i' % (ptid)
+        sql2 = 'select * from task where parent_task_id in (%s)' % (pstr)
         curs.execute(sql2)
         desc2 = [td[0].lower() for td in curs.description]
         tasks = {}

@@ -865,6 +865,26 @@ class PFWDB(desdmdbi.DesDmDbi):
             blockinfo[b['task_id']] = b
         return blockinfo
 
+    def get_jobwrapper_info(self, **kwargs):
+        """ Get wrapper information for an attempt """
+
+        sql = "select task.* from pfw_attempt, task where pfw_attempt.task_id=task.root_task_id and task.name='jobwrapper' and "
+
+        wherevals = ["pfw_attempt.%s='%s'" % (k,v) for k,v in kwargs.iteritems()]
+        sql += ' and '.join(wherevals)
+
+        if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
+            miscutils.fwdebug_print("sql> %s" % sql)
+        curs = self.cursor()
+        curs.execute(sql)
+        desc = [d[0].lower() for d in curs.description]
+        jobwraps = {}
+        for line in curs:
+            d = dict(zip(desc, line))
+            jobwraps[d['id']] = d
+
+        return jobwraps
+
 
     def get_wrapper_info(self, **kwargs):
         """ Get wrapper information for an attempt """
@@ -883,28 +903,10 @@ class PFWDB(desdmdbi.DesDmDbi):
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
         wrappers = {}
-        ptid = set()
         for line in curs:
             d = dict(zip(desc, line))
             wrappers[d['task_id']] = d
-            ptid.add(d['pfw_job_task_id'])
-        pstr = ""
-        for p in ptid:
-            pstr += str(p) + ","
-        pstr = pstr[:-1]
 
-        sql2 = 'select * from task where parent_task_id in (%s)' % (pstr)
-        curs.execute(sql2)
-        desc2 = [td[0].lower() for td in curs.description]
-        tasks = {}
-        for line in curs:
-            td = dict(zip(desc2, line))
-            tasks[td['id']] = td
-        for i,wr in wrappers.iteritems():
-            if 'start_time' in tasks[wr['parent_task_id']]:
-                wr['jwstart'] = tasks[wr['parent_task_id']]['start_time']
-            if 'end_time' in tasks[wr['parent_task_id']]:
-                wr['jwend'] = tasks[wr['parent_task_id']]['end_time']
         return wrappers
 
 

@@ -158,6 +158,7 @@ PF_USE_DB_IN = 'use_db_in'
 PF_USE_DB_OUT = 'use_db_out'
 PF_USE_QCF = 'use_qcf'
 PF_DRYRUN = 'dry_run'
+PF_NOOP = 'noop'
 PF_EXIT_SUCCESS = 0
 PF_EXIT_NEXTBLOCK = 100
 PF_EXIT_FAILURE = 1

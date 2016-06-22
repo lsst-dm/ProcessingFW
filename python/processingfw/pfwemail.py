@@ -15,6 +15,7 @@ from cStringIO import StringIO
 
 import processingfw.pfwdefs as pfwdefs
 import intgutils.intgdefs as intgdefs
+from despymisc import miscutils
 
 NUMLINES = 50
 
@@ -86,7 +87,8 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.close()
 
     subject = "DESDM: %s %s %s %s" % (project, run, block, subject)
-    if int(status) == pfwdefs.PF_EXIT_DRYRUN:
+    if int(status) == pfwdefs.PF_EXIT_DRYRUN and \
+            miscutils.convertBool(config.getfull(pfwdefs.PF_DRYRUN)):
         subject += " [DRYRUN]"
     elif int(status) != pfwdefs.PF_EXIT_SUCCESS:
         subject += " [FAILED]"

@@ -151,7 +151,6 @@ def blockpost(argv=None):
             print "blktid: ", blktid
             print "job_byblk:", job_byblk
 
-            print job_byblk[blktid]
             if blktid not in job_byblk:
                 print "Warn: could not find jobs for block %s" % blknum
                 print "      This is ok if attempt died before jobs ran"

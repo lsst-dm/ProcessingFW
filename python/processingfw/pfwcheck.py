@@ -298,13 +298,15 @@ def check_module(config, blockname, modname, indent=''):
     dataobjs = {pfwdefs.SW_INPUTS: {}, pfwdefs.SW_OUTPUTS: {}}
 
     # check that have wrappername (required)
-    if pfwdefs.SW_WRAPPERNAME not in moddict:
+    if pfwdefs.SW_WRAPPERNAME not in moddict and \
+            not miscutils.convertBool(moddict[pfwdefs.PF_NOOP]):
         print "%s    Error: block %s, module %s - missing %s value" % (indent, blockname, modname, pfwdefs.SW_WRAPPERNAME)
         cnts[ERRCNT_POS] += 1
 
     # check that have at least 1 exec section (required)
     execsects = intgmisc.get_exec_sections(moddict, pfwdefs.SW_EXECPREFIX)
-    if len(execsects) == 0:
+    if len(execsects) == 0 and \
+            not miscutils.convertBool(moddict[pfwdefs.PF_NOOP]):
         print "%s    Error: block %s, module %s - 0 exec sections (%s*)" % (indent, blockname, modname, pfwdefs.SW_EXECPREFIX)
         cnts[ERRCNT_POS] += 1
     else:

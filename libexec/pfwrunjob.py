@@ -1176,7 +1176,7 @@ def job_thread(argv):
                                                                info_table=None,
                                                                parent_task_id=job_task_id,
                                                                root_task_id=wcl['task_id']['attempt'],
-                                                               label=None,
+                                                               label=task['wrapnum'],
                                                                do_begin=True,
                                                                do_commit=True)
         else:

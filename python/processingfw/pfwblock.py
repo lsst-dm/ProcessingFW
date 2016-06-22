@@ -1180,9 +1180,10 @@ def write_jobwcl(config, jobkey, jobdict):
     fwgroups = OrderedDict()
     gnum = 1
     for modname in modulelist:
-        fwgroups['g%04i' % (gnum)] = {'wrapnums': ','.join(jobdict['parlist'][modname]['wrapnums']), 
-                                      'fw_nthread': jobdict['parlist'][modname]['fw_nthread']}
-        gnum += 1
+        if modname in jobdict['parlist']:
+            fwgroups['g%04i' % (gnum)] = {'wrapnums': ','.join(jobdict['parlist'][modname]['wrapnums']), 
+                                          'fw_nthread': jobdict['parlist'][modname]['fw_nthread']}
+            gnum += 1
 
     print "MMG: fwgroups = ", fwgroups
 

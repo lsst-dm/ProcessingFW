@@ -59,10 +59,10 @@ def main(argv=None):
 ######################################################################
 def print_header():
     """ Print header line """
-    print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-30s" % \
+    print "%7s %1s %3s %-12s %-27s %-30s %-15s %-17s %-8s %-30s" % \
           ("ID", "T", "PRJ", "PIPELINE", "RUN", "BLOCK", "SUBBLOCK",
            "STAT (H/P/R/T)", "OPERATOR", "RUNSITE")
-    print "="*133
+    print "="*136
 
 ######################################################################
 def print_attempts(attids, qjobs):
@@ -84,8 +84,8 @@ def print_orphans(orphanids, qjobs):
 def print_line(jid, jobtype, info):
     """ Print single line """
 
-    print "%7s %1s %3s %-8s %-27s %-30s %-15s %-17s %-8s %-15s" % \
-          (jid, jobtype, info['project'][:3], info['pipeline'][:8],
+    print "%7s %1s %3s %-12s %-27s %-30s %-15s %-17s %-8s %-15s" % \
+          (jid, jobtype, info['project'][:3], info['pipeline'][:12],
            info['run'][:27], info['block'][:25], info['subblock'][:15],
            info['status'][:17], info['operator'][:8], info['runsite'][:15])
 

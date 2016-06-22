@@ -336,12 +336,10 @@ def index_job_info(jobinfo):
     job_byblk = {}
     for j, jdict in jobinfo.items():
         blktid = jdict['pfw_block_task_id']
-        #print "job = ",j,"blktid =", blktid
         if blktid not in job_byblk:
             job_byblk[blktid] = {}
         job_byblk[blktid][j] = jdict
 
-    #print "job_byblk = ", job_byblk
     return job_byblk
 
 
@@ -359,6 +357,22 @@ def index_wrapper_info(wrapinfo):
         wrap_bymod[wrap['modname']][wrap['wrapnum']] = wrap
 
     return wrap_byjob, wrap_bymod
+
+
+#######################################################################
+def index_jobwrapper_info(jwrapinfo):
+    """ create dictionaries of wrappers indexed on jobnum and wrapnum """
+
+    jwrap_byjob = {}
+    jwrap_bywrap = {}
+    for jwrap in jwrapinfo.values():
+        if jwrap['parent_task_id'] not in jwrap_byjob:
+            jwrap_byjob[jwrap['parent_task_id']] = {}
+        jwrap_byjob[jwrap['parent_task_id']][int(jwrap['label'])] = jwrap
+        jwrap_bywrap[int(jwrap['label'])] = jwrap
+
+    return jwrap_byjob, jwrap_bywrap
+
 
 #######################################################################
 def should_save_file(mastersave, filesave, exitcode):

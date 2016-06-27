@@ -387,7 +387,7 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
                           (fkey, finfo['err'])
                     print msg
                     if pfw_dbh:
-                        pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['wrapper'],
+                        pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['jobwrapper'],
                                                pfwdefs.PFWDB_MSG_WARN, msg)
 
             files2get = list(set(files2get) - set(results.keys()))
@@ -447,57 +447,65 @@ def get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles, archive_info, paren
 
 
 ######################################################################
-def get_wrapper_inputs(pfw_dbh, wcl, jobfiles, outfiles):
+def get_wrapper_inputs(pfw_dbh, wcl, infiles):
     """ Transfer any inputs needed for this wrapper """
 
-    if 'wrapinputs' in wcl and \
-       wcl[pfwdefs.PF_WRAPNUM] in wcl['wrapinputs'] and \
-       len(wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values()) > 0:
+    missinginputs = {}
+    existinginputs = {}
 
-        # check which input files are already in job scratch directory
-        #    (i.e., outputs from a previous execution)
-        neededinputs = {}
-        for infile in wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values():
-            jobfiles['infullnames'].append(infile)
-            if not os.path.exists(infile) and not infile in outfiles:
-                neededinputs[miscutils.parse_fullname(infile, miscutils.CU_PARSE_FILENAME)] = infile
+    # check which input files are already in job scratch directory
+    #    (i.e., outputs from a previous execution)
+    if len(infiles) == 0: 
+        print "\tInfo: 0 inputs needed for wrapper"
+        return
 
-        if len(neededinputs) > 0:
-            if miscutils.fwdebug_check(9, "PFWRUNJOB_DEBUG"):
-                miscutils.fwdebug_print("needed inputs: %s" % neededinputs)
+    for isect in infiles:
+        exists, missing = intgmisc.check_files(infiles[isect])
 
-            files2get = transfer_archives_to_job(pfw_dbh, wcl, neededinputs,
-                                                 wcl['task_id']['jobwrapper'])
+        for efile in exists:
+            existinginputs[miscutils.parse_fullname(efile, miscutils.CU_PARSE_FILENAME)] = efile
+        
+        for mfile in missing:
+            missinginputs[miscutils.parse_fullname(mfile, miscutils.CU_PARSE_FILENAME)] = mfile
 
-            # check if still missing input files
-            if len(files2get) > 0:
-                print '!' * 60
-                for fname in files2get:
-                    msg = "Error: input file needed that was not retrieved from target or home archives\n(%s)" % fname
+    if len(missinginputs) > 0:
+        if miscutils.fwdebug_check(9, "PFWRUNJOB_DEBUG"):
+            miscutils.fwdebug_print("missing inputs: %s" % missinginputs)
+
+        files2get = transfer_archives_to_job(pfw_dbh, wcl, missinginputs,
+                                             wcl['task_id']['jobwrapper'])
+
+        # check if still missing input files
+        if len(files2get) > 0:
+            print '!' * 60
+            for fname in files2get:
+                msg = "Error: input file needed that was not retrieved from target or home archives\n(%s)" % fname
+                print msg
+                if pfw_dbh is not None:
+                    pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['jobwrapper'],
+                                           pfwdefs.PFWDB_MSG_ERROR, msg)
+            raise Exception("Error:  Cannot find all input files in an archive")
+
+        # double-check: check that files are now on filesystem
+        errcnt = 0
+        for sect in infiles:
+            _, missing = intgmisc.check_files(infiles[sect])
+
+            if len(missing) != 0:
+                for mfile in missing:
+                    msg = "Error: input file doesn't exist despite transfer success (%s)" % mfile
                     print msg
                     if pfw_dbh is not None:
-                        pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['jobwrapper'],
-                                               pfwdefs.PFWDB_MSG_ERROR, msg)
-                raise Exception("Error:  Cannot find all input files in an archive")
-
-            # double-check: check that files are now on filesystem
-            errcnt = 0
-            for infile in wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values():
-                if not os.path.exists(infile) and not infile in outfiles and \
-                   not miscutils.parse_fullname(infile, miscutils.CU_PARSE_FILENAME) in files2get:
-                    msg = "Error: input file doesn't exist despite transfer success (%s)" % infile
-                    print msg
-                    if pfw_dbh is not None:
-                        pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['jobwrapper'],
-                                               pfwdefs.PFWDB_MSG_ERROR, msg)
+                            pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['jobwrapper'],
+                                                   pfwdefs.PFWDB_MSG_ERROR, msg)
                     errcnt += 1
-            if errcnt > 0:
-                raise Exception("Error:  Cannot find all input files after transfer.")
-        else:
-            print "\tInfo: all %s input file(s) already in job directory." % \
-                    len(wcl['wrapinputs'][wcl[pfwdefs.PF_WRAPNUM]].values())
+        if errcnt > 0:
+            raise Exception("Error:  Cannot find all input files after transfer.")
     else:
-        print "\tInfo: 0 wrapinputs"
+        print "\tInfo: all %s input file(s) already in job directory." % \
+              len(existinginputs)
+
+    
 
 ######################################################################
 def get_exec_names(wcl):
@@ -551,24 +559,35 @@ def setup_working_dir(workdir, files, jobroot):
     """ create working directory for fw threads and symlinks to inputs """
 
     miscutils.coremakedirs(workdir)
+    os.chdir(workdir)
 
     # create symbolic links for input files
-    for file in files:
-        # make subdir inside fw thread working dir so match structure of job scratch
-        subdir = os.path.dirname(file)
-        if subdir != "":
-            newdir = os.path.join(workdir, subdir)
-            miscutils.coremakedirs(newdir)
+    for sect in files:
+        for file in files[sect]:
+            # make subdir inside fw thread working dir so match structure of job scratch
+            subdir = os.path.dirname(file)
+            if subdir != "":
+                miscutils.coremakedirs(subdir)
 
-        os.symlink(os.path.join(jobroot, file), os.path.join(workdir, file))
+            os.symlink(os.path.join(jobroot, file), file)
 
     # make symlink for log and outputwcl directory (guaranteed unique names by framework)
-    os.symlink(os.path.join("..","log"), os.path.join(workdir, "log"))
-    os.symlink(os.path.join("..","outputwcl"), os.path.join(workdir, "outputwcl"))
+    #os.symlink(os.path.join("..","inputwcl"), os.path.join(workdir, "inputwcl"))
+    #os.symlink(os.path.join("..","log"), os.path.join(workdir, "log"))
+    #os.symlink(os.path.join("..","outputwcl"), os.path.join(workdir, "outputwcl"))
+    #if os.path.exists(os.path.join("..","list")):
+    #    os.symlink(os.path.join("..","list"), os.path.join(workdir, "list"))
 
+    os.system('pwd')
+    os.system('find . -type f')
+    os.symlink("../inputwcl", "inputwcl")
+    os.symlink("../log", "log")
+    os.symlink("../outputwcl", "outputwcl")
+    if os.path.exists("../list"):
+        os.symlink("../list", "list")
 
 ######################################################################
-def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir):
+def setup_wrapper(pfw_dbh, wcl, logfilename, workdir):
     """ Create output directories, get files from archive, and other setup work """
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
@@ -587,20 +606,20 @@ def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir):
     # get execnames to put on command line for QC Framework
     wcl['execnames'] = wcl['wrapper']['wrappername'] + ',' + get_exec_names(wcl)
 
-    # get output filenames
-    outfiles = get_wrapper_outputs(pfw_dbh, wcl)
+    # get fullnames for inputs and outputs
+    ins, outs = intgmisc.get_fullnames(wcl, wcl, None)
 
     # get input files from targetnode
-    get_wrapper_inputs(pfw_dbh, wcl, jobfiles, outfiles)
+    get_wrapper_inputs(pfw_dbh, wcl, ins)
 
     # if running in a fw thread, run in separate safe directory
     if workdir is not None:
-        setup_working_dir(workdir, jobfiles['infullnames'], os.getcwd())
-        os.chdir(workdir)
+        setup_working_dir(workdir, ins, os.getcwd())
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
 
+    return ins, outs
 
 
 ######################################################################
@@ -909,7 +928,7 @@ def cleanup_dir(dirname, removeRoot=False):
 
 
 ######################################################################
-def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode, workdir):
+def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
     """ Execute tasks after a wrapper is done """
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
@@ -971,10 +990,14 @@ def post_wrapper(pfw_dbh, wcl, jobfiles, logfile, exitcode, workdir):
             os.system('find . -exec ls -l {} \;')
             os.unlink('log') 
             os.unlink('outputwcl')
+            os.unlink('inputwcl')
+            if os.path.exists('list'):
+                os.unlink('list')
 
             # undo symbolic links to input files
-            for file in jobfiles['infullnames']:
-                os.unlink(file)
+            for sect in ins:
+                for file in ins[sect]:
+                    os.unlink(file)
 
             #jobroot = os.getcwd()[:os.getcwd().find(workdir)]
             jobroot = wcl['jobroot']
@@ -1188,7 +1211,7 @@ def job_thread(argv):
             workdir = "fwtemp%04i" % (int(task['wrapnum']))
         else:
             workdir = None
-        setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir)
+        ins, outs = setup_wrapper(pfw_dbh, wcl, task['logfile'], workdir)
         if pfw_dbh is not None:
             wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
                                                                wcl['task_id']['jobwrapper'])
@@ -1236,7 +1259,7 @@ def job_thread(argv):
             print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
         print "%04d: Post-steps (exit: %s)" % (int(task['wrapnum']), exitcode)
-        post_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], exitcode, workdir)
+        post_wrapper(pfw_dbh, wcl, ins, jobfiles, task['logfile'], exitcode, workdir)
         # this is a thread safe operation
         if wcl['wrap_usage'] > jobwcl['job_max_usage']:
             jobwcl['job_max_usage'] = wcl['wrap_usage']

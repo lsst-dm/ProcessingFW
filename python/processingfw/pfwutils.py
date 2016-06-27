@@ -366,6 +366,10 @@ def index_jobwrapper_info(jwrapinfo):
     jwrap_byjob = {}
     jwrap_bywrap = {}
     for jwrap in jwrapinfo.values():
+        if jwrap['label'] is None:
+            print "Missing label for jobwrapper task."
+            print "Make sure you are using print_job.py from same ProcessingFW version as processing attempt" 
+            sys.exit(1)
         if jwrap['parent_task_id'] not in jwrap_byjob:
             jwrap_byjob[jwrap['parent_task_id']] = {}
         jwrap_byjob[jwrap['parent_task_id']][int(jwrap['label'])] = jwrap

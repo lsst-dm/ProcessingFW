@@ -62,8 +62,8 @@ def begblock(argv):
     try:
         modulelist = miscutils.fwsplit(config.getfull(pfwdefs.SW_MODULELIST).lower())
         modules_prev_in_list = {}
-        inputfiles = []
-        outputfiles = []
+        #inputfiles = []
+        #outputfiles = []
 
         joblist = {}
         parlist = OrderedDict()
@@ -101,10 +101,11 @@ def begblock(argv):
                         miscutils.fwdebug_print("winst %d - BEG" % wcnt)
                     pfwblock.assign_data_wrapper_inst(config, modname, winst, masterdata,
                                                       sublists, infsect, outfsect)
-                    modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, winst,
-                                                                         outfsect)
-                    inputfiles.extend(modinputs)
-                    outputfiles.extend(modoutputs)
+                    #modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, winst,
+                    #                                                     outfsect)
+                    #inputfiles.extend(modinputs)
+                    #outputfiles.extend(modoutputs)
+                    pfwblock.finish_wrapper_inst(config, modname, winst, outfsect)
                     pfwblock.create_module_wrapper_wcl(config, modname, winst)
                     pfwblock.divide_into_jobs(config, modname, winst, joblist, parlist)
                     etime = time.time()
@@ -165,11 +166,11 @@ def begblock(argv):
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             dbh.update_block_numexpjobs(config, numjobs)
 
-        if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
-            miscutils.fwdebug_print("inputfiles: %s, %s" % (type(inputfiles), inputfiles))
-            miscutils.fwdebug_print("outputfiles: %s, %s" % (type(outputfiles), outputfiles))
-        files2stage = set(inputfiles) - set(outputfiles)
-        pfwblock.stage_inputs(config, files2stage)
+        #if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
+        #    miscutils.fwdebug_print("inputfiles: %s, %s" % (type(inputfiles), inputfiles))
+        #    miscutils.fwdebug_print("outputfiles: %s, %s" % (type(outputfiles), outputfiles))
+        #files2stage = set(inputfiles) - set(outputfiles)
+        #pfwblock.stage_inputs(config, files2stage)
 
 
         if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \

@@ -455,7 +455,7 @@ def get_wrapper_inputs(pfw_dbh, wcl, infiles):
 
     # check which input files are already in job scratch directory
     #    (i.e., outputs from a previous execution)
-    if len(infiles) == 0: 
+    if len(infiles) == 0:
         print "\tInfo: 0 inputs needed for wrapper"
         return
 
@@ -464,7 +464,7 @@ def get_wrapper_inputs(pfw_dbh, wcl, infiles):
 
         for efile in exists:
             existinginputs[miscutils.parse_fullname(efile, miscutils.CU_PARSE_FILENAME)] = efile
-        
+
         for mfile in missing:
             missinginputs[miscutils.parse_fullname(mfile, miscutils.CU_PARSE_FILENAME)] = mfile
 
@@ -505,7 +505,7 @@ def get_wrapper_inputs(pfw_dbh, wcl, infiles):
         print "\tInfo: all %s input file(s) already in job directory." % \
               len(existinginputs)
 
-    
+
 
 ######################################################################
 def get_exec_names(wcl):
@@ -562,14 +562,14 @@ def setup_working_dir(workdir, files, jobroot):
     os.chdir(workdir)
 
     # create symbolic links for input files
-    for sect in files:
-        for file in files[sect]:
+    for isect in files:
+        for ifile in files[isect]:
             # make subdir inside fw thread working dir so match structure of job scratch
-            subdir = os.path.dirname(file)
+            subdir = os.path.dirname(ifile)
             if subdir != "":
                 miscutils.coremakedirs(subdir)
 
-            os.symlink(os.path.join(jobroot, file), file)
+            os.symlink(os.path.join(jobroot, ifile), ifile)
 
     # make symlink for log and outputwcl directory (guaranteed unique names by framework)
     #os.symlink(os.path.join("..","inputwcl"), os.path.join(workdir, "inputwcl"))
@@ -587,7 +587,7 @@ def setup_working_dir(workdir, files, jobroot):
         os.symlink("../list", "list")
 
 ######################################################################
-def setup_wrapper(pfw_dbh, wcl, logfilename, workdir):
+def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir):
     """ Create output directories, get files from archive, and other setup work """
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
@@ -597,7 +597,7 @@ def setup_wrapper(pfw_dbh, wcl, logfilename, workdir):
         wcl['pre_disk_usage'] = 0
     else:
         wcl['pre_disk_usage'] = pfwutils.diskusage(wcl['jobroot'])
-    
+
 
     # make directory for log file
     logdir = os.path.dirname(logfilename)
@@ -608,6 +608,11 @@ def setup_wrapper(pfw_dbh, wcl, logfilename, workdir):
 
     # get fullnames for inputs and outputs
     ins, outs = intgmisc.get_fullnames(wcl, wcl, None)
+
+    # save input filenames to eliminate from junk tarball later
+    for isect in ins:
+        for ifile in ins[isect]:
+            jobfiles['infullnames'].append(ifile)
 
     # get input files from targetnode
     get_wrapper_inputs(pfw_dbh, wcl, ins)
@@ -988,7 +993,7 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
         if workdir is not None:
             # undo symbolic links to log and outputwcl dirs
             os.system('find . -exec ls -l {} \;')
-            os.unlink('log') 
+            os.unlink('log')
             os.unlink('outputwcl')
             os.unlink('inputwcl')
             if os.path.exists('list'):
@@ -1007,7 +1012,7 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
                pfwdefs.OW_OUTPUTS_BY_SECT in outputwcl and \
                len(outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT]) > 0:
                 for byexec in outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT].values():
-                    for elist in byexec.values(): 
+                    for elist in byexec.values():
                         files = miscutils.fwsplit(elist, ',')
                         for file in files:
                             subdir = os.path.dirname(file)
@@ -1211,7 +1216,7 @@ def job_thread(argv):
             workdir = "fwtemp%04i" % (int(task['wrapnum']))
         else:
             workdir = None
-        ins, outs = setup_wrapper(pfw_dbh, wcl, task['logfile'], workdir)
+        ins, outs = setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir)
         if pfw_dbh is not None:
             wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
                                                                wcl['task_id']['jobwrapper'])

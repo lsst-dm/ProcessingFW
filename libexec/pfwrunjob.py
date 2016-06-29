@@ -960,6 +960,8 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
     filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
 
     finfo = {}
+    
+    excepts = []
 
     # always try to save log file
     logfinfo = save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile)
@@ -1070,13 +1072,14 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
                                 raise KeyError('Missing file pattern (%s, %s, %s)' % (sectname,
                                                                                       sectdict['filetype'],
                                                                                       sectdict['filepat']))
-
-                        pfw_save_file_info(pfw_dbh, filemgmt, sectdict['filetype'],
-                                           fullnames, wcl['pfw_attempt_id'],
-                                           wcl['task_id']['attempt'],
-                                           wcl['task_id']['jobwrapper'],
-                                           task_id, True, updatedef, filepat)
-
+                        try:
+                            pfw_save_file_info(pfw_dbh, filemgmt, sectdict['filetype'],
+                                               fullnames, wcl['pfw_attempt_id'],
+                                               wcl['task_id']['attempt'],
+                                               wcl['task_id']['jobwrapper'],
+                                               task_id, True, updatedef, filepat)
+                        except Exception, e:
+                            excepts.append(e)
                         for fname in fullnames:
                             finfo[fname] = {'sectname': sectname,
                                             'filetype': sectdict['filetype'],
@@ -1105,6 +1108,8 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
+    if len(excepts) > 0:
+        raise excepts[0]
 # end postwrapper
 
 

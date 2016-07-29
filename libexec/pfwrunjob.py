@@ -1359,6 +1359,7 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
                 jobfiles = jobfiles_global
                 if stop_all and max(results) > 0:
                     pool.terminate()
+                    pool.join()
                     return max(results),jobfiles
 
     return 0, jobfiles
@@ -1454,12 +1455,14 @@ def run_job(args):
         exitcode = pfwdefs.PF_EXIT_FAILURE
         print "Aborting rest of wrapper executions.  Continuing to end-of-job tasks\n\n"
 
-    if jobwcl['use_db'] and pfw_dbh is None:
-        pfw_dbh = pfwdb.PFWDB()
+    try:
+        if jobwcl['use_db'] and pfw_dbh is None:
+            pfw_dbh = pfwdb.PFWDB()
 
-    # create junk tarball with any unknown files
-    create_junk_tarball(pfw_dbh, jobwcl, jobfiles, exitcode)
-
+        # create junk tarball with any unknown files
+        create_junk_tarball(pfw_dbh, jobwcl, jobfiles, exitcode)
+    except:
+        print "Error creating junk tarball"
     # if should transfer at end of job
     if len(jobfiles['output_putinfo']) > 0:
         print "\n\nCalling file transfer for end of job (%s files)" % \

@@ -941,6 +941,9 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
     # Save disk usage for wrapper execution
     disku = 0
     if workdir is not None:
+        print "WORKDIR",workdir
+        print "CWD",os.getcwd()
+        print "JR",wcl['jobroot']
         disku = pfwutils.diskusage(workdir)
     else:
         disku = pfwutils.diskusage(wcl['jobroot'])

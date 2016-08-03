@@ -545,12 +545,24 @@ class PFWDB(desdmdbi.DesDmDbi):
     def insert_message(self, pfw_attempt_id, task_id, msglevel, msg):
         """ Insert an entry into the pfw_message table """
 
+
         row = {}
         row['pfw_attempt_id'] = pfw_attempt_id
         row['task_id'] = task_id
         row['msgtime'] = self.get_current_timestamp_str()
         row['msglevel'] = msglevel
-        row['msg'] = msg
+
+        # truncate message if necessary
+        msgtinfo = self.get_column_metadata('PFW_MESSAGE')['msg']
+        if miscutils.fwdebug_check(1, 'PFWDB_DEBUG'):
+            if len(msg) > msgtinfo[2]:
+                miscutils.fwdebug_print("INFO:  Truncating msg for pfw_message table")
+        if len(msg) > msgtinfo[2]:
+            newmsg = msg[:min(len(msg), msgtinfo[2]-1)] + '$'
+        else:
+            newmsg = msg
+        row['msg'] = newmsg
+
         self.insert_PFW_row('PFW_MESSAGE', row)
 
 
@@ -851,7 +863,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         else:
             sql = 'select * from pfw_block where '
 
-        wherevals = ["%s='%s'" % (k,v) for k,v in kwargs.iteritems()]
+        wherevals = ["%s='%s'" % (k, v) for k, v in kwargs.iteritems()]
         sql += ' and '.join(wherevals)
         
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
@@ -870,7 +882,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         sql = "select task.* from pfw_attempt, task where pfw_attempt.task_id=task.root_task_id and task.name='jobwrapper' and "
 
-        wherevals = ["pfw_attempt.%s='%s'" % (k,v) for k,v in kwargs.iteritems()]
+        wherevals = ["pfw_attempt.%s='%s'" % (k, v) for k, v in kwargs.iteritems()]
         sql += ' and '.join(wherevals)
 
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
@@ -894,7 +906,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         else:
             sql = 'select pw.*,t.* from pfw_wrapper pw, task t where pw.task_id=t.id and '
 
-        wherevals = ["%s='%s'" % (k,v) for k,v in kwargs.iteritems()]
+        wherevals = ["%s='%s'" % (k, v) for k, v in kwargs.iteritems()]
         sql += ' and '.join(wherevals)
 
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):

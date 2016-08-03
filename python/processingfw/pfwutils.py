@@ -470,9 +470,16 @@ def diskusage(path):
 #    (diskusage, _) = out.split()
 #    return int(diskusage)
     """ Walks the path returning the sum of the filesizes """
+    ### avoids symlinked files, but
     ### doesn't avoid adding hardlinks twice
     usum = 0
     for (dirpath, _, filenames) in os.walk(path):
         for name in filenames:
-            usum += os.path.getsize('%s/%s' % (dirpath, name))
+            if not os.path.islink('%s/%s' % (dirpath, name)):
+                fsize = os.path.getsize('%s/%s' % (dirpath, name))
+                if miscutils.fwdebug_check(6, "PUDISKU_DEBUG"):
+                    miscutils.fwdebug_print("size of %s/%s = %s" % (dirpath, name, fsize))
+                usum += fsize
+    if miscutils.fwdebug_check(3, "PUDISKU_DEBUG"):
+        miscutils.fwdebug_print("usum = %s" % usum)
     return usum

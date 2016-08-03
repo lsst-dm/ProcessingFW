@@ -941,10 +941,14 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
     # Save disk usage for wrapper execution
     disku = 0
     if workdir is not None:
-        print "WORKDIR",workdir
-        print "CWD",os.getcwd()
-        print "JR",wcl['jobroot']
-        disku = pfwutils.diskusage(workdir)
+        disku = pfwutils.diskusage(os.getcwd())
+
+        # outputwcl and log are softlinks skipped by diskusage command
+        # so add them individually
+        if os.path.exists(wcl[pfwdefs.IW_WRAPSECT]['outputwcl']):
+            disku += os.path.getsize(wcl[pfwdefs.IW_WRAPSECT]['outputwcl'])
+        if os.path.exists(logfile):
+            disku += os.path.getsize(logfile)
     else:
         disku = pfwutils.diskusage(wcl['jobroot'])
     wcl['wrap_usage'] = disku - wcl['pre_disk_usage']

@@ -29,6 +29,7 @@ import despydmdb.desdmdbi as desdmdbi
 import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
 import processingfw.pfwutils as pfwutils
+import processingfw.pfwdefs as pfwdefs
 
 class PFWDB(desdmdbi.DesDmDbi):
     """
@@ -816,7 +817,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         curs.execute(sql, wherevals)
         desc = [d[0].lower() for d in curs.description]
 
-        sql2 = "select * from pfw_message where task_id=%s" % self.get_named_bind_string('task_id')
+        sql2 = "select * from pfw_message where task_id=%s and (msglevel != %s or msglevel is null)" % (self.get_named_bind_string('task_id'), str(pfwdefs.PFWDB_MSG_INFO))
         curs2 = self.cursor()
         curs2.prepare(sql2)
         jobinfo = {}

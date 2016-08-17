@@ -97,6 +97,12 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                                     dbh.insert_message(config['pfw_attempt_id'], 
                                                        config['task_id']['job'][jobnum],
                                                        pfwdefs.PFWDB_MSG_ERROR, msg)
+                    elif 'Could not connect to database'in line:
+                        print "Found:", line
+                        if dbh:
+                            dbh.insert_message(config['pfw_attempt_id'], 
+                                               config['task_id']['job'][jobnum],
+                                               pfwdefs.PFWDB_MSG_INFO, line)
     return tjobinfo, tjobinfo_task
 
 

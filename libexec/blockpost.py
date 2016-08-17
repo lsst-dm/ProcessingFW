@@ -162,6 +162,10 @@ def blockpost(argv=None):
                 for jobtid, jobdict in sorted(job_byblk[blktid].items()):
                     jobkeys = ""
 
+                    # don't print out successful wrappers
+                    if jobtid in wrap_byjob and jobdict['status'] == pfwdefs.PF_EXIT_SUCCESS:
+                        continue
+
                     if jobdict['jobkeys'] is not None:
                         jobkeys = jobdict['jobkeys']
                         #print "jobkeys = ", jobkeys, type(jobkeys)

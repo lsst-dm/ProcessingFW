@@ -41,6 +41,9 @@ __version__ = '$Rev$'
 
 pool = None
 stop_all = False
+jobfiles_global = {}
+jobwcl = None
+job_track = {}
 
 
 ######################################################################
@@ -587,7 +590,7 @@ def setup_working_dir(workdir, files, jobroot):
         os.symlink("../list", "list")
 
 ######################################################################
-def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir):
+def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir, ins):
     """ Create output directories, get files from archive, and other setup work """
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
@@ -606,13 +609,6 @@ def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir):
     # get execnames to put on command line for QC Framework
     wcl['execnames'] = wcl['wrapper']['wrappername'] + ',' + get_exec_names(wcl)
 
-    # get fullnames for inputs and outputs
-    ins, outs = intgmisc.get_fullnames(wcl, wcl, None)
-
-    # save input filenames to eliminate from junk tarball later
-    for isect in ins:
-        for ifile in ins[isect]:
-            jobfiles['infullnames'].append(ifile)
 
     # get input files from targetnode
     get_wrapper_inputs(pfw_dbh, wcl, ins)
@@ -623,9 +619,6 @@ def setup_wrapper(pfw_dbh, wcl, jobfiles, logfilename, workdir):
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
-
-    return ins, outs
-
 
 ######################################################################
 def compose_path(dirpat, wcl, infdict, fdict):
@@ -1184,14 +1177,13 @@ def exechost_status(wrapnum):
         traceback.print_exception(extype, exvalue, trback, limit=1, file=sys.stdout)
         print "Ignoring error and continuing...\n"
 
-
 ######################################################################
 def job_thread(argv):
     """ run a task in a thread """
     try:
         # break up the input data
-        (line, jobfiles, jobwcl, linecnt, multi) = argv
-        task = parse_wrapper_line(line, linecnt)
+        
+        (task, jobfiles, jobwcl, ins, outs, wcl, multi) = argv
 
         # print machine status information
         exechost_status(task['wrapnum'])
@@ -1200,12 +1192,7 @@ def job_thread(argv):
 
         if not os.path.exists(task['wclfile']):
             print "Error: input wcl file does not exist (%s)" % task['wclfile']
-            return (1, jobfiles)
-
-        wcl = WCL()
-        with open(task['wclfile'], 'r') as wclfh:
-            wcl.read(wclfh, filename=task['wclfile'])
-        wcl.update(jobwcl)
+            return (1, jobfiles, 0, task['wrapnum'])
 
         job_task_id = wcl['task_id']['job']
         sys.stdout.flush()
@@ -1228,7 +1215,8 @@ def job_thread(argv):
             workdir = "fwtemp%04i" % (int(task['wrapnum']))
         else:
             workdir = None
-        ins, outs = setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir)
+        setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir, ins)
+
         if pfw_dbh is not None:
             wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
                                                                wcl['task_id']['jobwrapper'])
@@ -1277,9 +1265,6 @@ def job_thread(argv):
 
         print "%04d: Post-steps (exit: %s)" % (int(task['wrapnum']), exitcode)
         post_wrapper(pfw_dbh, wcl, ins, jobfiles, task['logfile'], exitcode, workdir)
-        # this is a thread safe operation
-        if wcl['wrap_usage'] > jobwcl['job_max_usage']:
-            jobwcl['job_max_usage'] = wcl['wrap_usage']
 
         if pfw_dbh is not None:
             pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
@@ -1290,11 +1275,11 @@ def job_thread(argv):
         sys.stdout.flush()
         sys.stderr.flush()
 
-        return (exitcode, jobfiles)
+        return (exitcode, jobfiles, wcl['wrap_usage'], task['wrapnum'])
     except:
         print traceback.format_exc()
         sys.stdout.flush()
-        return (pfwdefs.PF_EXIT_FAILURE, jobfiles)
+        return (pfwdefs.PF_EXIT_FAILURE, jobfiles, wcl['wrap_usage'], task['wrapnum'])
 
 
 
@@ -1305,15 +1290,38 @@ def results_checker(result):
     global stop_all
     global results
     global jobfiles_global
+    global jobwcl
+    global job_track
 
-    (res, jobf) = result
-    jobfiles_global['infullnames'] += jobf['infullnames']
-    jobfiles_global['outfullnames'] += jobf['outfullnames']
+    (res, jobf, usage, wrapnum) = result
+    jobfiles_global['outfullnames'].extend(jobf['outfullnames'])
     jobfiles_global['output_putinfo'].update(jobf['output_putinfo'])
+    del job_track[wrapnum]
+    if usage > jobwcl['job_max_usage']:
+        jobwcl['job_max_usage'] = usage
     results.append(res)
+    # if the current thread exited with non-zero status, then kill remaining threads
+    #  but keep the log files
     if res != 0 and stop_all:
         pool.terminate()
+        pfw_dbh = None
+        try:
+            for wrapnum, (logfile, wcl, jobfiles) in job_track.iteritems():
+                if os.path.isfile(logfile):
+                    if wcl['use_db'] and pfw_dbh is None:
+                        pfw_dbh = pfwdb.PFWDB()
 
+                wcl['task_id']['jobwrapper'] = -1
+                filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
+                if os.path.isfile(logfile):
+                    print "%04d: Wrapper terminated early due to error in parallel thread." % int(wrapnum)
+                    logfileinfo = save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile)
+                    jobfiles_global['outfullnames'].append(logfile)
+                    jobfiles_global['output_putinfo'].update(logfileinfo)
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                      limit=4, file=sys.stdout)
 
 ######################################################################
 def job_workflow(workflow, jobfiles, jobwcl=WCL()):
@@ -1322,6 +1330,7 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
     global results
     global stop_all
     global jobfiles_global
+    global job_track
 
     with open(workflow, 'r') as workflowfh:
         # for each wrapper execution
@@ -1331,7 +1340,24 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
         # read in all of the lines in dictionaries
         for linecnt, line in enumerate(lines):
             wrapnum = miscutils.fwsplit(line.strip())[0]
-            inputs[wrapnum] = (line,jobfiles,jobwcl,linecnt)
+            task = parse_wrapper_line(line, linecnt)
+
+            wcl = WCL()
+            with open(task['wclfile'], 'r') as wclfh:
+                wcl.read(wclfh, filename=task['wclfile'])
+                wcl.update(jobwcl)
+
+            # get fullnames for inputs and outputs
+            ins, outs = intgmisc.get_fullnames(wcl, wcl, None)
+            print "INS",ins
+            # save input filenames to eliminate from junk tarball later
+            for isect in ins:
+                for ifile in ins[isect]:
+                    jobfiles['infullnames'].append(ifile)
+                    jobfiles_global['infullnames'].append(ifile)
+                    print "INS",ifile
+            inputs[wrapnum] = (task, jobfiles, jobwcl, ins, outs, wcl)
+            job_track[task['wrapnum']] = (task['logfile'], wcl, jobfiles)
         # get all of the task groupings, they will be run in numerical order
         tasks = jobwcl["fw_groups"].keys()
         tasks.sort()
@@ -1368,7 +1394,6 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
                     pool.terminate()
                     pool.join()
                     return max(results),jobfiles
-
     return 0, jobfiles
 
 
@@ -1378,6 +1403,7 @@ def run_job(args):
 
     global stop_all
     global jobfiles_global
+    global jobwcl
 
     jobwcl = WCL()
     jobfiles = {'infullnames': [args.config, args.workflow],
@@ -1448,8 +1474,10 @@ def run_job(args):
 
     try:
         jobfiles['infullnames'] = gather_initial_fullnames()
+        jobfiles_global['infullnames'].extend(jobfiles['infullnames'])
         miscutils.coremakedirs('log')
         miscutils.coremakedirs('outputwcl')
+
         exitcode, jobfiles = job_workflow(args.workflow, jobfiles, jobwcl)
     except Exception as ex:
         (extype, exvalue, trback) = sys.exc_info()
@@ -1660,7 +1688,6 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
 
     if miscutils.fwdebug_check(11, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("notjunk = %s" % notjunk.keys())
-
     # walk job directory to get all files
     cwd = '.'
     for (dirpath, _, filenames) in os.walk(cwd):
@@ -1682,8 +1709,6 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
 
                 if not os.path.islink(fname):
                     junklist.append(fname)
-
-
 
     if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("# in junklist = %s" % len(junklist))

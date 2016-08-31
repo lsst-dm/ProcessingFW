@@ -410,6 +410,9 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
         miscutils.fwdebug_print("outputs: %s" % theoutputs)
         miscutils.fwdebug_print("is_iter_obj: %s" % is_iter_obj)
 
+    if pfwdefs.IW_FILESECT not in winst:
+        winst[pfwdefs.IW_FILESECT] = OrderedDict()
+
     if 'listonly' in finfo and miscutils.convertBool(finfo['listonly']):
         for osectname in theoutputs:
             if osectname.endswith('.'+fsectname):
@@ -426,10 +429,6 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
         miscutils.fwdebug_print("modname = %s" % modname)
         miscutils.fwdebug_print("winst: %s" % winst)
         miscutils.fwdebug_print("currvals: %s" % currvals)
-
-
-    if pfwdefs.IW_FILESECT not in winst:
-        winst[pfwdefs.IW_FILESECT] = OrderedDict()
 
     fkey = 'file-%s' % fsectname
     winst[pfwdefs.IW_FILESECT][fsectname] = OrderedDict()

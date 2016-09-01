@@ -10,6 +10,7 @@ import argparse
 import os
 import sys
 import shutil
+import cStringIO
 
 import processingfw.pfwdefs as pfwdefs
 import despymisc.miscutils as miscutils
@@ -97,7 +98,7 @@ def parse_args(argv):
     return args
 
 ################################################################
-def save_submit_file(submitfile, config):
+def save_submit_file(submitfile, fullcfgstr, config):
     """ save original submit file as is, after includes expanded and with db defaults """
     print 'Saving submit file...',
 
@@ -116,7 +117,7 @@ def save_submit_file(submitfile, config):
     with open(submitfile, 'r') as infh:
         expwcl.read(infh)
     with open("%s/%s" % (uberctrl, expwclfile), 'w') as outfh:
-        expwcl.write(outfh, True, 4)
+        expwcl.write(outfh, False, 4)
         #if config['usePFWconfig'] is None:
         #    config['usePFWconfig'] = True
 
@@ -125,7 +126,7 @@ def save_submit_file(submitfile, config):
              intgdefs.REPLACE_VARS: True}
     fullwclfile = config.get_filename(filepat='config', searchopts=sopts)
     with open("%s/%s" % (uberctrl, fullwclfile), 'w') as outfh:
-        config.write(outfh, True, 4)
+        outfh.write(fullcfgstr)
 
     config['origwcl'] = origfile
     config['expwcl'] = expwclfile
@@ -154,7 +155,7 @@ def submit_attempt(config, maindag, logfh):
             condorid is not None):
         print "Saving run's condorid into PFW tables...",
         import processingfw.pfwdb as pfwdb
-        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                           config.getfull('submit_des_db_section'))
         dbh.update_attempt_cid(config, condorid)
         print 'DONE'
@@ -166,7 +167,7 @@ def get_attnum(config):
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         print 'Inserting run into PFW tables...',
         import processingfw.pfwdb as pfwdb   # import late
-        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                           config.getfull('submit_des_db_section'))
         dbh.insert_run(config)
         dbh.insert_attempt_val(config)
@@ -217,6 +218,14 @@ def main(argv):
                 return pfwdefs.PF_EXIT_FAILURE  # exit on error
             print 'DONE'
 
+            # save config as string before adding submit specific information
+            # so we can save to a file later (file location needs submit info)
+            fullstrio = cStringIO.StringIO()
+            config.write(fullstrio, False, 4)
+            fullcfgstr = fullstrio.getvalue()
+            fullstrio.close()
+
+            # set submit specific information (e.g., submit side directories)
             config.set_submit_info()
 
             print 'Creating submit dirs:'
@@ -230,8 +239,7 @@ def main(argv):
 
             pfwlog.log_pfw_event(config, 'submit', '', '')
 
-
-            save_submit_file(args['wclfile'], config)
+            save_submit_file(args['wclfile'], fullcfgstr, config)
             check_submit_file(config)
 
             # must be in internal directory when submitting simulation

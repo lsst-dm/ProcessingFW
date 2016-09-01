@@ -151,6 +151,7 @@ class PfwConfig(WCL):
 
         if 'submit_time' in self:   # operator providing submit_time
             submit_time = self['submit_time']
+            submit_epoch = int(time.mktime(time.strptime(submit_time,"%Y%m%d%H%M%S")))
         else:
             submit_epoch = time.time()
             submit_time = time.strftime("%Y%m%d%H%M%S", time.localtime(submit_epoch))

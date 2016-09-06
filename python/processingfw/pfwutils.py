@@ -218,7 +218,7 @@ def get_version(execname, execdefs):
 ############################################################################
 def run_cmd_qcf(cmd, logfilename, wid, execnames, bufsize=5000, use_qcf=False):
     """ Execute the command piping stdout/stderr to log and QCF """
-
+    os.environ["PFWUTILS_DEBUG"] = "10"
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
         miscutils.fwdebug_print("working dir = %s" % (os.getcwd()))

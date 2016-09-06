@@ -11,8 +11,8 @@ arguments = $(args)
 getenv=true
 environment="submit_condorid=$(Cluster).$(Process)"
 notification=never
-output=$(run)_$(jobname).out
-error=$(run)_$(jobname).err
+output=$(jobname).out
+error=$(jobname).err
 log=runtask.log
 +des_isjob=TRUE
 +des_project="$(project)"

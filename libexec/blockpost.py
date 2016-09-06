@@ -282,7 +282,6 @@ def blockpost(argv=None):
                 print "job_byblk keys = %s" % (job_byblk.keys())
                 for jobtid, jobdict in sorted(job_byblk[blktid].items()):
                     maxwrap = max(wrap_byjob[jobtid].keys())
-                    print "XX",wrap_byjob[jobtid].keys()
                     #maxwrapid = wrap_byjob[jobtid][maxwrap]['task_id']
                     modname = wrap_byjob[jobtid][maxwrap]['modname']
                     wraps = []
@@ -290,7 +289,6 @@ def blockpost(argv=None):
                         if wrap_byjob[jobtid][key]['modname'] == modname:
                             wraps.append(key)
 
-                    print "XY",modname,wrapmsg
                     if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
                         msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobdict['jobnum']), modname)
                         found = False

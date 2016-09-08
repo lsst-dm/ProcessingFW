@@ -581,8 +581,6 @@ def setup_working_dir(workdir, files, jobroot):
     #if os.path.exists(os.path.join("..","list")):
     #    os.symlink(os.path.join("..","list"), os.path.join(workdir, "list"))
 
-    os.system('pwd')
-    os.system('find . -type f')
     os.symlink("../inputwcl", "inputwcl")
     os.symlink("../log", "log")
     os.symlink("../outputwcl", "outputwcl")
@@ -994,7 +992,6 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
         # if running in a fw thread
         if workdir is not None:
             # undo symbolic links to log and outputwcl dirs
-            os.system('find . -exec ls -l {} \;')
             os.unlink('log')
             os.unlink('outputwcl')
             os.unlink('inputwcl')

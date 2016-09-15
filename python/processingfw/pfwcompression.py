@@ -86,6 +86,7 @@ def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cn
             returncode = 1
 
         if returncode != 0:
+            errstr = "Compression failed with exit code %i" % returncode
             # check for partial compressed output and remove
             if os.path.exists(fname_compressed):
                 miscutils.fwdebug_print("Compression failed.  Removing compressed file.")

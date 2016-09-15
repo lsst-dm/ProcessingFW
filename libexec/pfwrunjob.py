@@ -1346,13 +1346,11 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
 
             # get fullnames for inputs and outputs
             ins, outs = intgmisc.get_fullnames(wcl, wcl, None)
-            print "INS",ins
             # save input filenames to eliminate from junk tarball later
             for isect in ins:
                 for ifile in ins[isect]:
                     jobfiles['infullnames'].append(ifile)
                     jobfiles_global['infullnames'].append(ifile)
-                    print "INS",ifile
             inputs[wrapnum] = (task, jobfiles, jobwcl, ins, outs, wcl)
             job_track[task['wrapnum']] = (task['logfile'], wcl, jobfiles)
         # get all of the task groupings, they will be run in numerical order

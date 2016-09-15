@@ -1664,8 +1664,9 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
 
     # input files are what files where staged by framework (i.e., input wcl)
     # output files are only those listed as outputs in outout wcl
+
+    miscutils.fwdebug_print("BEG")
     if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
-        miscutils.fwdebug_print("BEG")
         miscutils.fwdebug_print("# infullnames = %s" % len(jobfiles['infullnames']))
         miscutils.fwdebug_print("# outfullnames = %s" % len(jobfiles['outfullnames']))
     if miscutils.fwdebug_check(11, "PFWRUNJOB_DEBUG"):
@@ -1686,6 +1687,7 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
     if miscutils.fwdebug_check(11, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("notjunk = %s" % notjunk.keys())
     # walk job directory to get all files
+    miscutils.fwdebug_print("Looking for files at add to junk tar")
     cwd = '.'
     for (dirpath, _, filenames) in os.walk(cwd):
         for walkname in filenames:
@@ -1754,12 +1756,14 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
         transfer_job_to_archives(pfw_dbh, wcl, jobfiles, putinfo, 'wrapper',
                                  job_task_id, 'junktar', exitcode)
 
-    if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
-        miscutils.fwdebug_print("END\n\n")
+
 
     if len(putinfo) > 0:
         jobfiles['output_putinfo'].update(putinfo)
-
+        miscutils.fwdebug_print("Junk tar created")
+    else:
+        miscutils.fwdebug_print("No files found for junk tar. Junk tar not created.")
+    miscutils.fwdebug_print("END\n\n")
 
 ######################################################################
 def parse_args(argv):

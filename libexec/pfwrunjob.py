@@ -1180,7 +1180,7 @@ def job_thread(argv):
     try:
         # break up the input data
         
-        (task, jobfiles, jobwcl, ins, outs, wcl, multi) = argv
+        (task, jobfiles, jobwcl, ins, outs, multi) = argv
 
         # print machine status information
         exechost_status(task['wrapnum'])
@@ -1190,6 +1190,11 @@ def job_thread(argv):
         if not os.path.exists(task['wclfile']):
             print "Error: input wcl file does not exist (%s)" % task['wclfile']
             return (1, jobfiles, 0, task['wrapnum'])
+
+        wcl = WCL()
+        with open(task['wclfile'], 'r') as wclfh:
+            wcl.read(wclfh, filename=task['wclfile'])
+        wcl.update(jobwcl)
 
         job_task_id = wcl['task_id']['job']
         sys.stdout.flush()
@@ -1303,7 +1308,7 @@ def results_checker(result):
         pool.terminate()
         pfw_dbh = None
         try:
-            for wrapnum, (logfile, wcl, jobfiles) in job_track.iteritems():
+            for wrapnum, (logfile, jobfiles) in job_track.iteritems():
                 if os.path.isfile(logfile):
                     if wcl['use_db'] and pfw_dbh is None:
                         pfw_dbh = pfwdb.PFWDB()
@@ -1346,13 +1351,14 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
 
             # get fullnames for inputs and outputs
             ins, outs = intgmisc.get_fullnames(wcl, wcl, None)
+            del wcl
             # save input filenames to eliminate from junk tarball later
             for isect in ins:
                 for ifile in ins[isect]:
                     jobfiles['infullnames'].append(ifile)
                     jobfiles_global['infullnames'].append(ifile)
-            inputs[wrapnum] = (task, jobfiles, jobwcl, ins, outs, wcl)
-            job_track[task['wrapnum']] = (task['logfile'], wcl, jobfiles)
+            inputs[wrapnum] = (task, jobfiles, jobwcl, ins, outs)
+            job_track[task['wrapnum']] = (task['logfile'], jobfiles)
         # get all of the task groupings, they will be run in numerical order
         tasks = jobwcl["fw_groups"].keys()
         tasks.sort()
@@ -1806,6 +1812,6 @@ def get_semaphore(wcl, stype, dest, trans_task_id):
     return sem
 
 if __name__ == '__main__':
-    os.putenv('PYTHONUNBUFFERED', 'true')
+    os.environ['PYTHONUNBUFFERED'] = 'true'
     print "Cmdline given: %s" % ' '.join(sys.argv)
     sys.exit(run_job(parse_args(sys.argv[1:])))

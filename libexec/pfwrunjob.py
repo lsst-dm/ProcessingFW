@@ -1189,7 +1189,7 @@ def job_thread(argv):
 
         if not os.path.exists(task['wclfile']):
             print "Error: input wcl file does not exist (%s)" % task['wclfile']
-            return (1, jobfiles, 0, task['wrapnum'])
+            return (1, jobfiles, jobwcl, 0, task['wrapnum'])
 
         wcl = WCL()
         with open(task['wclfile'], 'r') as wclfh:
@@ -1277,11 +1277,11 @@ def job_thread(argv):
         sys.stdout.flush()
         sys.stderr.flush()
 
-        return (exitcode, jobfiles, wcl['wrap_usage'], task['wrapnum'])
+        return (exitcode, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'])
     except:
         print traceback.format_exc()
         sys.stdout.flush()
-        return (pfwdefs.PF_EXIT_FAILURE, jobfiles, wcl['wrap_usage'], task['wrapnum'])
+        return (pfwdefs.PF_EXIT_FAILURE, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'])
 
 
 
@@ -1295,7 +1295,7 @@ def results_checker(result):
     global jobwcl
     global job_track
 
-    (res, jobf, usage, wrapnum) = result
+    (res, jobf, wcl, usage, wrapnum) = result
     jobfiles_global['outfullnames'].extend(jobf['outfullnames'])
     jobfiles_global['output_putinfo'].update(jobf['output_putinfo'])
     del job_track[wrapnum]

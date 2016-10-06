@@ -2590,6 +2590,11 @@ d2=`date "+%s"`
 echo "PFW: pfwrunjob endtime: $d2"
 echo ""
 echo ""
+if [ -e outputwcl ]; then
+    tar -cvf $initdir/$outputtar outputwcl;
+else
+    echo "INFO:  No outputwcl directory at end of job";
+fi
 """
 
     purge_job_dir = 'success'

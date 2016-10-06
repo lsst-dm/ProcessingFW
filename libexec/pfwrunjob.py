@@ -977,18 +977,6 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
         # add wcl file to list of non-junk output files
         jobfiles['outfullnames'].append(outputwclfile)
 
-        # append output wcl file to tarball for returning to submit machine
-        try:
-            with tarfile.open(wcl['condor_job_init_dir'] + '/' + wcl['output_wcl_tar'], 'a') as tar:
-                tar.add(outputwclfile)
-        except Exception as err:
-            warnmsg = "Warning:  Could not append output wcl file to tarball: %s" % err
-            if pfw_dbh is not None:
-                pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['jobwrapper'],
-                                       pfwdefs.PFWDB_MSG_WARN, warnmsg)
-            print warnmsg
-            print "\tContinuing job"
-
         # if running in a fw thread
         if workdir is not None:
             # undo symbolic links to log and outputwcl dirs

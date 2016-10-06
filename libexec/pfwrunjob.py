@@ -21,6 +21,7 @@ import traceback
 import socket
 from collections import OrderedDict
 from multiprocessing import Pool
+import psutil
 
 import despydmdb.dbsemaphore as dbsem
 import despymisc.miscutils as miscutils
@@ -36,7 +37,6 @@ import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
 import processingfw.pfwcompression as pfwcompress
 
-
 __version__ = '$Rev$'
 
 pool = None
@@ -44,7 +44,7 @@ stop_all = False
 jobfiles_global = {}
 jobwcl = None
 job_track = {}
-
+hold = False
 
 ######################################################################
 def get_batch_id_from_job_ad(jobad_file):
@@ -1252,13 +1252,11 @@ def job_thread(argv):
             traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
             exitcode = pfwdefs.PF_EXIT_FAILURE
         sys.stdout.flush()
-
         if exitcode != 0:
             print "Error: wrapper %s exited with non-zero exit code %s.   Check log:" % \
                 (wcl[pfwdefs.PF_WRAPNUM], exitcode),
             logfilename = miscutils.parse_fullname(wcl['log'], miscutils.CU_PARSE_FILENAME)
             print " %s/%s" % (wcl['log_archive_path'], logfilename)
-
         if wcl['use_db']:
             if pfw_dbh is None:
                 pfw_dbh = pfwdb.PFWDB()
@@ -1273,7 +1271,6 @@ def job_thread(argv):
 
         if exitcode:
             miscutils.fwdebug_print("Aborting due to non-zero exit code")
-
         sys.stdout.flush()
         sys.stderr.flush()
 
@@ -1294,6 +1291,7 @@ def results_checker(result):
     global jobfiles_global
     global jobwcl
     global job_track
+    global hold
 
     (res, jobf, wcl, usage, wrapnum) = result
     jobfiles_global['outfullnames'].extend(jobf['outfullnames'])
@@ -1304,26 +1302,37 @@ def results_checker(result):
     results.append(res)
     # if the current thread exited with non-zero status, then kill remaining threads
     #  but keep the log files
-    if res != 0 and stop_all:
-        pool.terminate()
-        pfw_dbh = None
-        try:
-            for wrapnum, (logfile, jobfiles) in job_track.iteritems():
-                if os.path.isfile(logfile):
-                    if wcl['use_db'] and pfw_dbh is None:
-                        pfw_dbh = pfwdb.PFWDB()
 
-                wcl['task_id']['jobwrapper'] = -1
-                filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
-                if os.path.isfile(logfile):
-                    print "%04d: Wrapper terminated early due to error in parallel thread." % int(wrapnum)
-                    logfileinfo = save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile)
-                    jobfiles_global['outfullnames'].append(logfile)
-                    jobfiles_global['output_putinfo'].update(logfileinfo)
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback,
-                                      limit=4, file=sys.stdout)
+    if res != 0 and stop_all:
+        if not hold:
+            pfw_dbh = None
+            hold = True
+            try:
+                # manually end the child processes as pool.terminate can deadlock
+                # if multiple threads return with errors
+                parent = psutil.Process(os.getpid())
+                children = parent.children(recursive=True)
+
+                for process in children:
+                    process.send_signal(signal.SIGTERM)
+
+                for wrapnum, (logfile, jobfiles) in job_track.iteritems():
+                    if os.path.isfile(logfile):
+                        if wcl['use_db'] and pfw_dbh is None:
+                            pfw_dbh = pfwdb.PFWDB()
+
+                    wcl['task_id']['jobwrapper'] = -1
+
+                    filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
+                    if os.path.isfile(logfile):
+                        print "%04d: Wrapper terminated early due to error in parallel thread." % int(wrapnum)
+                        logfileinfo = save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile)
+                        jobfiles_global['outfullnames'].append(logfile)
+                        jobfiles_global['output_putinfo'].update(logfileinfo)
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                          limit=4, file=sys.stdout)
 
 ######################################################################
 def job_workflow(workflow, jobfiles, jobwcl=WCL()):
@@ -1337,7 +1346,7 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
     with open(workflow, 'r') as workflowfh:
         # for each wrapper execution
         lines = workflowfh.readlines()
-
+        sys.stdout.flush()
         inputs = {}
         # read in all of the lines in dictionaries
         for linecnt, line in enumerate(lines):

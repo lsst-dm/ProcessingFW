@@ -23,6 +23,7 @@ from collections import OrderedDict
 from multiprocessing import Pool
 import psutil
 from cStringIO import StringIO
+import signal
 
 import despydmdb.dbsemaphore as dbsem
 import despymisc.miscutils as miscutils
@@ -46,6 +47,7 @@ jobfiles_global = {}
 jobwcl = None
 job_track = {}
 hold = False
+keeprunning = True
 
 class Capturing(list):
     def __enter__(self):
@@ -1154,7 +1156,7 @@ def exechost_status(wrapnum):
     try:
         subp = subprocess.Popen(["free", "-m"], stdout=subprocess.PIPE)
         output = subp.communicate()[0]
-        print "%EXECSTAT %s FREE\n%s" % (exechost, output)
+        print "EXECSTAT %s FREE\n%s" % (exechost, output)
     except:
         print "Problem running free command"
         (extype, exvalue, trback) = sys.exc_info()
@@ -1289,7 +1291,25 @@ def job_thread(argv):
         sys.stderr.flush()
         return (pfwdefs.PF_EXIT_FAILURE, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'])
 
-
+######################################################################
+def terminate():
+    global keeprunning
+    try:
+        parent = psutil.Process(os.getpid())
+        children = parent.children(recursive=False)
+        grandchildren = []
+        for child in children:
+            grandchildren += child.children(recursive=True)
+        for proc in grandchildren:
+            try:
+                proc.send_signal(signal.SIGTERM)
+            except:
+                pass
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=4, file=sys.stdout)
+    keeprunning = False
 
 ######################################################################
 def results_checker(result):
@@ -1301,6 +1321,8 @@ def results_checker(result):
     global jobwcl
     global job_track
     global hold
+    global donejobs
+    global keeprunning
 
     (res, jobf, wcl, usage, wrapnum) = result
     jobfiles_global['outfullnames'].extend(jobf['outfullnames'])
@@ -1319,29 +1341,26 @@ def results_checker(result):
             try:
                 # manually end the child processes as pool.terminate can deadlock
                 # if multiple threads return with errors
-                parent = psutil.Process(os.getpid())
-                children = parent.children(recursive=True)
-
-                for process in children:
-                    process.send_signal(signal.SIGTERM)
-
+                terminate()
                 for wrapnum, (logfile, jobfiles) in job_track.iteritems():
                     if os.path.isfile(logfile):
                         if wcl['use_db'] and pfw_dbh is None:
                             pfw_dbh = pfwdb.PFWDB()
-
                     wcl['task_id']['jobwrapper'] = -1
-
                     filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
+
                     if os.path.isfile(logfile):
                         print "%04d: Wrapper terminated early due to error in parallel thread." % int(wrapnum)
                         logfileinfo = save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile)
                         jobfiles_global['outfullnames'].append(logfile)
                         jobfiles_global['output_putinfo'].update(logfileinfo)
+
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exception(exc_type, exc_value, exc_traceback,
                                           limit=4, file=sys.stdout)
+                keeprunning = False
+    donejobs += 1
 
 ######################################################################
 def job_workflow(workflow, jobfiles, jobwcl=WCL()):
@@ -1351,6 +1370,8 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
     global stop_all
     global jobfiles_global
     global job_track
+    global keeprunning
+    global donejobs
 
     with open(workflow, 'r') as workflowfh:
         # for each wrapper execution
@@ -1401,17 +1422,20 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
                 mult = False
 
             try:
+                numjobs = len(procs)
+                donejobs = 0
                 # attach all the grouped tasks to the pool
                 [pool.apply_async(job_thread, args=(inputs[inp] + (mult,),), callback=results_checker) for inp in procs]
                 pool.close()
-                # wait until all are complete before continuing
-                pool.join()
+                while donejobs < numjobs and keeprunning:
+                    # wait until all are complete before continuing
+                    time.sleep(5)
             finally:
                 # get the results
+                pool.terminate()
                 jobfiles = jobfiles_global
                 if stop_all and max(results) > 0:
-                    pool.terminate()
-                    pool.join()
+                    terminate()
                     return max(results),jobfiles
     return 0, jobfiles
 

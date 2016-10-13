@@ -395,7 +395,7 @@ class PfwConfig(WCL):
                     'max_memory', 'min_memory', 'count', 'host_count',
                     'host_types', 'host_xcount', 'xcount', 'reservation_id',
                     'grid_resource', 'grid_type', 'grid_host', 'grid_port',
-                    'batch_type', 'globus_extra', 'environment']:
+                    'batch_type', 'globus_extra', 'environment', 'dynslots']:
             newkey = key.replace('_', '')
             (exists, value) = self.search(key)
             if exists:

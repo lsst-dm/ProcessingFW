@@ -22,6 +22,40 @@ import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 from processingfw.pfwemail import send_email,get_subblock_output
 
+
+def get_qcf_messages(qdbh, config, wraptids):
+    wrapmsg = None
+    if qdbh is not None and len(wraptids) > 0:
+        miscutils.fwdebug_print("Querying QCF messages")
+        start_time = time.time()
+        wrapmsg = qdbh.get_qcf_messages_for_wrappers(wraptids)
+        end_time = time.time()
+        miscutils.fwdebug_print("Done querying QCF messages (%s secs)" % (end_time-start_time))
+        miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
+    return wrapmsg
+
+######################################################################
+def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
+    MAXMESG = 3
+
+    tid = wrapdict['task_id']
+    if tid in wrapmsg:
+        found = True
+        if len(wrapmsg[tid]) > MAXMESG:
+            msg2 += "\t\t\tOnly printing last %d messages\n" % MAXMESG
+            for mesgrow in wrapmsg[tid][-MAXMESG:]:
+                msg2 += "\t\t\t%s\n" % mesgrow['message']
+        else:
+            for mesgrow in wrapmsg[tid]:
+                msg2 += "\t\t\t%s\n" % mesgrow['message']
+    else:
+        msg2 += "\t\t\tNo QCF messages\n"
+
+    return msg2
+
+
+ 
+######################################################################
 def blockpost(argv=None):
     """ Program entry point """
     if argv is None:
@@ -97,6 +131,10 @@ def blockpost(argv=None):
             miscutils.fwdebug_print("Connecting to DB")
             dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                               config.getfull('submit_des_db_section'))
+            if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)):
+                import qcframework.qcfdb as qcfdb
+                qdbh = qcfdb.QCFDB(config.getfull('submit_des_services'),
+                                   config.getfull('submit_des_db_section'))
 
             print "\n\nChecking non-job block task status from task table in DB (%s is success)" % \
                   pfwdefs.PF_EXIT_SUCCESS
@@ -131,16 +169,15 @@ def blockpost(argv=None):
                             wrapids = []
                             for r in res:
                                 wrapids.append(r[0])
-                            import qcframework.qcfdb as qcfdb
-                            qdbh = qcfdb.QCFDB(config.getfull('submit_des_services'),
-                                              config.getfull('submit_des_db_section'))
-                            miscutils.fwdebug_print("Querying QCF messages")
-                            start_time = time.time()
-                            wrapmsg = qdbh.get_qcf_messages_for_wrappers(wrapids)
-                            end_time = time.time()
-                            miscutils.fwdebug_print("Done querying QCF messages (%s secs)" % (end_time-start_time))
-                            miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
-                            qdbh.close()
+
+                            wrapmsg = {}
+                            if qdbh is not None:
+                                miscutils.fwdebug_print("Querying QCF messages")
+                                start_time = time.time()
+                                wrapmsg = qdbh.get_qcf_messages_for_wrappers(wrapids)
+                                end_time = time.time()
+                                miscutils.fwdebug_print("Done querying QCF messages (%s secs)" % (end_time-start_time))
+                                miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
                             if len(wrapmsg) == 0:
                                 msg2 += "    No QCF messages\n"
                             else:
@@ -226,12 +263,12 @@ def blockpost(argv=None):
                         # determine wrappers for this job without success exit
                         failedwraps[jobtid] = []
                         whyfailwraps[jobtid] = []
-                        for key, wdict in wrap_byjob[jobtid].items():
+                        for wrapnum, wdict in wrap_byjob[jobtid].items():
                             if wdict['status'] is None or wdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
                                 if wdict['modname'] == modname:
-                                    failedwraps[jobtid].append(key)
+                                    failedwraps[jobtid].append(wrapnum)
                                 else:
-                                    whyfailwraps[jobtid].append(key)
+                                    whyfailwraps[jobtid].append(wrapnum)
 
                     if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
                         msg2 += " - FAIL - EUPS setup failure"
@@ -250,13 +287,6 @@ def blockpost(argv=None):
                         msg2 += "\n\t\t%s/runjob.out " % (submit_job_path)
 
                     msg2 += '\n'
-                    # print log file name for failed/unfinished wrappers
-                    for key in failedwraps[jobtid]:
-                        if wrap_byjob[jobtid][key]['log'] in logfullnames:
-                            msg2 += "\t\t%s - %s\n" % (key, logfullnames[wrap_byjob[jobtid][key]['log']])
-                        else:
-                            msg2 += "\t\t%s - Could not find log in archive (%s)\n" % (key, wrap_byjob[jobtid][key]['log'])
-                    msg2 += '\n'
 
                     # print pfw_messages
                     if 'message' in jobdict:
@@ -274,6 +304,19 @@ def blockpost(argv=None):
 
                             msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'])
 
+                    # print log file name for failed/unfinished wrappers
+                    print "MMG", jobtid, failedwraps[jobtid]
+                    for wrapnum in failedwraps[jobtid]:
+                        wrapdict = wrap_byjob[jobtid][wrapnum]
+                        if wrapdict['log'] in logfullnames:
+                            msg2 += "\t\t%s - %s\n" % (wrapnum, logfullnames[wrapdict['log']])
+                        else:
+                            msg2 += "\t\t%s - Could not find log in archive (%s)\n" % (wrapnum, wrapdict['log'])
+                        wrapmsg = get_qcf_messages(qdbh, config, [wrapdict['task_id']])
+                        msg2 = print_qcf_messages(config, wrapdict, wrapmsg, msg2)
+                    
+                    msg2 += '\n'
+
                     # If weirdness happened in run, print a message
                     if len(whyfailwraps[jobtid]) > 0:
                         msg2 += "\n*** Contact framework developers.   Wrappers ran after at least 1 wrapper from a previous module that doesn't have success status.\n"
@@ -287,53 +330,6 @@ def blockpost(argv=None):
             (extype, exvalue, trback) = sys.exc_info()
             traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
             retval = pfwdefs.PF_EXIT_FAILURE
-
-        if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)) and len(failedwraps[jobtid]) > 0:
-            try:
-                import qcframework.qcfdb as qcfdb
-                qdbh = qcfdb.QCFDB(config.getfull('submit_des_services'),
-                                  config.getfull('submit_des_db_section'))
-                miscutils.fwdebug_print("Querying QCF messages")
-                start_time = time.time()
-                wrapmsg = qdbh.get_qcf_messages_for_wrappers([wrap_byjob[jobtid][w]['task_id'] for w in failedwraps[jobtid]])
-                end_time = time.time()
-                miscutils.fwdebug_print("Done querying QCF messages (%s secs)" % (end_time-start_time))
-                miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
-                qdbh.close()
-
-                MAXMESG = 3
-                msg2 += "\n\n\nDetails\n"
-                print "blknum = %s, %s" % (blknum, type(blknum))
-                print "job_byblk keys = %s" % (job_byblk.keys())
-                for jobtid, jobdict in sorted(job_byblk[blktid].items()):
-
-                    # only print messages if job doesn't have success status
-                    if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-
-                        msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobdict['jobnum']), modname)
-
-                        found = False
-                        for w in failedwraps[jobtid]:
-                            # print qcf messages
-                            tid = wrap_byjob[jobtid][w]['task_id']
-                            if tid in wrapmsg:
-                                found = True
-                                if len(wrapmsg[tid]) > MAXMESG:
-                                    msg2 += "\t\t\tOnly printing last %d messages\n" % MAXMESG
-                                    for mesgrow in wrapmsg[tid][-MAXMESG:]:
-                                        msg2 += "\t\t\t%s\n" % mesgrow['message']
-                                else:
-                                    for mesgrow in wrapmsg[tid]:
-                                        msg2 += "\t\t\t%s\n" % mesgrow['message']
-                        if not found:
-                            msg2 += "\t\tNo QCF messages\n"
-            except Exception as exc:
-                msg2 += "\n\nEncountered error trying to gather QCF info for email."
-                msg2 += "\nCheck output for blockpost for further details."
-                print "\n\nEncountered error trying to gather QCF info status for email"
-                print "%s: %s" % (exc.__class__.__name__, str(exc))
-                (extype, exvalue, trback) = sys.exc_info()
-                traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
 
     print "before email retval =", retval
 

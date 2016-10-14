@@ -24,12 +24,13 @@ import traceback
 from datetime import datetime
 from collections import OrderedDict
 
-import intgutils.intgdefs as intgdefs
-import despydmdb.desdmdbi as desdmdbi
-import processingfw.pfwdefs as pfwdefs
-import despymisc.miscutils as miscutils
-import processingfw.pfwutils as pfwutils
-import processingfw.pfwdefs as pfwdefs
+from intgutils import intgdefs
+from despydmdb import desdmdbi
+from processingfw import pfwdefs
+from despymisc import miscutils
+from processingfw import pfwutils
+from processingfw import pfwdefs
+
 
 class PFWDB(desdmdbi.DesDmDbi):
     """
@@ -91,7 +92,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
     ##### request, unit, attempt #####
     def insert_run(self, config):
-        """ Insert entries into the pfw_request, pfw_unit, pfw_attempt tables for a 
+        """ Insert entries into the pfw_request, pfw_unit, pfw_attempt tables for a
             single run submission.    Saves attempt and task id in config """
 
         pfw_attempt_id = self.get_seq_next_value('pfw_attempt_seq')
@@ -866,7 +867,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         wherevals = ["%s='%s'" % (k, v) for k, v in kwargs.iteritems()]
         sql += ' and '.join(wherevals)
-        
+
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("sql> %s" % sql)
         curs = self.cursor()
@@ -1014,3 +1015,22 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         return filelist
 
+
+    def get_fail_log_fullnames(self, pfw_attempt_id, archive):
+        curs = self.cursor()
+
+        if archive is not None:
+            sqlstr = "select a.root, fai.path, fai.filename from ops_archive a, task t, pfw_wrapper w, file_archive_info fai where w.log=fai.filename and a.name = %s and fai.archive_name=%s and pfw_attempt_id=%s and w.task_id=t.id and (t.status is null or t.status != 0)" % (self.get_named_bind_string('archive_name'), self.get_named_bind_string('archive_name'), self.get_named_bind_string('pfw_attempt_id'))
+            curs.execute(sqlstr, {'archive_name':archive, 'pfw_attempt_id':pfw_attempt_id})
+        else:
+            sqlstr = "select 'NO-HOME-ARCHIVE-ROOT', fai.path, fai.filename from task t, pfw_wrapper w, file_archive_info fai where w.log=fai.filename and pfw_attempt_id=%s and w.task_id=t.id and (t.status is null or t.status != 0)" % (self.get_named_bind_string('pfw_attempt_id'))
+            curs.execute(sqlstr, {'pfw_attempt_id':pfw_attempt_id})
+
+        results = curs.fetchall()
+        curs.close()
+
+        logfullnames = {}
+        for x in results:
+            logfullnames[x[2]] = "%s/%s/%s" % (x[0], x[1], x[2])
+
+        return logfullnames

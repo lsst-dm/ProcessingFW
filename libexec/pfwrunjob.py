@@ -22,7 +22,6 @@ import socket
 from collections import OrderedDict
 from multiprocessing import Pool
 import psutil
-from cStringIO import StringIO
 import signal
 
 import despydmdb.dbsemaphore as dbsem
@@ -49,14 +48,85 @@ job_track = {}
 hold = False
 keeprunning = True
 
-class Capturing(list):
-    def __enter__(self):
-        self._stdout = sys.stdout
-        sys.stdout = self._stringio = StringIO()
-        return self
-    def __exit__(self, *args):
-        self.extend(self._stringio.getvalue().splitlines())
-        sys.stdout = self._stdout
+class Print(object):
+    """ Class to capture printed output and stdout and reformat it to append
+        the wrapper number to the lines
+        
+        Parameters
+        ----------
+        wrapnum : int
+            The wrapper number to prepend to the lines
+
+    """
+    def __init__(self, wrapnum):
+        self.old_stdout = sys.stdout
+        self.wrapnum = int(wrapnum)
+
+    def write(self, text):
+        """ Method to capture, reformat, and write out the requested text
+        
+            Parameters
+            ----------
+            test : str
+                The text to reformat
+
+        """
+        text = text.rstrip()
+        if len(text) == 0:
+            return
+        text = text.replace("\n","\n%04d: " % (self.wrapnum))
+        self.old_stdout.write('%04d: %s\n' % (self.wrapnum, text))
+
+    def close(self):
+        """ Method to return stdout to its original handle
+
+        """
+        return self.old_stdout
+
+    def flush(self):
+        """ Method to force the buffer to flush
+
+        """
+        self.old_stdout.flush()
+
+class Err(object):
+    """ Class to capture printed output and stdout and reformat it to append
+        the wrapper number to the lines
+
+        Parameters
+        ----------
+        wrapnum : int
+            The wrapper number to prepend to the lines
+    """
+    def __init__(self, wrapnum):
+        self.old_stderr = sys.stderr
+        self.wrapnum = int(wrapnum)
+
+    def write(self, text):
+        """ Method to capture, reformat, and write out the requested text
+
+            Parameters
+            ----------
+            test : str
+                The text to reformat
+        """
+        text = text.rstrip()
+        if len(text) == 0:
+            return
+        text = text.replace("\n","\n%04d: " % (self.wrapnum))
+        self.old_stdout.write('%04d: %s\n' % (self.wrapnum, text))
+
+    def close(self):
+        """ Method to return stderr to its original handle
+        
+        """
+        return self.old_stderr
+
+    def flush(self):
+        """ Method to force the buffer to flush
+
+        """
+        self.old_stderr.flush()
 
 
 ######################################################################
@@ -1178,118 +1248,116 @@ def exechost_status(wrapnum):
 ######################################################################
 def job_thread(argv):
     """ run a task in a thread """
-    output = []
+    stdp = None
+    stde = None
     try:
-        with Capturing(output) as output:
-            # break up the input data
-        
-            (task, jobfiles, jobwcl, ins, outs, multi) = argv
+        # break up the input data
+        (task, jobfiles, jobwcl, ins, outs, multi) = argv
+        stdp = Print(task['wrapnum'])
+        sys.stdout = stdp
+        stde = Err(task['wrapnum'])
+        sys.stderr = stde
 
-            # print machine status information
-            exechost_status(task['wrapnum'])
+        # print machine status information
+        exechost_status(task['wrapnum'])
 
-            wrappercmd = "%s %s" % (task['wrapname'], task['wclfile'])
+        wrappercmd = "%s %s" % (task['wrapname'], task['wclfile'])
 
-            if not os.path.exists(task['wclfile']):
-                print "Error: input wcl file does not exist (%s)" % task['wclfile']
-                return (1, jobfiles, jobwcl, 0, task['wrapnum'])
+        if not os.path.exists(task['wclfile']):
+            print "Error: input wcl file does not exist (%s)" % task['wclfile']
+            return (1, jobfiles, jobwcl, 0, task['wrapnum'])
 
-            wcl = WCL()
-            with open(task['wclfile'], 'r') as wclfh:
-                wcl.read(wclfh, filename=task['wclfile'])
-            wcl.update(jobwcl)
+        wcl = WCL()
+        with open(task['wclfile'], 'r') as wclfh:
+            wcl.read(wclfh, filename=task['wclfile'])
+        wcl.update(jobwcl)
 
-            job_task_id = wcl['task_id']['job']
-            sys.stdout.flush()
+        job_task_id = wcl['task_id']['job']
+        sys.stdout.flush()
+        pfw_dbh = None
+        if wcl['use_db']:
+            pfw_dbh = pfwdb.PFWDB()
+            wcl['task_id']['jobwrapper'] = pfw_dbh.create_task(name='jobwrapper',
+                                                               info_table=None,
+                                                               parent_task_id=job_task_id,
+                                                               root_task_id=wcl['task_id']['attempt'],
+                                                               label=task['wrapnum'],
+                                                               do_begin=True,
+                                                               do_commit=True)
+        else:
+            wcl['task_id']['jobwrapper'] = -1
+
+        print "Setup"
+        # set up the working directory if needed
+        if multi:
+            workdir = "fwtemp%04i" % (int(task['wrapnum']))
+        else:
+            workdir = None
+        setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir, ins)
+
+        if pfw_dbh is not None:
+            wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
+                                                               wcl['task_id']['jobwrapper'])
+            create_exec_tasks(pfw_dbh, wcl)
+            exectid = determine_exec_task_id(pfw_dbh, wcl)
+            pfw_dbh.begin_task(wcl['task_id']['wrapper'], True)
+            pfw_dbh.close()
             pfw_dbh = None
+        else:
+            wcl['task_id']['wrapper'] = -1
+            exectid = -1
+
+        print "Running wrapper: %s" % (wrappercmd)
+        sys.stdout.flush()
+        starttime = time.time()
+        try:
+            os.putenv("DESDMFW_TASKID", str(exectid))
+            exitcode = pfwutils.run_cmd_qcf(wrappercmd, task['logfile'],
+                                            wcl['task_id']['wrapper'],
+                                            wcl['execnames'], 5000, wcl['use_qcf'])
+        except:
+            (extype, exvalue, trback) = sys.exc_info()
+            print '!' * 60
             if wcl['use_db']:
                 pfw_dbh = pfwdb.PFWDB()
-                wcl['task_id']['jobwrapper'] = pfw_dbh.create_task(name='jobwrapper',
-                                                                   info_table=None,
-                                                                   parent_task_id=job_task_id,
-                                                                   root_task_id=wcl['task_id']['attempt'],
-                                                                   label=task['wrapnum'],
-                                                                   do_begin=True,
-                                                                   do_commit=True)
+                pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['wrapper'],
+                                       pfwdefs.PFWDB_MSG_ERROR,
+                                       "%s: %s" % (extype, str(exvalue)))
             else:
-                wcl['task_id']['jobwrapper'] = -1
-
-            print "Setup"
-            # set up the working directory if needed
-            if multi:
-                workdir = "fwtemp%04i" % (int(task['wrapnum']))
-            else:
-                workdir = None
-            setup_wrapper(pfw_dbh, wcl, jobfiles, task['logfile'], workdir, ins)
-
-            if pfw_dbh is not None:
-                wcl['task_id']['wrapper'] = pfw_dbh.insert_wrapper(wcl, task['wclfile'],
-                                                                   wcl['task_id']['jobwrapper'])
-                create_exec_tasks(pfw_dbh, wcl)
-                exectid = determine_exec_task_id(pfw_dbh, wcl)
-                pfw_dbh.begin_task(wcl['task_id']['wrapper'], True)
-                pfw_dbh.close()
-                pfw_dbh = None
-            else:
-                wcl['task_id']['wrapper'] = -1
-                exectid = -1
-
-            print "Running wrapper: %s" % (wrappercmd)
-            sys.stdout.flush()
-            starttime = time.time()
-            try:
-                os.putenv("DESDMFW_TASKID", str(exectid))
-                exitcode = pfwutils.run_cmd_qcf(wrappercmd, task['logfile'],
-                                                wcl['task_id']['wrapper'],
-                                                wcl['execnames'], 5000, wcl['use_qcf'])
-            except:
-                (extype, exvalue, trback) = sys.exc_info()
-                print '!' * 60
-                if wcl['use_db']:
-                    pfw_dbh = pfwdb.PFWDB()
-                    pfw_dbh.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['wrapper'],
-                                           pfwdefs.PFWDB_MSG_ERROR,
-                                           "%s: %s" % (extype, str(exvalue)))
-                else:
-                    print "DESDMTIME: run_cmd_qcf %0.3f" % (time.time()-starttime)
-                traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
-                exitcode = pfwdefs.PF_EXIT_FAILURE
-            sys.stdout.flush()
-            if exitcode != 0:
-                print "Error: wrapper %s exited with non-zero exit code %s.   Check log:" % \
-                    (wcl[pfwdefs.PF_WRAPNUM], exitcode),
-                logfilename = miscutils.parse_fullname(wcl['log'], miscutils.CU_PARSE_FILENAME)
-                print " %s/%s" % (wcl['log_archive_path'], logfilename)
-            if wcl['use_db']:
-                if pfw_dbh is None:
-                    pfw_dbh = pfwdb.PFWDB()
-            else:
-                print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
-
-            print "Post-steps (exit: %s)" % (exitcode)
-            post_wrapper(pfw_dbh, wcl, ins, jobfiles, task['logfile'], exitcode, workdir)
-
-            if pfw_dbh is not None:
-                pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
-
-            if exitcode:
-                miscutils.fwdebug_print("Aborting due to non-zero exit code")
-            sys.stdout.flush()
-            sys.stderr.flush()
-        for line in output:
-            print "%04d: %s" % (int(task['wrapnum']), line)
+                print "DESDMTIME: run_cmd_qcf %0.3f" % (time.time()-starttime)
+            traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
+            exitcode = pfwdefs.PF_EXIT_FAILURE
         sys.stdout.flush()
-        sys.stderr.flush()
+        if exitcode != 0:
+            print "Error: wrapper %s exited with non-zero exit code %s.   Check log:" % \
+                (wcl[pfwdefs.PF_WRAPNUM], exitcode),
+            logfilename = miscutils.parse_fullname(wcl['log'], miscutils.CU_PARSE_FILENAME)
+            print " %s/%s" % (wcl['log_archive_path'], logfilename)
+        if wcl['use_db']:
+            if pfw_dbh is None:
+                pfw_dbh = pfwdb.PFWDB()
+        else:
+            print "DESDMTIME: run_wrapper %0.3f" % (time.time()-starttime)
 
-        return (exitcode, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'])
+        print "Post-steps (exit: %s)" % (exitcode)
+        post_wrapper(pfw_dbh, wcl, ins, jobfiles, task['logfile'], exitcode, workdir)
+
+        if pfw_dbh is not None:
+            pfw_dbh.end_task(wcl['task_id']['jobwrapper'], exitcode, True)
+
+        if exitcode:
+            miscutils.fwdebug_print("Aborting due to non-zero exit code")
     except:
-        for line in output:
-            print "%04d: %s" % (int(task['wrapnum']), line)
-
         print traceback.format_exc()
+        exitcode = pfwdefs.PF_EXIT_FAILURE
+    finally:
+        if stdp is not None:
+            sys.stdout = stdp.close()
+        if stde is not None:
+            sys.stderr = stde.close()
         sys.stdout.flush()
         sys.stderr.flush()
-        return (pfwdefs.PF_EXIT_FAILURE, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'])
+        return (exitcode, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'])
 
 ######################################################################
 def terminate():
@@ -1438,7 +1506,6 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
                     terminate()
                     # wait so everything can clean up, otherwise risk a deadlock
                     time.sleep(5)
-
                 del pool
                 jobfiles = jobfiles_global
                 if stop_all and max(results) > 0:
@@ -1526,18 +1593,20 @@ def run_job(args):
         jobfiles_global['infullnames'].extend(jobfiles['infullnames'])
         miscutils.coremakedirs('log')
         miscutils.coremakedirs('outputwcl')
-
         exitcode, jobfiles = job_workflow(args.workflow, jobfiles, jobwcl)
     except Exception as ex:
         (extype, exvalue, trback) = sys.exc_info()
         print '!' * 60
-        if jobwcl['use_db'] and pfw_dbh is None:
-            pfw_dbh = pfwdb.PFWDB()
-            pfw_dbh.insert_message(jobwcl['pfw_attempt_id'], job_task_id, pfwdefs.PFWDB_MSG_ERROR,
-                                   "%s: %s" % (type(ex).__name__, str(exvalue)))
         traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         exitcode = pfwdefs.PF_EXIT_FAILURE
         print "Aborting rest of wrapper executions.  Continuing to end-of-job tasks\n\n"
+        try:
+            if jobwcl['use_db'] and pfw_dbh is None:
+                pfw_dbh = pfwdb.PFWDB()
+                pfw_dbh.insert_message(jobwcl['pfw_attempt_id'], job_task_id, pfwdefs.PFWDB_MSG_ERROR,
+                                       "%s: %s" % (type(ex).__name__, str(exvalue)))
+        except:
+            print "Error inserting message"
 
     try:
         if jobwcl['use_db'] and pfw_dbh is None:
@@ -1559,7 +1628,6 @@ def run_job(args):
         if miscutils.fwdebug_check(1, "PFWRUNJOB_DEBUG"):
             miscutils.fwdebug_print("len(jobfiles['outfullnames'])=%s" % \
                                     (len(jobfiles['outfullnames'])))
-
     if pfw_dbh is not None:
         disku = pfwutils.diskusage(jobwcl['jobroot'])
         curr_usage = disku - jobwcl['pre_job_disk_usage']
@@ -1570,8 +1638,7 @@ def run_job(args):
         pfw_dbh.commit()
         pfw_dbh.close()
     else:
-        print "\nDESDMTIME: pfwrun_job %0.3f" % (time.time()-jobstart)
-
+       print "\nDESDMTIME: pfwrun_job %0.3f" % (time.time()-jobstart)
     return exitcode
 
 ###############################################################################

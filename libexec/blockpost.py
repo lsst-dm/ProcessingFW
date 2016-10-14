@@ -84,7 +84,6 @@ def blockpost(argv=None):
 
     msg2 = ""
     dbh = None
-    lastwraps = []
     job_byblk = {}
     wrap_byjob = {}
     wrap_bymod = {}
@@ -234,8 +233,6 @@ def blockpost(argv=None):
                                 else:
                                     whyfailwraps[jobtid].append(key)
 
-
-
                     if jobdict['status'] == pfwdefs.PF_EXIT_EUPS_FAILURE:
                         msg2 += " - FAIL - EUPS setup failure"
                         retval = jobdict['status']
@@ -291,15 +288,14 @@ def blockpost(argv=None):
             traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
             retval = pfwdefs.PF_EXIT_FAILURE
 
-        miscutils.fwdebug_print("lastwraps = %s" % lastwraps)
-        if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)) and len(lastwraps) > 0:
+        if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)) and len(failedwraps[jobtid]) > 0:
             try:
                 import qcframework.qcfdb as qcfdb
                 qdbh = qcfdb.QCFDB(config.getfull('submit_des_services'),
                                   config.getfull('submit_des_db_section'))
                 miscutils.fwdebug_print("Querying QCF messages")
                 start_time = time.time()
-                wrapmsg = qdbh.get_qcf_messages_for_wrappers(lastwraps)
+                wrapmsg = qdbh.get_qcf_messages_for_wrappers([wrap_byjob[jobtid][w]['task_id'] for w in failedwraps[jobtid]])
                 end_time = time.time()
                 miscutils.fwdebug_print("Done querying QCF messages (%s secs)" % (end_time-start_time))
                 miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
@@ -313,7 +309,6 @@ def blockpost(argv=None):
 
                     # only print messages if job doesn't have success status
                     if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                        modname = failedwraps[jobtid].values()[0]['modname']
 
                         msg2 += "\t%s %s\n" % (pfwutils.pad_jobnum(jobdict['jobnum']), modname)
 

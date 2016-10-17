@@ -234,6 +234,9 @@ def blockpost(argv=None):
                 #print "wrap_byjob:", wrap_byjob
                 #print "wrap_bymod:", wrap_bymod
                 for jobtid, jobdict in sorted(job_byblk[blktid].items()):
+                    failedwraps[jobtid] = []
+                    whyfailwraps[jobtid] = []
+
                     jobkeys = ""
 
                     # don't print out successful wrappers
@@ -261,8 +264,6 @@ def blockpost(argv=None):
                                                jobdict['expect_num_wrap'], modname)
 
                         # determine wrappers for this job without success exit
-                        failedwraps[jobtid] = []
-                        whyfailwraps[jobtid] = []
                         for wrapnum, wdict in wrap_byjob[jobtid].items():
                             if wdict['status'] is None or wdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
                                 if wdict['modname'] == modname:
@@ -305,7 +306,6 @@ def blockpost(argv=None):
                             msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'])
 
                     # print log file name for failed/unfinished wrappers
-                    print "MMG", jobtid, failedwraps[jobtid]
                     for wrapnum in failedwraps[jobtid]:
                         wrapdict = wrap_byjob[jobtid][wrapnum]
                         if wrapdict['log'] in logfullnames:

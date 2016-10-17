@@ -2591,7 +2591,7 @@ echo "PFW: pfwrunjob endtime: $d2"
 echo ""
 echo ""
 if [ -e outputwcl ]; then
-    tar -cvf $initdir/$outputtar outputwcl;
+    tar -cf $initdir/$outputtar outputwcl;
 else
     echo "INFO:  No outputwcl directory at end of job";
 fi

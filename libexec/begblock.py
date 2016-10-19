@@ -173,10 +173,10 @@ def begblock(argv):
         #pfwblock.stage_inputs(config, files2stage)
 
 
-        if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \
-           config.getfull(pfwdefs.USE_HOME_ARCHIVE_OUTPUT).lower() == 'block':
-            config['block_outputlist'] = 'potential_outputfiles.list'
-            pfwblock.write_output_list(config, outputfiles)
+        #if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \
+        #   config.getfull(pfwdefs.USE_HOME_ARCHIVE_OUTPUT).lower() == 'block':
+        #    config['block_outputlist'] = 'potential_outputfiles.list'
+        #    pfwblock.write_output_list(config, outputfiles)
 
 
         dagfile = config.get_filename('jobdag')

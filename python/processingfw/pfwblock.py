@@ -1534,7 +1534,7 @@ def create_new_filename(config, fsectname, fsectdict, sobj, currvals):
                                        intgdefs.REPLACE_VARS:True,
                                        'keepvars': True})
     if fileinfo is None:
-        miscutils.fwdie('empty fileinfo %s %s' % (modname, fkey), pfwdefs.PF_EXIT_FAILURE)
+        miscutils.fwdie('empty fileinfo %s' % (fsectname), pfwdefs.PF_EXIT_FAILURE)
 
     # save file info as if we read from query
     fnames = fileinfo[0]

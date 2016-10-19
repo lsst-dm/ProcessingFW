@@ -19,7 +19,7 @@ from despymisc import miscutils
 
 NUMLINES = 50
 
-def send_email(config, block, status, subject, msg1, msg2):
+def send_email(config, block, status, subject, msg1, msg2, sendit=True):
     """create PFW email and send it"""
     project = config.getfull('project')
     run = config.getfull('submit_run')
@@ -87,19 +87,26 @@ def send_email(config, block, status, subject, msg1, msg2):
     mailfh.close()
 
     subject = "DESDM: %s %s %s %s" % (project, run, block, subject)
-    if int(status) == pfwdefs.PF_EXIT_DRYRUN and \
-            miscutils.convertBool(config.getfull(pfwdefs.PF_DRYRUN)):
+    dryrun = False
+    if miscutils.convertBool(config.getfull(pfwdefs.PF_DRYRUN)):
+        dryrun = True
         subject += " [DRYRUN]"
-    elif int(status) != pfwdefs.PF_EXIT_SUCCESS:
+
+    if int(status) != pfwdefs.PF_EXIT_SUCCESS and \
+            (not dryrun or int(status) != pfwdefs.PF_EXIT_DRYRUN):
         subject += " [FAILED]"
 
     (exists, email) = config.search('email', {intgdefs.REPLACE_VARS: True})
     if exists:
-        print "Sending %s as email to %s (block=%s)" % (mailfile, email, block)
-        mailfh = open(mailfile, 'r')
-        print subprocess.check_output(['/bin/mail', '-s', '%s' % subject, email], stdin=mailfh)
-        mailfh.close()
-        # don't delete email file as helps others debug as well as sometimes emails are missed
+        if sendit:
+            print "Sending %s as email to %s (block=%s)" % (mailfile, email, block)
+            mailfh = open(mailfile, 'r')
+            print subprocess.check_output(['/bin/mail', '-s', '%s' % subject, email], stdin=mailfh)
+            mailfh.close()
+            # don't delete email file as helps others debug as well as sometimes emails are missed
+        else:
+            print "Not sending %s as email to %s (block=%s)" % (mailfile, email, block)
+            print "subject: %s" % subject
     else:
         print block, "No email address.  Not sending email."
 

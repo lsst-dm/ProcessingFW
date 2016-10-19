@@ -82,7 +82,7 @@ def logpost(argv=None):
 #        'mngr' not in subblock:
 #        send_subblock_email(config, blockname, subblock, retval)
 
-    if retval != pfwdefs.PF_EXIT_SUCCESS:
+    if subblock != 'begblock' and retval != pfwdefs.PF_EXIT_SUCCESS:
         miscutils.fwdebug_print("Setting failure retval")
         retval = pfwdefs.PF_EXIT_FAILURE
 

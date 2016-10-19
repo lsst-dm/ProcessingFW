@@ -150,7 +150,11 @@ def blockpost(argv=None):
                 end_time = time.time()
                 miscutils.fwdebug_print("Done getting block task info from DB (%s secs)" % (end_time - start_time))
                 for bltdict in bltasks.values():
-                    if bltdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                    print "Block status = ", bltdict['status']
+                    if bltdict['status'] == pfwdefs.PF_EXIT_DRYRUN:
+                        print "setting return value to dryrun"
+                        retval = bltdict['status']
+                    elif bltdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
                         num_bltasks_failed += 1
                         msg2 += "\t%s" % (bltdict['name'])
                         if bltdict['label'] is not None:
@@ -187,20 +191,21 @@ def blockpost(argv=None):
 
                         retval = pfwdefs.PF_EXIT_FAILURE
 
-                print "\n\nChecking job status from pfw_job table in DB (%s is success)" % \
-                      pfwdefs.PF_EXIT_SUCCESS
+                if retval != pfwdefs.PF_EXIT_DRYRUN:
+                    print "\n\nChecking job status from pfw_job table in DB (%s is success)" % \
+                        pfwdefs.PF_EXIT_SUCCESS
 
-                miscutils.fwdebug_print("Getting job info from DB")
-                start_time = time.time()
-                jobinfo = dbh.get_job_info({'pfw_block_task_id': blktid })
-                end_time = time.time()
-                miscutils.fwdebug_print("Done getting job info from DB (%s secs)" % (end_time-start_time))
+                    miscutils.fwdebug_print("Getting job info from DB")
+                    start_time = time.time()
+                    jobinfo = dbh.get_job_info({'pfw_block_task_id': blktid })
+                    end_time = time.time()
+                    miscutils.fwdebug_print("Done getting job info from DB (%s secs)" % (end_time-start_time))
 
-                miscutils.fwdebug_print("Getting wrapper info from DB")
-                start_time = time.time()
-                wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attid, pfw_block_task_id=blktid)
-                end_time = time.time()
-                miscutils.fwdebug_print("Done getting wrapper info from DB (%s secs)" % (end_time-start_time))
+                    miscutils.fwdebug_print("Getting wrapper info from DB")
+                    start_time = time.time()
+                    wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attid, pfw_block_task_id=blktid)
+                    end_time = time.time()
+                    miscutils.fwdebug_print("Done getting wrapper info from DB (%s secs)" % (end_time-start_time))
             else:
                 msg = "Could not find task id for block %s in config.des" % blockname
                 print "Error:", msg
@@ -337,7 +342,22 @@ def blockpost(argv=None):
     if 'when_to_email' in config:
         when_to_email = config.getfull('when_to_email').lower()
 
-    if retval:
+    if miscutils.convertBool(dryrun):
+        if when_to_email != 'never':
+            print "dryrun = ", dryrun
+            print "Sending dryrun email"
+            if retval == pfwdefs.PF_EXIT_DRYRUN:
+                msg1 = "%s:  In dryrun mode, block %s has finished successfully." % (run, blockname)
+            else:
+                msg1 = "%s:  In dryrun mode, block %s has failed." % (run, blockname)
+            
+            msg2 = ""
+            send_email(config, blockname, retval, "", msg1, msg2)
+        else:
+            print "Not sending dryrun email"
+            print "retval = ", retval
+        retval = pfwdefs.PF_EXIT_DRYRUN
+    elif retval:
         if when_to_email != 'never':
             print "Sending block failed email\n"
             msg1 = "%s:  block %s has failed." % (run, blockname)
@@ -345,17 +365,6 @@ def blockpost(argv=None):
         else:
             print "Not sending failed email"
             print "retval = ", retval
-    elif miscutils.convertBool(dryrun):
-        if when_to_email != 'never':
-            print "dryrun = ", dryrun
-            print "Sending dryrun email"
-            msg1 = "%s:  In dryrun mode, block %s has finished successfully." % (run, blockname)
-            msg2 = ""
-            send_email(config, blockname, pfwdefs.PF_EXIT_SUCCESS, "[DRYRUN]", msg1, msg2)
-        else:
-            print "Not sending dryrun email"
-            print "retval = ", retval
-        retval = pfwdefs.PF_EXIT_DRYRUN
     elif retval == pfwdefs.PF_EXIT_SUCCESS:
         if when_to_email == 'block':
             msg1 = "%s:  block %s has finished successfully." % (run, blockname)

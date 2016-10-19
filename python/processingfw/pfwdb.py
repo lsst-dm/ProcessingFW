@@ -818,18 +818,36 @@ class PFWDB(desdmdbi.DesDmDbi):
         curs.execute(sql, wherevals)
         desc = [d[0].lower() for d in curs.description]
 
-        sql2 = "select * from pfw_message where task_id=%s and (msglevel != %s or msglevel is null)" % (self.get_named_bind_string('task_id'), str(pfwdefs.PFWDB_MSG_INFO))
+        # separated query for pfw_message into 2 separate queries because single ran too slow (t.id=%s or t.parent_task_id=%s)
+        sql2 = "select * from pfw_message m, task t where m.task_id=t.id and t.id=%s and (msglevel != %s or msglevel is null)" % (self.get_named_bind_string('task_id'), str(pfwdefs.PFWDB_MSG_INFO))
         curs2 = self.cursor()
         curs2.prepare(sql2)
+
+        sql3 = "select * from pfw_message m, task t where m.task_id=t.id and t.parent_task_id=%s and (msglevel != %s or msglevel is null)" % (self.get_named_bind_string('task_id'), str(pfwdefs.PFWDB_MSG_INFO))
+        curs3 = self.cursor()
+        curs3.prepare(sql3)
+
         jobinfo = {}
         for line in curs:
             d = dict(zip(desc, line))
+
+            # check for pfw_messages from job
             curs2.execute(None, {'task_id': d['task_id']})
             desc2 = [x[0].lower() for x in curs2.description]
             msglist = []
             for r in curs2:
                 mdict = dict(zip(desc2, r))
                 msglist.append(mdict)
+
+            # check for pfw_messages from any job "children" tasks
+            curs3.execute(None, {'task_id': d['task_id']})
+            desc3 = [x[0].lower() for x in curs3.description]
+            msglist = []
+            for r in curs3:
+                mdict = dict(zip(desc3, r))
+                msglist.append(mdict)
+
+
             d['message'] = msglist
             jobinfo[d['task_id']] = d
 

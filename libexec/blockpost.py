@@ -289,27 +289,31 @@ def blockpost(argv=None):
                         msg2 += " - FAIL - Non-zero status"
                         retval = jobdict['status']
 
-                    if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                        msg2 += "\n\t\t%s/runjob.out " % (submit_job_path)
+                if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                    msg2 += "\n\t\t%s/runjob.out " % (submit_job_path)
 
-                    msg2 += '\n'
+                msg2 += '\n'
 
-                    # print pfw_messages
-                    if 'message' in jobdict:
-                        for msgdict in sorted(jobdict['message'], key=lambda k: k['msgtime']):
-                            level = int(msgdict['msglevel'])
-                            #print level, msgdict['msg'], type(level)
-                            #print "PFWDB_MSG_WARN = ", pfwdefs.PFWDB_MSG_WARN, \
-                            #      type(pfwdefs.PFWDB_MSG_WARN)
-                            #print "PFWDB_MSG_ERROR = ", pfwdefs.PFWDB_MSG_ERROR
-                            levelstr = 'info'
-                            if level == pfwdefs.PFWDB_MSG_WARN:
-                                levelstr = 'WARN'
-                            elif level == pfwdefs.PFWDB_MSG_ERROR:
-                                levelstr = 'ERROR'
+                # print pfw_messages
+                if 'message' in jobdict:
+                    print jobdict['message']
+                    for msgdict in sorted(jobdict['message'], key=lambda k: k['msgtime']):
+                        print "MMG1"
+                        level = int(msgdict['msglevel'])
+                        #print level, msgdict['msg'], type(level)
+                        #print "PFWDB_MSG_WARN = ", pfwdefs.PFWDB_MSG_WARN, \
+                        #      type(pfwdefs.PFWDB_MSG_WARN)
+                        #print "PFWDB_MSG_ERROR = ", pfwdefs.PFWDB_MSG_ERROR
+                        levelstr = 'info'
+                        if level == pfwdefs.PFWDB_MSG_WARN:
+                            levelstr = 'WARN'
+                        elif level == pfwdefs.PFWDB_MSG_ERROR:
+                            levelstr = 'ERROR'
 
-                            msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'])
+                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'].replace('\n','\n\t\t\t'))
 
+    
+                if jobtid in wrap_byjob:
                     # print log file name for failed/unfinished wrappers
                     for wrapnum in failedwraps[jobtid]:
                         wrapdict = wrap_byjob[jobtid][wrapnum]

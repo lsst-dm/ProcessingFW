@@ -1363,6 +1363,7 @@ def job_thread(argv):
             sys.stderr.flush()
             return (exitcode, jobfiles, wcl, wcl['wrap_usage'], task['wrapnum'])
     except:
+        print "Error: Unhandled exception in job_thread."
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback,
                                   limit=4, file=sys.stdout)
@@ -1439,7 +1440,7 @@ def results_checker(result):
                 finally:
                     keeprunning = False
     except:
-        print "Error: thread monitoring encountered an error"
+        print "Error: thread monitoring encountered an unhandled exception."
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback,
                                   limit=4, file=sys.stdout)

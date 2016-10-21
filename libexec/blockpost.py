@@ -161,16 +161,20 @@ def blockpost(argv=None):
                             msg2 += " - %s" % (bltdict['label'])
                         msg2 += " failed\n"
 
-                        if "begblock" in bltdict['name']:
+                        if bltdict['name'] == 'begblock':
                             # try to read the begblock.out and begblock.err files
+                            print "Trying to get begblock.out and begblock.err"
                             msg2 += get_subblock_output("begblock")
-                            sql = "select id from task where root_task_id in (select root_task_id from task where parent_task_id=%i) and status!=0" % (blktid)
+
+                            # try to get QCF messages (especially from query codes)
+                            begblock_tid = int(config['task_id']['begblock'])
+                            sql = "select id from task where parent_task_id=%i and status!=0" % (begblock_tid)
                             curs = dbh.cursor()
                             curs.execute(sql)
                             res = curs.fetchall()
                             msg2 += "\n===== QCF Messages =====\n"
                             msg2 += "\n begblock\n"
-                            wrapids = []
+                            wrapids = [blktid, begblock_tid]
                             for r in res:
                                 wrapids.append(r[0])
 
@@ -355,7 +359,6 @@ def blockpost(argv=None):
             else:
                 msg1 = "%s:  In dryrun mode, block %s has failed." % (run, blockname)
             
-            msg2 = ""
             send_email(config, blockname, retval, "", msg1, msg2)
         else:
             print "Not sending dryrun email"

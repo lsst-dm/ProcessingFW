@@ -8,6 +8,7 @@ import argparse
 import re
 import sys
 
+import ConfigParser
 from despymisc import miscutils
 from processingfw import pfwdb
 from processingfw import pfwutils
@@ -173,7 +174,12 @@ def print_job_info(argv):
 
     args = parse_args(argv)
 
-    dbh = pfwdb.PFWDB(args['des_services'], args['section'])
+    try:
+        dbh = pfwdb.PFWDB(args['des_services'], args['section'])
+    except ConfigParser.NoSectionError:
+        print "Can't determine section of services file to get DB connection info"
+        print "\tEither set environment variable DES_DB_SECTION or add command-line option --section"
+        sys.exit(1)
 
     # get the run info
     for run in args['runs']:

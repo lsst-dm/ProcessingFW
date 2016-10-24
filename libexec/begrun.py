@@ -149,7 +149,7 @@ def send_failed_email(config, msg2):
         msg2 += "\tMissing desservices file section needed by file transfer\n"
         msg2 += "\tPermission problems in archive\n\n"
 
-        outfile = "%s_begrun.out" % config.getfull('submit_run')
+        outfile = "begrun.out"
         msg2 += "########## %s ##########\n" % outfile
         if os.path.exists(outfile):
             with open(outfile, 'r') as outfh:

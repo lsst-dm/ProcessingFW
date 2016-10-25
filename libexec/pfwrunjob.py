@@ -1371,9 +1371,17 @@ def job_thread(argv):
 
 ######################################################################
 def terminate():
+    global pool
+    import random
+    import Queue
     global keeprunning
     try:
+        pool._taskqueue = Queue.Queue()
+        #while not pool._taskqueue.empty():
+        #    pool._taskqueue.get_nowait()
+        pool._terminate.cancel()
         parent = psutil.Process(os.getpid())
+
         children = parent.children(recursive=False)
         grandchildren = []
         for child in children:
@@ -1383,6 +1391,7 @@ def terminate():
                 proc.send_signal(signal.SIGTERM)
             except:
                 pass
+
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback,
@@ -1520,12 +1529,11 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
             finally:
                 if stop_all and max(results) > 0:
                     # empty the worker queue so nothing else starts
-                    while not pool._taskqueue.empty():
-                        pool._taskqueue.get_nowait()
                     terminate()
                     # wait so everything can clean up, otherwise risk a deadlock
                     time.sleep(5)
                 del pool
+
                 jobfiles = jobfiles_global
                 if stop_all and max(results) > 0:
                     return max(results), jobfiles

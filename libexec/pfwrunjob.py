@@ -324,6 +324,7 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
 
     starttime = time.time()
     task_id = -1
+    results = {}
     if pfw_dbh is not None:
         task_id = pfw_dbh.create_task(name='save_file_info',
                                       info_table=None,
@@ -334,7 +335,7 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
                                       do_commit=True)
 
     try:
-        filemgmt.register_file_data(ftype, fullnames, pfw_attempt_id, wgb_tid, do_update, update_info, filepat)
+        results = filemgmt.register_file_data(ftype, fullnames, pfw_attempt_id, wgb_tid, do_update, update_info, filepat)
         filemgmt.commit()
 
         if pfw_dbh is not None:
@@ -344,16 +345,27 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
     except:
         (extype, exvalue, trback) = sys.exc_info()
         traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
+        
         if pfw_dbh is not None:
             pfw_dbh.insert_message(pfw_attempt_id, task_id, pfwdefs.PFWDB_MSG_ERROR,
                                    "%s: %s" % (extype, str(exvalue)))
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         else:
             print "DESDMTIME: pfw_save_file_info %0.3f" % (time.time()-starttime)
-        raise
+        #raise
+        if len(fullnames) == 1:
+            results[fullnames[0]] = None
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
+
+    listing = []
+
+    for k, v in results.iteritems():
+        if v is None:
+            listing.append(k)
+
+    return listing
 
 
 ######################################################################
@@ -361,7 +373,6 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
     """ Handle the transfer of files from a single archive to the job directory """
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
-
     trans_task_id = 0
     if pfw_dbh is not None:
         trans_task_id = pfw_dbh.create_task(name='trans_input_%s' % dest,
@@ -373,11 +384,18 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
                                             do_commit=True)
 
     archive_info = wcl['%s_archive_info' % dest.lower()]
-
     results = None
     transinfo = get_file_archive_info(pfw_dbh, wcl, files2get, jobfiles,
                                       archive_info, trans_task_id)
 
+    if len(transinfo) != len(files2get):
+        badfiles = []
+        for file_name in files2get:
+            if file_name not in transinfo.keys():
+                badfiles.append(file_name)
+            if pfw_dbh is not None:
+                pfw_dbh.end_task(trans_task_id, pfwdefs.PF_EXIT_FAILURE, True)
+        raise Exception("Error: the following files did not have entries in the database:\n%s" % (", ".join(badfiles)))
     if len(transinfo) > 0:
         if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
             miscutils.fwdebug_print("\tCalling target2job on %s files" % len(transinfo))
@@ -417,6 +435,7 @@ def transfer_single_archive_to_job(pfw_dbh, wcl, files2get, jobfiles, dest, pare
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
+
     return results
 
 
@@ -1109,6 +1128,7 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
 
             if pfwdefs.OW_OUTPUTS_BY_SECT in outputwcl and \
                len(outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT]) > 0:
+                badfiles = []
                 wrap_output_files = []
                 for sectname, byexec in outputwcl[pfwdefs.OW_OUTPUTS_BY_SECT].items():
                     sectkeys = sectname.split('.')
@@ -1141,14 +1161,16 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
                                                                                       sectdict['filetype'],
                                                                                       sectdict['filepat']))
                         try:
-                            pfw_save_file_info(pfw_dbh, filemgmt, sectdict['filetype'],
-                                               fullnames, wcl['pfw_attempt_id'],
-                                               wcl['task_id']['attempt'],
-                                               wcl['task_id']['jobwrapper'],
-                                               task_id, True, updatedef, filepat)
+                            badfiles.extend(pfw_save_file_info(pfw_dbh, filemgmt, sectdict['filetype'],
+                                                               fullnames, wcl['pfw_attempt_id'],
+                                                               wcl['task_id']['attempt'],
+                                                               wcl['task_id']['jobwrapper'],
+                                                               task_id, True, updatedef, filepat))
                         except Exception, e:
                             excepts.append(e)
                         for fname in fullnames:
+                            if fname in badfiles:
+                                continue
                             finfo[fname] = {'sectname': sectname,
                                             'filetype': sectdict['filetype'],
                                             'filesave': filesave,
@@ -1156,6 +1178,11 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
                                             'fullname': fname}
                             if 'archivepath' in sectdict:
                                 finfo[fname]['path'] = sectdict['archivepath']
+                wrap_output_files = list(set(wrap_output_files))
+                for f in badfiles:
+                    if f in wrap_output_files:
+                        wrap_output_files.remove(f)
+                        #del jobfiles['output_putinfo'][f]
 
                 jobfiles['outfullnames'].extend(wrap_output_files)
 
@@ -1291,7 +1318,6 @@ def job_thread(argv):
             else:
                 wcl['task_id']['jobwrapper'] = -1
 
-            print "Setup"
             # set up the working directory if needed
             if multi:
                 workdir = "fwtemp%04i" % (int(task['wrapnum']))

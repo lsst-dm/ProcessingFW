@@ -866,7 +866,7 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, dest,
     if dest.lower() == 'target':
         results = jobfilemvmt.job2target(saveinfo)
     else:
-        results = jobfilemvmt.job2home(saveinfo)
+        results = jobfilemvmt.job2home(saveinfo, wcl['verify_files'])
 
     if sem is not None:
         if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
@@ -1587,7 +1587,7 @@ def run_job(args):
         jobwcl.read(wclfh, filename=args.config)
     jobwcl['use_db'] = miscutils.checkTrue('usedb', jobwcl, True)
     jobwcl['use_qcf'] = miscutils.checkTrue('useqcf', jobwcl, False)
-
+    jobwcl['verify_files'] = miscutils.checkTrue('verify_files', jobwcl, False)
     jobwcl['jobroot'] = os.getcwd()
     jobwcl['job_max_usage'] = 0
     #jobwcl['pre_job_disk_usage'] = pfwutils.diskusage(jobwcl['jobroot'])

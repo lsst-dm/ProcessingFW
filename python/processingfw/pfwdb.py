@@ -484,10 +484,11 @@ class PFWDB(desdmdbi.DesDmDbi):
 
             if 'PFW_JOB_START_EPOCH' in os.environ:
                 # doing conversion on DB to avoid any timezone issues
-                sql += ", start_time = from_tz(to_timestamp('1970-01-01','YYYY-MM-DD') + numtodsinterval(%s,'SECOND'), 'UTC') at time zone 'US/Central')" % (os.environ['PFW_JOB_START_EPOCH'])
+                sql += ", start_time = (from_tz(to_timestamp('1970-01-01','YYYY-MM-DD') + numtodsinterval(%s,'SECOND'), 'UTC') at time zone 'US/Central')" % (os.environ['PFW_JOB_START_EPOCH'])
 
             sql += ' where id=%s' % (wcl['task_id']['job'])
             curs = self.cursor()
+            print sql
             curs.execute(sql)
             self.commit()
             #wherevals = {}

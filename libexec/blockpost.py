@@ -12,6 +12,7 @@ import sys
 import os
 import time
 import traceback
+import socket
 
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwutils as pfwutils
@@ -21,6 +22,8 @@ import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 from processingfw.pfwemail import send_email,get_subblock_output
+import filemgmt.compare_utils as cu
+import despydmdb.dbsemaphore as dbsem
 
 
 def get_qcf_messages(qdbh, config, wraptids):
@@ -68,6 +71,8 @@ def blockpost(argv=None):
 
     print ' '.join(argv)  # print command line for debugging
 
+    print "running on %s" % (socket.gethostname())
+
     if len(argv) != 3:
         print 'Usage: blockpost.py configfile retval'
         debugfh.close()
@@ -86,7 +91,6 @@ def blockpost(argv=None):
         miscutils.fwdebug_print("done reading config file")
     blockname = config.getfull('blockname')
     blkdir = config.getfull('block_dir')
-
 
     # now that have more information, can rename output file
     miscutils.fwdebug_print("getting new_log_name")
@@ -125,12 +129,37 @@ def blockpost(argv=None):
     jobinfo = {}
     failedwraps = {}
     whyfailwraps = {}   # mod failures for other modname, shouldn't happen
-
+    usedb = miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT))
+    verify_files = miscutils.convertBool(config.getfull('verify_files'))
+    verify_status = 0
+    if verify_files and not usedb:
+        print 'Skipping file verification due to lack of database connection'
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
+        sem = None
         try:
             miscutils.fwdebug_print("Connecting to DB")
             dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                               config.getfull('submit_des_db_section'))
+            if verify_files:
+                curs = dbh.cursor()
+                curs.execute("select root from ops_archive where name='%s'" % (config.getfull('home_archive')))
+                rows = curs.fetchall()
+                if rows is None or len(rows) != 1:
+                    raise Exception("Invalid archive name (%s).   Found %s rows in ops_archive" % (config.getfull('home_archive'), len(rows)))
+                root = rows[0][0]
+                if not os.path.isdir(root):
+                    print "Cannot read archive root directory:%s This program must be run on an NCSA machine with access to the archive storage system." % (config.getfull('home_archive'))
+                sem = dbsem.DBSemaphore('verify_files_10', None, config.getfull('submit_des_services'), config.getfull('submit_des_db_section'))
+                print "\n\nVerifying archive file sizes on disk (0 is success)"
+                verify_status = cu.compare(dbh=dbh, archive=config.getfull('home_archive'), pfwid=attid, filesize=True, md5sum=False, quick=True, debug=False, script=False, verbose=False, silent=True)
+                if sem is not None:
+                    del sem
+                print "  Verification of files returned status %i" % (verify_status)
+                if verify_status != 0:
+                    print "  This indicates that one or more files do not have the correct file size (based on DB entries). Run"
+                    print "\n    compare_db.py --des_services %s --section %s --archive %s --pfwid %i --filesize --verbose" % (config.getfull('submit_des_services'), config.getfull('submit_des_db_section'), config.getfull('home_archive'), int(attid))
+                    print "\n  to see the details."
+
             if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_QCF)):
                 import qcframework.qcfdb as qcfdb
                 qdbh = qcfdb.QCFDB(config.getfull('submit_des_services'),
@@ -336,6 +365,9 @@ def blockpost(argv=None):
                         msg2 += "\t%s\n" % ','.join(whyfailwraps[jobtid])
 
         except Exception as exc:
+            if sem is not None:
+                del sem
+
             msg2 += "\n\nEncountered error trying to gather status information for email."
             msg2 += "\nCheck output for blockpost for further details."
             print "\n\nEncountered error trying to gather status information for email"
@@ -343,7 +375,7 @@ def blockpost(argv=None):
             (extype, exvalue, trback) = sys.exc_info()
             traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
             retval = pfwdefs.PF_EXIT_FAILURE
-
+    retval = int(retval) + verify_status
     print "before email retval =", retval
 
     when_to_email = 'run'

@@ -175,3 +175,5 @@ PF_CURRVALS = 'currentvals'
 PFWDB_MSG_ERROR = 3
 PFWDB_MSG_WARN = 2
 PFWDB_MSG_INFO = 1
+
+PF_VERIFY_FILES = 'verify_files'

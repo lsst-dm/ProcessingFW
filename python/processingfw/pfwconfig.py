@@ -78,7 +78,7 @@ class PfwConfig(WCL):
 
         # for values passed in on command line, set top-level config
         for var in (pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN,
-                    pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF):
+                    pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF, pfwdefs.PF_VERIFY_FILES):
             if var in args and args[var] is not None:
                 wclobj[var] = args[var]
 

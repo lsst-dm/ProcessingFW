@@ -15,6 +15,8 @@ import despymisc.miscutils as miscutils
 import processingfw.pfwutils as pfwutils
 import filemgmt.filemgmt_defs as fmdefs
 import processingfw.pfwblock as pfwblock
+import sys
+import traceback
 
 NUMCNTS = 4
 ERRCNT_POS = 0
@@ -46,7 +48,7 @@ def check_globals(config, indent=''):
                 'job_file_mvmt', pfwdefs.ATTEMPT_ARCHIVE_PATH,
                 pfwdefs.PF_USE_QCF, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT,
                 pfwdefs.SW_BLOCKLIST, pfwdefs.SW_BLOCKSECT, pfwdefs.SW_MODULESECT,
-                'create_junk_tarball']:
+                'create_junk_tarball','campaign']:
         try:
             if key not in config:
                 error(indent+'    ', "missing %s global key or section" % (key))
@@ -408,11 +410,10 @@ def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict
 
     cnts = [0] * NUMCNTS
     moddict = config[pfwdefs.SW_MODULESECT][modname]
-
+    
     if pfwdefs.SW_INPUTS in xsectdict:
         print "%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_INPUTS)
         indent += '    '
-
         #print "%sxsectdict[pfwdefs.SW_INPUTS] = %s" % (indent, xsectdict[pfwdefs.SW_INPUTS])
         # for each entry in inputs
         for objname in miscutils.fwsplit(xsectdict[pfwdefs.SW_INPUTS], ','):
@@ -722,21 +723,45 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
     cnts = [0] * NUMCNTS
 
     print "%sChecking %s..." % (indent, xsectname)
-    cnts2 = check_exec_inputs(config, blockname, modname, dataobjs,
-                              xsectname, xsectdict, indent+'    ')
-    cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    try:
+        cnts2 = check_exec_inputs(config, blockname, modname, dataobjs,
+                                  xsectname, xsectdict, indent+'    ')
+        cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    except:
+        cnts[0] += 1
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=4)
 
-    cnts2 = check_exec_outputs(config, blockname, modname, dataobjs,
-                               xsectname, xsectdict, indent+'    ')
-    cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
-
-    cnts2 = check_exec_parentchild(config, blockname, modname, dataobjs,
+    try:
+        cnts2 = check_exec_outputs(config, blockname, modname, dataobjs,
                                    xsectname, xsectdict, indent+'    ')
-    cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+        cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    except:
+        cnts[0] += 1
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=4)
 
-    cnts2 = check_exec_cmd(config, blockname, modname, dataobjs,
-                           xsectname, xsectdict, indent+'    ')
-    cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    try:
+        cnts2 = check_exec_parentchild(config, blockname, modname, dataobjs,
+                                       xsectname, xsectdict, indent+'    ')
+        cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    except:
+        cnts[0] += 1
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=4)
+
+    try:
+        cnts2 = check_exec_cmd(config, blockname, modname, dataobjs,
+                               xsectname, xsectdict, indent+'    ')
+        cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
+    except:
+        cnts[0] += 1
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=4)
 
     return cnts
 

@@ -619,9 +619,9 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
             if key not in dataobjs[pfwdefs.SW_INPUTS] and \
                key not in dataobjs[pfwdefs.SW_OUTPUTS] and \
                ('listonly' not in fdict or not miscutils.convertBool(fdict['listonly'])):
-                warning(indent + '    ', "%s.%s does not appear in provenance lines" % \
+                error(indent + '    ', "%s.%s does not appear in provenance lines" % \
                       (pfwdefs.SW_FILESECT, fname))
-                cnts[WARNCNT_POS] += 1
+                cnts[ERRCNT_POS] += 1
 
             if key in dataobjs[pfwdefs.SW_INPUTS]:
                 cnts2 = check_file_valid_input(config, blockname, modname,
@@ -644,21 +644,29 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
                key not in dataobjs[pfwdefs.SW_OUTPUTS]:
                 found = False
                 if 'columns' in ldict:
-                    key += "." + ldict['columns']
-                    key = key.replace('.fullname','')
-                    if key in dataobjs[pfwdefs.SW_INPUTS] or \
-                       key in dataobjs[pfwdefs.SW_OUTPUTS]:
-                        found = True
+                    for col in ldict['columns'].split(','):
+                        nkey = key + "." + col
+                        nkey = nkey.replace('.fullname','')
+                        if nkey in dataobjs[pfwdefs.SW_INPUTS] or \
+                           nkey in dataobjs[pfwdefs.SW_OUTPUTS]:
+                            found = True
+                        # check to see if list def has file name
+                        if not found:
+                            nkey = col
+                            nkey = 'file.' + nkey.replace('.fullname','')
+                            if nkey in dataobjs[pfwdefs.SW_INPUTS] or \
+                               nkey in dataobjs[pfwdefs.SW_OUTPUTS]:
+                                found = True
+
                 if not found:
-                    warning(indent+'    ',"%s.%s does not appear in provenance lines" % \
+                    error(indent+'    ',"%s.%s does not appear in provenance lines" % \
                                 (pfwdefs.SW_LISTSECT, lname))
-                    cnts[WARNCNT_POS] += 1
+                    cnts[ERRCNT_POS] += 1
 
             if key in dataobjs[pfwdefs.SW_INPUTS]:
                 cnts2 = check_list_valid_input(config, blockname, modname,
                                                lname, ldict, indent+'    ')
                 cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
-
 
     return cnts
 

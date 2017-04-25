@@ -21,6 +21,7 @@ import traceback
 import socket
 from collections import OrderedDict
 from multiprocessing import Pool
+import multiprocessing.pool as pl
 import psutil
 import signal
 
@@ -47,6 +48,7 @@ jobwcl = None
 job_track = {}
 hold = False
 keeprunning = True
+terminating = False
 
 class Print(object):
     """ Class to capture printed output and stdout and reformat it to append
@@ -299,7 +301,7 @@ def dynam_load_jobfilemvmt(wcl, pfw_dbh, tstats, parent_tid):
                                         wcl['job_file_mvmt'], tstats, valdict)
     except Exception as err:
         msg = "Error: creating job_file_mvmt object\n%s" % err
-        print "ERROR\n%s" % msg
+        print "ERROR",msg
         if pfw_dbh is not None:
             pfw_dbh.insert_message(wcl['pfw_attempt_id'], parent_tid, pfwdefs.PFWDB_MSG_ERROR, msg)
             #pfw_dbh.insert_message(wcl['pfw_attempt_id'], task_id, pfwdefs.PFWDB_MSG_ERROR, msg)
@@ -344,7 +346,7 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
             print "DESDMTIME: pfw_save_file_info %0.3f" % (time.time()-starttime)
     except:
         (extype, exvalue, trback) = sys.exc_info()
-        traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
+        #traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         
         if pfw_dbh is not None:
             pfw_dbh.insert_message(pfw_attempt_id, task_id, pfwdefs.PFWDB_MSG_ERROR,
@@ -352,9 +354,9 @@ def pfw_save_file_info(pfw_dbh, filemgmt, ftype, fullnames,
             pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
         else:
             print "DESDMTIME: pfw_save_file_info %0.3f" % (time.time()-starttime)
-        #raise
-        if len(fullnames) == 1:
-            results[fullnames[0]] = None
+        raise
+        #if len(fullnames) == 1:
+        #    results[fullnames[0]] = None
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
@@ -927,10 +929,14 @@ def save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile):
         filepat = wcl['filename_pattern']['log']
 
         # Register log file
-        pfw_save_file_info(pfw_dbh, filemgmt, 'log', [logfile], wcl['pfw_attempt_id'],
-                           wcl['task_id']['attempt'], wcl['task_id']['jobwrapper'],
-                           wcl['task_id']['jobwrapper'],
-                           False, None, filepat)
+        try:
+            pfw_save_file_info(pfw_dbh, filemgmt, 'log', [logfile], wcl['pfw_attempt_id'],
+                               wcl['task_id']['attempt'], wcl['task_id']['jobwrapper'],
+                               wcl['task_id']['jobwrapper'],
+                               False, None, filepat)
+        except:
+            (extype, exvalue, trback) = sys.exc_info()
+            traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
 
         # since able to register log file, save as not junk file
         jobfiles['outfullnames'].append(logfile)
@@ -1030,7 +1036,6 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
     """ Execute tasks after a wrapper is done """
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
         miscutils.fwdebug_print("BEG")
-
     # Save disk usage for wrapper execution
     disku = 0
     if workdir is not None:
@@ -1194,6 +1199,10 @@ def post_wrapper(pfw_dbh, wcl, ins, jobfiles, logfile, exitcode, workdir):
                 execids = wcl['task_id']['exec']
                 filemgmt.ingest_provenance(prov, execids)
         filemgmt.commit()
+    # in case logfile was created, but threaad was killed
+    elif not outputwclfile and os.path.exists(logfile):
+        if pfw_dbh is not None:
+            pfw_dbh.update_wrapper_end(wcl, None, logfile, exitcode, wcl['wrap_usage'])
 
     if len(finfo) > 0:
         save_trans_end_of_job(wcl, jobfiles, finfo)
@@ -1401,10 +1410,13 @@ def terminate():
     import random
     import Queue
     global keeprunning
+    global terminating
+    
+    terminating = True
     try:
         pool._taskqueue = Queue.Queue()
-        #while not pool._taskqueue.empty():
-        #    pool._taskqueue.get_nowait()
+        pool._state = pl.TERMINATE
+        pool._worker_handler._state = pl.TERMINATE
         pool._terminate.cancel()
         parent = psutil.Process(os.getpid())
 
@@ -1417,7 +1429,6 @@ def terminate():
                 proc.send_signal(signal.SIGTERM)
             except:
                 pass
-
     except:
         exc_type, exc_value, exc_traceback = sys.exc_info()
         traceback.print_exception(exc_type, exc_value, exc_traceback,
@@ -1436,18 +1447,20 @@ def results_checker(result):
     global hold
     global donejobs
     global keeprunning
+    global terminating
     try:
         (res, jobf, wcl, usage, wrapnum) = result
         jobfiles_global['outfullnames'].extend(jobf['outfullnames'])
         jobfiles_global['output_putinfo'].update(jobf['output_putinfo'])
-        del job_track[wrapnum]
+        if not terminating:
+            del job_track[wrapnum]
         if usage > jobwcl['job_max_usage']:
             jobwcl['job_max_usage'] = usage
         results.append(res)
         # if the current thread exited with non-zero status, then kill remaining threads
         #  but keep the log files
-
-        if res != 0 and stop_all:
+        
+        if (res != 0 and stop_all) and not terminating:
             if not hold:
                 pfw_dbh = None
                 hold = True
@@ -1461,9 +1474,11 @@ def results_checker(result):
                                 pfw_dbh = pfwdb.PFWDB()
                         wcl['task_id']['jobwrapper'] = -1
                         filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, wcl['task_id']['jobwrapper'])
-
                         if os.path.isfile(logfile):
                             print "%04d: Wrapper terminated early due to error in parallel thread." % int(wrapnm)
+                            lfile = open(logfile,'a')
+                            lfile.write("\n****************\nWrapper terminated early due to error in parallel thread.\n****************")
+                            lfile.close()
                             logfileinfo = save_log_file(pfw_dbh, filemgmt, wcl, jobfiles, logfile)
                             jobfiles_global['outfullnames'].append(logfile)
                             jobfiles_global['output_putinfo'].update(logfileinfo)
@@ -1851,6 +1866,7 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
 
     # remove paths
     notjunk = {}
+
     for fname in jobfiles['infullnames']:
         notjunk[os.path.basename(fname)] = True
     for fname in jobfiles['outfullnames']:
@@ -1906,9 +1922,13 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
 
         # register junktar with file manager
         filemgmt = dynam_load_filemgmt(wcl, pfw_dbh, None, job_task_id)
-        pfw_save_file_info(pfw_dbh, filemgmt, 'junk_tar', [wcl['junktar']], wcl['pfw_attempt_id'],
-                           wcl['task_id']['attempt'], job_task_id, job_task_id,
-                           False, None, wcl['filename_pattern']['junktar'])
+        try:
+            pfw_save_file_info(pfw_dbh, filemgmt, 'junk_tar', [wcl['junktar']], wcl['pfw_attempt_id'],
+                               wcl['task_id']['attempt'], job_task_id, job_task_id,
+                               False, None, wcl['filename_pattern']['junktar'])
+        except:
+            (extype, exvalue, trback) = sys.exc_info()
+            traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
 
         parsemask = miscutils.CU_PARSE_FILENAME|miscutils.CU_PARSE_COMPRESSION
         (filename, compression) = miscutils.parse_fullname(wcl['junktar'], parsemask)

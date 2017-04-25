@@ -34,9 +34,6 @@ import intgutils.queryutils as queryutils
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwcondor as pfwcondor
-#from processingfw.pfwwrappers import write_wrapper_wcl
-
-
 
 #######################################################################
 def get_datasect_types(config, modname):
@@ -402,7 +399,6 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                                 currvals, winst, fsectname, finfo,
                                 masterdata, sublists, is_iter_obj=False):
     """ Assign files to wrapper instance """
-
 
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("BEG: Working on file %s" % fsectname)
@@ -2095,7 +2091,6 @@ def get_filetypes_output_files(moddict, outputfiles, wrapperwcl):
 
     return filetypes
 
-
 #######################################################################
 # Assumes currvals includes specific values (e.g., band, ccd)
 def create_single_wrapper_wcl(config, modname, wrapinst):
@@ -2104,11 +2099,34 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
         miscutils.fwdebug_print("BEG %s %s" % (modname, wrapinst[pfwdefs.PF_WRAPNUM]))
     if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("\twrapinst=%s" % wrapinst)
+    files = {"infiles": [],
+             "outfiles": []}
 
     currvals = {'curr_module': modname, pfwdefs.PF_WRAPNUM: wrapinst[pfwdefs.PF_WRAPNUM]}
     wrapperwcl = WCL({'modname': modname,
                       'wrapkeys': wrapinst['wrapkeys']})
+    outfiles = []
+    outlists = []
+    moddict = config[pfwdefs.SW_MODULESECT][modname]
 
+    execs = intgmisc.get_exec_sections(moddict, pfwdefs.SW_EXECPREFIX)
+    for execkey,execval in execs.iteritems():
+        if pfwdefs.IW_INPUTS in execval.keys():
+            pass
+        if pfwdefs.IW_OUTPUTS in execval.keys():
+            temp = replfuncs.replace_vars_single(execval[pfwdefs.IW_OUTPUTS], config,
+                                             {pfwdefs.PF_CURRVALS: currvals,
+                                              'searchobj': execval[pfwdefs.IW_OUTPUTS],
+                                              'required': True,
+                                              intgdefs.REPLACE_VARS: True})
+            temp = temp.replace(' ','')
+            temp = temp.split(',')
+            for item in temp:
+                vals = item.split('.')
+                if vals[0] == pfwdefs.SW_FILESECT:
+                    outfiles.append(vals[1])
+                elif vals[0] == pfwdefs.SW_LISTSECT:
+                    outlists.append(vals[1])
 
     # file is optional
     if pfwdefs.IW_FILESECT in wrapinst:
@@ -2117,13 +2135,51 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
             miscutils.fwdebug_print("\tfile=%s" % wrapperwcl[pfwdefs.IW_FILESECT])
         for (sectname, sectdict) in wrapperwcl[pfwdefs.IW_FILESECT].items():
             sectdict['sectname'] = sectname
+            isanoutput = False
+            if sectname in outfiles:
+                isanoutput = True
+            if 'fullname' in sectdict:
+                if isanoutput:
+                    files['outfiles'] += sectdict['fullname'].split(',')
+                else:
+                    files['infiles'] += sectdict['fullname'].split(',')
+            elif 'listonly' in sectdict and sectdict['listonly'] == 'True':
+                pass
+            else:
+                print "MISSING",sectdict.items()
 
     # list is optional
     if pfwdefs.IW_LISTSECT in wrapinst:
         wrapperwcl[pfwdefs.IW_LISTSECT] = copy.deepcopy(wrapinst[pfwdefs.IW_LISTSECT])
+        for k,v in wrapperwcl[pfwdefs.IW_LISTSECT].iteritems():
+            isoutlist = False
+            if k in outlists:
+                isoutlist = True
+            if os.path.isfile(v['fullname']):
+                cols = v['columns'].split(',')
+                cc = -1
+                for num, col in enumerate(cols):
+                    if 'fullname' in col:
+                        cc = num
+                        break
+                if cc != -1:
+                    fl = open(v['fullname'], 'r')
+                    rl = fl.readlines()
+                    for line in rl:
+                        temp = line.split()[cc]
+                        temp = temp.replace(',','')
+                        if isoutlist:
+                            files['outfiles'].append(temp.split('[')[0])
+                        else:
+                            files['infiles'].append(temp.split('[')[0])
+
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("\tlist=%s" % wrapperwcl[pfwdefs.IW_LISTSECT])
 
+    for typ in ['outfiles','infiles']:
+        for num, ff in enumerate(files[typ]):
+            # drop any direstory structure
+            files[typ][num] = ff.split('/')[-1]
 
     # do we want exec_list variable?
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
@@ -2223,7 +2279,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
 
-    return wrapperwcl
+    return wrapperwcl, files
 
 
 # translate sw terms to iw terms in values if needed
@@ -2283,15 +2339,13 @@ def translate_sw_iw(config, wrapperwcl, modname, winst):
 #######################################################################
 def create_module_wrapper_wcl(config, modname, winst):
     """ Create wcl for wrapper instances for a module """
-
     if miscutils.fwdebug_check(1, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("BEG %s" % modname)
 
     if modname not in config[pfwdefs.SW_MODULESECT]:
         raise Exception("Error: Could not find module description for module %s\n" % (modname))
 
-    wrapperwcl = create_single_wrapper_wcl(config, modname, winst)
-
+    wrapperwcl, files = create_single_wrapper_wcl(config, modname, winst)
     translate_sw_iw(config, wrapperwcl, modname, winst)
     add_needed_values(config, modname, winst, wrapperwcl)
     write_wrapper_wcl(config, winst['inputwcl'], wrapperwcl)
@@ -2306,7 +2360,7 @@ def create_module_wrapper_wcl(config, modname, winst):
     if miscutils.fwdebug_check(1, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("END\n\n")
 
-
+    return files
 
 #######################################################################
 def divide_into_jobs(config, modname, winst, joblist, parlist):

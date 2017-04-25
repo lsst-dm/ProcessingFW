@@ -22,6 +22,7 @@ from processingfw.runqueries import runqueries
 import processingfw.pfwblock as pfwblock
 import processingfw.pfwdb as pfwdb
 
+
 def begblock(argv):
     """ Program entry point """
     if argv == None:
@@ -62,12 +63,12 @@ def begblock(argv):
     try:
         modulelist = miscutils.fwsplit(config.getfull(pfwdefs.SW_MODULELIST).lower())
         modules_prev_in_list = {}
-        #inputfiles = []
-        #outputfiles = []
 
         joblist = {}
         parlist = OrderedDict()
         masterdata = OrderedDict()
+        filelist = {'infiles' : [],
+                    'outfiles': []}
         for modname in modulelist:
             print "XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname
             if modname not in config[pfwdefs.SW_MODULESECT]:
@@ -96,19 +97,15 @@ def begblock(argv):
                 wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
                 wcnt = 1
                 for winst in wrapinst.values():
-                    stime = time.time()
                     if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
                         miscutils.fwdebug_print("winst %d - BEG" % wcnt)
                     pfwblock.assign_data_wrapper_inst(config, modname, winst, masterdata,
                                                       sublists, infsect, outfsect)
-                    #modinputs, modoutputs = pfwblock.finish_wrapper_inst(config, modname, winst,
-                    #                                                     outfsect)
-                    #inputfiles.extend(modinputs)
-                    #outputfiles.extend(modoutputs)
                     pfwblock.finish_wrapper_inst(config, modname, winst, outfsect)
-                    pfwblock.create_module_wrapper_wcl(config, modname, winst)
+                    tempfiles = pfwblock.create_module_wrapper_wcl(config, modname, winst)
+                    filelist['infiles'] += tempfiles['infiles']
+                    filelist['outfiles'] += tempfiles['outfiles']
                     pfwblock.divide_into_jobs(config, modname, winst, joblist, parlist)
-                    etime = time.time()
                     if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
                         miscutils.fwdebug_print("winst %d - %s - END" % (wcnt, etime-stime))
                     wcnt += 1
@@ -119,6 +116,38 @@ def begblock(argv):
                     miscutils.pretty_print_dict(masterdata[modname], fh)
 
         scriptfile = pfwblock.write_runjob_script(config)
+        filelist['infiles'] = set(filelist['infiles'])
+        filelist['outfiles'] = set(filelist['outfiles'])
+        intersect = list(filelist['infiles'] & filelist['outfiles'])
+        finallist = []
+        for fl in filelist['infiles']:
+            if fl not in intersect:
+                finallist.append(fl)
+
+        if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
+            bg = time.time()
+            missingfiles = []
+            curs = dbh.cursor()
+            home_archive = config.getfull('home_archive')
+            for fl in finallist:
+                if fl.endswith('.fz'):
+                    comp = "='.fz'"
+                    tfl = fl.replace('.fz','')    
+                elif fl.endswith('.gz'):
+                    comp = "='.gz'"
+                    tfl = fl.replace('.gz','')
+                else:
+                    comp = " is null"
+                    tfl = fl
+                
+                curs.execute("select fai.filename from file_archive_info fai, desfile df where df.filename='%s' and df.compression%s and df.id=fai.desfile_id and fai.archive_name='%s'" % (tfl, comp, home_archive))
+                res = curs.fetchone()
+                if res is None:
+                    missingfiles.append(fl)
+            ed = time.time()
+
+            if len(missingfiles) > 0:
+                raise Exception("The following input files cannot be found in the archive:" + ",".join(missingfiles))
 
         miscutils.fwdebug_print("Creating job files - BEG")
         for jobkey, jobdict in sorted(joblist.items()):
@@ -202,6 +231,7 @@ def begblock(argv):
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         dbh.end_task(config['task_id']['begblock'], retval, True)
     miscutils.fwdebug_print("END - exiting with code %s" % retval)
+
     return retval
 
 

@@ -488,7 +488,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
             sql += ' where id=%s' % (wcl['task_id']['job'])
             curs = self.cursor()
-            print sql
+            
             curs.execute(sql)
             self.commit()
             #wherevals = {}
@@ -933,6 +933,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("sql> %s" % sql)
         curs = self.cursor()
+        
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
         wrappers = {}

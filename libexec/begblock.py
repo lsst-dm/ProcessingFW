@@ -147,7 +147,9 @@ def begblock(argv):
             ed = time.time()
 
             if len(missingfiles) > 0:
-                raise Exception("The following input files cannot be found in the archive:" + ",".join(missingfiles))
+                print "Warning: the following files are specified as inputs but cannot be found in the archive or as outputs of tasks: " + ",".join(missingfiles)
+
+                #raise Exception("The following input files cannot be found in the archive:" + ",".join(missingfiles))
 
         miscutils.fwdebug_print("Creating job files - BEG")
         for jobkey, jobdict in sorted(joblist.items()):

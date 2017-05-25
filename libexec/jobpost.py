@@ -61,8 +61,8 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                             elif parts[2] == 'exit_status:':
                                 tjobinfo_task['status'] = parts[3]
                     elif 'ORA-' in line:
+                        print "Found:", line
                         if not 'DBD' in line:
-                            print "Found:", line
                             print "Setting retval to failure"
                             tjobinfo_task['status'] = pfwdefs.PF_EXIT_FAILURE
                         else:
@@ -228,13 +228,12 @@ def jobpost(argv=None):
                     else:
                         tjobinfo_task['status'] = pfwdefs.PF_EXIT_CONDOR
                 else:
-                    print "NOTTHERE"
+                    pass
             except Exception:
                 (extype, exvalue, trback) = sys.exc_info()
                 traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         else:
             print "Warning:  no job condor log file"
-
 
         if dbh:
             # update job task

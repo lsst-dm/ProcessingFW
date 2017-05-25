@@ -61,9 +61,12 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                             elif parts[2] == 'exit_status:':
                                 tjobinfo_task['status'] = parts[3]
                     elif 'ORA-' in line:
-                        print "Found:", line
-                        print "Setting retval to failure"
-                        tjobinfo_task['status'] = pfwdefs.PF_EXIT_FAILURE
+                        if not 'DBD' in line:
+                            print "Found:", line
+                            print "Setting retval to failure"
+                            tjobinfo_task['status'] = pfwdefs.PF_EXIT_FAILURE
+                        else:
+                            print " Ignoring QCF perl error message."
                         if dbh:
                             dbh.insert_message(config['pfw_attempt_id'], 
                                                config['task_id']['job'][jobnum],

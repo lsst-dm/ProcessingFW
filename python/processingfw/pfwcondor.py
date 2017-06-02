@@ -779,7 +779,7 @@ def get_attempt_info(topjob, qjobs):
         jobid = qjobs[jobid]['children'][0]
 
     # grab DESDM from job attributes
-    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator']:
+    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator', 'campaign']:
         info[key] = ""
         if pfwdefs.ATTRIB_PREFIX + key in qjobs[jobid]:
             info[key] = qjobs[jobid][pfwdefs.ATTRIB_PREFIX + key]

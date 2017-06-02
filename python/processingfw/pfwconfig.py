@@ -367,6 +367,8 @@ class PfwConfig(WCL):
         attribs[pfwdefs.ATTRIB_PREFIX + 'runsite'] = self['runsite']
         attribs[pfwdefs.ATTRIB_PREFIX + 'block'] = block
         attribs[pfwdefs.ATTRIB_PREFIX + 'subblock'] = subblock
+        attribs[pfwdefs.ATTRIB_PREFIX + 'campaign'] = self['campaign']
+
         if (subblock == '$(jobnum)'):
             if 'numjobs' in self:
                 attribs[pfwdefs.ATTRIB_PREFIX + 'numjobs'] = self['numjobs']

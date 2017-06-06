@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+# $Id: desstat 43728 2016-08-17 21:48:59Z mgower $
+# $Rev:: 43728                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-08-17 16:48:59 #$:  # Date of last commit.
+
+""" Print status of currently submitted/running processing attempts """
+
+import argparse
+import sys
+
+import processingfw.pfwcondor as pfwcondor
+import processingfw.pfwdefs as pfwdefs
+
+
+######################################################################
+def main(argv=None):
+    """ Entry point """
+    parser = argparse.ArgumentParser(description='desstat')
+    parser.add_argument('--user', action='store', default=None)
+    parser.add_argument('--desq', action='store', default=None)
+    parser.add_argument('--verbose', action='store', default=None)
+    args, unknownargs = parser.parse_known_args(argv)
+
+    cq_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
+
+    if args.desq is not None:
+        cq_str += ' -name %s -pool %s ' % (args.desq, args.desq)
+
+    # other command line options pass through to condor_q command
+    cq_str += ' '.join(unknownargs)
+
+    if args.user is not None:
+        cq_str += ' ' + args.user
+
+    # call function to run condor_q command
+    try:
+        (qjobs, att_jobs, orphan_jobs) = pfwcondor.condorq_dag(cq_str)
+    except pfwcondor.CondorException as exc:
+        if args.verbose:
+            raise
+        else:
+            print str(exc)
+            sys.exit(1)
+
+    jobcnt = len(qjobs)
+    if jobcnt == 0:
+        print "No framework jobs\n"
+        return 1
+
+    # Output jobs
+    print_header()
+    print_attempts(att_jobs, qjobs)
+    print_orphans(orphan_jobs, qjobs)
+
+    return 0
+
+
+######################################################################
+def print_header():
+    """ Print header line """
+    print "%8s %1s %3s %-15s %-27s %-30s %-15s %-17s %-8s %-30s" % \
+          ("ID", "T", "PRJ", "PIPELINE", "RUN", "BLOCK", "SUBBLOCK",
+           "STAT (H/P/R/T)", "OPERATOR", "RUNSITE")
+    print "="*145
+
+######################################################################
+def print_attempts(attids, qjobs):
+    """ print attempt info """
+    for topjobid in sorted(attids):
+        info = pfwcondor.get_attempt_info(topjobid, qjobs)
+        print_line(topjobid, " ", info)
+
+######################################################################
+def print_orphans(orphanids, qjobs):
+    """ Print info for single orphan job """
+
+    for topjobid in sorted(orphanids):
+        info = pfwcondor.get_attempt_info(topjobid, qjobs)
+        print_line(topjobid, "X", info)
+
+
+######################################################################
+def print_line(jid, jobtype, info):
+    """ Print single line """
+
+    print "%8s %1s %3s %-15s %-27s %-30s %-15s %-17s %-8s %-s" % \
+          (jid, jobtype, info['project'][:3], info['pipeline'][:15],
+           info['run'][:27], info['block'][:25], info['subblock'][:15],
+           info['status'][:17], info['operator'][:8], info['runsite'])
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

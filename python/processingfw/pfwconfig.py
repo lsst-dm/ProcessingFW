@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id: pfwconfig.py 44383 2016-10-13 17:37:36Z mgower $
-# $Rev:: 44383                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-13 12:37:36 #$:  # Date of last commit.
+# $Id: pfwconfig.py 45192 2017-03-23 19:26:25Z friedel $
+# $Rev:: 45192                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2017-03-23 14:26:25 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -78,7 +78,7 @@ class PfwConfig(WCL):
 
         # for values passed in on command line, set top-level config
         for var in (pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN,
-                    pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF):
+                    pfwdefs.PF_USE_DB_OUT, pfwdefs.PF_USE_QCF, pfwdefs.PF_VERIFY_FILES):
             if var in args and args[var] is not None:
                 wclobj[var] = args[var]
 
@@ -356,7 +356,7 @@ class PfwConfig(WCL):
 
 
     ###########################################################################
-    def get_condor_attributes(self, block, subblock):
+    def get_condor_attributes(self, block, subblock, campaign):
         """Create dictionary of attributes for condor jobs"""
         attribs = {}
         attribs[pfwdefs.ATTRIB_PREFIX + 'isjob'] = 'TRUE'
@@ -367,6 +367,8 @@ class PfwConfig(WCL):
         attribs[pfwdefs.ATTRIB_PREFIX + 'runsite'] = self['runsite']
         attribs[pfwdefs.ATTRIB_PREFIX + 'block'] = block
         attribs[pfwdefs.ATTRIB_PREFIX + 'subblock'] = subblock
+        attribs[pfwdefs.ATTRIB_PREFIX + 'campaign'] = self['campaign']
+
         if (subblock == '$(jobnum)'):
             if 'numjobs' in self:
                 attribs[pfwdefs.ATTRIB_PREFIX + 'numjobs'] = self['numjobs']

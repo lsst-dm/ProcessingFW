@@ -155,6 +155,7 @@ def blockpost(argv=None):
                 verify_status = cu.compare(dbh=dbh, archive=config.getfull('home_archive'), pfwid=attid, filesize=True, md5sum=False, quick=True, debug=False, script=False, verbose=False, silent=True)
                 if sem is not None:
                     del sem
+                    sem = None
                 print "  Verification of files returned status %i" % (verify_status)
                 if verify_status != 0:
                     print "  This indicates that one or more files do not have the correct file size (based on DB entries). Run"

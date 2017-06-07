@@ -1305,10 +1305,10 @@ def job_thread(argv):
                                                                    label=task['wrapnum'],
                                                                    do_begin=True,
                                                                    do_commit=True)
-                print "WRAPX",wcl['task_id']['jobwrapper']
-                print "ENDWR"
-                sys.stdout.updatetid(int(wcl['task_id']['jobwrapper']))
-                sys.stderr.updatetid(int(wcl['task_id']['jobwrapper']))
+                #print "WRAPX",wcl['task_id']['jobwrapper']
+                #print "ENDWR"
+                #sys.stdout.updatetid(int(wcl['task_id']['jobwrapper']))
+                #sys.stderr.updatetid(int(wcl['task_id']['jobwrapper']))
             else:
                 wcl['task_id']['jobwrapper'] = -1
 

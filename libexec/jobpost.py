@@ -60,11 +60,13 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                                 tjobinfo_task['end_time'] = datetime.fromtimestamp(float(parts[3]))
                             elif parts[2] == 'exit_status:':
                                 tjobinfo_task['status'] = parts[3]
-
                     elif 'ORA-' in line:
                         print "Found:", line
-                        print "Setting retval to failure"
-                        tjobinfo_task['status'] = pfwdefs.PF_EXIT_FAILURE
+                        if not 'DBD' in line:
+                            print "Setting retval to failure"
+                            tjobinfo_task['status'] = pfwdefs.PF_EXIT_FAILURE
+                        else:
+                            print " Ignoring QCF perl error message."
                         if dbh:
                             Messaging.pfw_message(dbh, config['pfw_attempt_id'],
                                                   config['task_id']['job'][jobnum],
@@ -233,7 +235,6 @@ def jobpost(argv=None):
                 traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         else:
             print "Warning:  no job condor log file"
-
 
         if dbh:
             # update job task

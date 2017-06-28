@@ -170,7 +170,7 @@ PF_EXIT_DRYRUN = 2
 PF_EXIT_WARNINGS = 3
 PF_BLKNUM = 'blknum'
 PF_CURRVALS = 'currentvals'
-
+PF_VERIFY_FILES = 'verify_files'
 
 PFWDB_MSG_ERROR = 3
 PFWDB_MSG_WARN = 2

@@ -234,11 +234,8 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
 
     sys.stdout.flush()
     try:
-        filtr = False
-        if 'scamp' in execnames:
-            filtr = True
         messaging = Messaging.Messaging(logfilename, execnames, pfwattid=pfwattid, taskid=wid,
-                                        dbh=dbh, filtr=filtr, usedb=use_qcf, qcf_patterns=patterns)
+                                        dbh=dbh, usedb=use_qcf, qcf_patterns=patterns)
         process_wrap = subprocess.Popen(shlex.split(cmd),
                                         shell=False,
                                         stdout=subprocess.PIPE,
@@ -403,7 +400,7 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
         msg = "Error: creating %s object - %s - %s" % (label, extype, exvalue)
         print "\n%s" % msg
         if pfw_dbh is not None:
-            Messaging.pfw_message(pfw_dbh, wcl['pfw_attempt_id'], parent_tid, msg, 1)
+            Messaging.pfw_message(pfw_dbh, wcl['pfw_attempt_id'], parent_tid, msg, pfw_utils.PFWDB_MSG_ERROR)
         raise
 
     #if pfw_dbh is not None:

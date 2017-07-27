@@ -248,7 +248,7 @@ def blockpost(argv=None):
                     miscutils.fwdebug_print("Saving pfw message")
                     start_time = time.time()
                     Messaging.pfw_message(dbh, attid, config['task_id']['attempt'],
-                                          msg, 2)
+                                          msg, pfw_utils.PFW_DB_INFO, 'blockpost.out', 0)
                     end_time = time.time()
                     miscutils.fwdebug_print("Done saving pfw message (%s secs)" % (end_time-start_time))
                 print "all the task ids:", config['task_id']

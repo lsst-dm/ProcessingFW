@@ -441,7 +441,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
             if curs.rowcount == 0:
                 Messaging.pfw_message(self, wcl['pfw_attempt_id'], wcl['task_id']['job'],
-                                      "Job attempted to run more than once", 1)
+                                      "Job attempted to run more than once", pfw_utils.PFWDB_MSG_ERROR)
 
                 print "******************************"
                 print "Error:  This job has already been run before."

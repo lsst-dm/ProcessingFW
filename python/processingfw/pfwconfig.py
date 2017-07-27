@@ -356,7 +356,7 @@ class PfwConfig(WCL):
 
 
     ###########################################################################
-    def get_condor_attributes(self, block, subblock, campaign):
+    def get_condor_attributes(self, block, subblock):
         """Create dictionary of attributes for condor jobs"""
         attribs = {}
         attribs[pfwdefs.ATTRIB_PREFIX + 'isjob'] = 'TRUE'

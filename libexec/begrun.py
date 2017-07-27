@@ -125,14 +125,14 @@ def begrun(argv):
         msg = "begrun: %s: %s" % (exc.__class__.__name__, str(exc))
         if pfw_dbh is not None:
             Messaging.pfw_message(pfw_dbh, config['pfw_attempt_id'], config['task_id']['attempt'],
-                                  msg, 1)
+                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out',0)
         send_failed_email(config, msg)
         raise
     except SystemExit as exc:
         msg = "begrun: SysExit=%s" % str(exc)
         if pfw_dbh is not None:
             Messaging.pfw_message(pfw_dbh, config['pfw_attempt_id'], config['task_id']['attempt'],
-                                  msg, 1)
+                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out',0)
         send_failed_email(config, msg)
         raise
 

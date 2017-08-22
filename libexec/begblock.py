@@ -125,32 +125,9 @@ def begblock(argv):
                 finallist.append(fl)
 
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
-            bg = time.time()
-            missingfiles = []
-            curs = dbh.cursor()
-            home_archive = config.getfull('home_archive')
-            for fl in finallist:
-                if fl.endswith('.fz'):
-                    comp = "='.fz'"
-                    tfl = fl.replace('.fz','')    
-                elif fl.endswith('.gz'):
-                    comp = "='.gz'"
-                    tfl = fl.replace('.gz','')
-                else:
-                    comp = " is null"
-                    tfl = fl
-                
-                curs.execute("select fai.filename from file_archive_info fai, desfile df where df.filename='%s' and df.compression%s and df.id=fai.desfile_id and fai.archive_name='%s'" % (tfl, comp, home_archive))
-                res = curs.fetchone()
-                if res is None:
-                    missingfiles.append(fl)
-            ed = time.time()
-
+            missingfiles = dbh.check_files(config, finallist)
             if len(missingfiles) > 0:
-                print "Warning: the following files are specified as inputs but cannot be found in the archive or as outputs of tasks: " + ",".join(missingfiles)
-
-                #raise Exception("The following input files cannot be found in the archive:" + ",".join(missingfiles))
-
+                raise Exception("The following input files cannot be found in the archive:" + ",".join(missingfiles))
         miscutils.fwdebug_print("Creating job files - BEG")
         for jobkey, jobdict in sorted(joblist.items()):
             jobdict['jobnum'] = pfwutils.pad_jobnum(config.inc_jobnum())

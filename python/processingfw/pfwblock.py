@@ -2141,8 +2141,6 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
             if 'fullname' in sectdict:
                 if isanoutput:
                     files['outfiles'] += sectdict['fullname'].split(',')
-                else:
-                    files['infiles'] += sectdict['fullname'].split(',')
             elif 'listonly' in sectdict and sectdict['listonly'] == 'True':
                 pass
             else:
@@ -2170,8 +2168,6 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                         temp = temp.replace(',','')
                         if isoutlist:
                             files['outfiles'].append(temp.split('[')[0])
-                        else:
-                            files['infiles'].append(temp.split('[')[0])
 
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("\tlist=%s" % wrapperwcl[pfwdefs.IW_LISTSECT])

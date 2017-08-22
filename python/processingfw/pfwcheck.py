@@ -619,9 +619,9 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
             if key not in dataobjs[pfwdefs.SW_INPUTS] and \
                key not in dataobjs[pfwdefs.SW_OUTPUTS] and \
                ('listonly' not in fdict or not miscutils.convertBool(fdict['listonly'])):
-                error(indent + '    ', "%s.%s does not appear in provenance lines" % \
+                warning(indent + '    ', "%s.%s does not appear in provenance lines" % \
                       (pfwdefs.SW_FILESECT, fname))
-                cnts[ERRCNT_POS] += 1
+                cnts[WARNCNT_POS] += 1
 
             if key in dataobjs[pfwdefs.SW_INPUTS]:
                 cnts2 = check_file_valid_input(config, blockname, modname,
@@ -659,9 +659,9 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
                                 found = True
 
                 if not found:
-                    error(indent+'    ',"%s.%s does not appear in provenance lines" % \
+                    warning(indent+'    ',"%s.%s does not appear in provenance lines" % \
                                 (pfwdefs.SW_LISTSECT, lname))
-                    cnts[ERRCNT_POS] += 1
+                    cnts[WARNCNT_POS] += 1
 
             if key in dataobjs[pfwdefs.SW_INPUTS]:
                 cnts2 = check_list_valid_input(config, blockname, modname,

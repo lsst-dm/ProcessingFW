@@ -1054,3 +1054,22 @@ class PFWDB(desdmdbi.DesDmDbi):
             logfullnames[x[2]] = "%s/%s/%s" % (x[0], x[1], x[2])
 
         return logfullnames
+
+    def check_files(self, config, filelist):
+        missingfiles = []
+        curs = self.cursor()
+        home_archive = config.getfull('home_archive')
+        files = []
+        gtt = self.load_filename_gtt(filelist)
+
+        curs.execute("select filename, compression from %s gtt where not exists (select df.filename,df.compression from desfile df, file_archive_info fai where gtt.filename=df.filename and nullcmp(gtt.compression, df.compression)=1 and df.id=fai.desfile_id and fai.archive_name='%s')" % (gtt,home_archive))
+
+        results = curs.fetchall()
+        for res in results:
+            if res[1] is not None:
+                missingfiles.append(res[0] + res[1])
+            else:
+                missingfiles.append(res[0])
+        self.empty_gtt(gtt)
+
+        return missingfiles

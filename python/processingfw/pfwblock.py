@@ -2107,12 +2107,28 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                       'wrapkeys': wrapinst['wrapkeys']})
     outfiles = []
     outlists = []
+    infiles = []
+    inlists = []
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
     execs = intgmisc.get_exec_sections(moddict, pfwdefs.SW_EXECPREFIX)
     for execkey,execval in execs.iteritems():
         if pfwdefs.IW_INPUTS in execval.keys():
-            pass
+            temp = replfuncs.replace_vars_single(execval[pfwdefs.IW_INPUTS], config,
+                                             {pfwdefs.PF_CURRVALS: currvals,
+                                              'searchobj': execval[pfwdefs.IW_INPUTS],
+                                              'required': True,
+                                              intgdefs.REPLACE_VARS: True})
+            temp = temp.replace(' ','')
+            temp = temp.split(',')
+            for item in temp:
+                vals = item.split('.')
+                if vals[0] == pfwdefs.SW_FILESECT:
+                    infiles.append(vals[1])
+                elif vals[0] == pfwdefs.SW_LISTSECT:
+                    inlists.append(vals[1])
+
+
         if pfwdefs.IW_OUTPUTS in execval.keys():
             temp = replfuncs.replace_vars_single(execval[pfwdefs.IW_OUTPUTS], config,
                                              {pfwdefs.PF_CURRVALS: currvals,
@@ -2136,11 +2152,16 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
         for (sectname, sectdict) in wrapperwcl[pfwdefs.IW_FILESECT].items():
             sectdict['sectname'] = sectname
             isanoutput = False
+            isaninput = False
             if sectname in outfiles:
                 isanoutput = True
+            if sectname in infiles:
+                isaninput = True
             if 'fullname' in sectdict:
                 if isanoutput:
                     files['outfiles'] += sectdict['fullname'].split(',')
+                elif isaninput:
+                    files['infiles'] += sectdict['fullname'].split(',')
             elif 'listonly' in sectdict and sectdict['listonly'] == 'True':
                 pass
             else:
@@ -2151,8 +2172,11 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
         wrapperwcl[pfwdefs.IW_LISTSECT] = copy.deepcopy(wrapinst[pfwdefs.IW_LISTSECT])
         for k,v in wrapperwcl[pfwdefs.IW_LISTSECT].iteritems():
             isoutlist = False
+            isinlist = False
             if k in outlists:
                 isoutlist = True
+            elif k in inlists:
+                isinlist = True
             if os.path.isfile(v['fullname']):
                 cols = v['columns'].split(',')
                 cc = -1
@@ -2168,6 +2192,8 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                         temp = temp.replace(',','')
                         if isoutlist:
                             files['outfiles'].append(temp.split('[')[0])
+                        elif isinlist:
+                            files['infiles'].append(temp.split('[')[0])
 
         if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
             miscutils.fwdebug_print("\tlist=%s" % wrapperwcl[pfwdefs.IW_LISTSECT])

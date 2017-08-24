@@ -67,9 +67,9 @@ def begblock(argv):
         joblist = {}
         parlist = OrderedDict()
         masterdata = OrderedDict()
-        filelist = {'infiles' : [],
-                    'outfiles': []}
-        for modname in modulelist:
+        filelist = {'infiles' : {},
+                    'outfiles': {}}
+        for num, modname in enumerate(modulelist):
             print "XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname
             if modname not in config[pfwdefs.SW_MODULESECT]:
                 miscutils.fwdie("Error: Could not find module description for module %s\n" % \
@@ -103,8 +103,14 @@ def begblock(argv):
                                                       sublists, infsect, outfsect)
                     pfwblock.finish_wrapper_inst(config, modname, winst, outfsect)
                     tempfiles = pfwblock.create_module_wrapper_wcl(config, modname, winst)
-                    filelist['infiles'] += tempfiles['infiles']
-                    filelist['outfiles'] += tempfiles['outfiles']
+                    for fl in tempfiles['infiles']:
+                        if fl not in filelist['infiles'].keys():
+                            filelist['infiles'][fl] = num
+
+                    for fl in tempfiles['outfiles']:
+                        filelist['outfiles'][fl] = num
+                    #filelist['infiles'] += tempfiles['infiles']
+                    #filelist['outfiles'] += tempfiles['outfiles']
                     pfwblock.divide_into_jobs(config, modname, winst, joblist, parlist)
                     if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
                         miscutils.fwdebug_print("winst %d - %s - END" % (wcnt, etime-stime))
@@ -116,13 +122,16 @@ def begblock(argv):
                     miscutils.pretty_print_dict(masterdata[modname], fh)
 
         scriptfile = pfwblock.write_runjob_script(config)
-        filelist['infiles'] = set(filelist['infiles'])
-        filelist['outfiles'] = set(filelist['outfiles'])
-        intersect = list(filelist['infiles'] & filelist['outfiles'])
+
+        intersect = list(set(filelist['infiles'].keys()) & set(filelist['outfiles'].keys()))
         finallist = []
-        for fl in filelist['infiles']:
+
+        for fl in filelist['infiles'].keys():
             if fl not in intersect:
                 finallist.append(fl)
+            else:
+                if filelist['infiles'][fl] <= filelist['outfiles'][fl]:
+                    raise Exception('Input file %s requested before it is generated.' % (fl))
 
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             missingfiles = dbh.check_files(config, finallist)

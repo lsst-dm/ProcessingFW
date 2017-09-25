@@ -448,6 +448,13 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
         miscutils.fwdebug_print("neededfiles = %s" % neededfiles)
 
     files2get = neededfiles.keys()
+
+    arc = ""
+    if 'home_archive' in wcl and 'archive' in wcl:
+        ha = wcl['home_archive']
+        if ha in wcl['archive'] and 'root_http' in wcl['archive'][ha]:
+            arc = ' (' + wcl['archive'][wcl['home_archive']]['root_http'] + ')'
+
     if len(files2get) > 0 and wcl[pfwdefs.USE_TARGET_ARCHIVE_INPUT].lower() != 'never':
         results = transfer_single_archive_to_job(pfw_dbh, wcl, files2get, neededfiles,
                                                  'target', parent_tid)
@@ -457,17 +464,17 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
             for fkey, finfo in results.items():
                 if 'err' in finfo:
                     problemfiles[fkey] = finfo
-                    msg = "Warning: Error trying to get file %s from target archive: %s" % \
-                          (fkey, finfo['err'])
+                    msg = "Warning: Error trying to get file %s from target archive%s: %s" % \
+                          (fkey, arc, finfo['err'])
                     print msg
 
             files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
-                print "Warning: had problems getting input files from target archive"
+                print "Warning: had problems getting input files from target archive%s" % arc
                 print "\t", problemfiles.keys()
                 files2get += problemfiles.keys()
         else:
-            print "Warning: had problems getting input files from target archive."
+            print "Warning: had problems getting input files from target archive%s." % arc
             print "\ttransfer function returned no results"
 
 
@@ -482,17 +489,17 @@ def transfer_archives_to_job(pfw_dbh, wcl, neededfiles, parent_tid):
             for fkey, finfo in results.items():
                 if 'err' in finfo:
                     problemfiles[fkey] = finfo
-                    msg = "Warning: Error trying to get file %s from home archive: %s" % \
-                          (fkey, finfo['err'])
+                    msg = "Warning: Error trying to get file %s from home archive%s: %s" % \
+                          (fkey, arc, finfo['err'])
                     print msg
 
             files2get = list(set(files2get) - set(results.keys()))
             if len(problemfiles) != 0:
-                print "Warning: had problems getting input files from home archive"
+                print "Warning: had problems getting input files from home archive%s" % arc
                 print "\t", problemfiles.keys()
                 files2get += problemfiles.keys()
         else:
-            print "Warning: had problems getting input files from home archive."
+            print "Warning: had problems getting input files from home archive%s." % arc
             print "\ttransfer function returned no results"
 
     if miscutils.fwdebug_check(3, "PFWRUNJOB_DEBUG"):
@@ -575,7 +582,7 @@ def get_wrapper_inputs(pfw_dbh, wcl, infiles):
         if len(files2get) > 0:
             print '!' * 60
             for fname in files2get:
-                msg = "Error: input file needed that was not retrieved from target or home archives (%s)" % fname
+                msg = "Error: input file needed that was not retrieved from target or home archives\n(%s)" % fname
                 print msg
             raise Exception("Error:  Cannot find all input files in an archive")
 
@@ -859,14 +866,20 @@ def transfer_job_to_single_archive(pfw_dbh, wcl, saveinfo, dest,
     if pfw_dbh is None:
         print "DESDMTIME: %s-filemvmt %0.3f" % (task_label, time.time()-starttime)
 
+    arc = ""
+    if 'home_archive' in wcl and 'archive' in wcl:
+        ha = wcl['home_archive']
+        if ha in wcl['archive'] and 'root_http' in wcl['archive'][ha]:
+            arc = ' (' + wcl['archive'][wcl['home_archive']]['root_http'] + ')'
+
     # register files that we just copied into archive
     files2register = []
     problemfiles = {}
     for fkey, finfo in results.items():
         if 'err' in finfo:
             problemfiles[fkey] = finfo
-            msg = "Warning: Error trying to copy file %s to %s archive: %s" % \
-                   (fkey, dest, finfo['err'])
+            msg = "Warning: Error trying to copy file %s to %s archive%s: %s" % \
+                   (fkey, dest, arc, finfo['err'])
             print msg
         else:
             files2register.append(finfo)
@@ -1312,7 +1325,6 @@ def job_thread(argv):
             else:
                 wcl['task_id']['jobwrapper'] = -1
 
-            print "Setup"
             # set up the working directory if needed
             if multi:
                 workdir = "fwtemp%04i" % (int(task['wrapnum']))

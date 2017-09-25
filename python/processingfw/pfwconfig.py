@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id: pfwconfig.py 45192 2017-03-23 19:26:25Z friedel $
-# $Rev:: 45192                            $:  # Revision of last commit.
+# $Id: pfwconfig.py 45743 2017-06-02 18:34:40Z friedel $
+# $Rev:: 45743                            $:  # Revision of last commit.
 # $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2017-03-23 14:26:25 #$:  # Date of last commit.
+# $LastChangedDate:: 2017-06-02 13:34:40 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 

@@ -1546,33 +1546,37 @@ def job_workflow(workflow, jobfiles, jobwcl=WCL()):
                     tempproc.append(p)
             procs = tempproc
 
-            # set up the thread pool
-            pool = Pool(processes=nproc)
-            if nproc > 1:
-                mult = True
+            if nproc < 2:
+                for inp in procs:
+                    job_thread(inputs[inp] + (False,))
             else:
-                mult = False
+                # set up the thread pool
+                pool = Pool(processes=nproc)
+                #if nproc > 1:
+                mult = True
+                #else:
+                #    mult = False
 
-            try:
-                numjobs = len(procs)
-                donejobs = 0
-                # attach all the grouped tasks to the pool
-                [pool.apply_async(job_thread, args=(inputs[inp] + (mult,),), callback=results_checker) for inp in procs]
-                pool.close()
-                while donejobs < numjobs and keeprunning:
-                    # wait until all are complete before continuing
-                    time.sleep(2)
-            finally:
-                if stop_all and max(results) > 0:
-                    # empty the worker queue so nothing else starts
-                    terminate()
-                    # wait so everything can clean up, otherwise risk a deadlock
-                    time.sleep(5)
-                del pool
+                try:
+                    numjobs = len(procs)
+                    donejobs = 0
+                    # attach all the grouped tasks to the pool
+                    [pool.apply_async(job_thread, args=(inputs[inp] + (mult,),), callback=results_checker) for inp in procs]
+                    pool.close()
+                    while donejobs < numjobs and keeprunning:
+                        # wait until all are complete before continuing
+                        time.sleep(2)
+                finally:
+                    if stop_all and max(results) > 0:
+                        # empty the worker queue so nothing else starts
+                        terminate()
+                        # wait so everything can clean up, otherwise risk a deadlock
+                        time.sleep(5)
+                    del pool
 
-                jobfiles = jobfiles_global
-                if stop_all and max(results) > 0:
-                    return max(results), jobfiles
+                    jobfiles = jobfiles_global
+                    if stop_all and max(results) > 0:
+                        return max(results), jobfiles
     return 0, jobfiles
 
 

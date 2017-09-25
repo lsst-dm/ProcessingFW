@@ -155,7 +155,6 @@ def blockpost(argv=None):
                 verify_status = cu.compare(dbh=dbh, archive=config.getfull('home_archive'), pfwid=attid, filesize=True, md5sum=False, quick=True, debug=False, script=False, verbose=False, silent=True)
                 if sem is not None:
                     del sem
-                    sem = None
                 print "  Verification of files returned status %i" % (verify_status)
                 if verify_status != 0:
                     print "  This indicates that one or more files do not have the correct file size (based on DB entries). Run"
@@ -334,9 +333,9 @@ def blockpost(argv=None):
                     for msgdict in sorted(jobdict['message'], key=lambda k: k['message_time']):
                         level = int(msgdict['message_lvl'])
                         levelstr = 'info'
-                        if level == 2:
+                        if level == pfwdefs.PFWDB_MSG_WARN:
                             levelstr = 'WARN'
-                        elif level == 1:
+                        elif level == pfwdefs.PFWDB_MSG_ERROR:
                             levelstr = 'ERROR'
 
                         msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['message'].replace('\n','\n\t\t\t'))

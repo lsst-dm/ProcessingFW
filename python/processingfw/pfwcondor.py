@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id: pfwcondor.py 41407 2016-03-04 16:14:15Z mgower $
-# $Rev:: 41407                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-03-04 10:14:15 #$:  # Date of last commit.
+# $Id: pfwcondor.py 45743 2017-06-02 18:34:40Z friedel $
+# $Rev:: 45743                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2017-06-02 13:34:40 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -779,7 +779,7 @@ def get_attempt_info(topjob, qjobs):
         jobid = qjobs[jobid]['children'][0]
 
     # grab DESDM from job attributes
-    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator']:
+    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator', 'campaign']:
         info[key] = ""
         if pfwdefs.ATTRIB_PREFIX + key in qjobs[jobid]:
             info[key] = qjobs[jobid][pfwdefs.ATTRIB_PREFIX + key]

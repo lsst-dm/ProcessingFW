@@ -112,8 +112,6 @@ def begblock(argv):
                     #filelist['infiles'] += tempfiles['infiles']
                     #filelist['outfiles'] += tempfiles['outfiles']
                     pfwblock.divide_into_jobs(config, modname, winst, joblist, parlist)
-                    if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
-                        miscutils.fwdebug_print("winst %d - %s - END" % (wcnt, etime-stime))
                     wcnt += 1
             modules_prev_in_list[modname] = True
 

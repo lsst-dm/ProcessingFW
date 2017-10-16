@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: runqueries.py 41245 2016-01-27 17:13:31Z mgower $
+# $Rev:: 41245                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-01-27 11:13:31 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -103,8 +103,9 @@ def create_master_list(config, configfile, modname, moddict,
         pfw_dbh = pfwdb.PFWDB()
         query_tid = pfw_dbh.insert_data_query(config, modname, datatype, search_name,
                                               prog, args, query_version)
-        pfw_dbh.close()
-
+        #pfw_dbh.close()
+    else:
+        pfw_dbh = None
 
     cwd = os.getcwd()
     print "\t\tCalling code to create master list for obj %s in module %s" % \
@@ -119,7 +120,10 @@ def create_master_list(config, configfile, modname, moddict,
     exitcode = None
     try:
         exitcode = pfwutils.run_cmd_qcf(cmd, qlog, query_tid, os.path.basename(prog),
-                                        5000, config.getfull(pfwdefs.PF_USE_QCF))
+                                        config.getfull(pfwdefs.PF_USE_QCF), pfw_dbh,
+                                        config['pfw_attempt_id'])
+        #exitcode = pfwutils.run_cmd_qcf(cmd, qlog, query_tid, os.path.basename(prog),
+        #                                5000, config.getfull(pfwdefs.PF_USE_QCF))
     except:
         print "******************************"
         print "Error: "

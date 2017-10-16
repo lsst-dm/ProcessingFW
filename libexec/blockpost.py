@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: blockpost.py 44484 2016-10-21 18:07:29Z mgower $
+# $Rev:: 44484                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-10-21 13:07:29 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -22,9 +22,9 @@ import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 from processingfw.pfwemail import send_email,get_subblock_output
+import qcframework.Messaging as Messaging
 import filemgmt.compare_utils as cu
 import despydmdb.dbsemaphore as dbsem
-
 
 def get_qcf_messages(qdbh, config, wraptids):
     wrapmsg = None
@@ -47,10 +47,10 @@ def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
         if len(wrapmsg[tid]) > MAXMESG:
             msg2 += "\t\t\tOnly printing last %d messages\n" % MAXMESG
             for mesgrow in wrapmsg[tid][-MAXMESG:]:
-                msg2 += "\t\t\t%s\n" % mesgrow['message']
+                msg2 += "\t\t\t%s\n" % mesgrow['message'].replace('\n','\n\t\t\t')
         else:
             for mesgrow in wrapmsg[tid]:
-                msg2 += "\t\t\t%s\n" % mesgrow['message']
+                msg2 += "\t\t\t%s\n" % mesgrow['message'].replace('\n','\n\t\t\t')
     else:
         msg2 += "\t\t\tNo QCF messages\n"
 
@@ -91,6 +91,7 @@ def blockpost(argv=None):
         miscutils.fwdebug_print("done reading config file")
     blockname = config.getfull('blockname')
     blkdir = config.getfull('block_dir')
+
 
     # now that have more information, can rename output file
     miscutils.fwdebug_print("getting new_log_name")
@@ -245,12 +246,11 @@ def blockpost(argv=None):
                 if 'attempt' in config['task_id']:
                     miscutils.fwdebug_print("Saving pfw message")
                     start_time = time.time()
-                    dbh.insert_message(attid, config['task_id']['attempt'],
-                                       pfwdefs.PFWDB_MSG_WARN, msg)
+                    Messaging.pfw_message(dbh, attid, config['task_id']['attempt'],
+                                          msg, pfw_utils.PFW_DB_INFO, 'blockpost.out', 0)
                     end_time = time.time()
                     miscutils.fwdebug_print("Done saving pfw message (%s secs)" % (end_time-start_time))
                 print "all the task ids:", config['task_id']
-
 
             archive = None
             if pfwdefs.HOME_ARCHIVE in config:
@@ -326,24 +326,19 @@ def blockpost(argv=None):
                     msg2 += "\n\t\t%s/runjob.out " % (submit_job_path)
 
                 msg2 += '\n'
-
+                
                 # print pfw_messages
                 if 'message' in jobdict:
                     print jobdict['message']
-                    for msgdict in sorted(jobdict['message'], key=lambda k: k['msgtime']):
-                        print "MMG1"
-                        level = int(msgdict['msglevel'])
-                        #print level, msgdict['msg'], type(level)
-                        #print "PFWDB_MSG_WARN = ", pfwdefs.PFWDB_MSG_WARN, \
-                        #      type(pfwdefs.PFWDB_MSG_WARN)
-                        #print "PFWDB_MSG_ERROR = ", pfwdefs.PFWDB_MSG_ERROR
+                    for msgdict in sorted(jobdict['message'], key=lambda k: k['message_time']):
+                        level = int(msgdict['message_lvl'])
                         levelstr = 'info'
                         if level == pfwdefs.PFWDB_MSG_WARN:
                             levelstr = 'WARN'
                         elif level == pfwdefs.PFWDB_MSG_ERROR:
                             levelstr = 'ERROR'
 
-                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['msg'].replace('\n','\n\t\t\t'))
+                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['message'].replace('\n','\n\t\t\t'))
 
     
                 if jobtid in wrap_byjob:
@@ -367,7 +362,6 @@ def blockpost(argv=None):
         except Exception as exc:
             if sem is not None:
                 del sem
-
             msg2 += "\n\nEncountered error trying to gather status information for email."
             msg2 += "\nCheck output for blockpost for further details."
             print "\n\nEncountered error trying to gather status information for email"

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: print_job.py 44479 2016-10-21 16:02:19Z mgower $
+# $Rev:: 44479                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-10-21 11:02:19 #$:  # Date of last commit.
 
 import argparse
 import re

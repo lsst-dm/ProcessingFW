@@ -1,7 +1,7 @@
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: pfwdb.py 44450 2016-10-19 20:01:20Z mgower $
+# $Rev:: 44450                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-10-19 15:01:20 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -15,7 +15,7 @@
     All rights reserved.
 """
 
-__version__ = "$Rev$"
+__version__ = "$Rev: 44450 $"
 
 import os
 import socket
@@ -28,6 +28,7 @@ from intgutils import intgdefs
 from despydmdb import desdmdbi
 from processingfw import pfwdefs
 from despymisc import miscutils
+import qcframework.Messaging as Messaging
 from processingfw import pfwutils
 from processingfw import pfwdefs
 
@@ -439,9 +440,8 @@ class PFWDB(desdmdbi.DesDmDbi):
                 raise
 
             if curs.rowcount == 0:
-                self.insert_message(wcl['pfw_attempt_id'], wcl['task_id']['job'],
-                                    pfwdefs.PFWDB_MSG_ERROR,
-                                    "Job attempted to run more than once")
+                Messaging.pfw_message(self, wcl['pfw_attempt_id'], wcl['task_id']['job'],
+                                      "Job attempted to run more than once", pfw_utils.PFWDB_MSG_ERROR)
 
                 print "******************************"
                 print "Error:  This job has already been run before."
@@ -488,7 +488,6 @@ class PFWDB(desdmdbi.DesDmDbi):
 
             sql += ' where id=%s' % (wcl['task_id']['job'])
             curs = self.cursor()
-            
             curs.execute(sql)
             self.commit()
             #wherevals = {}
@@ -542,33 +541,6 @@ class PFWDB(desdmdbi.DesDmDbi):
         wherevals['task_id'] = task_id
         self.basic_update_row('pfw_job', jobinfo, wherevals)
         self.commit()
-
-
-    ##### MSG #####
-    def insert_message(self, pfw_attempt_id, task_id, msglevel, msg):
-        """ Insert an entry into the pfw_message table """
-
-
-        row = {}
-        row['pfw_attempt_id'] = pfw_attempt_id
-        row['task_id'] = task_id
-        row['msgtime'] = self.get_current_timestamp_str()
-        row['msglevel'] = msglevel
-
-        # truncate message if necessary
-        msgtinfo = self.get_column_metadata('PFW_MESSAGE')['msg']
-        if miscutils.fwdebug_check(1, 'PFWDB_DEBUG'):
-            if len(msg) > msgtinfo[2]:
-                miscutils.fwdebug_print("INFO:  Truncating msg for pfw_message table")
-        if len(msg) > msgtinfo[2]:
-            newmsg = msg[:min(len(msg), msgtinfo[2]-1)] + '$'
-        else:
-            newmsg = msg
-        row['msg'] = newmsg
-
-        self.insert_PFW_row('PFW_MESSAGE', row)
-
-
 
     ##### WRAPPER #####
     def insert_wrapper(self, wcl, iwfilename, parent_tid):
@@ -808,9 +780,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         whclause = []
         for c in wherevals.keys():
             whclause.append("%s=%s" % (c, self.get_named_bind_string(c)))
-
         sql = "select j.*,t.* from pfw_job j, task t where t.id=j.task_id and %s" % (' and '.join(whclause))
-
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("sql> %s" % sql)
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
@@ -819,12 +789,13 @@ class PFWDB(desdmdbi.DesDmDbi):
         curs.execute(sql, wherevals)
         desc = [d[0].lower() for d in curs.description]
 
+
         # separated query for pfw_message into 2 separate queries because single ran too slow (t.id=%s or t.parent_task_id=%s)
-        sql2 = "select * from pfw_message m, task t where m.task_id=t.id and t.id=%s and (msglevel != %s or msglevel is null)" % (self.get_named_bind_string('task_id'), str(pfwdefs.PFWDB_MSG_INFO))
+        sql2 = "select * from task_message m, task t where m.task_id=t.id and t.id=%s and message_lvl<%i" % (self.get_named_bind_string('task_id'), 3)
         curs2 = self.cursor()
         curs2.prepare(sql2)
 
-        sql3 = "select * from pfw_message m, task t where m.task_id=t.id and t.parent_task_id=%s and (msglevel != %s or msglevel is null)" % (self.get_named_bind_string('task_id'), str(pfwdefs.PFWDB_MSG_INFO))
+        sql3 = "select * from task_message m, task t where m.task_id=t.id and t.parent_task_id=%s and message_lvl<%i" % (self.get_named_bind_string('task_id'), 3)
         curs3 = self.cursor()
         curs3.prepare(sql3)
 
@@ -843,15 +814,12 @@ class PFWDB(desdmdbi.DesDmDbi):
             # check for pfw_messages from any job "children" tasks
             curs3.execute(None, {'task_id': d['task_id']})
             desc3 = [x[0].lower() for x in curs3.description]
-            msglist = []
+
             for r in curs3:
                 mdict = dict(zip(desc3, r))
                 msglist.append(mdict)
-
-
             d['message'] = msglist
             jobinfo[d['task_id']] = d
-
         return jobinfo
 
 
@@ -933,7 +901,6 @@ class PFWDB(desdmdbi.DesDmDbi):
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("sql> %s" % sql)
         curs = self.cursor()
-        
         curs.execute(sql)
         desc = [d[0].lower() for d in curs.description]
         wrappers = {}

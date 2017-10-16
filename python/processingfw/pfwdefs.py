@@ -1,7 +1,7 @@
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: pfwdefs.py 42763 2016-06-22 16:07:45Z mgower $
+# $Rev:: 42763                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-06-22 11:07:45 #$:  # Date of last commit.
 
 """ Constants used across various files to make changes easier """
 
@@ -170,10 +170,9 @@ PF_EXIT_DRYRUN = 2
 PF_EXIT_WARNINGS = 3
 PF_BLKNUM = 'blknum'
 PF_CURRVALS = 'currentvals'
-
-
-PFWDB_MSG_ERROR = 3
-PFWDB_MSG_WARN = 2
-PFWDB_MSG_INFO = 1
-
 PF_VERIFY_FILES = 'verify_files'
+
+
+PFWDB_MSG_ERROR = 1
+PFWDB_MSG_WARN = 2
+PFWDB_MSG_INFO = 3

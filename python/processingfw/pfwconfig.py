@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: pfwconfig.py 45743 2017-06-02 18:34:40Z friedel $
+# $Rev:: 45743                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2017-06-02 13:34:40 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -450,23 +450,7 @@ class PfwConfig(WCL):
                 (found, filepat) = self.search(pfwdefs.SW_FILEPAT, searchopts)
 
                 if not found:
-                    islist = 'searchobj' in searchopts and 'fsuffix' in searchopts['searchobj'] and searchopts['searchobj']['fsuffix'] == pfwdefs.SW_LISTSECT
-                    msg = "Error: Could not find file pattern (%s) in " % pfwdefs.SW_FILEPAT
-                    if islist:
-                        msg += "list def section"
-                    else:
-                        msg += "file def section"
-                    if pfwdefs.PF_CURRVALS in searchopts and 'curr_module' in searchopts[pfwdefs.PF_CURRVALS]:
-                        msg += " of %s" % searchopts[pfwdefs.PF_CURRVALS]['curr_module']
-                    if 'searchobj' in searchopts and 'flabel' in searchopts['searchobj']:
-                        if islist:
-                            msg += ", list"
-                        else:
-                            msg += ", file"
-
-                        msg += " %s" % searchopts['searchobj']['flabel']
-                    miscutils.fwdie(msg, pfwdefs.PF_EXIT_FAILURE, 2)    
-
+                    miscutils.fwdie("Error: Could not find file pattern (%s) in file def section" % pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE, 2)
         elif miscutils.fwdebug_check(6, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("working with given filepat = %s" % (filepat))
 

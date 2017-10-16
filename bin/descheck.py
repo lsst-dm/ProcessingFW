@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: descheck.py 38174 2015-05-11 22:07:19Z mgower $
+# $Rev:: 38174                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2015-05-11 17:07:19 #$:  # Date of last commit.
 
 """ Execute WCL checks """
 

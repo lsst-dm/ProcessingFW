@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: logpre.py 41004 2015-12-11 15:49:41Z mgower $
+# $Rev:: 41004                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2015-12-11 09:49:41 #$:  # Date of last commit.
 
 """ Bookkeeping steps executed submit-side prior to certain submit-side tasks """
 

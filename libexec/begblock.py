@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: begblock.py 46219 2017-08-24 18:21:06Z friedel $
+# $Rev:: 46219                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2017-08-24 13:21:06 #$:  # Date of last commit.
 
 """ Program run at beginning of block that performs job setup """
 
@@ -112,6 +112,8 @@ def begblock(argv):
                     #filelist['infiles'] += tempfiles['infiles']
                     #filelist['outfiles'] += tempfiles['outfiles']
                     pfwblock.divide_into_jobs(config, modname, winst, joblist, parlist)
+                    if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
+                        miscutils.fwdebug_print("winst %d - %s - END" % (wcnt, etime-stime))
                     wcnt += 1
             modules_prev_in_list[modname] = True
 

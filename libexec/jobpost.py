@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: jobpost.py 43727 2016-08-17 19:03:25Z friedel $
+# $Rev:: 43727                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2016-08-17 14:03:25 #$:  # Date of last commit.
 
 """ Steps executed submit-side after job success or failure """
 
@@ -21,7 +21,7 @@ import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
-
+import qcframework.Messaging as Messaging
 
 def parse_job_output(config, jobnum, dbh=None, retval=None):
     """ Search stdout/stderr for timing stats as well as eups setup
@@ -36,7 +36,7 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
     for jobfile in ['%sout'%jobbase, '%serr'%jobbase]:
         if os.path.exists(jobfile):
             with open(jobfile, 'r') as jobfh:
-                for line in jobfh:
+                for no, line in enumerate(jobfh):
                     line = line.strip()
                     if line.startswith('PFW:'):
                         parts = line.split()
@@ -68,24 +68,24 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                         else:
                             print " Ignoring QCF perl error message."
                         if dbh:
-                            dbh.insert_message(config['pfw_attempt_id'], 
-                                               config['task_id']['job'][jobnum],
-                                               pfwdefs.PFWDB_MSG_ERROR, line)
+                            Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                                  config['task_id']['job'][jobnum],
+                                                  line, pfw_utils.PFW_DB_ERROR, jobfile, no)
                     elif 'No such file or directory: ' in line and \
                           config.getfull('target_des_services') in line:
                         print "Found:", line
                         if dbh:
-                            dbh.insert_message(config['pfw_attempt_id'], 
-                                               config['task_id']['job'][jobnum],
-                                               pfwdefs.PFWDB_MSG_ERROR, line)
+                            Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                                  config['task_id']['job'][jobnum],
+                                                  line, pfw_utils.PFW_DB_ERROR, jobfile, no)
                     elif 'Error: eups setup' in line:
                         print "Found:", line
                         print "Setting retval to failure"
                         tjobinfo_task['status'] = pfwdefs.PF_EXIT_EUPS_FAILURE
                         if dbh:
-                            dbh.insert_message(config['pfw_attempt_id'], 
-                                               config['task_id']['job'][jobnum],
-                                               pfwdefs.PFWDB_MSG_ERROR, line)
+                            Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                                  config['task_id']['job'][jobnum],
+                                                  line, pfw_utils.PFW_DB_ERROR, jobfile, no)
                     elif 'Exiting with status' in line:
                         lmatch = re.search(r'Exiting with status (\d+)', line)
                         if lmatch:
@@ -97,15 +97,16 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                                 print msg
                                 tjobinfo['status'] = pfwdefs.PF_EXIT_FAILURE
                                 if dbh:
-                                    dbh.insert_message(config['pfw_attempt_id'], 
-                                                       config['task_id']['job'][jobnum],
-                                                       pfwdefs.PFWDB_MSG_ERROR, msg)
+                                    Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                                          config['task_id']['job'][jobnum],
+                                                          msg, pfw_utils.PFW_DB_ERROR, jobfile, no)
                     elif 'Could not connect to database'in line:
                         print "Found:", line
                         if dbh:
-                            dbh.insert_message(config['pfw_attempt_id'], 
-                                               config['task_id']['job'][jobnum],
-                                               pfwdefs.PFWDB_MSG_INFO, line)
+                            Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                                  config['task_id']['job'][jobnum],
+                                                  line, pfw_utils.PFW_DB_INFO, jobfile, no)
+
     return tjobinfo, tjobinfo_task
 
 
@@ -216,9 +217,9 @@ def jobpost(argv=None):
                     msg = "Condor HoldReason: %s" % cjobinfo['holdreason']
                     print msg
                     if dbh:
-                        dbh.insert_message(config['pfw_attempt_id'],
-                                           config['task_id']['job'][jobnum],
-                                           pfwdefs.PFWDB_MSG_WARN, msg)
+                        Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                              config['task_id']['job'][jobnum],
+                                              msg, pfw_utils.PFWDB_MSG_WARN)
 
                 if 'abortreason' in cjobinfo and cjobinfo['abortreason'] is not None:
                     tjobinfo_task['start_time'] = cjobinfo['starttime']
@@ -267,17 +268,16 @@ def jobpost(argv=None):
             msg = "Warn: outputwcl tarball (%s) is 0 bytes." % outputtar
             print msg
             if dbh:
-                dbh.insert_message(config['pfw_attempt_id'],
-                                   config['task_id']['job'][jobnum], 
-                                   pfwdefs.PFWDB_MSG_WARN, msg)
+                Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                      config['task_id']['job'][jobnum],
+                                      msg, pfw_utils.PFWDB_MSG_WARN)
     else:
         msg = "Warn: outputwcl tarball (%s) does not exist." % outputtar
         print msg
         if dbh:
-            dbh.insert_message(config['pfw_attempt_id'], 
-                               config['task_id']['job'][jobnum], 
-                               pfwdefs.PFWDB_MSG_WARN, msg)
-
+            Messaging.pfw_message(dbh, config['pfw_attempt_id'],
+                                  config['task_id']['job'][jobnum],
+                                  msg, pfw_utils.PFWDB_MSG_WARN)
 
     if retval != pfwdefs.PF_EXIT_SUCCESS:
         miscutils.fwdebug_print("Setting failure retval")

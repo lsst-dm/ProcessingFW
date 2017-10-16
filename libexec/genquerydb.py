@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: genquerydb.py 41243 2016-01-27 17:10:19Z mgower $
+# $Rev:: 41243                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-01-27 11:10:19 #$:  # Date of last commit.
 
 """ Generic query to the DB to determine input files """
 

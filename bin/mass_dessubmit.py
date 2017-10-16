@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: mass_dessubmit.py 42539 2016-06-09 21:00:23Z mgower $
+# $Rev:: 42539                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-06-09 16:00:23 #$:  # Date of last commit.
 
 """ Replaces mass submit variables in a template submit file and calls dessubmit
     doing some throttling, spacing out of the submits """

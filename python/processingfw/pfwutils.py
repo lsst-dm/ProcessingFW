@@ -1,8 +1,8 @@
 #!usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: pfwutils.py 43916 2016-09-06 19:11:40Z friedel $
+# $Rev:: 43916                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2016-09-06 14:11:40 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -19,6 +19,7 @@ import shlex
 
 import despymisc.miscutils as miscutils
 import processingfw.pfwdefs as pfwdefs
+import qcframework.Messaging as Messaging
 
 
 #######################################################################
@@ -216,8 +217,9 @@ def get_version(execname, execdefs):
 
 
 ############################################################################
-def run_cmd_qcf(cmd, logfilename, wid, execnames, bufsize=5000, use_qcf=False):
+def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwattid=0, patterns={}):
     """ Execute the command piping stdout/stderr to log and QCF """
+    bufsize = 1024 * 10
 
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
@@ -230,10 +232,10 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, bufsize=5000, use_qcf=False):
 
     use_qcf = miscutils.convertBool(use_qcf)
 
-    logfh = open(logfilename, 'w', 0)
-
     sys.stdout.flush()
     try:
+        messaging = Messaging.Messaging(logfilename, execnames, pfwattid=pfwattid, taskid=wid,
+                                        dbh=dbh, usedb=use_qcf, qcf_patterns=patterns)
         process_wrap = subprocess.Popen(shlex.split(cmd),
                                         shell=False,
                                         stdout=subprocess.PIPE,
@@ -249,66 +251,15 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, bufsize=5000, use_qcf=False):
         print "    and it sets up the path correctly"
         raise
 
-    if use_qcf:
-        cmd_qcf = "qcf_controller.pl -wrapperInstanceId %s -execnames %s" % (wid, execnames)
-        try:
-            process_qcf = subprocess.Popen(cmd_qcf.split(),
-                                           shell=False,
-                                           stdin=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT)
-        except:
-            (extype, exvalue, _) = sys.exc_info()
-            print "********************"
-            print "Unexpected error: %s - %s" % (extype, exvalue)
-            print "cmd_qcf> %s" % cmd_qcf
-            print "use_qcf was true, but probably could not find QCF in path (%s)" % \
-                  cmd_qcf.split()[0]
-            print "Either change submit wcl (use_qcf = False) or"
-            print "    make sure that the QCFramework eups package is in the metapackage "
-            print "    and it sets up the path correctly"
-            raise
-
 
     try:
         buf = os.read(process_wrap.stdout.fileno(), bufsize)
         while process_wrap.poll() == None or len(buf) != 0:
-            # remove special characters present in AstrOmatic outputs
-            filtered_string = buf.replace("[1A", "")
-            filtered_string = filtered_string.replace(chr(27), "")
-            filtered_string = filtered_string.replace("[1M", "")
-            filtered_string = filtered_string.replace("[7m", "")
-
-            logfh.write(filtered_string)   # write to log file
-            if use_qcf:
-                qcfpoll = process_qcf.poll()
-                if qcfpoll == None:
-                    process_qcf.stdin.write(filtered_string) # pass to QCF
+            messaging.write(buf)
             buf = os.read(process_wrap.stdout.fileno(), bufsize)
 
-        logfh.close()
-        if use_qcf:
-            process_qcf.stdin.close()
-            while process_qcf.poll() == None:
-                time.sleep(1)
-            if process_qcf.returncode != 0:
-                print "\tWarning: QCF returned non-zero exit code"
-                print "cmd_qcf =", cmd_qcf
     except IOError as exc:
         print "\tI/O error({0}): {1}".format(exc.errno, exc.strerror)
-        if use_qcf:
-            qcfpoll = process_qcf.poll()
-            if qcfpoll != None and qcfpoll != 0:
-                if process_wrap.poll() == None:
-                    buf = os.read(process_wrap.stdout.fileno(), bufsize)
-                    while process_wrap.poll() == None or len(buf) != 0:
-                        logfh.write(buf)
-                        buf = os.read(process_wrap.stdout.fileno(), bufsize)
-
-                    logfh.close()
-            else:
-                (extype, exvalue, _) = sys.exc_info()
-                print "\tError: Unexpected IOError: %s - %s" % (extype, exvalue)
-                raise
 
     except:
         (extype, exvalue, _) = sys.exc_info()
@@ -449,9 +400,7 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
         msg = "Error: creating %s object - %s - %s" % (label, extype, exvalue)
         print "\n%s" % msg
         if pfw_dbh is not None:
-            pfw_dbh.insert_message(wcl['pfw_attempt_id'], parent_tid, pfwdefs.PFWDB_MSG_ERROR, msg)
-            #pfw_dbh.insert_message(wcl['pfw_attempt_id'], task_id, pfwdefs.PFWDB_MSG_ERROR, msg)
-            #pfw_dbh.end_task(task_id, pfwdefs.PF_EXIT_FAILURE, True)
+            Messaging.pfw_message(pfw_dbh, wcl['pfw_attempt_id'], parent_tid, msg, pfw_utils.PFWDB_MSG_ERROR)
         raise
 
     #if pfw_dbh is not None:

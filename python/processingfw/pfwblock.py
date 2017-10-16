@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: pfwblock.py 44449 2016-10-19 18:38:10Z mgower $
+# $Rev:: 44449                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-10-19 13:38:10 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 
@@ -1199,6 +1199,7 @@ def write_jobwcl(config, jobkey, jobdict):
               'junktar_archive_path': config.get_filepath('ops', 'junktar', {pfwdefs.PF_CURRVALS:{'jobnum': jobdict['jobnum']}}),
               'fw_groups': fwgroups,
               'verify_files': config.getfull(pfwdefs.PF_VERIFY_FILES),
+              'qcf': config.getfull('qcf'),
             })
 
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
@@ -2128,7 +2129,6 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                 elif vals[0] == pfwdefs.SW_LISTSECT:
                     inlists.append(vals[1])
 
-
         if pfwdefs.IW_OUTPUTS in execval.keys():
             temp = replfuncs.replace_vars_single(execval[pfwdefs.IW_OUTPUTS], config,
                                              {pfwdefs.PF_CURRVALS: currvals,
@@ -2155,7 +2155,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
             isaninput = False
             if sectname in outfiles:
                 isanoutput = True
-            if sectname in infiles:
+            elif sectname in infiles:
                 isaninput = True
             if 'fullname' in sectdict:
                 if isanoutput:
@@ -2177,6 +2177,7 @@ def create_single_wrapper_wcl(config, modname, wrapinst):
                 isoutlist = True
             elif k in inlists:
                 isinlist = True
+ 
             if os.path.isfile(v['fullname']):
                 cols = v['columns'].split(',')
                 cc = -1
@@ -2361,6 +2362,7 @@ def translate_sw_iw(config, wrapperwcl, modname, winst):
 #######################################################################
 def create_module_wrapper_wcl(config, modname, winst):
     """ Create wcl for wrapper instances for a module """
+
     if miscutils.fwdebug_check(1, "PFWBLOCK_DEBUG"):
         miscutils.fwdebug_print("BEG %s" % modname)
 
@@ -2368,6 +2370,7 @@ def create_module_wrapper_wcl(config, modname, winst):
         raise Exception("Error: Could not find module description for module %s\n" % (modname))
 
     wrapperwcl, files = create_single_wrapper_wcl(config, modname, winst)
+
     translate_sw_iw(config, wrapperwcl, modname, winst)
     add_needed_values(config, modname, winst, wrapperwcl)
     write_wrapper_wcl(config, winst['inputwcl'], wrapperwcl)

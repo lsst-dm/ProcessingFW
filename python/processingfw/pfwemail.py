@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: pfwemail.py 44447 2016-10-19 18:15:40Z mgower $
+# $Rev:: 44447                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-10-19 13:15:40 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# $Id$
-# $Rev::                                  $:  # Revision of last commit.
-# $LastChangedBy::                        $:  # Author of last commit.
-# $LastChangedDate::                      $:  # Date of last commit.
+# $Id: begrun.py 44505 2016-10-24 14:58:42Z friedel $
+# $Rev:: 44505                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2016-10-24 09:58:42 #$:  # Date of last commit.
 
 """ Program executed at beginning of processing attempt """
 
@@ -15,6 +15,7 @@ import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwconfig as pfwconfig
 from processingfw.pfwemail import send_email
+import qcframework.Messaging as Messaging
 
 ######################################################################
 def copy_files_home(config, archive_info, filemgmt):
@@ -123,17 +124,15 @@ def begrun(argv):
     except Exception as exc:
         msg = "begrun: %s: %s" % (exc.__class__.__name__, str(exc))
         if pfw_dbh is not None:
-            pfw_dbh.insert_message(config['pfw_attempt_id'],
-                                   config['task_id']['attempt'],
-                                   pfwdefs.PFWDB_MSG_ERROR, msg)
+            Messaging.pfw_message(pfw_dbh, config['pfw_attempt_id'], config['task_id']['attempt'],
+                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out',0)
         send_failed_email(config, msg)
         raise
     except SystemExit as exc:
         msg = "begrun: SysExit=%s" % str(exc)
         if pfw_dbh is not None:
-            pfw_dbh.insert_message(config['pfw_attempt_id'],
-                                   config['task_id']['attempt'],
-                                   pfwdefs.PFWDB_MSG_ERROR, msg)
+            Messaging.pfw_message(pfw_dbh, config['pfw_attempt_id'], config['task_id']['attempt'],
+                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out',0)
         send_failed_email(config, msg)
         raise
 

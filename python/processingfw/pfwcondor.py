@@ -517,7 +517,9 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
     assert type(cmdopts) == dict
     assert type(attributes) == dict
 
-    if compare_condor_version('7.6.0') >= 0:
+    if compare_condor_version('8.7.1') >= 0:
+        cmd += ' -autorescue 0 -UseDagDir -no_recurse'
+    elif compare_condor_version('7.6.0') >= 0:
         cmd += ' -autorescue 0 -no_recurse '
     elif compare_condor_version('7.1.0') >= 0:
         cmd += ' -oldrescue 1 -autorescue 0 -no_recurse '
@@ -538,7 +540,7 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
 
     # write additional lines to file and ask condor_submit_dag to include
     #    note: insert_sub_file works with empty file
-    if compare_condor_version("7.1") > 0:
+    if compare_condor_version('7.1.0') > 0:
         addfile = dagfile + '.add.txt'
         with open(addfile, 'w') as addfh:
             if initialdir:

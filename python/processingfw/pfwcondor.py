@@ -46,7 +46,7 @@ def condor_version():
     result = re.search(r'CondorVersion: (\d+)\.(\d+)\.(\d+)', out)
     if result:
         version = '%03d.%03d.%03d' % (int(result.group(1)),
-                                      int(result.group(2)), 
+                                      int(result.group(2)),
                                       int(result.group(3)))
     else:
         raise CondorException('Could not determine condor_version (%s)' % out)
@@ -75,13 +75,13 @@ def compare_condor_version(ver2):
     result = re.search(r'(\d+)\.(\d+)\.(\d+)', ver2)
     if result:
         ver2 = '%03d.%03d.%03d' % (int(result.group(1)),
-                                   int(result.group(2)), 
+                                   int(result.group(2)),
                                    int(result.group(3)))
     else:
         result = re.search(r'(\d+)\.(\d+)', ver2)
         if result:
             ver2 = '%03d.%03d.%03d' % (int(result.group(1)),
-                                       int(result.group(2)), 
+                                       int(result.group(2)),
                                        0)
         else:
             raise CondorException('Invalid version format')
@@ -773,20 +773,22 @@ def get_attempt_info(topjob, qjobs):
         else:
             qjobs[topjob]['%soperator' % pfwdefs.ATTRIB_PREFIX] = "UNK"
 
+    # Grab DESDM info from top job attributes.
+    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator', 'campaign']:
+        info[key] = ""
+        if pfwdefs.ATTRIB_PREFIX + key in qjobs[topjob]:
+            info[key] = qjobs[topjob][pfwdefs.ATTRIB_PREFIX + key]
+
     # find innermost dag job
     jobid = topjob
     while len(qjobs[jobid]['children']) == 1 and \
           ('%sblock' % pfwdefs.ATTRIB_PREFIX not in qjobs[jobid] or \
            'pipe' not in qjobs[jobid]['%sblock' % pfwdefs.ATTRIB_PREFIX]):
         jobid = qjobs[jobid]['children'][0]
-
-    # grab DESDM from job attributes
-    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator', 'campaign']:
-        info[key] = ""
-        if pfwdefs.ATTRIB_PREFIX + key in qjobs[jobid]:
-            info[key] = qjobs[jobid][pfwdefs.ATTRIB_PREFIX + key]
-
     info['status'] = get_job_status_str(jobid, qjobs)
+
+    jobinfo = qjobs.get(jobid)
+    info['block'], info['subblock'] = get_block_names(jobinfo)
 
     # If pipeline mngr, count number of pending, running, etc target jobs
     if len(qjobs[jobid]['children']) > 0:
@@ -795,6 +797,34 @@ def get_attempt_info(topjob, qjobs):
         info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % pfwdefs.ATTRIB_PREFIX]
 
     return info
+
+
+def get_block_names(info):
+    """Extract block and subblock data from the log filename.
+
+    Parameters
+    ----------
+    info : `dict`
+       Information about the job.
+
+    Retruns
+    -------
+    block, sublock : str
+        Name of the block and the subblock. Both defaults to 'UNK' if any
+        problems with processing the job data are encountered.
+    """
+    block, subblock = 'UNK', 'UNK'
+    if info is not None:
+        path = info.get('userlog')
+        if path is not None:
+            try:
+                blk_info, sub_info = path.split('/')[-3:-1]
+            except (AttributeError, IndexError):
+                pass
+            else:
+                block, subblock = blk_info.split('-')[-1], sub_info.split('.')[0]
+    return block, subblock
+
 
 if __name__ == '__main__':
     pass

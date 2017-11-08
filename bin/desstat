@@ -25,7 +25,7 @@ def main(argv=None):
     args, unknownargs = parser.parse_known_args(argv)
 
     #cq_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
-    cq_str = "-constraint 'substr(JobBatchName,0,8) == \"mainmngr\"' "
+    cq_str = "-allusers -constraint 'substr(JobBatchName,0,8) == \"mainmngr\"' "
 
     if args.desq is not None:
         cq_str += ' -name %s -pool %s ' % (args.desq, args.desq)

@@ -2468,6 +2468,7 @@ def write_runjob_script(config):
     envfile = envfile.replace("j9999", "j${padjnum}")
 
     scriptstr = """#!/usr/bin/env sh
+export PATH=/bin:/usr/bin
 echo "PFW: job_shell_script cmd: $0 $@";
 if [ $# -ne 6 ]; then
     echo "Usage: $0 <jobnum> <input tar> <job wcl> <tasklist> <env file> <output tar>";
@@ -2838,8 +2839,8 @@ def create_runjob_condorfile(config, scriptfile):
 
         if 'glidein' in targetinfo['batchtype']:
             if 'nodeset' in config and config.getfull('nodeset').lower() != 'none':
-                userattribs['NODESET'] = config.getfull('nodeset')
-                reqs.append('(Target.NODESET == "%s")' % config.getfull('nodeset'))
+                userattribs['JOB_NODE_SET'] = config.getfull('nodeset')
+                reqs.append('(Target.ALLOCATED_NODE_SET == "%s")' % config.getfull('nodeset'))
             elif 'uiddomain' in config:
                 reqs.append('(UidDomain == "%s")' % config.getfull('uiddomain'))
             else:
@@ -2869,8 +2870,8 @@ def create_runjob_condorfile(config, scriptfile):
             reqs.append('(machine == "%s")' % machine)
         elif targetinfo['batchtype'] == 'nodeset':
             if 'nodeset' in config and config.getfull('nodeset').lower() != 'none':
-                userattribs['NODESET'] = config.getfull('nodeset')
-                reqs.append('(Target.NODESET == "%s")' % config.getfull('nodeset'))
+                userattribs['JOB_NODE_SET'] = config.getfull('nodeset')
+                reqs.append('(Target.ALLOCATED_NODE_SET == "%s")' % config.getfull('nodeset'))
 
         if 'dynslots' in targetinfo['batchtype'] or \
            ('dynslots' in targetinfo and miscutils.convertBool(targetinfo['dynslots'])):

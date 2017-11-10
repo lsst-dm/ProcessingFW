@@ -24,7 +24,8 @@ def main(argv=None):
     parser.add_argument('--sort', action='store', default=None)
     args, unknownargs = parser.parse_known_args(argv)
 
-    cq_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
+    #cq_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
+    cq_str = "-allusers -constraint 'substr(JobBatchName,0,8) == \"mainmngr\"' "
 
     if args.desq is not None:
         cq_str += ' -name %s -pool %s ' % (args.desq, args.desq)
@@ -67,7 +68,7 @@ def main(argv=None):
         print_header()
         count = print_attempts(att_jobs, qjobs, args.campaign)
         count += print_orphans(orphan_jobs, qjobs, args.campaign)
-    
+
     if args.campaign is not None and count == 0:
         print "No jobs found for campaign %s" % (args.campaign)
 
@@ -77,7 +78,7 @@ def main(argv=None):
 def print_sorted(attids, orphanids, qjobs, campaign, sort):
     """ Print lines in a sorted order """
     count = 0
-    
+
     order = []
     jobs = {}
     for jobid in attids + orphanids:

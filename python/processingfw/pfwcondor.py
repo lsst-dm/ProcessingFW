@@ -46,7 +46,7 @@ def condor_version():
     result = re.search(r'CondorVersion: (\d+)\.(\d+)\.(\d+)', out)
     if result:
         version = '%03d.%03d.%03d' % (int(result.group(1)),
-                                      int(result.group(2)), 
+                                      int(result.group(2)),
                                       int(result.group(3)))
     else:
         raise CondorException('Could not determine condor_version (%s)' % out)
@@ -75,13 +75,13 @@ def compare_condor_version(ver2):
     result = re.search(r'(\d+)\.(\d+)\.(\d+)', ver2)
     if result:
         ver2 = '%03d.%03d.%03d' % (int(result.group(1)),
-                                   int(result.group(2)), 
+                                   int(result.group(2)),
                                    int(result.group(3)))
     else:
         result = re.search(r'(\d+)\.(\d+)', ver2)
         if result:
             ver2 = '%03d.%03d.%03d' % (int(result.group(1)),
-                                       int(result.group(2)), 
+                                       int(result.group(2)),
                                        0)
         else:
             raise CondorException('Invalid version format')
@@ -517,7 +517,9 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
     assert type(cmdopts) == dict
     assert type(attributes) == dict
 
-    if compare_condor_version('7.6.0') >= 0:
+    if compare_condor_version('8.7.1') >= 0:
+        cmd += ' -autorescue 0 -UseDagDir -no_recurse'
+    elif compare_condor_version('7.6.0') >= 0:
         cmd += ' -autorescue 0 -no_recurse '
     elif compare_condor_version('7.1.0') >= 0:
         cmd += ' -oldrescue 1 -autorescue 0 -no_recurse '
@@ -538,7 +540,7 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
 
     # write additional lines to file and ask condor_submit_dag to include
     #    note: insert_sub_file works with empty file
-    if compare_condor_version("7.1") > 0:
+    if compare_condor_version('7.1.0') > 0:
         addfile = dagfile + '.add.txt'
         with open(addfile, 'w') as addfh:
             if initialdir:
@@ -761,30 +763,39 @@ def status_target_jobs(job, qjobs):
 
 
 #######################################################################
-def get_attempt_info(topjob, qjobs):
+def get_attempt_info(topjobid, qjobs):
     """ Massage condor_q dag information into attempt information """
 
     info = {}
-    if '%soperator' % pfwdefs.ATTRIB_PREFIX not in qjobs[topjob]:
-        if 'owner' in qjobs[topjob]:
-            qjobs[topjob]['%soperator' % pfwdefs.ATTRIB_PREFIX] = qjobs[topjob]['owner'].replace('"', '')
+    if '%soperator' % pfwdefs.ATTRIB_PREFIX not in qjobs[topjobid]:
+        if 'owner' in qjobs[topjobid]:
+            qjobs[topjobid]['%soperator' % pfwdefs.ATTRIB_PREFIX] = qjobs[topjobid]['owner'].replace('"', '')
         else:
-            qjobs[topjob]['%soperator' % pfwdefs.ATTRIB_PREFIX] = "UNK"
+            qjobs[topjobid]['%soperator' % pfwdefs.ATTRIB_PREFIX] = "UNK"
+
+    # Grab DESDM info from top job attributes.
+    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator', 'campaign']:
+        info[key] = ""
+        if pfwdefs.ATTRIB_PREFIX + key in qjobs[topjobid]:
+            info[key] = qjobs[topjobid][pfwdefs.ATTRIB_PREFIX + key]
 
     # find innermost dag job
-    jobid = topjob
+    jobid = topjobid
     while len(qjobs[jobid]['children']) == 1 and \
           ('%sblock' % pfwdefs.ATTRIB_PREFIX not in qjobs[jobid] or \
            'pipe' not in qjobs[jobid]['%sblock' % pfwdefs.ATTRIB_PREFIX]):
         jobid = qjobs[jobid]['children'][0]
-
-    # grab DESDM from job attributes
-    for key in ['project', 'pipeline', 'run', 'runsite', 'block', 'subblock', 'operator', 'campaign']:
-        info[key] = ""
-        if pfwdefs.ATTRIB_PREFIX + key in qjobs[jobid]:
-            info[key] = qjobs[jobid][pfwdefs.ATTRIB_PREFIX + key]
-
     info['status'] = get_job_status_str(jobid, qjobs)
+
+    # In newer version of condor, user defined ClassAds in a DAG don't seem to
+    # propagate to SUBDAGs. Thus for dagman jobs, information regarding block
+    # and subblock is extracted from user log filename.
+    jobinfo = qjobs.get(jobid)
+    if 'condor_dagman' in jobinfo['cmd']:
+        info['block'], info['subblock'] = get_block_names(jobinfo)
+    else:
+        for key in ['block', 'subblock']:
+            info[key] = jobinfo[pfwdefs.ATTRIB_PREFIX + key]
 
     # If pipeline mngr, count number of pending, running, etc target jobs
     if len(qjobs[jobid]['children']) > 0:
@@ -793,6 +804,33 @@ def get_attempt_info(topjob, qjobs):
         info['block'] = qjobs[qjobs[jobid]['children'][0]]['%sblock' % pfwdefs.ATTRIB_PREFIX]
 
     return info
+
+
+def get_block_names(info):
+    """Extract block and subblock data from the log filename.
+
+    Parameters
+    ----------
+    info : `dict`
+       Information about the job.
+
+    Retruns
+    -------
+    block, sublock : `str`
+        Name of the block and the subblock. Both defaults to 'UNK' if any
+        problems are encountered.
+    """
+    block, subblock = 'UNK', 'UNK'
+    if info is not None:
+        path = info.get('userlog')
+        try:
+            blk_info, sub_info = path.split('/')[-2:]
+        except (AttributeError, IndexError):
+            pass
+        else:
+            block, subblock = blk_info.split('-')[-1], sub_info.split('.')[0]
+    return block, subblock
+
 
 if __name__ == '__main__':
     pass

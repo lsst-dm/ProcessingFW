@@ -11,6 +11,7 @@
 import os
 import time
 
+
 def get_timestamp():
     """Create timestamp in a particular format"""
     tstamp = time.strftime("%m/%d/%Y %H:%M:%S", time.localtime())

@@ -13,6 +13,7 @@ import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwcheck as pfwcheck
 import processingfw.pfwdefs as pfwdefs
 
+
 def main():
     """ Entry point when called as an executable """
 
@@ -43,6 +44,7 @@ def main():
     print "\tErrors: %d" % testcnts[0]
     print "\tWarnings: %d" % testcnts[1]
     print "\tItems fixed: %d" % testcnts[2]
+
 
 if __name__ == '__main__':
     main()

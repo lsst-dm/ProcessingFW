@@ -33,10 +33,8 @@ def endrun(configfile):
                   "home archive at the end of the run"
             return pfwdefs.PF_EXIT_FAILURE
 
-
         archpath = config.getfull(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])
         print "archpath =", archpath
-
 
         # call archive transfer for target archive to home archive
         # check if using target archive
@@ -44,7 +42,7 @@ def endrun(configfile):
         if pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in config and \
            config.getfull(pfwdefs.USE_TARGET_ARCHIVE_OUTPUT).lower() != 'never':
             if pfwdefs.TARGET_ARCHIVE in config and \
-                config.getfull(pfwdefs.TARGET_ARCHIVE) in config[pfwdefs.SW_ARCHIVESECT]:
+                    config.getfull(pfwdefs.TARGET_ARCHIVE) in config[pfwdefs.SW_ARCHIVESECT]:
                 target_info = config[pfwdefs.SW_ARCHIVESECT][config.getfull(pfwdefs.TARGET_ARCHIVE)]
             else:
                 print "Error:  cannot determine info for target archive"
@@ -56,18 +54,17 @@ def endrun(configfile):
         home_info = None
         print config[pfwdefs.HOME_ARCHIVE]
         if pfwdefs.HOME_ARCHIVE in config and \
-            config[pfwdefs.HOME_ARCHIVE] in config[pfwdefs.SW_ARCHIVESECT]:
+                config[pfwdefs.HOME_ARCHIVE] in config[pfwdefs.SW_ARCHIVESECT]:
             home_info = config[pfwdefs.SW_ARCHIVESECT][config.getfull(pfwdefs.HOME_ARCHIVE)]
 
         # call transfer
         archive_transfer_utils.archive_copy_dir(target_info, home_info,
-                                                config.getfull('archive_transfer'), 
+                                                config.getfull('archive_transfer'),
                                                 archpath, config)
-
 
     if miscutils.convertBool(config[pfwdefs.PF_USE_DB_OUT]):
         miscutils.fwdebug_print("Calling update_attempt_end: retval = %s" % retval)
-        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                           config.getfull('submit_des_db_section'))
         dbh.end_task(config['task_id']['attempt'], retval, True)
         dbh.commit()
@@ -75,7 +72,6 @@ def endrun(configfile):
 
     miscutils.fwdebug_print("END - exiting with code %s" % retval)
     return retval
-
 
 
 if __name__ == "__main__":

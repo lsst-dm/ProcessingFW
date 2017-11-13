@@ -54,7 +54,7 @@ def main(argv=None):
 
     if args.sort is not None and args.sort.upper() != "ID":  # ID is the default sort
         if args.sort.upper() not in ["ID", "PRJ", "PROJECT", "PIPELINE", "CAMPAIGN", "RUN", "BLOCK", "SUBBLOCK",
-           "STAT", "OPERATOR", "RUNSITE", "STATUS"]:
+                                     "STAT", "OPERATOR", "RUNSITE", "STATUS"]:
             print "%s is not an avaiable sort parameter." % (args.sort)
             exit(0)
         print_header()
@@ -73,6 +73,7 @@ def main(argv=None):
 
     return 0
 
+
 def print_sorted(attids, orphanids, qjobs, campaign, sort):
     """ Print lines in a sorted order """
     count = 0
@@ -84,7 +85,7 @@ def print_sorted(attids, orphanids, qjobs, campaign, sort):
         if campaign is None or campaign.upper() == info['campaign'].upper():
             count += 1
             jobs[jobid] = info
-    data = sorted(jobs.items(), key=lambda x:x[1][sort])
+    data = sorted(jobs.items(), key=lambda x: x[1][sort])
     for item in data:
         jid = item[0]
         jtype = " "
@@ -101,6 +102,7 @@ def print_header():
            "STAT (H/P/R/T)", "OPERATOR", "RUNSITE")
     print "="*160
 
+
 def print_attempts(attids, qjobs, campaign):
     """ print attempt info """
     count = 0
@@ -110,6 +112,7 @@ def print_attempts(attids, qjobs, campaign):
             count += 1
             print_line(topjobid, " ", info)
     return count
+
 
 def print_orphans(orphanids, qjobs, campaign):
     """ Print info for single orphan job """
@@ -121,6 +124,7 @@ def print_orphans(orphanids, qjobs, campaign):
             print_line(topjobid, "X", info)
     return count
 
+
 def print_line(jid, jobtype, info):
     """ Print single line """
 
@@ -129,6 +133,7 @@ def print_line(jid, jobtype, info):
            info['campaign'][:14],
            info['run'][:27], info['block'][:25], info['subblock'][:15],
            info['status'][:17], info['operator'][:8], info['runsite'])
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

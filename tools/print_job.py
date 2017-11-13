@@ -13,6 +13,7 @@ from despymisc import miscutils
 from processingfw import pfwdb
 from processingfw import pfwutils
 
+
 def parse_attempt_str(attstr):
     """ Parse attempt string for reqnum, unitname, and attnum """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
@@ -25,6 +26,7 @@ def parse_attempt_str(attstr):
     attnum = amatch.group(3)
 
     return reqnum, unitname, attnum
+
 
 def parse_args(argv):
     """ Parse command line arguments """
@@ -64,12 +66,12 @@ def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, inden
         jstatus = None
     else:
         jstatus = jdict['status']
-        if jdict['end_time'] is None: 
+        if jdict['end_time'] is None:
             if numwraps == expnumwrap and jwdict['end_time'] is not None:
                 jstate = "POST"
             else:
                 jstate = "EXEC"
-        elif jstatus == 0: 
+        elif jstatus == 0:
             jstate = "DONE"
         else:
             jstate = "FAIL"
@@ -80,7 +82,7 @@ def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, inden
             modname = "UNK"
             wrapkeys = ""
             status = "UNK - maybe first wrapper hasn't started yet"
-        else: 
+        else:
             state = "UNK"
             modname = "UNK"
             wrapkeys = ""
@@ -104,7 +106,7 @@ def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, inden
         status = wdict['status']
         modname = wdict['modname']
         wrapkeys = wdict['wrapkeys']
-    elif wdict['end_time'] is None and wdict['start_time'] is not None: 
+    elif wdict['end_time'] is None and wdict['start_time'] is not None:
         state = "EXEC"
         status = ""
         modname = wdict['modname']
@@ -115,16 +117,15 @@ def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, inden
         print wdict
 
     print "%sjob: %s (jk=%s)  %d/%d  %s - %s   wrap: %s %s (wk=%s) - %s %s" % \
-          (indent, pfwutils.pad_jobnum(jdict['jobnum']), jdict['jobkeys'], 
+          (indent, pfwutils.pad_jobnum(jdict['jobnum']), jdict['jobkeys'],
            numwraps, expnumwrap, jstate, jstatus,
            wrapnum, modname, wrapkeys,
            state, status)
 
 
 def print_single_block(blknum, blockinfo, job_byblk, jwrap_byjob, wrap_byjob, verbose=False):
-    #print "print_single_block(%s,..." % blknum 
+    #print "print_single_block(%s,..." % blknum
     print blockinfo['name']
-
 
     if blknum not in job_byblk:
         print "\tNo jobs for this block"
@@ -187,13 +188,13 @@ def print_job_info(argv):
             print "(Double check which DB querying vs which DB the attempt used)"
         else:
             if 'endtime' in attinfo and attinfo['endtime'] is not None:
-                print "Note:  run has finished with status %s" % attinfo['status'] 
+                print "Note:  run has finished with status %s" % attinfo['status']
 
             # get the block info
             blockinfo = dbh.get_block_info(pfw_attempt_id=attinfo['id'])
 
             # get job info
-            jobinfo = dbh.get_job_info({'pfw_attempt_id':attinfo['id']})
+            jobinfo = dbh.get_job_info({'pfw_attempt_id': attinfo['id']})
             # index jobinfo by blknum
             job_byblk = pfwutils.index_job_info(jobinfo)
 
@@ -205,7 +206,9 @@ def print_job_info(argv):
             wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
             for blknum in blockinfo.keys():
-                print_single_block(blknum, blockinfo[blknum], job_byblk, jwrap_byjob, wrap_byjob, args['verbose'])
+                print_single_block(blknum, blockinfo[blknum], job_byblk,
+                                   jwrap_byjob, wrap_byjob, args['verbose'])
+
 
 if __name__ == "__main__":
     print_job_info(sys.argv[1:])

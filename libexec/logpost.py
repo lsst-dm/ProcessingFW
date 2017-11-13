@@ -59,7 +59,7 @@ def logpost(argv=None):
     new_log_name = config.get_filename('block',
                                        {pfwdefs.PF_CURRVALS: {'flabel': '${subblock}_logpost',
                                                               'subblock': subblock,
-                                                              'fsuffix':'out'}})
+                                                              'fsuffix': 'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
@@ -69,7 +69,6 @@ def logpost(argv=None):
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
-
 
     log_pfw_event(config, blockname, subblock, subblocktype, ['posttask', retval])
 
@@ -90,6 +89,7 @@ def logpost(argv=None):
     miscutils.fwdebug_print("logpost done")
     debugfh.close()
     return int(retval)
+
 
 if __name__ == "__main__":
     realstdout = sys.stdout

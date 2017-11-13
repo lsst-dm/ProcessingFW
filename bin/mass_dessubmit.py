@@ -19,9 +19,11 @@ import despymisc.miscutils as miscutils
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdefs as pfwdefs
 
+
 def tsstr():
     """ Return the current time as a string """
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+
 
 def parse_cmdline(argv):
     """ Parse the command line """
@@ -47,7 +49,6 @@ def parse_cmdline(argv):
                         help='filter maxjobs on reqnum')
     parser.add_argument('--pipeline', action='store',
                         help='filter maxjobs on pipeline')
-
 
     parser.add_argument('--group_submit_id', action='store', type=int, default=1,
                         help='numeric value stored in pfw_attempt table')
@@ -75,6 +76,7 @@ def parse_cmdline(argv):
             args['submitfiledir'] = "%s/%s" % (os.getcwd(), args['submitfiledir'])
 
     return args
+
 
 def can_submit(args):
     """ whether can submit another attempt or not """
@@ -145,7 +147,6 @@ def submit(submitfile, logdir):
     os.chdir(cwd)
 
 
-
 def main(argv):
     """ Program entry point """
     args = parse_cmdline(argv)
@@ -182,7 +183,6 @@ def main(argv):
                 logdir = logdir.replace('XXX%dXXX' % (i+1), info[i])
             if not newtname.endswith(".des"):
                 newtname += ".des"
-
 
             if args['force'] or not os.path.exists(newtname):
                 submitdir = os.path.dirname(newtname)

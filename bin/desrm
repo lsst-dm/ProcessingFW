@@ -16,6 +16,7 @@ import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdb as pfwdb
 
+
 def update_db(dbh, task_id):
     """ Tell DB that attempt was deleted """
 
@@ -23,7 +24,7 @@ def update_db(dbh, task_id):
     sql = """select id from task where root_task_id=%s and start_time is not NULL and
              end_time is NULL""" % dbh.get_named_bind_string('root_task_id')
     curs = dbh.cursor()
-    curs.execute(sql, {'root_task_id':task_id})
+    curs.execute(sql, {'root_task_id': task_id})
     for (tid,) in curs:
         dbh.end_task(tid, pfwdefs.PF_EXIT_OPDELETE, False)
 
@@ -65,6 +66,7 @@ def parse_attempt_str(attempt):
     attnum = str(int(match.group(3)))
     return (reqnum, unitname, attnum)
 
+
 def get_attempt_info_from_db(dbh, reqnum, unitname, attnum):
     """ Get condor job id and task id from DB for the attempt """
 
@@ -95,7 +97,6 @@ def main(argv=None):
                         help='Must be specified if not set in environment')
     parser.add_argument('attempt', nargs=1, action='store', default=None)
     args = parser.parse_args(argv)
-
 
     condorid = None
     givcondorid = None
@@ -128,8 +129,7 @@ def main(argv=None):
             sys.exit(1)
 
     print "Deleting attempt: reqnum=%s, unitname=%s, attnum=%s, condorid=%s" % \
-           (reqnum, unitname, attnum, condorid)
-
+        (reqnum, unitname, attnum, condorid)
 
     # delete top condor job for attempt
     pfwcondor.condor_rm(condorid)
@@ -138,6 +138,7 @@ def main(argv=None):
     update_db(dbh, attempt_task_id)
     dbh.commit()
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

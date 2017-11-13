@@ -23,13 +23,14 @@ import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 import qcframework.Messaging as Messaging
 
+
 def parse_job_output(config, jobnum, dbh=None, retval=None):
     """ Search stdout/stderr for timing stats as well as eups setup
         or DB connection error messages and insert them into db """
     jobbase = config.get_filename('job',
-                                  {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum,
+                                  {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM: jobnum,
                                                          'flabel': 'runjob',
-                                                         'fsuffix':''}})
+                                                         'fsuffix': ''}})
 
     tjobinfo = {}
     tjobinfo_task = {}
@@ -72,7 +73,7 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                                                   config['task_id']['job'][jobnum],
                                                   line, pfwdefs.PFWDB_MSG_ERROR, jobfile, no)
                     elif 'No such file or directory: ' in line and \
-                          config.getfull('target_des_services') in line:
+                            config.getfull('target_des_services') in line:
                         print "Found:", line
                         if dbh:
                             Messaging.pfw_message(dbh, config['pfw_attempt_id'],
@@ -108,7 +109,6 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
                                                   line, pfwdefs.PFWDB_MSG_INFO, jobfile, no)
 
     return tjobinfo, tjobinfo_task
-
 
 
 def jobpost(argv=None):
@@ -154,12 +154,10 @@ def jobpost(argv=None):
         miscutils.fwdebug_print("outputtar = %s" % outputtar)
         miscutils.fwdebug_print("retval = %s" % retval)
 
-
     # read sysinfo file
     config = pfwconfig.PfwConfig({'wclfile': configfile})
     if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
         miscutils.fwdebug_print("done reading config file")
-
 
     # now that have more information, rename output file
     if miscutils.fwdebug_check(3, 'PFWPOST_DEBUG'):
@@ -171,7 +169,7 @@ def jobpost(argv=None):
     os.chdir("%s/%s" % (blkdir, tjpad))
     new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM: jobnum,
                                                                      'flabel': 'jobpost',
-                                                                     'fsuffix':'out'}})
+                                                                     'fsuffix': 'out'}})
     new_log_name = "%s" % (new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
@@ -182,10 +180,9 @@ def jobpost(argv=None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-
     dbh = None
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
-        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                           config.getfull('submit_des_db_section'))
 
         # get job information from the job stdout if exists
@@ -246,9 +243,7 @@ def jobpost(argv=None):
             dbh.basic_update_row('task', tjobinfo_task, wherevals)
             dbh.commit()
 
-
     log_pfw_event(config, blockname, jobnum, 'j', ['posttask', retval])
-
 
     # input wcl should already exist in untar form
     if os.path.exists(inputtar):

@@ -41,7 +41,6 @@ def get_hdrup_sections(wcl, prefix):
     return hdrups
 
 
-
 def search_wcl_for_variables(wcl):
     """ Find variables in given wcl """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
@@ -61,12 +60,13 @@ def search_wcl_for_variables(wcl):
         else:
             if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
                 miscutils.fwdebug_print("Note: wcl is not string.")
-                miscutils.fwdebug_print("key = %s, type(val) = %s, val = '%s'" % \
+                miscutils.fwdebug_print("key = %s, type(val) = %s, val = '%s'" %
                                         (key, type(val), val))
 
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
     return usedvars
+
 
 def get_wcl_value(key, wcl):
     """ Return value of key from wcl, follows section notation """
@@ -79,6 +79,7 @@ def get_wcl_value(key, wcl):
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
     return val
+
 
 def set_wcl_value(key, val, wcl):
     """ Sets value of key in wcl, follows section notation """
@@ -94,6 +95,7 @@ def set_wcl_value(key, val, wcl):
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
 
+
 def tar_dir(filename, indir):
     """ Tars a directory """
     if filename.endswith('.gz'):
@@ -102,6 +104,7 @@ def tar_dir(filename, indir):
         mode = 'w'
     with tarfile.open(filename, mode) as tar:
         tar.add(indir)
+
 
 def tar_list(tarfilename, filelist):
     """ Tars a directory """
@@ -114,7 +117,6 @@ def tar_list(tarfilename, filelist):
     with tarfile.open(tarfilename, mode) as tar:
         for filen in filelist:
             tar.add(filen)
-
 
 
 def untar_dir(filename, outputdir):
@@ -190,7 +192,7 @@ def get_version(execname, execdefs):
                     ver = pmatch.group(1)
                 else:
                     if miscutils.fwdebug_check(1, "PFWUTILS_DEBUG"):
-                        miscutils.fwdebug_print("re.search didn't find version for exec %s" % \
+                        miscutils.fwdebug_print("re.search didn't find version for exec %s" %
                                                 execname)
                     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
                         miscutils.fwdebug_print("\tcmd output=%s" % out)
@@ -241,7 +243,6 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
         print "    and it sets up the path correctly"
         raise
 
-
     try:
         buf = os.read(process_wrap.stdout.fileno(), bufsize)
         while process_wrap.poll() == None or len(buf) != 0:
@@ -259,12 +260,11 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
     sys.stdout.flush()
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         if process_wrap.returncode != 0:
-            miscutils.fwdebug_print("\tInfo: cmd exited with non-zero exit code = %s" % \
+            miscutils.fwdebug_print("\tInfo: cmd exited with non-zero exit code = %s" %
                                     process_wrap.returncode)
             miscutils.fwdebug_print("\tInfo: failed cmd = %s" % cmd)
         else:
             miscutils.fwdebug_print("\tInfo: cmd exited with exit code = 0")
-
 
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
@@ -306,7 +306,7 @@ def index_jobwrapper_info(jwrapinfo):
     for jwrap in jwrapinfo.values():
         if jwrap['label'] is None:
             print "Missing label for jobwrapper task."
-            print "Make sure you are using print_job.py from same ProcessingFW version as processing attempt" 
+            print "Make sure you are using print_job.py from same ProcessingFW version as processing attempt"
             sys.exit(1)
         if jwrap['parent_task_id'] not in jwrap_byjob:
             jwrap_byjob[jwrap['parent_task_id']] = {}
@@ -335,7 +335,8 @@ def should_compress_file(mastercompress, filecompress, exitcode):
     """ Determine whether should compress the file """
 
     if miscutils.fwdebug_check(6, "PFWUTILS_DEBUG"):
-        miscutils.fwdebug_print("BEG: master=%s, file=%s, exitcode=%s" % (mastercompress, filecompress, exitcode))
+        miscutils.fwdebug_print("BEG: master=%s, file=%s, exitcode=%s" %
+                                (mastercompress, filecompress, exitcode))
 
     mcompress = mastercompress
     if isinstance(mastercompress, str):
@@ -394,13 +395,13 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
 
 
 def diskusage(path):
-#    """ Calls du to get disk space used by given path """
-#    process = subprocess.Popen(['du', '-s', path], shell=False,
-#                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-#    process.wait()
-#    out = process.communicate()[0]
-#    (diskusage, _) = out.split()
-#    return int(diskusage)
+    #    """ Calls du to get disk space used by given path """
+    #    process = subprocess.Popen(['du', '-s', path], shell=False,
+    #                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    #    process.wait()
+    #    out = process.communicate()[0]
+    #    (diskusage, _) = out.split()
+    #    return int(diskusage)
     """ Walks the path returning the sum of the filesizes """
     ### avoids symlinked files, but
     ### doesn't avoid adding hardlinks twice

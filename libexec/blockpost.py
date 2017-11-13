@@ -21,10 +21,11 @@ import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
-from processingfw.pfwemail import send_email,get_subblock_output
+from processingfw.pfwemail import send_email, get_subblock_output
 import qcframework.Messaging as Messaging
 import filemgmt.compare_utils as cu
 import despydmdb.dbsemaphore as dbsem
+
 
 def get_qcf_messages(qdbh, config, wraptids):
     wrapmsg = None
@@ -37,6 +38,7 @@ def get_qcf_messages(qdbh, config, wraptids):
         miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
     return wrapmsg
 
+
 def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
     MAXMESG = 3
 
@@ -46,17 +48,16 @@ def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
         if len(wrapmsg[tid]) > MAXMESG:
             msg2 += "\t\t\tOnly printing last %d messages\n" % MAXMESG
             for mesgrow in wrapmsg[tid][-MAXMESG:]:
-                msg2 += "\t\t\t%s\n" % mesgrow['message'].replace('\n','\n\t\t\t')
+                msg2 += "\t\t\t%s\n" % mesgrow['message'].replace('\n', '\n\t\t\t')
         else:
             for mesgrow in wrapmsg[tid]:
-                msg2 += "\t\t\t%s\n" % mesgrow['message'].replace('\n','\n\t\t\t')
+                msg2 += "\t\t\t%s\n" % mesgrow['message'].replace('\n', '\n\t\t\t')
     else:
         msg2 += "\t\t\tNo QCF messages\n"
 
     return msg2
 
 
- 
 def blockpost(argv=None):
     """ Program entry point """
     if argv is None:
@@ -90,12 +91,11 @@ def blockpost(argv=None):
     blockname = config.getfull('blockname')
     blkdir = config.getfull('block_dir')
 
-
     # now that have more information, can rename output file
     miscutils.fwdebug_print("getting new_log_name")
     new_log_name = config.get_filename('block',
                                        {pfwdefs.PF_CURRVALS: {'flabel': 'blockpost',
-                                                              'fsuffix':'out'}})
+                                                              'fsuffix': 'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
@@ -141,16 +141,20 @@ def blockpost(argv=None):
                               config.getfull('submit_des_db_section'))
             if verify_files:
                 curs = dbh.cursor()
-                curs.execute("select root from ops_archive where name='%s'" % (config.getfull('home_archive')))
+                curs.execute("select root from ops_archive where name='%s'" %
+                             (config.getfull('home_archive')))
                 rows = curs.fetchall()
                 if rows is None or len(rows) != 1:
-                    raise Exception("Invalid archive name (%s).   Found %s rows in ops_archive" % (config.getfull('home_archive'), len(rows)))
+                    raise Exception("Invalid archive name (%s).   Found %s rows in ops_archive" %
+                                    (config.getfull('home_archive'), len(rows)))
                 root = rows[0][0]
                 if not os.path.isdir(root):
                     print "Cannot read archive root directory:%s This program must be run on an NCSA machine with access to the archive storage system." % (config.getfull('home_archive'))
-                sem = dbsem.DBSemaphore('verify_files_10', None, config.getfull('submit_des_services'), config.getfull('submit_des_db_section'))
+                sem = dbsem.DBSemaphore('verify_files_10', None, config.getfull(
+                    'submit_des_services'), config.getfull('submit_des_db_section'))
                 print "\n\nVerifying archive file sizes on disk (0 is success)"
-                verify_status = cu.compare(dbh=dbh, archive=config.getfull('home_archive'), pfwid=attid, filesize=True, md5sum=False, quick=True, debug=False, script=False, verbose=False, silent=True)
+                verify_status = cu.compare(dbh=dbh, archive=config.getfull(
+                    'home_archive'), pfwid=attid, filesize=True, md5sum=False, quick=True, debug=False, script=False, verbose=False, silent=True)
                 if sem is not None:
                     del sem
                 print "  Verification of files returned status %i" % (verify_status)
@@ -176,7 +180,8 @@ def blockpost(argv=None):
                 start_time = time.time()
                 bltasks = dbh.get_block_task_info(blktid)
                 end_time = time.time()
-                miscutils.fwdebug_print("Done getting block task info from DB (%s secs)" % (end_time - start_time))
+                miscutils.fwdebug_print("Done getting block task info from DB (%s secs)" %
+                                        (end_time - start_time))
                 for bltdict in bltasks.values():
                     print "Block status = ", bltdict['status']
                     if bltdict['status'] == pfwdefs.PF_EXIT_DRYRUN:
@@ -212,7 +217,8 @@ def blockpost(argv=None):
                                 start_time = time.time()
                                 wrapmsg = qdbh.get_qcf_messages_for_wrappers(wrapids)
                                 end_time = time.time()
-                                miscutils.fwdebug_print("Done querying QCF messages (%s secs)" % (end_time-start_time))
+                                miscutils.fwdebug_print(
+                                    "Done querying QCF messages (%s secs)" % (end_time-start_time))
                                 miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
                             if len(wrapmsg) == 0:
                                 msg2 += "    No QCF messages\n"
@@ -229,7 +235,7 @@ def blockpost(argv=None):
 
                     miscutils.fwdebug_print("Getting job info from DB")
                     start_time = time.time()
-                    jobinfo = dbh.get_job_info({'pfw_block_task_id': blktid })
+                    jobinfo = dbh.get_job_info({'pfw_block_task_id': blktid})
                     end_time = time.time()
                     miscutils.fwdebug_print("Done getting job info from DB (%s secs)" % (end_time-start_time))
 
@@ -237,7 +243,8 @@ def blockpost(argv=None):
                     start_time = time.time()
                     wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attid, pfw_block_task_id=blktid)
                     end_time = time.time()
-                    miscutils.fwdebug_print("Done getting wrapper info from DB (%s secs)" % (end_time-start_time))
+                    miscutils.fwdebug_print("Done getting wrapper info from DB (%s secs)" %
+                                            (end_time-start_time))
             else:
                 msg = "Could not find task id for block %s in config.des" % blockname
                 print "Error:", msg
@@ -283,9 +290,9 @@ def blockpost(argv=None):
                         jobkeys = jobdict['jobkeys']
                         #print "jobkeys = ", jobkeys, type(jobkeys)
 
-                    submit_job_path = "%s/B%02d-%s/%04d" % (config.getfull('work_dir'), int(config.getfull('blknum')), config.getfull('blockname'), int(jobdict['jobnum']))
+                    submit_job_path = "%s/B%02d-%s/%04d" % (config.getfull('work_dir'), int(
+                        config.getfull('blknum')), config.getfull('blockname'), int(jobdict['jobnum']))
                     msg2 += "\n\t%s (%s) " % (pfwutils.pad_jobnum(jobdict['jobnum']), jobkeys)
-
 
                     if jobtid not in wrap_byjob:
                         msg2 += "\tNo wrapper instances"
@@ -324,7 +331,7 @@ def blockpost(argv=None):
                     msg2 += "\n\t\t%s/runjob.out " % (submit_job_path)
 
                 msg2 += '\n'
-                
+
                 # print pfw_messages
                 if 'message' in jobdict:
                     print jobdict['message']
@@ -336,9 +343,8 @@ def blockpost(argv=None):
                         elif level == pfwdefs.PFWDB_MSG_ERROR:
                             levelstr = 'ERROR'
 
-                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['message'].replace('\n','\n\t\t\t'))
+                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['message'].replace('\n', '\n\t\t\t'))
 
-    
                 if jobtid in wrap_byjob:
                     # print log file name for failed/unfinished wrappers
                     for wrapnum in failedwraps[jobtid]:
@@ -346,10 +352,11 @@ def blockpost(argv=None):
                         if wrapdict['log'] in logfullnames:
                             msg2 += "\t\t%s - %s\n" % (wrapnum, logfullnames[wrapdict['log']])
                         else:
-                            msg2 += "\t\t%s - Could not find log in archive (%s)\n" % (wrapnum, wrapdict['log'])
+                            msg2 += "\t\t%s - Could not find log in archive (%s)\n" % (
+                                wrapnum, wrapdict['log'])
                         wrapmsg = get_qcf_messages(qdbh, config, [wrapdict['task_id']])
                         msg2 = print_qcf_messages(config, wrapdict, wrapmsg, msg2)
-                    
+
                     msg2 += '\n'
 
                     # If weirdness happened in run, print a message
@@ -382,7 +389,7 @@ def blockpost(argv=None):
                 msg1 = "%s:  In dryrun mode, block %s has finished successfully." % (run, blockname)
             else:
                 msg1 = "%s:  In dryrun mode, block %s has failed." % (run, blockname)
-            
+
             send_email(config, blockname, retval, "", msg1, msg2)
         else:
             print "Not sending dryrun email"
@@ -447,6 +454,7 @@ def blockpost(argv=None):
     miscutils.fwdebug_print("END")
     debugfh.close()
     return int(retval)
+
 
 if __name__ == "__main__":
     realstdout = sys.stdout

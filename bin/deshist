@@ -7,7 +7,6 @@
 """
 
 
-
 # $Id: deshist 41004 2015-12-11 15:49:41Z mgower $
 # $Rev:: 41004                            $:  # Revision of last commit.
 # $LastChangedBy:: mgower                 $:  # Author of last commit.
@@ -30,6 +29,7 @@ ADD_COLS = ['run', 'qwait', 'wallclock', 'numexpblk',
 #DEF_COLS = 'reqnum, unitname, attnum, operator, qwait, wallclock, status, label'
 DEF_COLS = 'run, status, operator, wallclock, blkcnt, lastblk, lastmod, label'
 
+
 def get_column_names(dbh, table):
     """ get the column names for a table """
     curs = dbh.cursor()
@@ -41,7 +41,6 @@ def get_column_names(dbh, table):
 
 def print_info(attempts, printopts, maxwidths):
     """ print information about processing attempts in a table format """
-
 
     printcols = printopts['cols'].split(',')
     oformat = printopts['format'].lower()
@@ -66,7 +65,6 @@ def print_info(attempts, printopts, maxwidths):
 
         if oformat == 'text':
             print '-'*(len(hdr)+1)
-
 
     for attdict in sorted(attempts.values(), key=lambda x: x[printopts['sort'].lower()]):
         line = ""
@@ -122,7 +120,6 @@ def massage_info(attempts):
         attd['status'] = convert_status(attd['status'])
         attd['run'] = '%s_r%dp%02d' % (attd['unitname'], int(attd['reqnum']), int(attd['attnum']))
 
-
         # Information from last block run: name as lastblk, numblkrun/numexpblk as blkcnt
         # Information from any wrapper from last block: lastmod
         # Information from any job from last block: pipeprod, pipever, exechost
@@ -139,7 +136,7 @@ def massage_info(attempts):
                 if 'target_site' not in attd or attd['target_site'] is None:
                     attd['target_site'] = firstjob['exechost']
 
-                jobstat = {'U':0, 'A':0, 'F':0, 'P':0}
+                jobstat = {'U': 0, 'A': 0, 'F': 0, 'P': 0}
                 for jdict in lastblkdict['job'].values():
                     stlabel = convert_status(jdict['status'])
                     jobstat[stlabel] += 1
@@ -147,10 +144,8 @@ def massage_info(attempts):
                 numexpjobs = 0
                 if 'numexpjobs' in lastblkdict and lastblkdict['numexpjobs'] is not None:
                     numexpjobs = lastblkdict['numexpjobs']
-                attd['jobstat'] = "T%02d/P%02d/F%02d/A%02d/U%02d" % (numexpjobs, \
-                                  jobstat['P'], jobstat['F'], jobstat['A'], jobstat['U'])
-
-
+                attd['jobstat'] = "T%02d/P%02d/F%02d/A%02d/U%02d" % (numexpjobs,
+                                                                     jobstat['P'], jobstat['F'], jobstat['A'], jobstat['U'])
 
             lastwrap_l = 9999   # track shortest job end
             statwrap_l = 0      # status is fail if any failed
@@ -170,7 +165,6 @@ def massage_info(attempts):
                         lastwrap_h = jlastwrap
                         lwhd = lastblkdict['wrappers']['bywrapnum'][lastwrap_h]
                         statwrap_h = lwhd['status']
-
 
                 attd['lastmod-l'] = "%s:%s" % (lwld['modname'], convert_status(statwrap_l))
                 attd['lastmod-h'] = "%s:%s" % (lwhd['modname'], convert_status(statwrap_h))
@@ -194,8 +188,6 @@ def massage_info(attempts):
     return maxwidths
 
 
-
-
 def query_attempt(dbh, colnames, argsdict):
     """ Query the db for information about attempts """
 
@@ -212,18 +204,16 @@ def query_attempt(dbh, colnames, argsdict):
                     else:
                         begdate = val
                         enddate = val
-                    whereclauses.append("%s.%s >= to_date('%s', 'MM/DD/YYYY')" % \
+                    whereclauses.append("%s.%s >= to_date('%s', 'MM/DD/YYYY')" %
                                         (table, col, begdate))
-                    whereclauses.append("%s.%s < to_date('%s', 'MM/DD/YYYY') + 1" % \
+                    whereclauses.append("%s.%s < to_date('%s', 'MM/DD/YYYY') + 1" %
                                         (table, col, enddate))
                 else:
                     whereclauses.append("%s.%s=%s" % (table, col, dbh.quote(str(val))))
 
-
     clause = ""
     if len(whereclauses) > 0:
         clause = "AND %s" % (' AND '.join(whereclauses))
-
 
     sql = 'select r.*,a.*,t.*,l.label from pfw_request r, pfw_attempt a, task t, ' \
           'pfw_attempt_label l where r.reqnum=a.reqnum and l.reqnum=a.reqnum and ' \
@@ -241,7 +231,6 @@ def query_attempt(dbh, colnames, argsdict):
 
     #print attempts
     return attempts
-
 
 
 def query_details(dbh, attempts):
@@ -284,7 +273,6 @@ def query_details(dbh, attempts):
         attempts[attkey]['blocks'][ldict['blknum']]['job'][ldict['jobnum']] = ldict
     curs.close()
 
-
     # get wrapper information
     curs = dbh.cursor()
     sql = 'select w.*, t.* from pfw_wrapper w, task t,gtt_attempt where ' \
@@ -296,15 +284,14 @@ def query_details(dbh, attempts):
         ldict = dict(zip(desc, line))
         attkey = '%s_%s_%s' % (ldict['unitname'], ldict['reqnum'], ldict['attnum'])
         if 'wrappers' not in attempts[attkey]['blocks'][ldict['blknum']]:
-            attempts[attkey]['blocks'][ldict['blknum']]['wrappers'] = {'bywrapnum':{},
-                                                                       'byjobnum':{}}
+            attempts[attkey]['blocks'][ldict['blknum']]['wrappers'] = {'bywrapnum': {},
+                                                                       'byjobnum': {}}
         attwrap = attempts[attkey]['blocks'][ldict['blknum']]['wrappers']
         attwrap['bywrapnum'][ldict['wrapnum']] = ldict
         if ldict['jobnum'] not in attwrap['byjobnum']:
             attwrap['byjobnum'][ldict['jobnum']] = {}
         attwrap['byjobnum'][ldict['jobnum']][ldict['wrapnum']] = ldict
     curs.close()
-
 
 
 def create_and_parse_args():
@@ -375,7 +362,6 @@ def create_and_parse_args():
     args = parser.parse_args(unknownargs)
     argsdict = vars(args)     # convert args Namespace to dict
 
-
     # pull out args that are print options
     printopts_keys = ['cols', 'format', 'sort', 'suppresshead']
     printopts = {}
@@ -386,6 +372,7 @@ def create_and_parse_args():
             del argsdict[k]
 
     return dbh, colnames, argsdict, printopts
+
 
 def main():
     """ Program entry point"""
@@ -398,6 +385,6 @@ def main():
         maxwidths = massage_info(attempts)
         print_info(attempts, printopts, maxwidths)
 
+
 if __name__ == "__main__":
     main()
-

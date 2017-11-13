@@ -24,6 +24,7 @@ import intgutils.intgdefs as intgdefs
 
 __version__ = '$Rev: 43890 $'
 
+
 def create_dags(config, logfh):
     """ Call functions to write condor dags needed at submission time """
     realstdout = sys.stdout
@@ -56,6 +57,7 @@ def create_dags(config, logfh):
 
 # des_services and des_db_section override wcl and environ
 #     wcl overrides environ
+
 
 def parse_args(argv):
     """ Parse command line arguments """
@@ -94,6 +96,7 @@ def parse_args(argv):
         args[pfwdefs.PF_USE_QCF] = False
 
     return args
+
 
 def save_submit_file(submitfile, fullcfgstr, config):
     """ save original submit file as is, after includes expanded and with db defaults """
@@ -143,6 +146,7 @@ def check_submit_file(config):
     elif cnts[pfwcheck.CLEANCNT_POS] > 0:
         print "\t(Note: %d item(s) cleaned in config)" % cnts[pfwcheck.CLEANCNT_POS]
 
+
 def submit_attempt(config, maindag, logfh):
     """ Submit processing attempt to condor queue """
     condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
@@ -155,6 +159,7 @@ def submit_attempt(config, maindag, logfh):
         dbh.update_attempt_cid(config, condorid)
         print 'DONE'
     print 'Submission of processing attempt completed'
+
 
 def get_attnum(config):
     """ Save attnum in config from either DB or give it default value """
@@ -172,6 +177,7 @@ def get_attnum(config):
         config[pfwdefs.ATTNUM] = 0
         config['pfw_attempt_id'] = 0
         config['task_id'] = {'attempt': 0}
+
 
 def main(argv):
     """ Program entry point """
@@ -258,7 +264,6 @@ def main(argv):
     else:
         return pfwdefs.PF_EXIT_SUCCESS  # exit errorlessly
 
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
-
-

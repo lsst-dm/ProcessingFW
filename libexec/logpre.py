@@ -13,6 +13,7 @@ import despymisc.miscutils as miscutils
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 
+
 def logpre(argv=None):
     """ Program entry point """
     if argv is None:
@@ -45,7 +46,7 @@ def logpre(argv=None):
     new_log_name = config.get_filename('block',
                                        {pfwdefs.PF_CURRVALS: {'subblock': subblock,
                                                               'flabel': '${subblock}_logpre',
-                                                              'fsuffix':'out'}})
+                                                              'fsuffix': 'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
     debugfh.close()
@@ -57,12 +58,12 @@ def logpre(argv=None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-
     log_pfw_event(config, blockname, subblock, subblocktype, ['pretask'])
 
     print "logpre done"
     debugfh.close()
     return pfwdefs.PF_EXIT_SUCCESS
+
 
 if __name__ == "__main__":
     sys.exit(logpre(sys.argv))

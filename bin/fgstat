@@ -121,9 +121,9 @@ def print_jobs(chost, jobs, now):
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
         print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
-               (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
-                datetime.fromtimestamp(int(jdict['qdate'])), flavor,
-                remotehost, wallclock, submit_condorid, label)
+            (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
+             datetime.fromtimestamp(int(jdict['qdate'])), flavor,
+             remotehost, wallclock, submit_condorid, label)
 
 
 def main():
@@ -137,11 +137,10 @@ def main():
     jobsCE1 = pfwcondor.condor_q(fermigridCE1)
     jobsCE2 = pfwcondor.condor_q(fermigridCE2)
 
-
     # print headers
     print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
-           ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
-            'wallclock', 'DES CID', 'DES label')
+        ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
+         'wallclock', 'DES CID', 'DES label')
     print '-'*168
     #OLD print_jobs('fnpcosg1', jobs, now)
     print_jobs('gpce01', jobsCE1, now)

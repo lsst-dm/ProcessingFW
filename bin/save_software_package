@@ -33,7 +33,6 @@ def parse_file(filename):
     return contents
 
 
-
 def save_meta_package(dbh, name, version, note):
     """ save the meta package information """
     if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
@@ -111,7 +110,7 @@ def save_meta_contents(dbh, metaname, metaversion, packages):
         inscnt += curs.rowcount
         cnt += 1
     if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
-        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package_contents: %s" % \
+        miscutils.fwdebug_print("Number of rows inserted into ops_meta_package_contents: %s" %
                                 inscnt)
         miscutils.fwdebug_print("END")
 
@@ -121,7 +120,6 @@ def save_software_info(dbh, name, version, contents, note=None):
     save_meta_package(dbh, name, version, note)
     save_indiv_packages(dbh, contents)
     save_meta_contents(dbh, name, version, contents)
-
 
 
 def main(args):
@@ -141,6 +139,7 @@ def main(args):
         dbh = desdbi.DesDbi(args['des_services'], args['des_db_section'])
         save_software_info(dbh, args['name'], args['version'], contents, args['note'])
         dbh.commit()
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

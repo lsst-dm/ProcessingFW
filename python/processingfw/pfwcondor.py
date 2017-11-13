@@ -16,11 +16,14 @@ import re
 import despymisc.miscutils as miscutils
 import processingfw.pfwdefs as pfwdefs
 
+
 class CondorException(Exception):
     "class for Condor exceptions"
+
     def __init__(self, txt):
         Exception.__init__(self)
         self.txt = txt
+
     def __str__(self):
         return self.txt
 
@@ -94,7 +97,6 @@ def compare_condor_version(ver2):
         comp = 1
 
     return comp
-
 
 
 def condor_submit(submitfile):
@@ -228,8 +230,6 @@ def create_condor_env(envvars):
     return '"%s"' % ' '.join(envparts)
 
 
-
-
 def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
     """Creates <name>.condor description file
        Assumes info contains valid condor key, value"""
@@ -270,7 +270,6 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
     condorfh.close()
 
 
-
 def parse_condor_user_log(logfilename):
     """parses a condor log into a dictionary"""
 
@@ -287,7 +286,7 @@ def parse_condor_user_log(logfilename):
     for line in lines:
         if re.search(r'\S', line):
             splitline = line.split('\n')
-            result = re.match(r'(\d+)\s+\((\d+).\d+.\d+\)\s+(\d+\/\d+\s+\d+:\d+:\d+)\s+(.+)', \
+            result = re.match(r'(\d+)\s+\((\d+).\d+.\d+\)\s+(\d+\/\d+\s+\d+:\d+:\d+)\s+(.+)',
                               splitline[0])
             if result:
                 code = result.group(1)
@@ -302,12 +301,12 @@ def parse_condor_user_log(logfilename):
                 #desc = result.group(4)
 
                 if code == '000':
-                    jobinfo[jobnum] = {'jobid':jobnum,
-                                       'clusterid':jobnum,
-                                       'machine':'',
-                                       'jobstat':'UNSUB',
-                                       'submittime':eventdate,
-                                       'csubmittime':eventdate}
+                    jobinfo[jobnum] = {'jobid': jobnum,
+                                       'clusterid': jobnum,
+                                       'machine': '',
+                                       'jobstat': 'UNSUB',
+                                       'submittime': eventdate,
+                                       'csubmittime': eventdate}
                     if len(splitline) > 1:
                         result = re.match(r'\s*DAG Node:\s+(\S+)\s*', splitline[1])
                         if result:
@@ -365,10 +364,10 @@ def parse_condor_user_log(logfilename):
                 #elif code == '015':
                 #    pass  # Parallel Node terminated
                 elif code == '016':
-             #016 (471.000.000) 04/11 11:48:08 POST Script terminated.
-             #        (1) Normal termination (return value 100)
-             #    DAG Node: fail
-             #...
+                 #016 (471.000.000) 04/11 11:48:08 POST Script terminated.
+                 #        (1) Normal termination (return value 100)
+                 #    DAG Node: fail
+                 #...
                     jobinfo[jobnum]['endtime'] = eventdate
                     result = re.search(r'return value (\d+)', splitline[1])
                     if result:
@@ -398,8 +397,7 @@ def parse_condor_user_log(logfilename):
                 else:
                     jobinfo[jobnum]['jobstat'] = 'U%s' % (code)
             else:
-                print 'warning unknown line: %s'  % (line)
-
+                print 'warning unknown line: %s' % (line)
 
     return jobinfo
 
@@ -435,14 +433,12 @@ def condor_q(args_str=''):
     except Exception as err:
         raise CondorException('Error: Could not run condor_q. Check PATH.\n'+str(err))
 
-
     if process.returncode != 0:
         print "Problem running condor_q - non-zero exit code"
         print "Cmd = ", ' '.join(condorq_cmd)
         #print process.communicate()[0]
         print process.communicate()[1]
         raise CondorException('Problem running condor_q - non-zero exit code')
-
 
     lines = out.split('\n')
     for line in lines:
@@ -501,7 +497,6 @@ def condorq_dag(args_str=''):
                 orphan_jobs.append(jobid)
 
     return qjobs, top_jobs, orphan_jobs
-
 
 
 def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
@@ -568,10 +563,11 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
         # 'The OnExitRemove expression generated for DAGMan by
         # condor_submit_dag evaluated to UNDEFINED for some values
         # of ExitCode, causing condor_dagman to go on hold.'
-        result = re.search(r'on_exit_remove\s*=\s*\(\s*ExitSignal\s*==\s*11\s*||\s*\(ExitCode\s*>=0\s*&&\s*ExitCode\s*<=\s*2\)\)', condorstr)
+        result = re.search(
+            r'on_exit_remove\s*=\s*\(\s*ExitSignal\s*==\s*11\s*||\s*\(ExitCode\s*>=0\s*&&\s*ExitCode\s*<=\s*2\)\)', condorstr)
         if result:
             condorstr.replace(r'on_exit_remove\s+=[^\n]+\n',
-                'on_exit_remove = ( ExitSignal =?= 11 || (ExitCode =!= UNDEFINED && ExitCode >=0 && ExitCode <= 2))\n')
+                              'on_exit_remove = ( ExitSignal =?= 11 || (ExitCode =!= UNDEFINED && ExitCode >=0 && ExitCode <= 2))\n')
 
 #        if attributes and len(attributes) > 0:
 #            add2condor(condorstr, attributes, debugfh)
@@ -606,8 +602,6 @@ def add2condor(condorstr, attributes, debugfh):
     debugfh.write('\n============\n')
 
 
-
-
 def check_condor(minver):
     """ Check for Condor in path as well as daemons running """
 
@@ -621,8 +615,8 @@ def check_condor(minver):
             miscutils.fwdebug_print("\t\tTrying %s" % cmd)
         process.wait()
     except OSError as exc:
-        raise CondorException('Could not find condor_submit\n' + \
-               'Make sure Condor binaries are in your path (%s)' % str(exc))
+        raise CondorException('Could not find condor_submit\n' +
+                              'Make sure Condor binaries are in your path (%s)' % str(exc))
 
     if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
         miscutils.fwdebug_print("\t\tFinished %s" % cmd)
@@ -647,11 +641,11 @@ def check_condor(minver):
             if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
                 miscutils.fwdebug_print(buf)
         if process.returncode:
-            raise CondorException('Problems running condor_q.   Condor might not be running on this machine.   ' + \
+            raise CondorException('Problems running condor_q.   Condor might not be running on this machine.   ' +
                                   'Contact your condor administrator.')
     except OSError as exc:
-        raise CondorException('Could not find condor_q\n' + \
-               'Make sure Condor binaries are in your path (%s)' % str(exc))
+        raise CondorException('Could not find condor_q\n' +
+                              'Make sure Condor binaries are in your path (%s)' % str(exc))
 
     if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
         miscutils.fwdebug_print("\t\tFinished %s" % cmd)
@@ -659,7 +653,6 @@ def check_condor(minver):
     # check have new enough version of condor
     if compare_condor_version(minver) < 0:
         raise CondorException('Condor version must be at least ' + minver)
-
 
 
 def get_grid_proxy_timeleft():
@@ -686,10 +679,10 @@ def get_job_status_str(jobnum, qjobs):
 
     # Condor Job Status:
     #    1 = Idle, 2 = Running, 3 = Removed, 4 = Completed, and 5 = Held
-    condorstatus = {'1':"PEND", '2':"RUN", '3':"DEL", '4':"DONE", '5':"HOLD"}
+    condorstatus = {'1': "PEND", '2': "RUN", '3': "DEL", '4': "DONE", '5': "HOLD"}
     # Grid job status:
     #    1 = Pend, 2 = Running, 32 = Unsub
-    gridstatus = {'1':"PEND", '2':"RUN", '32':"UNSUB"}
+    gridstatus = {'1': "PEND", '2': "RUN", '32': "UNSUB"}
 
     statusnum = 0
     if jobnum in qjobs and 'jobstatus' in qjobs[jobnum]:
@@ -700,13 +693,14 @@ def get_job_status_str(jobnum, qjobs):
         # if grid job, use remote status
         if statusnum == 1:
             if 'jobuniverse' in qjobs[jobnum] and \
-                qjobs[jobnum]['jobuniverse'] == 9 and \
-                'globusstatus' in qjobs[jobnum]:
+                    qjobs[jobnum]['jobuniverse'] == 9 and \
+                    'globusstatus' in qjobs[jobnum]:
 
                 if qjobs[jobnum]['globusstatus'] in gridstatus:
                     statusstr = gridstatus[qjobs[jobnum]['globusstatus']]
 
     return statusstr
+
 
 def condor_rm(args_str=''):
     """Given condor_rm args, calls condor_rm [args]"""
@@ -774,8 +768,8 @@ def get_attempt_info(topjobid, qjobs):
     # find innermost dag job
     jobid = topjobid
     while len(qjobs[jobid]['children']) == 1 and \
-          ('%sblock' % pfwdefs.ATTRIB_PREFIX not in qjobs[jobid] or \
-           'pipe' not in qjobs[jobid]['%sblock' % pfwdefs.ATTRIB_PREFIX]):
+        ('%sblock' % pfwdefs.ATTRIB_PREFIX not in qjobs[jobid] or
+         'pipe' not in qjobs[jobid]['%sblock' % pfwdefs.ATTRIB_PREFIX]):
         jobid = qjobs[jobid]['children'][0]
     info['status'] = get_job_status_str(jobid, qjobs)
 

@@ -19,6 +19,7 @@ from despymisc import miscutils
 
 NUMLINES = 50
 
+
 def send_email(config, block, status, subject, msg1, msg2, sendit=True):
     """create PFW email and send it"""
     project = config.getfull('project')
@@ -48,26 +49,24 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
         mailfh.write("pfw_attempt_id = %s\n" % config['pfw_attempt_id'])
     if 'task_id' in config and 'attempt' in config['task_id']:
         mailfh.write("pfw_attempt task_id = %s\n" % config['task_id']['attempt'])
-    
+
     mailfh.write("\n")
 
     (exists, home_archive) = config.search(pfwdefs.HOME_ARCHIVE, {intgdefs.REPLACE_VARS: True})
     if exists:
         mailfh.write("Home Archive:\n")
         mailfh.write("\t%s = %s\n" % (pfwdefs.HOME_ARCHIVE.lower(), home_archive))
-        mailfh.write("\tArchive directory = %s/%s\n" % \
+        mailfh.write("\tArchive directory = %s/%s\n" %
                      (config.getfull('root'),
                       config.getfull(pfwdefs.ATTEMPT_ARCHIVE_PATH)))
         mailfh.write("\n")
 
-
     mailfh.write("Submit:\n")
     mailfh.write("\tmachine = %s\n" % localmachine)
     mailfh.write("\tPROCESSINGFW_DIR = %s\n" % os.environ['PROCESSINGFW_DIR'])
-    mailfh.write("\torig config = %s/%s\n" % \
+    mailfh.write("\torig config = %s/%s\n" %
                  (config.getfull('submit_dir'), config.getfull('submitwcl')))
     mailfh.write("\tdirectory = %s\n\n" % config.getfull('work_dir'))
-
 
     mailfh.write("Target:\n")
     mailfh.write("\tsite = %s\n" % config.getfull('target_site'))
@@ -110,6 +109,7 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
     else:
         print block, "No email address.  Not sending email."
 
+
 def send_subblock_email(config, block, subblock, retval):
     """create PFW subblock email and send it"""
     print "send_subblock_email BEG"
@@ -125,8 +125,8 @@ def send_subblock_email(config, block, subblock, retval):
 def get_job_info(block):
     """gather target job status info for email"""
     iostr = StringIO()
-    iostr.write("%6s\t%25s\t%7s\t%7s\t%s" % \
-            ('JOBNUM', 'MODULE', 'STATUS4', 'STATUS5', 'MSG'))
+    iostr.write("%6s\t%25s\t%7s\t%7s\t%s" %
+                ('JOBNUM', 'MODULE', 'STATUS4', 'STATUS5', 'MSG'))
     filepat = "../%s_*/*.jobinfo.out" % block
     jobinfofiles = glob.glob(filepat)
     for fname in jobinfofiles.sort():
@@ -134,7 +134,6 @@ def get_job_info(block):
         iostr.write(jobinfofh.read())
         jobinfofh.close()
     return iostr.getvalue()
-
 
 
 def get_subblock_output(subblock):

@@ -17,6 +17,7 @@ import processingfw.pfwdb as pfwdb
 import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwconfig as pfwconfig
 
+
 def main(argv):
     """ Program entry point """
     parser = argparse.ArgumentParser(description='genquery.py')
@@ -31,7 +32,7 @@ def main(argv):
         raise Exception("Error: Must specify module\n")
 
     print args.configfile
-    config = pfwconfig.PfwConfig({'wclfile':args.configfile})
+    config = pfwconfig.PfwConfig({'wclfile': args.configfile})
 
     if args.modulename not in config[pfwdefs.SW_MODULESECT]:
         raise Exception("Error: module '%s' does not exist.\n" % (args.modulename))
@@ -43,14 +44,13 @@ def main(argv):
            args.searchname in module_dict[pfwdefs.SW_LISTSECT]:
             search_dict = module_dict[pfwdefs.SW_LISTSECT][args.searchname]
         elif pfwdefs.SW_FILESECT in module_dict and \
-             args.searchname in module_dict[pfwdefs.SW_FILESECT]:
+                args.searchname in module_dict[pfwdefs.SW_FILESECT]:
             search_dict = module_dict[pfwdefs.SW_FILESECT][args.searchname]
         else:
-            raise Exception("Error: Could not find either list or file by name %s in module %s\n" % \
+            raise Exception("Error: Could not find either list or file by name %s in module %s\n" %
                             (args.searchname, args.modulename))
     else:
         raise Exception("Error: need to define either list or file or search\n")
-
 
     archive_names = []
 
@@ -115,7 +115,6 @@ def main(argv):
 
         query[table]['key_vals'][fld] = value
 
-
     # if specified, insert join into query hash
     if 'join' in search_dict:
         joins = miscutils.fwsplit(search_dict['join'].lower())
@@ -131,13 +130,11 @@ def main(argv):
                     query[jmatch.group(1)]['join'] += "," + j
         #query[table]['join']=search_dict['join']
 
-
     query[qtable]['select_fields'] = ['filename']
 
     # check output fields for fields from other tables.
     if 'output_fields' in search_dict:
         output_fields = miscutils.fwsplit(search_dict['output_fields'].lower())
-
 
         for ofield in output_fields:
             ofmatch = re.search(r"(\S+)\.(\S+)", ofield)
@@ -154,7 +151,6 @@ def main(argv):
             if field not in query[table]['select_fields']:
                 query[table]['select_fields'].append(field)
 
-
     for tbl in query:
         if 'select_fields' in query[tbl]:
             query[tbl]['select_fields'] = ','.join(query[tbl]['select_fields'])
@@ -168,12 +164,12 @@ def main(argv):
     print "Calling gen_file_list with the following query:\n"
     miscutils.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
     print "\n\n"
-    dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+    dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                       config.getfull('submit_des_db_section'))
     files = queryutils.gen_file_list(dbh, query)
 
     if len(files) == 0:
-        raise Exception("genquery: query returned zero results for %s\nAborting\n" % \
+        raise Exception("genquery: query returned zero results for %s\nAborting\n" %
                         args.searchname)
 
     ## output list
@@ -181,6 +177,7 @@ def main(argv):
     queryutils.output_lines(args.qoutfile, lines, args.qouttype)
 
     return 0
+
 
 if __name__ == "__main__":
     print ' '.join(sys.argv)

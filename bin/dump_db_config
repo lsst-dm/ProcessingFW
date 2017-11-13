@@ -12,6 +12,7 @@ import time
 import processingfw.pfwdb as pfwdb
 from intgutils.wcl import WCL
 
+
 def dump_db_config(argv=None):
     """ Entry point """
 
@@ -41,6 +42,7 @@ def dump_db_config(argv=None):
     print "Done (%0.2f secs)" % (time.time()-starttime)
 
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(dump_db_config(sys.argv[1:]))

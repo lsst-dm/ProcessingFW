@@ -21,6 +21,7 @@ import subprocess
 import despymisc.miscutils as miscutils
 import intgutils.replace_funcs as replfuncs
 
+
 def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
     """ run the compression command """
 

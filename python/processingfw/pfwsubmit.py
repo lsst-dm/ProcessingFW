@@ -42,8 +42,8 @@ def min_wcl_checks(config):
         labels = miscutils.fwsplit(labelstr, ',')
         for lab in labels:
             if len(lab) > max_label_length:
-                miscutils.fwdie("ERROR\nError: label %s is longer (%s) than allowed (%s).  " \
-                                "Aborting submission." % \
+                miscutils.fwdie("ERROR\nError: label %s is longer (%s) than allowed (%s).  "
+                                "Aborting submission." %
                                 (lab, len(lab), max_label_length), pfwdefs.PF_EXIT_FAILURE)
 
 
@@ -72,6 +72,7 @@ def check_proxy(config):
     config.reset_blknum()
     if miscutils.fwdebug_check(3, 'PFWSUBMIT_DEBUG'):
         miscutils.fwdebug_print("End")
+
 
 def create_common_vars(config, jobname):
     """ Create string containing vars string for job """
@@ -116,16 +117,16 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     dagfh.write('VARS begblock args="%s"\n' % configfile)
     varstr = create_common_vars(config, 'begblock')
     dagfh.write('%s\n' % varstr)
-    dagfh.write('SCRIPT pre begblock %s/libexec/logpre.py %s %s j $JOB\n' % \
+    dagfh.write('SCRIPT pre begblock %s/libexec/logpre.py %s %s j $JOB\n' %
                 (pfwdir, configfile, blockname))
-    dagfh.write('SCRIPT post begblock %s/libexec/logpost.py %s %s j $JOB $RETURN\n' % \
+    dagfh.write('SCRIPT post begblock %s/libexec/logpost.py %s %s j $JOB $RETURN\n' %
                 (pfwdir, configfile, blockname))
 
     dagfh.write('\n')
     dagfh.write('JOB jobmngr %s.condor.sub\n' % jobmngr)
-    dagfh.write('SCRIPT pre jobmngr %s/libexec/logpre.py %s %s j $JOB\n' % \
+    dagfh.write('SCRIPT pre jobmngr %s/libexec/logpre.py %s %s j $JOB\n' %
                 (pfwdir, configfile, blockname))
-    dagfh.write('SCRIPT post jobmngr %s/libexec/logpost.py %s %s j $JOB $RETURN\n' % \
+    dagfh.write('SCRIPT post jobmngr %s/libexec/logpost.py %s %s j $JOB $RETURN\n' %
                 (pfwdir, configfile, blockname))
 
     dagfh.write('\n')
@@ -134,9 +135,9 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
     dagfh.write('VARS endblock args="%s"\n' % configfile)
     varstr = create_common_vars(config, 'endblock')
     dagfh.write('%s\n' % varstr)
-    dagfh.write('SCRIPT pre endblock %s/libexec/logpre.py %s %s j $JOB\n' % \
+    dagfh.write('SCRIPT pre endblock %s/libexec/logpre.py %s %s j $JOB\n' %
                 (pfwdir, configfile, blockname))
-    dagfh.write('SCRIPT post endblock %s/libexec/logpost.py %s %s j $JOB $RETURN\n' % \
+    dagfh.write('SCRIPT post endblock %s/libexec/logpost.py %s %s j $JOB $RETURN\n' %
                 (pfwdir, configfile, blockname))
 
     dagfh.write('\nPARENT begblock CHILD jobmngr\n')
@@ -162,9 +163,9 @@ def write_stub_jobmngr_dag(config, block, blkdir, debugfh=None):
 
     dagfh = open(dag, 'w')
     dagfh.write('JOB 0001 %s/share/condor/localjob.condor\n' % pfwdir)
-    dagfh.write('SCRIPT pre 0001 %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB' % \
+    dagfh.write('SCRIPT pre 0001 %s/libexec/logpre.py ../uberctrl/config.des %s j $JOB' %
                 (pfwdir, block))
-    dagfh.write('SCRIPT post 0001 %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN' %\
+    dagfh.write('SCRIPT post 0001 %s/libexec/logpost.py ../uberctrl/config.des %s j $JOB $RETURN' %
                 (pfwdir, block))
     dagfh.close()
 
@@ -174,6 +175,7 @@ def write_stub_jobmngr_dag(config, block, blkdir, debugfh=None):
 
     os.unlink(dag)
     return dag
+
 
 def write_main_dag(config, maindag):
     """ Writes main manager dag input file """
@@ -201,7 +203,7 @@ JOB %(cjob)s %(bdir)s/%(bdag)s.condor.sub
 SCRIPT pre %(cjob)s %(pdir)s/libexec/blockpre.py ../uberctrl/config.des
 SCRIPT post %(cjob)s %(pdir)s/libexec/blockpost.py ../uberctrl/config.des $RETURN
 
-""" % {'cjob':cjobname, 'bdir':blockdir, 'bdag':blockdag, 'pdir':pfwdir})
+""" % {'cjob': cjobname, 'bdir': blockdir, 'bdag': blockdag, 'pdir': pfwdir})
         varstr = create_common_vars(config, cjobname)
         dagfh.write('%s\n' % varstr)
 
@@ -274,7 +276,7 @@ def submit_main_dag(config, dagfile, logfh):
     print '\n'
 
     # for completeness, log condorid of pipeline manager
-    dagjob = pfwcondor.parse_condor_user_log('%s/%s.dagman.log' % \
+    dagjob = pfwcondor.parse_condor_user_log('%s/%s.dagman.log' %
                                              (config.getfull('uberctrl_dir'), dagfile))
     jobids = dagjob.keys()
     condorid = None

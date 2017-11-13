@@ -24,12 +24,12 @@ def write_block_condor(config):
     submit_machine = socket.gethostname()
 
     blockbase = config.get_filename('block', {pfwdefs.PF_CURRVALS: {'flabel': '$(jobname)',
-                                                                    'fsuffix':''}})
+                                                                    'fsuffix': ''}})
     jstdout = "%s/%sout" % (blkdir, blockbase)   # base ends with .
     jstderr = "%s/%serr" % (blkdir, blockbase)
 
     premove = '((JobStatus == 5) && (HoldReason =!= "via condor_hold (by user %s)"))' % \
-               config.getfull('operator')
+        config.getfull('operator')
     # put jobs that have run once and are back in idle on hold
     phold = '((NumJobStarts > 0) && (JobStatus == 1))'
 
@@ -45,7 +45,7 @@ def write_block_condor(config):
                   'getenv': 'true',
                   'periodic_remove': premove,
                   'periodic_hold': phold
-                 }
+                  }
 
     userattribs = config.get_condor_attributes(blockname, '$(jobname)')
     reqs = ['NumJobStarts == 0']   # don't want to rerun any job
@@ -98,7 +98,7 @@ def blockpre(argv=None):
     # now that have more information, can rename output file
     miscutils.fwdebug_print("getting new_log_name")
     new_log_name = config.get_filename('block', {pfwdefs.PF_CURRVALS: {'flabel': 'blockpre',
-                                                                       'fsuffix':'out'}})
+                                                                       'fsuffix': 'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
@@ -119,6 +119,7 @@ def blockpre(argv=None):
     debugfh.close()
 
     return pfwdefs.PF_EXIT_SUCCESS
+
 
 if __name__ == "__main__":
     sys.exit(blockpre(sys.argv))

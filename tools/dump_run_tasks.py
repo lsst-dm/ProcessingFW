@@ -14,19 +14,22 @@ import datetime
 
 import processingfw.pfwdb as pfwdb
 
+
 def print_header():
     """ Print report column headers """
     print "tid, parent_tid, root_tid, name, label, status, infotable, start_time, end_time"
+
 
 def get_start_time(x):
     """ Get non-null start_time """
     maxdate = datetime.datetime.now()
     return x['start_time'] or maxdate
 
+
 def print_task(taskd, indent=''):
     """ Print information for a single task """
     print indent, taskd['id'], taskd['parent_task_id'], taskd['root_task_id'],\
-          taskd['name'], taskd['label'], taskd['status'], 
+        taskd['name'], taskd['label'], taskd['status'],
 
     if taskd['info_table'] is None:
         print "NO_INFO_TABLE",
@@ -41,19 +44,21 @@ def print_task(taskd, indent=''):
         print taskd['end_time'].strftime("%Y-%m-%d %H:%M:%S"),
 
     if taskd['start_time'] is not None and taskd['end_time'] is not None:
-        print "%8.2f" % (taskd['end_time'] - taskd['start_time']).total_seconds() 
+        print "%8.2f" % (taskd['end_time'] - taskd['start_time']).total_seconds()
     else:
         print ""
+
 
 def recurs_dump(tasks, tids, indent=''):
     """ Recursively print task information """
     tlist = [tasks[t] for t in tids]
     for taskd in sorted(tlist, key=lambda x: get_start_time(x), reverse=False):
-    #for taskd in sorted(tlist, key=lambda x: x['created_date'], reverse=False):
-    #for taskd in sorted(tlist, key=lambda x: x['id'], reverse=False):
+        #for taskd in sorted(tlist, key=lambda x: x['created_date'], reverse=False):
+        #for taskd in sorted(tlist, key=lambda x: x['id'], reverse=False):
         print_task(taskd, indent)
         if len(taskd['children']) > 0:
             recurs_dump(tasks, taskd['children'], indent+'    ')
+
 
 def parse_args(argv):
     """ Parse command line arguments """
@@ -76,6 +81,7 @@ def parse_args(argv):
 
     return args
 
+
 def parse_attempt_str(attstr):
     """ Parse attempt string for reqnum, unitname, and attnum """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
@@ -88,6 +94,7 @@ def parse_attempt_str(attstr):
     attnum = amatch.group(3)
 
     return reqnum, unitname, attnum
+
 
 def get_task_info(args):
     """ Query the DB for task information """
@@ -143,7 +150,6 @@ def add_children(tasks):
     return orphans
 
 
-
 def main(argv):
     """ Program entry point """
 
@@ -162,7 +168,7 @@ def main(argv):
 
     if len(orphans) > 0:
         print "********** ORPHANS  **********"
-        for taskd in sorted(orphans.values(), key=lambda x:x['parent_task_id'], reverse=False):
+        for taskd in sorted(orphans.values(), key=lambda x: x['parent_task_id'], reverse=False):
             print_task(taskd)
 
 

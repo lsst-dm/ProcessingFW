@@ -17,6 +17,7 @@ import processingfw.pfwconfig as pfwconfig
 from processingfw.pfwemail import send_email
 import qcframework.Messaging as Messaging
 
+
 def copy_files_home(config, archive_info, filemgmt):
     """ Copy submit files to home archive """
 
@@ -29,11 +30,11 @@ def copy_files_home(config, archive_info, filemgmt):
         miscutils.fwdebug_print('archive rel path = %s' % archdir)
 
     # copy the files to the home archive
-    files2copy = {origwcl: {'src': origwcl, 'dst':'%s/%s' % (archdir, origwcl),
+    files2copy = {origwcl: {'src': origwcl, 'dst': '%s/%s' % (archdir, origwcl),
                             'filename': origwcl, 'fullname': '%s/%s' % (archdir, origwcl)},
-                  expwcl: {'src':expwcl, 'dst':'%s/%s' % (archdir, expwcl),
+                  expwcl: {'src': expwcl, 'dst': '%s/%s' % (archdir, expwcl),
                            'filename': expwcl, 'fullname': '%s/%s' % (archdir, expwcl)},
-                  fullwcl: {'src':fullwcl, 'dst':'%s/%s' % (archdir, fullwcl),
+                  fullwcl: {'src': fullwcl, 'dst': '%s/%s' % (archdir, fullwcl),
                             'filename': fullwcl, 'fullname': '%s/%s' % (archdir, fullwcl)}}
 
     if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
@@ -69,7 +70,6 @@ def copy_files_home(config, archive_info, filemgmt):
     filemgmt.register_file_in_archive(files2register, archive_info['name'])
 
 
-
 def begrun(argv):
     """ Performs steps executed on submit machine at beginning of processing attempt """
 
@@ -79,12 +79,12 @@ def begrun(argv):
         config = pfwconfig.PfwConfig({'wclfile': configfile})
 
         if miscutils.fwdebug_check(6, 'BEGRUN_DEBUG'):
-            miscutils.fwdebug_print('use_home_archive_output = %s' % \
+            miscutils.fwdebug_print('use_home_archive_output = %s' %
                                     config.getfull(pfwdefs.USE_HOME_ARCHIVE_OUTPUT))
 
         if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
             import processingfw.pfwdb as pfwdb
-            pfw_dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+            pfw_dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                                   config.getfull('submit_des_db_section'))
             pfw_dbh.begin_task(config['task_id']['attempt'], True)
 
@@ -110,7 +110,7 @@ def begrun(argv):
                                                      archive_info)
 
             # save file information
-            filemgmt.register_file_data('wcl', [origwcl, expwcl, fullwcl], config['pfw_attempt_id'], 
+            filemgmt.register_file_data('wcl', [origwcl, expwcl, fullwcl], config['pfw_attempt_id'],
                                         attempt_tid, False, None, None)
             copy_files_home(config, archive_info, filemgmt)
             filemgmt.commit()
@@ -123,14 +123,14 @@ def begrun(argv):
         msg = "begrun: %s: %s" % (exc.__class__.__name__, str(exc))
         if pfw_dbh is not None:
             Messaging.pfw_message(pfw_dbh, config['pfw_attempt_id'], config['task_id']['attempt'],
-                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out',0)
+                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out', 0)
         send_failed_email(config, msg)
         raise
     except SystemExit as exc:
         msg = "begrun: SysExit=%s" % str(exc)
         if pfw_dbh is not None:
             Messaging.pfw_message(pfw_dbh, config['pfw_attempt_id'], config['task_id']['attempt'],
-                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out',0)
+                                  msg, pfw_utils.PFW_DB_WARN, 'begrun.out', 0)
         send_failed_email(config, msg)
         raise
 
@@ -162,6 +162,7 @@ def send_failed_email(config, msg2):
             msg2 += 'Missing stderr\n'
 
         send_email(config, "begrun", pfwdefs.PF_EXIT_FAILURE, "", msg1, msg2)
+
 
 if __name__ == "__main__":
     print ' '.join(sys.argv)  # print command line for debugging

@@ -21,7 +21,6 @@ import subprocess
 import despymisc.miscutils as miscutils
 import intgutils.replace_funcs as replfuncs
 
-######################################################################
 def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
     """ run the compression command """
 
@@ -47,7 +46,6 @@ def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
     return returncode
 
 
-######################################################################
 def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cnt=3, cleanup=True):
     """ Compress given files """
 

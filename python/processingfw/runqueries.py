@@ -22,7 +22,6 @@ import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 from processingfw.pfwlog import log_pfw_event
 
-###########################################################
 def create_master_list(config, configfile, modname, moddict,
                        search_name, search_dict, search_type):
     """ Create master data list for a module's list or file def """

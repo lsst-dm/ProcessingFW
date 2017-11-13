@@ -1,9 +1,7 @@
-########################################################################
 #  $Id: runtask.condor 43914 2016-09-06 18:57:30Z friedel $
 #  $Rev:: 43914                            $:  # Revision of last commit.
 #  $LastChangedBy:: friedel                $:  # Author of last commit.
 #  $LastChangedDate:: 2016-09-06 13:57:30 #$:  # Date of last commit.
-#######################################################################
 
 universe=local
 executable= $(exec)

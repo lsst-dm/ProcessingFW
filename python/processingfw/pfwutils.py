@@ -22,13 +22,11 @@ import processingfw.pfwdefs as pfwdefs
 import qcframework.Messaging as Messaging
 
 
-#######################################################################
 def pad_jobnum(jobnum):
     """ Pad the job number """
     return "%04d" % int(jobnum)
 
 
-#######################################################################
 def get_hdrup_sections(wcl, prefix):
     """ Returns header update sections appearing in given wcl """
     hdrups = {}
@@ -44,7 +42,6 @@ def get_hdrup_sections(wcl, prefix):
 
 
 
-#######################################################################
 def search_wcl_for_variables(wcl):
     """ Find variables in given wcl """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
@@ -71,7 +68,6 @@ def search_wcl_for_variables(wcl):
         miscutils.fwdebug_print("END")
     return usedvars
 
-#######################################################################
 def get_wcl_value(key, wcl):
     """ Return value of key from wcl, follows section notation """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
@@ -84,7 +80,6 @@ def get_wcl_value(key, wcl):
         miscutils.fwdebug_print("END")
     return val
 
-#######################################################################
 def set_wcl_value(key, val, wcl):
     """ Sets value of key in wcl, follows section notation """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
@@ -99,7 +94,6 @@ def set_wcl_value(key, val, wcl):
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
 
-#######################################################################
 def tar_dir(filename, indir):
     """ Tars a directory """
     if filename.endswith('.gz'):
@@ -109,7 +103,6 @@ def tar_dir(filename, indir):
     with tarfile.open(filename, mode) as tar:
         tar.add(indir)
 
-#######################################################################
 def tar_list(tarfilename, filelist):
     """ Tars a directory """
 
@@ -124,7 +117,6 @@ def tar_list(tarfilename, filelist):
 
 
 
-#######################################################################
 def untar_dir(filename, outputdir):
     """ Untars a directory """
     if filename.endswith('.gz'):
@@ -154,7 +146,6 @@ def untar_dir(filename, outputdir):
         print "Could not untar %s.  Aborting" % filename
 
 
-###########################################################################
 # assumes exit code for version is 0
 def get_version(execname, execdefs):
     """run command with version flag and parse output for version"""
@@ -216,7 +207,6 @@ def get_version(execname, execdefs):
     return ver
 
 
-############################################################################
 def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwattid=0, patterns={}):
     """ Execute the command piping stdout/stderr to log and QCF """
     bufsize = 1024 * 10
@@ -281,7 +271,6 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
     return process_wrap.returncode
 
 
-#######################################################################
 def index_job_info(jobinfo):
     """ create dictionary of jobs indexed on blk task id """
     job_byblk = {}
@@ -294,7 +283,6 @@ def index_job_info(jobinfo):
     return job_byblk
 
 
-#######################################################################
 def index_wrapper_info(wrapinfo):
     """ create dictionaries of wrappers indexed on jobnum and modname """
     wrap_byjob = {}
@@ -310,7 +298,6 @@ def index_wrapper_info(wrapinfo):
     return wrap_byjob, wrap_bymod
 
 
-#######################################################################
 def index_jobwrapper_info(jwrapinfo):
     """ create dictionaries of wrappers indexed on jobnum and wrapnum """
 
@@ -329,7 +316,6 @@ def index_jobwrapper_info(jwrapinfo):
     return jwrap_byjob, jwrap_bywrap
 
 
-#######################################################################
 def should_save_file(mastersave, filesave, exitcode):
     """ Determine whether should save the file """
     msave = mastersave.lower()
@@ -345,7 +331,6 @@ def should_save_file(mastersave, filesave, exitcode):
     return retval
 
 
-#######################################################################
 def should_compress_file(mastercompress, filecompress, exitcode):
     """ Determine whether should compress the file """
 
@@ -371,7 +356,6 @@ def should_compress_file(mastercompress, filecompress, exitcode):
     return retval
 
 
-######################################################################
 def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
                          label, classname, extra_info):
     """ Dynamically load a class save timing info in task table """
@@ -409,7 +393,6 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
     return the_class_obj
 
 
-######################################################################
 def diskusage(path):
 #    """ Calls du to get disk space used by given path """
 #    process = subprocess.Popen(['du', '-s', path], shell=False,

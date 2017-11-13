@@ -19,12 +19,10 @@ import despymisc.miscutils as miscutils
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdefs as pfwdefs
 
-######################################################################
 def tsstr():
     """ Return the current time as a string """
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
-######################################################################
 def parse_cmdline(argv):
     """ Parse the command line """
     #echo "Usage: submitmassjob.sh desfile tilelist maxjobs site";
@@ -78,7 +76,6 @@ def parse_cmdline(argv):
 
     return args
 
-######################################################################
 def can_submit(args):
     """ whether can submit another attempt or not """
 
@@ -106,7 +103,6 @@ def can_submit(args):
     return dosubmit
 
 
-######################################################################
 def submit(submitfile, logdir):
     """ Call dessubmit on the specific submit file that has mass submit variables replaced """
     print "%s: Submitting %s" % (tsstr(), submitfile)
@@ -150,7 +146,6 @@ def submit(submitfile, logdir):
 
 
 
-######################################################################
 def main(argv):
     """ Program entry point """
     args = parse_cmdline(argv)

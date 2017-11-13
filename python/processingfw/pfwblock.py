@@ -35,7 +35,6 @@ import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwutils as pfwutils
 import processingfw.pfwcondor as pfwcondor
 
-#######################################################################
 def get_datasect_types(config, modname):
     """ tell which data sections (files, lists) are inputs vs outputs """
 
@@ -84,7 +83,6 @@ def get_datasect_types(config, modname):
 
 
 
-#######################################################################
 def copy_master(masterdata, nickname=None):
     """ For master data list that has multiple files per line, copy set of files """
 
@@ -109,7 +107,6 @@ def copy_master(masterdata, nickname=None):
             raise
     return {'list': {intgdefs.LISTENTRY: lines}}
 
-#######################################################################
 def add_runtime_path(config, currvals, fname, finfo, filename):
     """ Add runtime path to filename """
 
@@ -159,7 +156,6 @@ def add_runtime_path(config, currvals, fname, finfo, filename):
     return fullname
 
 
-#######################################################################
 def create_simple_list(config, lname, ldict, currvals):
     """ Create simple filename list file based upon patterns """
     miscutils.fwdebug_print("BEG - %s" % lname)
@@ -192,7 +188,6 @@ def create_simple_list(config, lname, ldict, currvals):
     miscutils.fwdebug_print("END\n\n")
 
 
-###########################################################
 def create_sublist_file(config, moddict, fname, finfo, currvals):
     """ Create sublists of filenames for file definition """
     #filename = config.get_filename(None, {pfwdefs.PF_CURRVALS: currvals,
@@ -262,7 +257,6 @@ def create_sublist_file(config, moddict, fname, finfo, currvals):
     return filelist_wcl
 
 
-###########################################################
 def create_simple_sublist(config, moddict, lname, ldict, currvals):
     """ create a simple sublist of files for a list without query """
 
@@ -287,7 +281,6 @@ def create_simple_sublist(config, moddict, lname, ldict, currvals):
     return filelist_wcl
 
 
-#######################################################################
 def get_match_keys(sdict):
     """ Get keys on which to match files """
     mkeys = []
@@ -308,7 +301,6 @@ def get_match_keys(sdict):
     return mkeys
 
 
-#######################################################################
 def find_sublist(objdef, objinst, sublists):
     """ Find sublist """
 
@@ -341,7 +333,6 @@ def find_sublist(objdef, objinst, sublists):
 
     return sublist
 
-#######################################################################
 def which_are_inputs(config, modname):
     """ Return dict of files/lists that are inputs for given module """
     miscutils.fwdebug_print("BEG %s" % modname)
@@ -371,7 +362,6 @@ def which_are_inputs(config, modname):
     return inputs
 
 
-#######################################################################
 def which_are_outputs(config, modname):
     """ Return dict of files that are outputs for given module """
     miscutils.fwdebug_print("BEG %s" % modname)
@@ -394,7 +384,6 @@ def which_are_outputs(config, modname):
 
 
 
-#######################################################################
 def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
                                 currvals, winst, fsectname, finfo,
                                 masterdata, sublists, is_iter_obj=False):
@@ -587,7 +576,6 @@ def assign_file_to_wrapper_inst(config, theinputs, theoutputs, moddict,
 
 
 
-#######################################################################
 def assign_list_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals,
                                 winst, lname, ldict, sublists):
     """ Assign list to wrapper instance """
@@ -684,7 +672,6 @@ def assign_list_to_wrapper_inst(config, theinputs, theoutputs, moddict, currvals
 
 
 
-#######################################################################
 def assign_data_wrapper_inst(config, modname, winst, masterdata, sublists,
                              theinputs, theoutputs):
     """ Assign data like files and lists to wrapper instances """
@@ -766,7 +753,6 @@ def assign_data_wrapper_inst(config, modname, winst, masterdata, sublists,
 
 
 
-#######################################################################
 def output_list(config, sublist, sobj, lname, currvals):
     """ Output list """
 
@@ -855,7 +841,6 @@ def output_list(config, sublist, sobj, lname, currvals):
 
 
 
-#####################################################################
 def output_line(listfh, line, lineformat, allow_missing, keyarr):
     """ output line into input list for science code"""
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
@@ -924,7 +909,6 @@ def output_line(listfh, line, lineformat, allow_missing, keyarr):
         listfh.write("\n")
 
 
-#####################################################################
 def print_value(outfh, key, value, lineformat, last, valuefmt):
     """ output value to input list in correct format """
 
@@ -954,7 +938,6 @@ def print_value(outfh, key, value, lineformat, last, valuefmt):
 
 
 
-#######################################################################
 def finish_wrapper_inst(config, modname, winst, outfsect):
     """ Finish creating wrapper instances with tasks like making input and output filenames """
 
@@ -1080,7 +1063,6 @@ def finish_wrapper_inst(config, modname, winst, outfsect):
     #return input_filenames, output_filenames
 
 
-#######################################################################
 def add_file_metadata(config, modname):
     """ add file metadata sections to a single file section from a module"""
 
@@ -1136,7 +1118,6 @@ def add_file_metadata(config, modname):
 
 
 
-#######################################################################
 def init_use_archive_info(config, jobwcl, which_use_input, which_use_output, which_archive):
     """ Initialize use archive info """
     if which_use_input in config:
@@ -1159,7 +1140,6 @@ def init_use_archive_info(config, jobwcl, which_use_input, which_use_output, whi
     return archive
 
 
-#######################################################################
 def write_jobwcl(config, jobkey, jobdict):
     """ write a little config file containing variables needed at the job level """
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
@@ -1332,7 +1312,6 @@ def write_jobwcl(config, jobkey, jobdict):
         miscutils.fwdebug_print("END\n\n")
 
 
-#######################################################################
 def add_needed_values(config, modname, wrapinst, wrapwcl):
     """ Make sure all variables in the wrapper instance have values in the wcl """
     if miscutils.fwdebug_check(3, "PFWBLOCK_DEBUG"):
@@ -1429,7 +1408,6 @@ def add_needed_values(config, modname, wrapinst, wrapwcl):
         miscutils.fwdebug_print("END\n\n")
 
 
-#######################################################################
 def create_wrapper_inst(config, modname, loopvals):
     """ Create set of empty wrapper instances """
 
@@ -1486,7 +1464,6 @@ def create_wrapper_inst(config, modname, loopvals):
 
 
 
-#####################################################################
 def create_new_filename(config, fsectname, fsectdict, sobj, currvals):
 
     miscutils.fwdebug_print("BEG")
@@ -1550,7 +1527,6 @@ def create_new_filename(config, fsectname, fsectdict, sobj, currvals):
     return filelist
 
 
-#####################################################################
 def create_new_depends_filenames(config, master, modname, flabel):
     """ Create new filenames for output files that depended upon input data """
 
@@ -1589,7 +1565,6 @@ def create_new_depends_filenames(config, master, modname, flabel):
 
             
 
-#####################################################################
 def fix_master_lists(config, modname, masterdata, theoutputs):
     """ Replace filename for master data copied as depend for output file """
 
@@ -1639,7 +1614,6 @@ def fix_master_lists(config, modname, masterdata, theoutputs):
 
 
 
-#####################################################################
 def read_master_lists(config, modname, masterdata, modules_prev_in_list):
     """ Read master lists and files from files created earlier """
     miscutils.fwdebug_print("BEG %s" % modname)
@@ -1727,7 +1701,6 @@ def read_master_lists(config, modname, masterdata, modules_prev_in_list):
     miscutils.fwdebug_print("END\n\n")
 
 
-#######################################################################
 def remove_column_format(columns):
     """ Return columns minus any formatting specification """
 
@@ -1744,7 +1717,6 @@ def remove_column_format(columns):
     return columns2
 
 
-#######################################################################
 def convert_col_string_to_list(colstr, with_format=True):
     """ Convert a column string to list of columns """
     columns = re.findall(r'\$\S+\{.*\}|[^,\s]+', colstr)
@@ -1754,7 +1726,6 @@ def convert_col_string_to_list(colstr, with_format=True):
     return columns
 
 
-#######################################################################
 def get_list_all_columns(ldict, with_format=True):
     """ For a list definition, return list of columns in all list files """
     columns = []
@@ -1772,7 +1743,6 @@ def get_list_all_columns(ldict, with_format=True):
 
 
 
-#######################################################################
 def create_fullnames(config, modname, masterdata):
     """ add paths to filenames """    # what about compression extension
 
@@ -1855,7 +1825,6 @@ def create_fullnames(config, modname, masterdata):
 
 
 
-#######################################################################
 def create_sublists(config, modname, masterdata):
     """ break master lists into sublists based upon match or divide_by """
     miscutils.fwdebug_print("BEG %s" % modname)
@@ -1914,7 +1883,6 @@ def create_sublists(config, modname, masterdata):
     return sublists
 
 
-#######################################################################
 def get_wrap_iter_obj_key(config, moddict):
     """ get wrapper iter object key """
     iter_obj_key = None
@@ -1927,7 +1895,6 @@ def get_wrap_iter_obj_key(config, moddict):
     return iter_obj_key
 
 
-#######################################################################
 def get_wrapper_loopvals(config, modname):
     """ get the values for the wrapper loop keys """
 
@@ -1989,7 +1956,6 @@ def get_wrapper_loopvals(config, modname):
     return loopvals
 
 
-#############################################################
 def get_value_from_line(line, key, nickname=None, numvals=None):
     """ Return value from a line in master list """
     if miscutils.fwdebug_check(6, "PFWBLOCK_DEBUG"):
@@ -2060,7 +2026,6 @@ def get_value_from_line(line, key, nickname=None, numvals=None):
         miscutils.fwdebug_print("END\n\n")
     return retval
 
-#######################################################################
 def get_wcl_metadata_keys(filetype, wrapper_wcl, currvals, config):
     """ Add to wrapper wcl any file metadata wcl values """
 
@@ -2072,7 +2037,6 @@ def get_wcl_metadata_keys(filetype, wrapper_wcl, currvals, config):
 
     return wclkeys
 
-#######################################################################
 def get_filetypes_output_files(moddict, outputfiles, wrapperwcl):
     """ Get the filetypes for all the output files """
 
@@ -2092,7 +2056,6 @@ def get_filetypes_output_files(moddict, outputfiles, wrapperwcl):
 
     return filetypes
 
-#######################################################################
 # Assumes currvals includes specific values (e.g., band, ccd)
 def create_single_wrapper_wcl(config, modname, wrapinst):
     """ create single wrapper wcl """
@@ -2359,7 +2322,6 @@ def translate_sw_iw(config, wrapperwcl, modname, winst):
 
 
 
-#######################################################################
 def create_module_wrapper_wcl(config, modname, winst):
     """ Create wcl for wrapper instances for a module """
 
@@ -2387,7 +2349,6 @@ def create_module_wrapper_wcl(config, modname, winst):
 
     return files
 
-#######################################################################
 def divide_into_jobs(config, modname, winst, joblist, parlist):
     """ Divide wrapper instances into jobs """
     if miscutils.fwdebug_check(1, "PFWBLOCK_DEBUG"):
@@ -2726,7 +2687,6 @@ echo "DESDMTIME: job_shell_script $((shd2-PFW_JOB_START_EPOCH)) secs"
 
 
 
-#######################################################################
 def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
     """ Write job manager DAG file """
 
@@ -2765,7 +2725,6 @@ def create_jobmngr_dag(config, dagfile, scriptfile, joblist):
 
 
 
-#######################################################################
 def tar_inputfiles(config, jobnum, inlist):
     """ Tar the input wcl files for a single job """
     inputtar = config.get_filename('inputwcltar', {pfwdefs.PF_CURRVALS:{'jobnum': jobnum}})
@@ -2776,7 +2735,6 @@ def tar_inputfiles(config, jobnum, inlist):
     return inputtar
 
 
-#######################################################################
 def create_runjob_condorfile(config, scriptfile):
     """ Write runjob condor description file for target job """
     miscutils.fwdebug_print("BEG")
@@ -2919,7 +2877,6 @@ def create_runjob_condorfile(config, scriptfile):
 
 
 
-#######################################################################
 def stage_inputs(config, inputfiles):
     """ Transfer inputs to target archive if using one """
 
@@ -2956,7 +2913,6 @@ def stage_inputs(config, inputfiles):
 
 
 
-#######################################################################
 def write_output_list(config, outputfiles):
     """ Write output list """
 
@@ -2975,7 +2931,6 @@ def write_output_list(config, outputfiles):
     miscutils.fwdebug_print("END")
 
 
-#######################################################################
 def write_wrapper_wcl(config, filename, wrapperwcl):
     """ Write wrapper input wcl to file """
 
@@ -2989,7 +2944,6 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
         with open(filename, 'w', 0) as wclfh:
             wrapperwcl.write(wclfh, True, 4)
 
-######################################################################
 def copy_input_lists_home_archive(config, filemgmt, archive_info, listfullnames):
     """ Copy list files to home archive """
 

@@ -17,7 +17,6 @@ import processingfw.pfwconfig as pfwconfig
 from processingfw.pfwemail import send_email
 import qcframework.Messaging as Messaging
 
-######################################################################
 def copy_files_home(config, archive_info, filemgmt):
     """ Copy submit files to home archive """
 
@@ -71,7 +70,6 @@ def copy_files_home(config, archive_info, filemgmt):
 
 
 
-######################################################################
 def begrun(argv):
     """ Performs steps executed on submit machine at beginning of processing attempt """
 
@@ -137,7 +135,6 @@ def begrun(argv):
         raise
 
 
-######################################################################
 def send_failed_email(config, msg2):
     """ Send failed email """
 

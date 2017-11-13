@@ -37,7 +37,6 @@ def get_qcf_messages(qdbh, config, wraptids):
         miscutils.fwdebug_print("wrapmsg = %s" % wrapmsg)
     return wrapmsg
 
-######################################################################
 def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
     MAXMESG = 3
 
@@ -58,7 +57,6 @@ def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
 
 
  
-######################################################################
 def blockpost(argv=None):
     """ Program entry point """
     if argv is None:

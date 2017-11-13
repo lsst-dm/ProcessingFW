@@ -55,7 +55,6 @@ def condor_version():
     return version
 
 
-###########################################################################
 def compare_condor_version(ver2):
     """Compare running condor version against given version"""
     # similar to strcmp
@@ -98,7 +97,6 @@ def compare_condor_version(ver2):
 
 
 
-###########################################################################
 def condor_submit(submitfile):
     """Call condor_submit on given condor description file"""
 
@@ -115,7 +113,6 @@ def condor_submit(submitfile):
     return process.returncode, process.communicate()
 
 
-###########################################################################
 def create_resource(info):
     """ Create string for globus_rsl line in condor description file """
     gridresource = ''
@@ -162,7 +159,6 @@ def create_resource(info):
     return gridresource
 
 
-###########################################################################
 def create_rsl(info):
     """Create RSL for grid job"""
     rslparts = []
@@ -508,7 +504,6 @@ def condorq_dag(args_str=''):
 
 
 
-######################################################################
 def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
     """ Create the condor description file for a DAG with added attributes """
     print "add2dag: cwd =", os.getcwd()
@@ -588,7 +583,6 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
         raise CondorException("condor_submit_dag failed")
 
 
-######################################################################
 def add2condor(condorstr, attributes, debugfh):
     """add some attributes to condor submit file"""
 
@@ -740,7 +734,6 @@ def condor_rm(args_str=''):
         raise CondorException('Error: Could not run condor_rm. Check PATH.\n'+str(err))
 
 
-#######################################################################
 def status_target_jobs(job, qjobs):
     """ Convert condor/grid status """
 
@@ -762,7 +755,6 @@ def status_target_jobs(job, qjobs):
     return status
 
 
-#######################################################################
 def get_attempt_info(topjobid, qjobs):
     """ Massage condor_q dag information into attempt information """
 

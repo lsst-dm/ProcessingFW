@@ -13,7 +13,6 @@ from despymisc import miscutils
 from processingfw import pfwdb
 from processingfw import pfwutils
 
-######################################################################
 def parse_attempt_str(attstr):
     """ Parse attempt string for reqnum, unitname, and attnum """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
@@ -27,7 +26,6 @@ def parse_attempt_str(attstr):
 
     return reqnum, unitname, attnum
 
-######################################################################
 def parse_args(argv):
     """ Parse command line arguments """
     parser = argparse.ArgumentParser(description='Print task information for a processing attempt')
@@ -53,7 +51,6 @@ def parse_args(argv):
     return args
 
 
-######################################################################
 def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, indent='\t'):
 
     state = "UNK"
@@ -124,7 +121,6 @@ def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, inden
            state, status)
 
 
-######################################################################
 def print_single_block(blknum, blockinfo, job_byblk, jwrap_byjob, wrap_byjob, verbose=False):
     #print "print_single_block(%s,..." % blknum 
     print blockinfo['name']

@@ -13,7 +13,6 @@ import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdefs as pfwdefs
 
 
-######################################################################
 def main(argv=None):
     """ Entry point """
     parser = argparse.ArgumentParser(description='desstat')
@@ -74,7 +73,6 @@ def main(argv=None):
 
     return 0
 
-######################################################################
 def print_sorted(attids, orphanids, qjobs, campaign, sort):
     """ Print lines in a sorted order """
     count = 0
@@ -96,7 +94,6 @@ def print_sorted(attids, orphanids, qjobs, campaign, sort):
     return count
 
 
-######################################################################
 def print_header():
     """ Print header line """
     print "%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-30s" % \
@@ -104,7 +101,6 @@ def print_header():
            "STAT (H/P/R/T)", "OPERATOR", "RUNSITE")
     print "="*160
 
-######################################################################
 def print_attempts(attids, qjobs, campaign):
     """ print attempt info """
     count = 0
@@ -115,7 +111,6 @@ def print_attempts(attids, qjobs, campaign):
             print_line(topjobid, " ", info)
     return count
 
-######################################################################
 def print_orphans(orphanids, qjobs, campaign):
     """ Print info for single orphan job """
     count = 0
@@ -126,7 +121,6 @@ def print_orphans(orphanids, qjobs, campaign):
             print_line(topjobid, "X", info)
     return count
 
-######################################################################
 def print_line(jid, jobtype, info):
     """ Print single line """
 

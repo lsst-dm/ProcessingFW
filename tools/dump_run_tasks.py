@@ -14,18 +14,15 @@ import datetime
 
 import processingfw.pfwdb as pfwdb
 
-######################################################################
 def print_header():
     """ Print report column headers """
     print "tid, parent_tid, root_tid, name, label, status, infotable, start_time, end_time"
 
-######################################################################
 def get_start_time(x):
     """ Get non-null start_time """
     maxdate = datetime.datetime.now()
     return x['start_time'] or maxdate
 
-######################################################################
 def print_task(taskd, indent=''):
     """ Print information for a single task """
     print indent, taskd['id'], taskd['parent_task_id'], taskd['root_task_id'],\
@@ -48,7 +45,6 @@ def print_task(taskd, indent=''):
     else:
         print ""
 
-######################################################################
 def recurs_dump(tasks, tids, indent=''):
     """ Recursively print task information """
     tlist = [tasks[t] for t in tids]
@@ -59,7 +55,6 @@ def recurs_dump(tasks, tids, indent=''):
         if len(taskd['children']) > 0:
             recurs_dump(tasks, taskd['children'], indent+'    ')
 
-######################################################################
 def parse_args(argv):
     """ Parse command line arguments """
     parser = argparse.ArgumentParser(description='Print task information for a processing attempt')
@@ -81,7 +76,6 @@ def parse_args(argv):
 
     return args
 
-######################################################################
 def parse_attempt_str(attstr):
     """ Parse attempt string for reqnum, unitname, and attnum """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
@@ -95,7 +89,6 @@ def parse_attempt_str(attstr):
 
     return reqnum, unitname, attnum
 
-######################################################################
 def get_task_info(args):
     """ Query the DB for task information """
 
@@ -134,7 +127,6 @@ def get_task_info(args):
     return attid, tasks
 
 
-######################################################################
 def add_children(tasks):
     """ To help printing, add children ids to tasks """
 
@@ -152,7 +144,6 @@ def add_children(tasks):
 
 
 
-######################################################################
 def main(argv):
     """ Program entry point """
 

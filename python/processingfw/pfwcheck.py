@@ -30,7 +30,6 @@ def warning(indent, message):
 def error(indent, message):
     print "%s\033[1;31mError\033[1;m: %s" % (indent, message)
 
-###########################################################################
 def check_globals(config, indent=''):
     """ Check global settings """
 
@@ -115,7 +114,6 @@ def check_globals(config, indent=''):
 
 
 
-###########################################################################
 def check_block(config, indent=''):
     """ check blocks level defs """
 
@@ -167,7 +165,6 @@ def check_block(config, indent=''):
 
 
 
-###########################################################################
 def check_target_archive(config, indent=''):
     """ check info related to target archive """
 
@@ -221,7 +218,6 @@ def check_target_archive(config, indent=''):
     return cnts
 
 
-###########################################################################
 def check_home_archive(config, indent=''):
     """ check info related to home archive """
 
@@ -273,7 +269,6 @@ def check_home_archive(config, indent=''):
     return cnts
 
 
-###########################################################################
 def check_module(config, blockname, modname, indent=''):
     """ Check module """
 
@@ -310,7 +305,6 @@ def check_module(config, blockname, modname, indent=''):
 
 
 
-###########################################################################
 def parse_wcl_objname(objname):
     """ Parse WCL object name into parts """
 
@@ -330,7 +324,6 @@ def parse_wcl_objname(objname):
     return sect, name, subname
 
 
-###########################################################################
 def check_filepat_valid(config, filepat, blockname, modname, objname, objdict, indent=''):
     """ Check if given file pattern is valid """
 
@@ -348,7 +341,6 @@ def check_filepat_valid(config, filepat, blockname, modname, objname, objdict, i
     return cnts
 
 
-###########################################################################
 def check_file_valid_input(config, blockname, modname, fname, fdict, indent=''):
     """ Check if given input file is valid """
 
@@ -378,7 +370,6 @@ def check_file_valid_input(config, blockname, modname, fname, fdict, indent=''):
     return cnts
 
 
-###########################################################################
 def check_list_valid_input(config, blockname, modname, objname, objdict, indent=''):
     """ Check if input list is valid """
 
@@ -404,7 +395,6 @@ def check_list_valid_input(config, blockname, modname, objname, objdict, indent=
     return cnts
 
 
-###########################################################################
 def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
     """ Check exec input definition is valid """
 
@@ -469,7 +459,6 @@ def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict
     return cnts
 
 
-###########################################################################
 def check_file_valid_output(config, blockname, modname, fname, fdict, indent=''):
     """ Check if output file definition is valid """
 
@@ -515,7 +504,6 @@ def check_file_valid_output(config, blockname, modname, fname, fdict, indent='')
     return cnts
 
 
-###########################################################################
 def check_exec_outputs(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
     """ Check if exec output definition is valid """
 
@@ -551,7 +539,6 @@ def check_exec_outputs(config, blockname, modname, dataobjs, xsectname, xsectdic
 
 
 
-###########################################################################
 def check_exec_parentchild(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
     """ Check that parent and children appear in inputs and outputs """
     # assumes check_exec_input and check_exec_output have already been executed so there are entries in dataobjs
@@ -605,7 +592,6 @@ def check_exec_parentchild(config, blockname, modname, dataobjs, xsectname, xsec
 
 
 
-###########################################################################
 def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
     """ calls functions to check files have all needed info as well as note extra file defs """
 
@@ -672,7 +658,6 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
 
 
 
-###########################################################################
 def check_exec_cmd(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
     """ Check exec cmd definition """
 
@@ -724,7 +709,6 @@ def check_exec_cmd(config, blockname, modname, dataobjs, xsectname, xsectdict, i
 
 
 
-###########################################################################
 def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
     """ Check if exec section is valid """
 
@@ -777,7 +761,6 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
 
 
 
-###########################################################################
 def check(config, indent=''):
     """ Check submit wcl """
 

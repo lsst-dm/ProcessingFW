@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: begblock.py 46219 2017-08-24 18:21:06Z friedel $
-# $Rev:: 46219                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2017-08-24 13:21:06 #$:  # Date of last commit.
 
 """ Program run at beginning of block that performs job setup """
 

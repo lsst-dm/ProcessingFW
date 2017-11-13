@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: summary.py 41751 2016-04-26 13:08:03Z mgower $
-# $Rev:: 41751                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-04-26 08:08:03 #$:  # Date of last commit.
 
 """ Send summary email when run ends (successfully or not) """
 

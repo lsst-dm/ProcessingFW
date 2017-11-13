@@ -1,8 +1,3 @@
-# $Id: pfwdefs.py 42763 2016-06-22 16:07:45Z mgower $
-# $Rev:: 42763                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-06-22 11:07:45 #$:  # Date of last commit.
-
 """ Constants used across various files to make changes easier """
 
 # when changing values, check if change also needed in $PROCESSINGFW_DIR/etc/pfwconfig.des

@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: pfwrunjob.py 44517 2016-10-25 12:41:47Z friedel $
-# $Rev:: 44517                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-25 07:41:47 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 

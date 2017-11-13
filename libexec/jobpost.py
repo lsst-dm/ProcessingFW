@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: jobpost.py 43727 2016-08-17 19:03:25Z friedel $
-# $Rev:: 43727                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2016-08-17 14:03:25 #$:  # Date of last commit.
 
 """ Steps executed submit-side after job success or failure """
 

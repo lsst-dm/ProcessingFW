@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: begrun.py 44505 2016-10-24 14:58:42Z friedel $
-# $Rev:: 44505                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-24 09:58:42 #$:  # Date of last commit.
 
 """ Program executed at beginning of processing attempt """
 

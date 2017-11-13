@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: pfwblock.py 44449 2016-10-19 18:38:10Z mgower $
-# $Rev:: 44449                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-19 13:38:10 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 

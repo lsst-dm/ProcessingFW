@@ -1,8 +1,3 @@
-# $Id: pfwdb.py 44450 2016-10-19 20:01:20Z mgower $
-# $Rev:: 44450                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-19 15:01:20 #$:  # Date of last commit.
-
 # pylint: disable=print-statement
 
 """

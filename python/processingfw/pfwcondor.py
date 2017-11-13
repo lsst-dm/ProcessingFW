@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: pfwcondor.py 45743 2017-06-02 18:34:40Z friedel $
-# $Rev:: 45743                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2017-06-02 13:34:40 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 

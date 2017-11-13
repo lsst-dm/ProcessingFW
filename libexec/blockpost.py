@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: blockpost.py 44484 2016-10-21 18:07:29Z mgower $
-# $Rev:: 44484                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-21 13:07:29 #$:  # Date of last commit.
 
 # pylint: disable=print-statement
 

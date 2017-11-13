@@ -32,7 +32,7 @@ def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
             returncode = process_comp.returncode
         except OSError as exc:
             errstr = "I/O error({0}): {1}".format(exc.errno, exc.strerror)
-            print errstr
+            print(errstr)
             returncode = 1
             # check for partial compressed output and remove
             if os.path.exists(fname_compressed):

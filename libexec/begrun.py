@@ -52,10 +52,10 @@ def copy_files_home(config, archive_info, filemgmt):
     # save info for files that we just copied into archive
     files2register = []
     problemfiles = {}
-    for fname, finfo in results.items():
+    for fname, finfo in list(results.items()):
         if 'err' in finfo:
             problemfiles[fname] = finfo
-            print "Warning: Error trying to copy file %s to archive: %s" % (fname, finfo['err'])
+            print("Warning: Error trying to copy file %s to archive: %s" % (fname, finfo['err']))
         else:
             files2register.append(finfo)
 
@@ -112,7 +112,7 @@ def begrun(argv):
             filemgmt.commit()
 
         if pfw_dbh is not None:
-            print "Saving attempt's archive path into PFW tables...",
+            print("Saving attempt's archive path into PFW tables...", end=' ')
             pfw_dbh.update_attempt_archive_path(config)
             pfw_dbh.commit()
     except Exception as exc:
@@ -135,7 +135,7 @@ def send_failed_email(config, msg2):
     """ Send failed email """
 
     if 'when_to_email' in config and config.getfull('when_to_email').lower() != 'never':
-        print "Sending run failed email\n"
+        print("Sending run failed email\n")
         msg1 = "%s:  processing attempt has failed in begrun." % (config.getfull('submit_run'))
         msg2 = "Typical failures to look for:\n"
         msg2 += "\tMissing desservices file section needed by file transfer\n"
@@ -161,9 +161,9 @@ def send_failed_email(config, msg2):
 
 
 if __name__ == "__main__":
-    print ' '.join(sys.argv)  # print command line for debugging
+    print(' '.join(sys.argv))  # print command line for debugging
     if len(sys.argv) != 2:
-        print 'Usage: begrun.py configfile'
+        print('Usage: begrun.py configfile')
         sys.exit(pfwdefs.PF_EXIT_FAILURE)
 
     begrun(sys.argv[1:])

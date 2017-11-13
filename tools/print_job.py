@@ -4,7 +4,7 @@ import argparse
 import re
 import sys
 
-import ConfigParser
+import configparser
 from despymisc import miscutils
 from processingfw import pfwdb
 from processingfw import pfwutils
@@ -14,7 +14,7 @@ def parse_attempt_str(attstr):
     """ Parse attempt string for reqnum, unitname, and attnum """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
     if amatch is None:
-        print "Error:  cannot parse attempt string", attstr
+        print("Error:  cannot parse attempt string", attstr)
         sys.exit(1)
 
     unitname = amatch.group(1)
@@ -40,7 +40,7 @@ def parse_args(argv):
 
     if args['attempt_str'] is None:
         if args['reqnum'] is None:
-            print "Error:  Must specify attempt_str or r,u,a"
+            print("Error:  Must specify attempt_str or r,u,a")
             sys.exit(1)
         else:
             args['attempt_str'] = '%s_r%sp%02d' % (args['unitname'], args['reqnum'], int(args['attnum']))
@@ -108,23 +108,23 @@ def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, inden
         modname = wdict['modname']
         wrapkeys = wdict['wrapkeys']
     else:
-        print "Didn't fit conditions:"
-        print jwdict
-        print wdict
+        print("Didn't fit conditions:")
+        print(jwdict)
+        print(wdict)
 
-    print "%sjob: %s (jk=%s)  %d/%d  %s - %s   wrap: %s %s (wk=%s) - %s %s" % \
+    print("%sjob: %s (jk=%s)  %d/%d  %s - %s   wrap: %s %s (wk=%s) - %s %s" % \
           (indent, pfwutils.pad_jobnum(jdict['jobnum']), jdict['jobkeys'],
            numwraps, expnumwrap, jstate, jstatus,
            wrapnum, modname, wrapkeys,
-           state, status)
+           state, status))
 
 
 def print_single_block(blknum, blockinfo, job_byblk, jwrap_byjob, wrap_byjob, verbose=False):
     #print "print_single_block(%s,..." % blknum
-    print blockinfo['name']
+    print(blockinfo['name'])
 
     if blknum not in job_byblk:
-        print "\tNo jobs for this block"
+        print("\tNo jobs for this block")
     else:
         for jtid, jobdict in sorted(job_byblk[blknum].items()):
             #if jtid not in jwrap_byjob:
@@ -169,22 +169,22 @@ def print_job_info(argv):
 
     try:
         dbh = pfwdb.PFWDB(args['des_services'], args['section'])
-    except ConfigParser.NoSectionError:
-        print "Can't determine section of services file to get DB connection info"
-        print "\tEither set environment variable DES_DB_SECTION or add command-line option --section"
+    except configparser.NoSectionError:
+        print("Can't determine section of services file to get DB connection info")
+        print("\tEither set environment variable DES_DB_SECTION or add command-line option --section")
         sys.exit(1)
 
     # get the run info
     for run in args['runs']:
-        print run
+        print(run)
         reqnum, unitname, attnum = parse_attempt_str(run)
         attinfo = dbh.get_attempt_info(reqnum, unitname, attnum)
         if attinfo is None:
-            print "No DB information about the processing attempt"
-            print "(Double check which DB querying vs which DB the attempt used)"
+            print("No DB information about the processing attempt")
+            print("(Double check which DB querying vs which DB the attempt used)")
         else:
             if 'endtime' in attinfo and attinfo['endtime'] is not None:
-                print "Note:  run has finished with status %s" % attinfo['status']
+                print("Note:  run has finished with status %s" % attinfo['status'])
 
             # get the block info
             blockinfo = dbh.get_block_info(pfw_attempt_id=attinfo['id'])
@@ -201,7 +201,7 @@ def print_job_info(argv):
             wrapinfo = dbh.get_wrapper_info(pfw_attempt_id=attinfo['id'])
             wrap_byjob, wrap_bymod = pfwutils.index_wrapper_info(wrapinfo)
 
-            for blknum in blockinfo.keys():
+            for blknum in list(blockinfo.keys()):
                 print_single_block(blknum, blockinfo[blknum], job_byblk,
                                    jwrap_byjob, wrap_byjob, args['verbose'])
 

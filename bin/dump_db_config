@@ -22,20 +22,20 @@ def dump_db_config(argv=None):
     parser.add_argument('outfilename', action='store')
     args = parser.parse_args()
 
-    print "Getting defaults from DB...",
+    print("Getting defaults from DB...", end=' ')
     sys.stdout.flush()
     starttime = time.time()
     dbh = pfwdb.PFWDB(args.des_services, args.section)
     dbwcl = WCL(dbh.get_database_defaults())
     dbh.close()
-    print "Done (%0.2f secs)" % (time.time()-starttime)
+    print("Done (%0.2f secs)" % (time.time()-starttime))
 
-    print "Writing to file...",
+    print("Writing to file...", end=' ')
     sys.stdout.flush()
     starttime = time.time()
     with open(args.outfilename, "w") as outfh:
         dbwcl.write(outfh, True, 4)
-    print "Done (%0.2f secs)" % (time.time()-starttime)
+    print("Done (%0.2f secs)" % (time.time()-starttime))
 
     return 0
 

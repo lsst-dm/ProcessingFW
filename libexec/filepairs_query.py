@@ -33,7 +33,7 @@ def main(argv):
     query = "select t1.filename,t2.filename,t1.%s,t1.%s from (select image.filename,image.%s,image.%s,(regexp_substr(image.filename,'^[0-9a-zA-Z_-]+')) as n1 from wgb,image where image.filename=wgb.filename and wgb.exec_name='%s' and wgb.unitname='%s' and wgb.attnum=%s and wgb.reqnum=%s and image.filetype='%s') t1, (select image.filename,(regexp_substr(image.filename,'^[0-9a-zA-Z_-]+')) as n2 from wgb,image where image.filename=wgb.filename and wgb.exec_name='%s' and wgb.unitname='%s' and wgb.attnum=%s and wgb.reqnum=%s and image.filetype='%s') t2 where t1.n1=t2.n2" % (
         args.column[0], args.column[1], args.column[0], args.column[1], args.execname, args.unitname, args.attnum, args.reqnum, filetype1, args.execname, args.unitname, args.attnum, args.reqnum, filetype2)
 
-    print "Executing the following query\n", query
+    print("Executing the following query\n", query)
 
     cursor = dbh.cursor()
     cursor.execute(query)
@@ -64,7 +64,7 @@ def main(argv):
 
     listdict['list']['line'] = linedict
 
-    print "Results returned from query\n", listdict
+    print("Results returned from query\n", listdict)
 
     ## output list
     queryutils.output_lines(args.qoutfile, listdict, args.qouttype)
@@ -73,5 +73,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    print ' '.join(sys.argv)
+    print(' '.join(sys.argv))
     sys.exit(main(sys.argv[1:]))

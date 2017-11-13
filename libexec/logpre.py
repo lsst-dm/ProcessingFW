@@ -19,10 +19,10 @@ def logpre(argv=None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(sys.argv) # command line for debugging
+    print(' '.join(sys.argv)) # command line for debugging
 
     if len(argv) < 5:
-        print 'Usage: logpre configfile block subblocktype subblock'
+        print('Usage: logpre configfile block subblocktype subblock')
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -46,7 +46,7 @@ def logpre(argv=None):
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
     debugfh.close()
 
-    os.chmod(default_log, 0666)
+    os.chmod(default_log, 0o666)
     os.rename(default_log, new_log_name)
 
     debugfh = open(new_log_name, 'a+')
@@ -55,7 +55,7 @@ def logpre(argv=None):
 
     log_pfw_event(config, blockname, subblock, subblocktype, ['pretask'])
 
-    print "logpre done"
+    print("logpre done")
     debugfh.close()
     return pfwdefs.PF_EXIT_SUCCESS
 

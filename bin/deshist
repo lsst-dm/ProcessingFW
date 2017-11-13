@@ -11,7 +11,7 @@
 
 import argparse
 import sys
-import ConfigParser
+import configparser
 from datetime import datetime
 from datetime import timedelta
 
@@ -57,12 +57,12 @@ def print_info(attempts, printopts, maxwidths):
             hdr += fmt % col
         if oformat == 'csv':
             hdr = hdr[:-1]
-        print hdr
+        print(hdr)
 
         if oformat == 'text':
-            print '-'*(len(hdr)+1)
+            print('-'*(len(hdr)+1))
 
-    for attdict in sorted(attempts.values(), key=lambda x: x[printopts['sort'].lower()]):
+    for attdict in sorted(list(attempts.values()), key=lambda x: x[printopts['sort'].lower()]):
         line = ""
         for col in printcols:
             if oformat == 'csv':
@@ -75,7 +75,7 @@ def print_info(attempts, printopts, maxwidths):
                 line += fmt % ' '
         if oformat == 'csv':
             line = line[:-1]
-        print line
+        print(line)
 
 
 def convert_status(status):
@@ -97,7 +97,7 @@ def massage_info(attempts):
 
     maxwidths = {}
 
-    for attd in attempts.values():
+    for attd in list(attempts.values()):
         # attempt qwait doesn't really make sense, maybe should sum up indiv job qwaits
         #if ('starttime' in attd and attd['starttime'] is not None and
         #   'submittime' in attd and attd['submittime'] is not None):
@@ -126,14 +126,14 @@ def massage_info(attempts):
             attd['target_site'] = lastblkdict['target_site']
 
             if 'job' in lastblkdict:
-                firstjob = lastblkdict['job'].values()[0]
+                firstjob = list(lastblkdict['job'].values())[0]
                 attd['pipeprod'] = firstjob['pipeprod']
                 attd['pipever'] = firstjob['pipever']
                 if 'target_site' not in attd or attd['target_site'] is None:
                     attd['target_site'] = firstjob['exechost']
 
                 jobstat = {'U': 0, 'A': 0, 'F': 0, 'P': 0}
-                for jdict in lastblkdict['job'].values():
+                for jdict in list(lastblkdict['job'].values()):
                     stlabel = convert_status(jdict['status'])
                     jobstat[stlabel] += 1
 
@@ -148,7 +148,7 @@ def massage_info(attempts):
             lastwrap_h = 0      # track longest job end
             statwrap_h = 0      # status is fail if any failed
             if 'wrappers' in lastblkdict:
-                for j in lastblkdict['wrappers']['byjobnum'].keys():
+                for j in list(lastblkdict['wrappers']['byjobnum'].keys()):
 
                     jlastwrap = max(lastblkdict['wrappers']['byjobnum'][j].keys())
 
@@ -188,7 +188,7 @@ def query_attempt(dbh, colnames, argsdict):
     """ Query the db for information about attempts """
 
     whereclauses = []
-    for table in colnames.keys():
+    for table in list(colnames.keys()):
         for col in colnames[table]:
             argkey = col.replace('time', 'date')
 
@@ -214,14 +214,14 @@ def query_attempt(dbh, colnames, argsdict):
     sql = 'select r.*,a.*,t.*,l.label from pfw_request r, pfw_attempt a, task t, ' \
           'pfw_attempt_label l where r.reqnum=a.reqnum and l.reqnum=a.reqnum and ' \
           'l.unitname=a.unitname and l.attnum=a.attnum and t.id = a.task_id %s' % (clause)
-    print sql
+    print(sql)
     curs = dbh.cursor()
     curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
 
     attempts = {}
     for line in curs:
-        ldict = dict(zip(desc, line))
+        ldict = dict(list(zip(desc, line)))
         key = '%s_%s_%s' % (ldict['unitname'], ldict['reqnum'], ldict['attnum'])
         attempts[key] = ldict
 
@@ -234,7 +234,7 @@ def query_details(dbh, attempts):
 
     # insert reqnum,unitname,attnum into global temp table to do joins in queries
     rows = []
-    for attd in attempts.values():
+    for attd in list(attempts.values()):
         arow = {'reqnum': attd['reqnum'], 'unitname': attd['unitname'], 'attnum': attd['attnum']}
         rows.append(arow)
     dbh.insert_many('gtt_attempt', ['REQNUM', 'UNITNAME', 'ATTNUM'], rows)
@@ -247,7 +247,7 @@ def query_details(dbh, attempts):
     curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
     for line in curs:
-        ldict = dict(zip(desc, line))
+        ldict = dict(list(zip(desc, line)))
         attkey = '%s_%s_%s' % (ldict['unitname'], ldict['reqnum'], ldict['attnum'])
         if 'blocks' not in attempts[attkey]:
             attempts[attkey]['blocks'] = {}
@@ -262,7 +262,7 @@ def query_details(dbh, attempts):
     curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
     for line in curs:
-        ldict = dict(zip(desc, line))
+        ldict = dict(list(zip(desc, line)))
         attkey = '%s_%s_%s' % (ldict['unitname'], ldict['reqnum'], ldict['attnum'])
         if 'job' not in attempts[attkey]['blocks'][ldict['blknum']]:
             attempts[attkey]['blocks'][ldict['blknum']]['job'] = {}
@@ -277,7 +277,7 @@ def query_details(dbh, attempts):
     curs.execute(sql)
     desc = [d[0].lower() for d in curs.description]
     for line in curs:
-        ldict = dict(zip(desc, line))
+        ldict = dict(list(zip(desc, line)))
         attkey = '%s_%s_%s' % (ldict['unitname'], ldict['reqnum'], ldict['attnum'])
         if 'wrappers' not in attempts[attkey]['blocks'][ldict['blknum']]:
             attempts[attkey]['blocks'][ldict['blknum']]['wrappers'] = {'bywrapnum': {},
@@ -321,18 +321,18 @@ def create_and_parse_args():
     colnames = None
     try:
         dbh = desdbi.DesDbi(desservices, section)
-    except ConfigParser.NoSectionError:
-        print "Error: must be able to connect to database."
-        print "\tCannot determine section for credential wallet."
-        print "\tEither use --section or set env var DES_DB_SECTION"
-        print "\tIf set, double check valid section name\n\n"
+    except configparser.NoSectionError:
+        print("Error: must be able to connect to database.")
+        print("\tCannot determine section for credential wallet.")
+        print("\tEither use --section or set env var DES_DB_SECTION")
+        print("\tIf set, double check valid section name\n\n")
         parser.print_help()
-        print "More options will be printed once can connect to DB"
+        print("More options will be printed once can connect to DB")
         sys.exit(1)
     except Exception:
-        print "Error: must be able to connect to database"
+        print("Error: must be able to connect to database")
         parser.print_help()
-        print "More options will be printed once can connect to DB"
+        print("More options will be printed once can connect to DB")
         raise
 
     colnames = {}
@@ -375,7 +375,7 @@ def main():
     dbh, colnames, queryopts, printopts = create_and_parse_args()
     attempts = query_attempt(dbh, colnames, queryopts)
     if len(attempts) == 0:
-        print "0 attempts fit given criteria"
+        print("0 attempts fit given criteria")
     else:
         query_details(dbh, attempts)
         maxwidths = massage_info(attempts)

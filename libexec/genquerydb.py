@@ -27,7 +27,7 @@ def main(argv):
     if args.modulename is None:
         raise Exception("Error: Must specify module\n")
 
-    print args.configfile
+    print(args.configfile)
     config = pfwconfig.PfwConfig({'wclfile': args.configfile})
 
     if args.modulename not in config[pfwdefs.SW_MODULESECT]:
@@ -157,9 +157,9 @@ def main(argv):
         query['file_archive_info']['join'] = "file_archive_info.filename=%s.filename" % qtable
         query['file_archive_info']['key_vals'] = {'archive_name': ','.join(archive_names)}
 
-    print "Calling gen_file_list with the following query:\n"
+    print("Calling gen_file_list with the following query:\n")
     miscutils.pretty_print_dict(query, out_file=None, sortit=False, indent=4)
-    print "\n\n"
+    print("\n\n")
     dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                       config.getfull('submit_des_db_section'))
     files = queryutils.gen_file_list(dbh, query)
@@ -176,5 +176,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    print ' '.join(sys.argv)
+    print(' '.join(sys.argv))
     sys.exit(main(sys.argv[1:]))

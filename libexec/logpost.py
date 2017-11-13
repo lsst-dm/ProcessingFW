@@ -21,10 +21,10 @@ def logpost(argv=None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(argv)  # print command line for debugging
+    print(' '.join(argv))  # print command line for debugging
 
     if len(argv) < 5:
-        print 'Usage: logpost configfile block subblocktype subblock retval'
+        print('Usage: logpost configfile block subblocktype subblock retval')
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -60,7 +60,7 @@ def logpost(argv=None):
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
     debugfh.close()
-    os.chmod('logpost.out', 0666)
+    os.chmod('logpost.out', 0o666)
     os.rename('logpost.out', new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

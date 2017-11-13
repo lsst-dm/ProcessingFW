@@ -44,10 +44,10 @@ class PfwConfig(WCL):
                 miscutils.fwdebug_print("Reading wclfile: %s" % (args['wclfile']))
             try:
                 starttime = time.time()
-                print "\tReading submit wcl...",
+                print("\tReading submit wcl...", end=' ')
                 with open(args['wclfile'], "r") as wclfh:
                     wclobj.read(wclfh, filename=args['wclfile'])
-                print "DONE (%0.2f secs)" % (time.time()-starttime)
+                print("DONE (%0.2f secs)" % (time.time()-starttime))
                 #wclobj['wclfile'] = args['wclfile']
             except IOError as err:
                 miscutils.fwdie("Error: Problem reading wcl file '%s' : %s" %
@@ -84,12 +84,12 @@ class PfwConfig(WCL):
             if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
                 miscutils.fwdebug_print("Reading pfwconfig: %s" % (pfwconfig))
             starttime = time.time()
-            print "\tReading config from software install...",
+            print("\tReading config from software install...", end=' ')
             pfwcfg_wcl = WCL()
             with open(pfwconfig, "r") as wclfh:
                 pfwcfg_wcl.read(wclfh, filename=pfwconfig)
             self.update(pfwcfg_wcl)
-            print "DONE (%0.2f secs)" % (time.time()-starttime)
+            print("DONE (%0.2f secs)" % (time.time()-starttime))
 
         use_db_in = None
         if pfwdefs.PF_USE_DB_IN in wclobj:
@@ -98,11 +98,11 @@ class PfwConfig(WCL):
             use_db_in = miscutils.convertBool(self[pfwdefs.PF_USE_DB_IN])
 
         if (use_db_in and 'get_db_config' in args and args['get_db_config']):
-            print "\tGetting defaults from DB...",
+            print("\tGetting defaults from DB...", end=' ')
             sys.stdout.flush()
             starttime = time.time()
             dbh = pfwdb.PFWDB(wclobj['submit_des_services'], wclobj['submit_des_db_section'])
-            print "DONE (%0.2f secs)" % (time.time()-starttime)
+            print("DONE (%0.2f secs)" % (time.time()-starttime))
             self.update(dbh.get_database_defaults())
 
         # wclfile overrides all, so must be added last
@@ -238,8 +238,8 @@ class PfwConfig(WCL):
 
         site = site.lower()
         if site not in self[pfwdefs.SW_SITESECT]:
-            print "Error: invalid site value (%s)" % (site)
-            print "\tsite defs contain entries for sites: ", self[pfwdefs.SW_SITESECT].keys()
+            print("Error: invalid site value (%s)" % (site))
+            print("\tsite defs contain entries for sites: ", list(self[pfwdefs.SW_SITESECT].keys()))
             miscutils.fwdie("Error: Invalid site value (%s)" % (site), pfwdefs.PF_EXIT_FAILURE)
         curdict['curr_site'] = site
         self['runsite'] = site
@@ -258,8 +258,8 @@ class PfwConfig(WCL):
 
             archive = archive.lower()
             if archive not in self[pfwdefs.SW_ARCHIVESECT]:
-                print "Error: invalid target_archive value (%s)" % archive
-                print "\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT]
+                print("Error: invalid target_archive value (%s)" % archive)
+                print("\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT])
                 miscutils.fwdie("Error: Invalid target_archive value (%s)" % archive,
                                 pfwdefs.PF_EXIT_FAILURE)
 
@@ -285,8 +285,8 @@ class PfwConfig(WCL):
 
             archive = archive.lower()
             if archive not in self[pfwdefs.SW_ARCHIVESECT]:
-                print "Error: invalid home_archive value (%s)" % archive
-                print "\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT]
+                print("Error: invalid home_archive value (%s)" % archive)
+                print("\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT])
                 miscutils.fwdie("Error: Invalid home_archive value (%s)" % archive,
                                 pfwdefs.PF_EXIT_FAILURE)
             curdict['curr_archive'] = archive
@@ -449,8 +449,8 @@ class PfwConfig(WCL):
             filenamepat = self[pfwdefs.SW_FILEPATSECT][filepat]
         else:
             miscutils.fwdebug_print("%s keys: %s" % (pfwdefs.SW_FILEPATSECT,
-                                                     self[pfwdefs.SW_FILEPATSECT].keys()))
-            print "searchopts =", searchopts
+                                                     list(self[pfwdefs.SW_FILEPATSECT].keys())))
+            print("searchopts =", searchopts)
             miscutils.fwdie("Error: Could not find value for filename pattern '%s' in file pattern section" %
                             filepat, pfwdefs.PF_EXIT_FAILURE, 2)
 
@@ -510,14 +510,14 @@ class PfwConfig(WCL):
             if 'list_order' in moduledict:
                 listorder = moduledict['list_order'].replace(' ', '').split(',')
             else:
-                listorder = moduledict[pfwdefs.SW_LISTSECT].keys()
+                listorder = list(moduledict[pfwdefs.SW_LISTSECT].keys())
             for key in listorder:
                 dataset.append(('list-%s' % key, moduledict[pfwdefs.SW_LISTSECT][key]))
         elif miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("no lists")
 
         if pfwdefs.SW_FILESECT in moduledict and len(moduledict[pfwdefs.SW_FILESECT]) > 0:
-            for key, val in moduledict[pfwdefs.SW_FILESECT].items():
+            for key, val in list(moduledict[pfwdefs.SW_FILESECT].items()):
                 dataset.append(('file-%s' % key, val))
         elif miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("no files")
@@ -530,9 +530,9 @@ class PfwConfig(WCL):
     def set_names(self):
         """ set names for use in patterns (i.e., blockname, modulename) """
 
-        for tsname, tsval in self.items():
+        for tsname, tsval in list(self.items()):
             if isinstance(tsval, dict):
-                for nsname, nsval in tsval.items():
+                for nsname, nsval in list(tsval.items()):
                     if isinstance(nsval, dict):
                         namestr = '%sname' % tsname
                         if namestr not in nsval:
@@ -546,7 +546,7 @@ class PfwConfig(WCL):
 
         notarget_exists, notarget = self.search(pfwdefs.PF_DRYRUN, opts)
         if notarget_exists and miscutils.convertBool(notarget):
-            print "Do not stage file due to dry run\n"
+            print("Do not stage file due to dry run\n")
             retval = False
         else:
             stagefiles_exists, stagefiles = self.search(pfwdefs.STAGE_FILES, opts)
@@ -589,7 +589,7 @@ class PfwConfig(WCL):
     def get_param_info(self, keys, opts=None):
         """ returns values for given list of keys """
         info = {}
-        for key, stat in keys.items():
+        for key, stat in list(keys.items()):
             (found, value) = self.search(key, opts)
             if found:
                 info[key] = value
@@ -605,12 +605,12 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         pfw = PfwConfig({'wclfile': sys.argv[1]})
         #pfw.write(sys.argv[2])
-        print pfwdefs.SW_BLOCKLIST in pfw
-        print 'not_there' in pfw
+        print(pfwdefs.SW_BLOCKLIST in pfw)
+        print('not_there' in pfw)
         pfw.set_block_info()
-        print pfw[pfwdefs.PF_BLKNUM]
+        print(pfw[pfwdefs.PF_BLKNUM])
         pfw.inc_blknum()
-        print pfw[pfwdefs.PF_BLKNUM]
+        print(pfw[pfwdefs.PF_BLKNUM])
         pfw.reset_blknum()
         pfw.set_block_info()
-        print pfw[pfwdefs.PF_BLKNUM]
+        print(pfw[pfwdefs.PF_BLKNUM])

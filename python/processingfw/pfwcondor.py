@@ -64,7 +64,7 @@ def compare_condor_version(ver2):
     if isinstance(ver2, float):
         ver2 = str(ver2)
     elif not isinstance(ver2, str):
-        print "Invalid ver2 type: ", type(ver2), ver2
+        print("Invalid ver2 type: ", type(ver2), ver2)
         raise Exception("Invalid ver2 type")
 
     comp = 0
@@ -115,7 +115,7 @@ def create_resource(info):
     """ Create string for globus_rsl line in condor description file """
     gridresource = ''
 
-    print '\ncreateResource: ', info
+    print('\ncreateResource: ', info)
 
     if 'gridresource' in info:
         gridresource += info['gridresource']
@@ -161,7 +161,7 @@ def create_rsl(info):
     """Create RSL for grid job"""
     rslparts = []
 
-    print "info=", info
+    print("info=", info)
     for key in ['stdout', 'stderr']:
         if key in info:
             rslparts.append('(%s=%s)' % (key, info[key]))
@@ -187,13 +187,13 @@ def create_rsl(info):
         env = ''
         infoenv = info['environment']
         if isinstance(infoenv, dict):
-            for (key, val) in infoenv.items():
+            for (key, val) in list(infoenv.items()):
                 env += '(%s %s)' % (key.upper(), val)
         else:
             env = infoenv
         rslparts.append('(environment=%s)' % env)
 
-    print "rslparts=", rslparts
+    print("rslparts=", rslparts)
     return ''.join(rslparts)
 
 
@@ -203,7 +203,7 @@ def create_condor_env(envvars):
     envparts = ['SUBMIT_CONDORID=$(Cluster).$(Process)']
 
     if isinstance(envvars, dict):
-        for (key, val) in envvars.items():
+        for (key, val) in list(envvars.items()):
             # Any literal double quote marks within the string must
             # be escaped by repeating the double quote mark
             val = val.replace('"', '""')
@@ -393,7 +393,7 @@ def parse_condor_user_log(logfilename):
                 else:
                     jobinfo[jobnum]['jobstat'] = 'U%s' % (code)
             else:
-                print 'warning unknown line: %s' % (line)
+                print('warning unknown line: %s' % (line))
 
     return jobinfo
 
@@ -430,10 +430,10 @@ def condor_q(args_str=''):
         raise CondorException('Error: Could not run condor_q. Check PATH.\n'+str(err))
 
     if process.returncode != 0:
-        print "Problem running condor_q - non-zero exit code"
-        print "Cmd = ", ' '.join(condorq_cmd)
+        print("Problem running condor_q - non-zero exit code")
+        print("Cmd = ", ' '.join(condorq_cmd))
         #print process.communicate()[0]
-        print process.communicate()[1]
+        print(process.communicate()[1])
         raise CondorException('Problem running condor_q - non-zero exit code')
 
     lines = out.split('\n')
@@ -474,7 +474,7 @@ def condorq_dag(args_str=''):
     top_jobs = []  # top dagman jobs
     orphan_jobs = []  # jobs whose parents aren't in queue or non-dagman jobs
 
-    for jobid, jobinfo in qjobs.iteritems():
+    for jobid, jobinfo in qjobs.items():
         if not 'children' in jobinfo:
             jobinfo['children'] = []
 
@@ -497,7 +497,7 @@ def condorq_dag(args_str=''):
 
 def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
     """ Create the condor description file for a DAG with added attributes """
-    print "add2dag: cwd =", os.getcwd()
+    print("add2dag: cwd =", os.getcwd())
     cmd = 'condor_submit_dag -f -no_submit -notification never '
 
     assert type(cmdopts) == dict
@@ -531,7 +531,7 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
         with open(addfile, 'w') as addfh:
             if initialdir:
                 addfh.write("initialdir=%s\n" % initialdir)
-            for key, val in attributes.items():
+            for key, val in list(attributes.items()):
                 if val.lower() != 'true' and val.lower() != 'false':
                     val = '"%s"' % val
                 addfh.write('+%s=%s\n' % (key, val))
@@ -545,7 +545,7 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
                                stderr=debugfh)
     process.wait()
     stat = process.returncode
-    print "stat = ", stat
+    print("stat = ", stat)
     debugfh.write('condor_submit_dag exit code: %s\n' % stat)
 
     if stat == 0:
@@ -585,9 +585,9 @@ def add2condor(condorstr, attributes, debugfh):
     debugfh.write('\n============\n')
 
     # add attributes to condor submit file
-    print attributes
+    print(attributes)
     info = ''
-    for key, val in attributes.items():
+    for key, val in list(attributes.items()):
         info += '+' + key + '="' + val + '"\n'
     info += '\nqueue\n'
     condorstr.replace('\nqueue', info)
@@ -718,7 +718,7 @@ def condor_rm(args_str=''):
             buf = os.read(process.stdout.fileno(), 5000)
 
         if process.returncode != 0:
-            print "Cmd = ", condorrm_cmd
+            print("Cmd = ", condorrm_cmd)
             raise CondorException('Problem running condor_rm - non-zero exit code'+process.communicate()[0])
     except Exception as err:
         raise CondorException('Error: Could not run condor_rm. Check PATH.\n'+str(err))
@@ -731,7 +731,7 @@ def status_target_jobs(job, qjobs):
     if '%snumjobs' % pfwdefs.ATTRIB_PREFIX in qjobs[qjobs[job]['children'][0]]:
         numtjobs = qjobs[qjobs[job]['children'][0]]['%snumjobs' % pfwdefs.ATTRIB_PREFIX]
     else:
-        print "Could not find %snumjobs in qjobs for job %s" % (pfwdefs.ATTRIB_PREFIX, job)
+        print("Could not find %snumjobs in qjobs for job %s" % (pfwdefs.ATTRIB_PREFIX, job))
 
     chstat = {'PEND': 0, 'UNSUB': 0, 'RUN': 0, 'HOLD': 0}
     for childjob in qjobs[job]['children']:

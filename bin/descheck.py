@@ -30,16 +30,16 @@ def main():
     # usePFWconfig and get_db_config set to True because dessubmit does
     #   (work only done at submit time)
     #   use_db_in=False in submit wcl overrides get_db_config
-    print "Gathering wcl..."
+    print("Gathering wcl...")
     config = pfwconfig.PfwConfig(args)
 
     config[pfwdefs.ATTNUM] = '0'   # must be string as if read from wcl file
     testcnts = pfwcheck.check(config, '')
 
-    print "\nTest Summary"
-    print "\tErrors: %d" % testcnts[0]
-    print "\tWarnings: %d" % testcnts[1]
-    print "\tItems fixed: %d" % testcnts[2]
+    print("\nTest Summary")
+    print("\tErrors: %d" % testcnts[0])
+    print("\tWarnings: %d" % testcnts[1])
+    print("\tItems fixed: %d" % testcnts[2])
 
 
 if __name__ == '__main__':

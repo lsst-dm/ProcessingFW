@@ -78,7 +78,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         result = OrderedDict()
         for line in curs:
-            d = dict(zip(desc, line))
+            d = dict(list(zip(desc, line)))
             result[d['name'].lower()] = d['pattern']
 
         curs.close()
@@ -126,7 +126,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         # create named bind strings for all parameters
         namebinds = {}
-        for k in allparams.keys():
+        for k in list(allparams.keys()):
             namebinds[k] = self.get_named_bind_string(k)
 
         # loop to try again, esp. for race conditions
@@ -231,10 +231,10 @@ class PFWDB(desdmdbi.DesDmDbi):
                 config['pfw_attempt_id'] = pfw_attempt_id
                 done = True
             except Exception:
-                print "\n\n"
-                print "sql> ", sql
-                print "params> ", params
-                print "namebinds> ", namebinds
+                print("\n\n")
+                print("sql> ", sql)
+                print("params> ", params)
+                print("namebinds> ", namebinds)
                 (_, value, _) = sys.exc_info()
                 if loopcnt < maxtries:
                     miscutils.fwdebug_print("Warning: %s" % value)
@@ -417,47 +417,47 @@ class PFWDB(desdmdbi.DesDmDbi):
                 curs.execute(sql, params)
             except:
                 (type, value, _) = sys.exc_info()
-                print "******************************"
-                print "Error:", type, value
-                print "sql> %s\n" % (sql)
-                print "params> %s\n" % params
+                print("******************************")
+                print("Error:", type, value)
+                print("sql> %s\n" % (sql))
+                print("params> %s\n" % params)
                 raise
 
             if curs.rowcount == 0:
                 Messaging.pfw_message(self, wcl['pfw_attempt_id'], wcl['task_id']['job'],
                                       "Job attempted to run more than once", pfw_utils.PFWDB_MSG_ERROR)
 
-                print "******************************"
-                print "Error:  This job has already been run before."
-                print "pfw_attempt_id = ", wcl['pfw_attempt_id']
-                print "reqnum = ", wcl[pfwdefs.REQNUM]
-                print "unitname = ", wcl[pfwdefs.UNITNAME]
-                print "attnum = ", wcl[pfwdefs.ATTNUM]
-                print "blknum = ", wcl[pfwdefs.PF_BLKNUM]
-                print "jobnum = ", wcl[pfwdefs.PF_JOBNUM]
-                print "job task_id = ", wcl['task_id']['job']
+                print("******************************")
+                print("Error:  This job has already been run before.")
+                print("pfw_attempt_id = ", wcl['pfw_attempt_id'])
+                print("reqnum = ", wcl[pfwdefs.REQNUM])
+                print("unitname = ", wcl[pfwdefs.UNITNAME])
+                print("attnum = ", wcl[pfwdefs.ATTNUM])
+                print("blknum = ", wcl[pfwdefs.PF_BLKNUM])
+                print("jobnum = ", wcl[pfwdefs.PF_JOBNUM])
+                print("job task_id = ", wcl['task_id']['job'])
 
-                print "\nThe 1st job information:"
+                print("\nThe 1st job information:")
                 curs2 = self.cursor()
                 sql = "select * from pfw_job, task where pfw_job.task_id=task.id and pfw_job.task_id=%s" % (
                     self.get_named_bind_string('task_id'))
                 curs2.execute(sql, {'task_id': wcl['task_id']['job']})
                 desc = [d[0].lower() for d in curs2.description]
                 for row in curs2:
-                    d = dict(zip(desc, row))
-                    for k, v in d.items():
-                        print k, v
-                    print "\n"
+                    d = dict(list(zip(desc, row)))
+                    for k, v in list(d.items()):
+                        print(k, v)
+                    print("\n")
 
-                print "\nThe 2nd job information:"
-                print "submit_condor_id = ", submit_condor_id
-                print "target_batch_id = ", target_batch_id
-                print "exechost = ", exechost
-                print "current time = ", str(datetime.now())
+                print("\nThe 2nd job information:")
+                print("submit_condor_id = ", submit_condor_id)
+                print("target_batch_id = ", target_batch_id)
+                print("exechost = ", exechost)
+                print("current time = ", str(datetime.now()))
 
-                print "\nupdate statement information"
-                print "sql> %s\n" % sql
-                print "params> %s\n" % params
+                print("\nupdate statement information")
+                print("sql> %s\n" % sql)
+                print("params> %s\n" % params)
 
                 raise Exception("Error: job attempted to run more than once")
 
@@ -631,7 +631,7 @@ class PFWDB(desdmdbi.DesDmDbi):
                 if rkey in execwcl['procinfo']:
                     updatevals[pkey] = execwcl['procinfo'][rkey]
                 else:
-                    print "Warn:  didn't find %s in proc info" % rkey
+                    print("Warn:  didn't find %s in proc info" % rkey)
 
         if len(updatevals) > 0:
             wherevals = {}
@@ -684,8 +684,8 @@ class PFWDB(desdmdbi.DesDmDbi):
                   'num_requested': len(files_to_compress),
                   'tot_bytes_before': tot_bytes_before}
         sql = "insert into compress_task (%s) values (%s)" % \
-              (','.join(params.keys()),
-               ','.join([self.get_named_bind_string(x) for x in params.keys()]))
+              (','.join(list(params.keys())),
+               ','.join([self.get_named_bind_string(x) for x in list(params.keys())]))
         curs = self.cursor()
         curs.execute(sql, params)
         self.commit()
@@ -747,7 +747,7 @@ class PFWDB(desdmdbi.DesDmDbi):
     def get_job_info(self, wherevals):
         """ Get job information """
         whclause = []
-        for c in wherevals.keys():
+        for c in list(wherevals.keys()):
             whclause.append("%s=%s" % (c, self.get_named_bind_string(c)))
         sql = "select j.*,t.* from pfw_job j, task t where t.id=j.task_id and %s" % (' and '.join(whclause))
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
@@ -771,14 +771,14 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         jobinfo = {}
         for line in curs:
-            d = dict(zip(desc, line))
+            d = dict(list(zip(desc, line)))
 
             # check for pfw_messages from job
             curs2.execute(None, {'task_id': d['task_id']})
             desc2 = [x[0].lower() for x in curs2.description]
             msglist = []
             for r in curs2:
-                mdict = dict(zip(desc2, r))
+                mdict = dict(list(zip(desc2, r)))
                 msglist.append(mdict)
 
             # check for pfw_messages from any job "children" tasks
@@ -786,7 +786,7 @@ class PFWDB(desdmdbi.DesDmDbi):
             desc3 = [x[0].lower() for x in curs3.description]
 
             for r in curs3:
-                mdict = dict(zip(desc3, r))
+                mdict = dict(list(zip(desc3, r)))
                 msglist.append(mdict)
             d['message'] = msglist
             jobinfo[d['task_id']] = d
@@ -810,7 +810,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         attinfo = None
         row = curs.fetchone()    # should only be 1 row
         if row is not None:
-            attinfo = dict(zip(desc, row))
+            attinfo = dict(list(zip(desc, row)))
         return attinfo
 
     def get_block_info(self, **kwargs):
@@ -821,7 +821,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         else:
             sql = 'select * from pfw_block where '
 
-        wherevals = ["%s='%s'" % (k, v) for k, v in kwargs.iteritems()]
+        wherevals = ["%s='%s'" % (k, v) for k, v in kwargs.items()]
         sql += ' and '.join(wherevals)
 
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
@@ -831,7 +831,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         desc = [d[0].lower() for d in curs.description]
         blockinfo = {}
         for line in curs:
-            b = dict(zip(desc, line))
+            b = dict(list(zip(desc, line)))
             blockinfo[b['task_id']] = b
         return blockinfo
 
@@ -840,7 +840,7 @@ class PFWDB(desdmdbi.DesDmDbi):
 
         sql = "select task.* from pfw_attempt, task where pfw_attempt.task_id=task.root_task_id and task.name='jobwrapper' and "
 
-        wherevals = ["pfw_attempt.%s='%s'" % (k, v) for k, v in kwargs.iteritems()]
+        wherevals = ["pfw_attempt.%s='%s'" % (k, v) for k, v in kwargs.items()]
         sql += ' and '.join(wherevals)
 
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
@@ -850,7 +850,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         desc = [d[0].lower() for d in curs.description]
         jobwraps = {}
         for line in curs:
-            d = dict(zip(desc, line))
+            d = dict(list(zip(desc, line)))
             jobwraps[d['id']] = d
 
         return jobwraps
@@ -863,7 +863,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         else:
             sql = 'select pw.*,t.* from pfw_wrapper pw, task t where pw.task_id=t.id and '
 
-        wherevals = ["%s='%s'" % (k, v) for k, v in kwargs.iteritems()]
+        wherevals = ["%s='%s'" % (k, v) for k, v in kwargs.items()]
         sql += ' and '.join(wherevals)
 
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
@@ -873,7 +873,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         desc = [d[0].lower() for d in curs.description]
         wrappers = {}
         for line in curs:
-            d = dict(zip(desc, line))
+            d = dict(list(zip(desc, line)))
             wrappers[d['task_id']] = d
 
         return wrappers
@@ -889,7 +889,7 @@ class PFWDB(desdmdbi.DesDmDbi):
         desc = [d[0].lower() for d in curs.description]
         info = {}
         for line in curs:
-            d = dict(zip(desc, line))
+            d = dict(list(zip(desc, line)))
             info[d['name']] = d
         return info
 
@@ -905,7 +905,7 @@ class PFWDB(desdmdbi.DesDmDbi):
             wherevals['blknum'] = blknum
 
         whclause = []
-        for k in wherevals.keys():
+        for k in list(wherevals.keys()):
             whclause.append("%s=%s" % (k, self.get_named_bind_string(k)))
 
         # search for output files
@@ -950,7 +950,7 @@ class PFWDB(desdmdbi.DesDmDbi):
             filedict[row[0]] = True
 
         # convert dictionary to list
-        filelist = filedict.keys()
+        filelist = list(filedict.keys())
         if miscutils.fwdebug_check(3, 'PFWDB_DEBUG'):
             miscutils.fwdebug_print("filelist = %s" % filelist)
 

@@ -27,19 +27,19 @@ def endblock(configfile):
         target_info = None
         if pfwdefs.USE_TARGET_ARCHIVE_OUTPUT in config and \
                 config[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT].lower() != 'never':
-            print config[pfwdefs.TARGET_ARCHIVE]
+            print(config[pfwdefs.TARGET_ARCHIVE])
             if pfwdefs.TARGET_ARCHIVE in config and \
                     config[pfwdefs.TARGET_ARCHIVE] in config.getfull(pfwdefs.SW_ARCHIVESECT):
                 target_info = config.getfull(pfwdefs.SW_ARCHIVESECT)[config.getfull(pfwdefs.TARGET_ARCHIVE)]
             else:
-                print "Error:  cannot determine info for target archive"
+                print("Error:  cannot determine info for target archive")
                 return pfwdefs.PF_EXIT_FAILURE
         else:
-            print "Error:  Asked to transfer outputs at end of block, but not using target archive"
+            print("Error:  Asked to transfer outputs at end of block, but not using target archive")
             return pfwdefs.PF_EXIT_FAILURE
 
         home_info = None
-        print config.getfull(pfwdefs.HOME_ARCHIVE)
+        print(config.getfull(pfwdefs.HOME_ARCHIVE))
         if pfwdefs.HOME_ARCHIVE in config and \
                 config.getfull(pfwdefs.HOME_ARCHIVE) in config[pfwdefs.SW_ARCHIVESECT]:
             home_info = config[pfwdefs.SW_ARCHIVESECT][config.getfull(pfwdefs.HOME_ARCHIVE)]
@@ -53,8 +53,8 @@ def endblock(configfile):
                                             config.getfull(pfwdefs.PF_BLKNUM),
                                             config.getfull(pfwdefs.TARGET_ARCHIVE))
         else:
-            print "Error:  Asked to transfer outputs at end of block, but not using database."
-            print "        Currently not supported."
+            print("Error:  Asked to transfer outputs at end of block, but not using database.")
+            print("        Currently not supported.")
             return pfwdefs.PF_EXIT_FAILURE
 
         # call transfer
@@ -67,10 +67,10 @@ def endblock(configfile):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print "Usage: endblock.py configfile"
+        print("Usage: endblock.py configfile")
         sys.exit(pfwdefs.PF_EXIT_FAILURE)
 
-    print ' '.join(sys.argv)    # print command so can run by hand if needed
+    print(' '.join(sys.argv))    # print command so can run by hand if needed
     sys.stdout.flush()
 
     sys.exit(endblock(sys.argv[1]))

@@ -35,14 +35,14 @@ def get_attempt_from_condor_id(givcondorid):
     """ Get attempt string from given condor id """
     masterjob = pfwcondor.condor_q(givcondorid)
     if givcondorid not in masterjob:
-        print "Error: attempt is not in current condor queue.   Not deleting attempt."
+        print("Error: attempt is not in current condor queue.   Not deleting attempt.")
         return 1
 
     attemptkey = pfwdefs.ATTRIB_PREFIX + 'attempt'
     if attemptkey not in masterjob[givcondorid]:
-        print "Given argument doesn't look like a desdm job (missing %s)."
-        print "    Not deleting attempt" % attemptkey
-        print masterjob
+        print("Given argument doesn't look like a desdm job (missing %s).")
+        print("    Not deleting attempt" % attemptkey)
+        print(masterjob)
         sys.exit(1)
 
     attempt = masterjob[givcondorid][attemptkey]
@@ -53,8 +53,8 @@ def parse_attempt_str(attempt):
     """ Parse attempt string to get reqnum, unitname, attnum """
     match = re.match(r"(.+)_r(\d+)p(\d+)", attempt)
     if not match:
-        print "Error: attempt is not correct format (<unitname>_r<reqnum>p<attnum>)."
-        print "  Not deleting attempt"
+        print("Error: attempt is not correct format (<unitname>_r<reqnum>p<attnum>).")
+        print("  Not deleting attempt")
         sys.exit(1)
 
     reqnum = match.group(2)
@@ -73,11 +73,11 @@ def get_attempt_info_from_db(dbh, reqnum, unitname, attnum):
     curs.execute(sql)
     rows = curs.fetchall()
     if len(rows) > 1:
-        print "Error:   Found more than 1 row in pfw_attempt for the attempt"
-        print rows
+        print("Error:   Found more than 1 row in pfw_attempt for the attempt")
+        print(rows)
         sys.exit(1)
     elif len(rows) == 0:
-        print "Error:  Found 0 rows in pfw_attempt for the given attempt"
+        print("Error:  Found 0 rows in pfw_attempt for the given attempt")
         sys.exit(1)
 
     condorid = str(rows[0][0])
@@ -101,7 +101,7 @@ def main(argv=None):
     if '_' not in attempt:
         match = re.match(r"(\d+)[.\d+]?", attempt)
         if not match:
-            print "Given argument doesn't look like a condor id.   Not deleting attempt"
+            print("Given argument doesn't look like a condor id.   Not deleting attempt")
             sys.exit(1)
 
         givcondorid = match.group(1)
@@ -112,8 +112,8 @@ def main(argv=None):
     dbh = pfwdb.PFWDB(args.des_services, args.section)
     (condorid, attempt_task_id) = get_attempt_info_from_db(dbh, reqnum, unitname, attnum)
     if givcondorid is not None and givcondorid != condorid:
-        print "Error:  Condor id from DB doesn't match given condor id.  Not deleting attempt"
-        print "(%s, %s)" % (givcondorid, condorid)
+        print("Error:  Condor id from DB doesn't match given condor id.  Not deleting attempt")
+        print("(%s, %s)" % (givcondorid, condorid))
         sys.exit(1)
 
     #print "Condor id = ", condorid
@@ -121,11 +121,11 @@ def main(argv=None):
     if condorid is not None:
         masterjob = pfwcondor.condor_q(str(condorid))
         if len(masterjob) == 0:
-            print "Error: attempt is not in current condor queue.   Not deleting attempt."
+            print("Error: attempt is not in current condor queue.   Not deleting attempt.")
             sys.exit(1)
 
-    print "Deleting attempt: reqnum=%s, unitname=%s, attnum=%s, condorid=%s" % \
-        (reqnum, unitname, attnum, condorid)
+    print("Deleting attempt: reqnum=%s, unitname=%s, attnum=%s, condorid=%s" % \
+        (reqnum, unitname, attnum, condorid))
 
     # delete top condor job for attempt
     pfwcondor.condor_rm(condorid)

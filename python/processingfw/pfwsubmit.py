@@ -61,7 +61,7 @@ def check_proxy(config):
             timeleft = pfwcondor.get_grid_proxy_timeleft()
             assert timeleft > 0
             if timeleft < 21600:   # 5 * 60 * 60
-                print "Warning:  Proxy expires in less than 5 hours"
+                print("Warning:  Proxy expires in less than 5 hours")
                 break
         config.inc_blknum()
 
@@ -78,7 +78,7 @@ def create_common_vars(config, jobname):
     varstr = ""
     if len(attribs) > 0:
         varstr = "VARS %s" % jobname
-        for (key, val) in attribs.items():
+        for (key, val) in list(attribs.items()):
             varstr += ' %s="%s"' % (key[len(pfwdefs.ATTRIB_PREFIX):], val)
     varstr += ' jobname="%s"' % jobname
     varstr += ' pfwdir="%s"' % config.getfull('processingfw_dir')
@@ -99,7 +99,7 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
 
     miscutils.coremakedirs(blkdir)
     os.chdir(blkdir)
-    print "curr dir = ", os.getcwd()
+    print("curr dir = ", os.getcwd())
 
     configfile = "../uberctrl/config.des"
 
@@ -177,7 +177,7 @@ def write_main_dag(config, maindag):
     """ Writes main manager dag input file """
     pfwdir = config.getfull('processingfw_dir')
 
-    print "maindag = '%s', type=%s" % (maindag, type(maindag))
+    print("maindag = '%s', type=%s" % (maindag, type(maindag)))
     dagfh = open(maindag, 'w')
 
     dagfh.write("""
@@ -229,7 +229,7 @@ def run_sys_checks():
     """ Check valid system environemnt (e.g., condor setup) """
 
     ### Check for Condor in path as well as daemons running
-    print '\tChecking for Condor....',
+    print('\tChecking for Condor....', end=' ')
     max_tries = 5
     try_delay = 60 # seconds
 
@@ -241,19 +241,19 @@ def run_sys_checks():
             pfwcondor.check_condor('7.4.0')
             done = True
         except pfwcondor.CondorException as excpt:
-            print "ERROR"
-            print str(excpt)
+            print("ERROR")
+            print(str(excpt))
             if trycnt < max_tries:
-                print "\nSleeping and then retrying"
+                print("\nSleeping and then retrying")
                 time.sleep(try_delay)
         except Exception as excpt:
-            print "ERROR"
+            print("ERROR")
             raise excpt
 
     if not done and trycnt >= max_tries:
         miscutils.fwdie("Too many errors.  Aborting.", pfwdefs.PF_EXIT_FAILURE)
 
-    print "DONE"
+    print("DONE")
 
 
 def submit_main_dag(config, dagfile, logfh):
@@ -265,16 +265,16 @@ def submit_main_dag(config, dagfile, logfh):
         logfh.write('\ncondor_submit %s.condor.sub\n%s\n' %
                     (dagfile, outtuple[0]))
     else:
-        print '\nImage processing successfully submitted to condor:'
-        print '\tRun = %s' % (config.getfull('submit_run'))
-        print "\tpfw_attempt_id = %s" % (config['pfw_attempt_id'])
-        print "\tpfw_attempt task_id = %s" % (config['task_id']['attempt'])
-    print '\n'
+        print('\nImage processing successfully submitted to condor:')
+        print('\tRun = %s' % (config.getfull('submit_run')))
+        print("\tpfw_attempt_id = %s" % (config['pfw_attempt_id']))
+        print("\tpfw_attempt task_id = %s" % (config['task_id']['attempt']))
+    print('\n')
 
     # for completeness, log condorid of pipeline manager
     dagjob = pfwcondor.parse_condor_user_log('%s/%s.dagman.log' %
                                              (config.getfull('uberctrl_dir'), dagfile))
-    jobids = dagjob.keys()
+    jobids = list(dagjob.keys())
     condorid = None
     if len(jobids) == 1:
         condorid = int(jobids[0])
@@ -295,16 +295,16 @@ def create_submitside_dirs(config):
     if os.path.exists(workdir):
         raise Exception('%s subdirectory already exists.\nAborting submission' % (workdir))
 
-    print '\tMaking submit run directory...',
+    print('\tMaking submit run directory...', end=' ')
     miscutils.coremakedirs(workdir)
-    print 'DONE'
+    print('DONE')
 
     uberdir = config.getfull('uberctrl_dir')
     if miscutils.fwdebug_check(3, 'PFWSUBMIT_DEBUG'):
         miscutils.fwdebug_print("uberdir = %s" % uberdir)
-    print '\tMaking submit uberctrl directory...',
+    print('\tMaking submit uberctrl directory...', end=' ')
     miscutils.coremakedirs(uberdir)
-    print 'DONE'
+    print('DONE')
 
 
 if __name__ == "__main__":

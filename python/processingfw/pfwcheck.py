@@ -22,17 +22,17 @@ CLEANCNT_POS = 3
 
 
 def warning(indent, message):
-    print "%s\033[1;33mWarning\033[1;m: %s" % (indent, message)
+    print("%s\033[1;33mWarning\033[1;m: %s" % (indent, message))
 
 
 def error(indent, message):
-    print "%s\033[1;31mError\033[1;m: %s" % (indent, message)
+    print("%s\033[1;31mError\033[1;m: %s" % (indent, message))
 
 
 def check_globals(config, indent=''):
     """ Check global settings """
 
-    print "%sChecking globals..." % (indent)
+    print("%sChecking globals..." % (indent))
 
     # initialize counters
     cnts = [0] * NUMCNTS
@@ -83,7 +83,7 @@ def check_globals(config, indent=''):
         error(indent+'    ', 'Operator cannot be shared login (%s).' % (config.getfull('operator')))
         cnts[ERRCNT_POS] += 1
 
-    print '%s    Checking %s...' % (indent, pfwdefs.SW_SAVE_RUN_VALS)
+    print('%s    Checking %s...' % (indent, pfwdefs.SW_SAVE_RUN_VALS))
     if pfwdefs.SW_SAVE_RUN_VALS in config:
         keys2save = config.getfull(pfwdefs.SW_SAVE_RUN_VALS)
         keys = miscutils.fwsplit(keys2save, ',')
@@ -116,7 +116,7 @@ def check_block(config, indent=''):
 
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for blockname in blocklist:
-        print "%sChecking block %s..." % (indent, blockname)
+        print("%sChecking block %s..." % (indent, blockname))
         config.set_block_info()
 
         for key in [pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT]:
@@ -141,7 +141,7 @@ def check_block(config, indent=''):
             for modname in modulelist:
                 if modname not in config[pfwdefs.SW_MODULESECT]:
                     error(indent+'    ', "block %s - invalid %s" % (blockname, pfwdefs.SW_MODULELIST))
-                    print "%s        (bad module name: %s, list: %s)" % (indent, modname, modulelist)
+                    print("%s        (bad module name: %s, list: %s)" % (indent, modname, modulelist))
                     cnts[ERRCNT_POS] += 1
                 else:
                     cnts2 = check_module(config, blockname, modname, indent+'    ')
@@ -163,7 +163,7 @@ def check_target_archive(config, indent=''):
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking target archive..." % (indent)
+    print("%sChecking target archive..." % (indent))
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for blockname in blocklist:
         config.set_block_info()
@@ -221,7 +221,7 @@ def check_home_archive(config, indent=''):
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking home archive..." % (indent)
+    print("%sChecking home archive..." % (indent))
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
     for blockname in blocklist:
         config.set_block_info()
@@ -277,7 +277,7 @@ def check_module(config, blockname, modname, indent=''):
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking module %s..." % (indent, modname)
+    print("%sChecking module %s..." % (indent, modname))
     moddict = config[pfwdefs.SW_MODULESECT][modname]
     dataobjs = {pfwdefs.SW_INPUTS: {}, pfwdefs.SW_OUTPUTS: {}}
 
@@ -413,7 +413,7 @@ def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
     if pfwdefs.SW_INPUTS in xsectdict:
-        print "%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_INPUTS)
+        print("%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_INPUTS))
         indent += '    '
         #print "%sxsectdict[pfwdefs.SW_INPUTS] = %s" % (indent, xsectdict[pfwdefs.SW_INPUTS])
         # for each entry in inputs
@@ -529,7 +529,7 @@ def check_exec_outputs(config, blockname, modname, dataobjs, xsectname, xsectdic
 
     if pfwdefs.SW_OUTPUTS in xsectdict:
         # for each entry in inputs
-        print "%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_OUTPUTS)
+        print("%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_OUTPUTS))
         indent += '    '
         #print "%sxsectdict[pfwdefs.SW_OUTPUTS] = %s" % (indent, xsectdict[pfwdefs.SW_OUTPUTS])
         for objname in miscutils.fwsplit(xsectdict[pfwdefs.SW_OUTPUTS], ','):
@@ -560,7 +560,7 @@ def check_exec_parentchild(config, blockname, modname, dataobjs, xsectname, xsec
 
     cnts = [0] * NUMCNTS
     if pfwdefs.SW_PARENTCHILD in xsectdict:
-        print "%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_PARENTCHILD)
+        print("%sChecking %s %s..." % (indent, xsectname, pfwdefs.SW_PARENTCHILD))
         indent += '    '
         #print "%sxsectdict[pfwdefs.SW_PARENTCHILD] = %s" % (indent, xsectdict[pfwdefs.SW_PARENTCHILD])
         #print "%sdataobjs[pfwdefs.SW_INPUTS] = %s" % (indent, dataobjs[pfwdefs.SW_INPUTS])
@@ -613,8 +613,8 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
 
     # check every file
     if pfwdefs.SW_FILESECT in moddict:
-        print "%sChecking %s section..." % (indent, pfwdefs.SW_FILESECT)
-        for fname, fdict in moddict[pfwdefs.SW_FILESECT].items():
+        print("%sChecking %s section..." % (indent, pfwdefs.SW_FILESECT))
+        for fname, fdict in list(moddict[pfwdefs.SW_FILESECT].items()):
             key = '%s.%s' % (pfwdefs.SW_FILESECT, fname)
             if key not in dataobjs[pfwdefs.SW_INPUTS] and \
                key not in dataobjs[pfwdefs.SW_OUTPUTS] and \
@@ -635,8 +635,8 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
 
     # check every list
     if pfwdefs.SW_LISTSECT in moddict:
-        print "%sChecking %s section..." % (indent, pfwdefs.SW_LISTSECT)
-        for lname, ldict in moddict[pfwdefs.SW_LISTSECT].items():
+        print("%sChecking %s section..." % (indent, pfwdefs.SW_LISTSECT))
+        for lname, ldict in list(moddict[pfwdefs.SW_LISTSECT].items()):
             key = '%s.%s' % (pfwdefs.SW_LISTSECT, lname)
             if key not in dataobjs[pfwdefs.SW_INPUTS] and \
                key not in dataobjs[pfwdefs.SW_OUTPUTS]:
@@ -724,7 +724,7 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
 
     cnts = [0] * NUMCNTS
 
-    print "%sChecking %s..." % (indent, xsectname)
+    print("%sChecking %s..." % (indent, xsectname))
     try:
         cnts2 = check_exec_inputs(config, blockname, modname, dataobjs,
                                   xsectname, xsectdict, indent+'    ')
@@ -778,13 +778,13 @@ def check(config, indent=''):
     cnts2 = check_globals(config, indent)
     cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     if cnts[ERRCNT_POS] > 0:
-        print "%sAborting test" % (indent)
+        print("%sAborting test" % (indent))
         return cnts
 
     cnts2 = check_block(config, indent)
     cnts = [x + y for x, y in zip(cnts, cnts2)] # increment counts
     if cnts[ERRCNT_POS] > 0:
-        print "%sAborting test" % (indent)
+        print("%sAborting test" % (indent))
         return cnts
 
     cnts2 = check_target_archive(config, indent)
@@ -803,4 +803,4 @@ def check(config, indent=''):
 
 
 if __name__ == '__main__':
-    print "No main program.   Run descheck.py instead"
+    print("No main program.   Run descheck.py instead")

@@ -65,7 +65,7 @@ def begblock(argv):
         filelist = {'infiles': {},
                     'outfiles': {}}
         for num, modname in enumerate(modulelist):
-            print "XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname
+            print("XXXXXXXXXXXXXXXXXXXX %s XXXXXXXXXXXXXXXXXXXX" % modname)
             if modname not in config[pfwdefs.SW_MODULESECT]:
                 miscutils.fwdie("Error: Could not find module description for module %s\n" %
                                 (modname), pfwdefs.PF_EXIT_FAILURE)
@@ -87,11 +87,11 @@ def begblock(argv):
                 sublists = pfwblock.create_sublists(config, modname, masterdata)
                 if sublists is not None:
                     if miscutils.fwdebug_check(3, 'PFWBLOCK_DEBUG'):
-                        miscutils.fwdebug_print("sublists.keys() = %s" % (sublists.keys()))
+                        miscutils.fwdebug_print("sublists.keys() = %s" % (list(sublists.keys())))
                 loopvals = pfwblock.get_wrapper_loopvals(config, modname)
                 wrapinst = pfwblock.create_wrapper_inst(config, modname, loopvals)
                 wcnt = 1
-                for winst in wrapinst.values():
+                for winst in list(wrapinst.values()):
                     if miscutils.fwdebug_check(6, 'PFWBLOCK_DEBUG'):
                         miscutils.fwdebug_print("winst %d - BEG" % wcnt)
                     pfwblock.assign_data_wrapper_inst(config, modname, winst, masterdata,
@@ -99,7 +99,7 @@ def begblock(argv):
                     pfwblock.finish_wrapper_inst(config, modname, winst, outfsect)
                     tempfiles = pfwblock.create_module_wrapper_wcl(config, modname, winst)
                     for fl in tempfiles['infiles']:
-                        if fl not in filelist['infiles'].keys():
+                        if fl not in list(filelist['infiles'].keys()):
                             filelist['infiles'][fl] = num
 
                     for fl in tempfiles['outfiles']:
@@ -121,7 +121,7 @@ def begblock(argv):
         intersect = list(set(filelist['infiles'].keys()) & set(filelist['outfiles'].keys()))
         finallist = []
 
-        for fl in filelist['infiles'].keys():
+        for fl in list(filelist['infiles'].keys()):
             if fl not in intersect:
                 finallist.append(fl)
             else:
@@ -231,9 +231,9 @@ def write_workflow_taskfile(config, jobnum, tasks):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print "Usage: begblock.py configfile"
+        print("Usage: begblock.py configfile")
         sys.exit(pfwdefs.PF_EXIT_FAILURE)
 
-    print ' '.join(sys.argv)    # print command so can run by hand if needed
+    print(' '.join(sys.argv))    # print command so can run by hand if needed
     sys.stdout.flush()
     sys.exit(begblock(sys.argv[1:]))

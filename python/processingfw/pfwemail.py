@@ -7,7 +7,7 @@
 import os
 import glob
 import subprocess
-from cStringIO import StringIO
+from io import StringIO
 
 import processingfw.pfwdefs as pfwdefs
 import intgutils.intgdefs as intgdefs
@@ -94,28 +94,28 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
     (exists, email) = config.search('email', {intgdefs.REPLACE_VARS: True})
     if exists:
         if sendit:
-            print "Sending %s as email to %s (block=%s)" % (mailfile, email, block)
+            print("Sending %s as email to %s (block=%s)" % (mailfile, email, block))
             mailfh = open(mailfile, 'r')
-            print subprocess.check_output(['/bin/mail', '-s', '%s' % subject, email], stdin=mailfh)
+            print(subprocess.check_output(['/bin/mail', '-s', '%s' % subject, email], stdin=mailfh))
             mailfh.close()
             # don't delete email file as helps others debug as well as sometimes emails are missed
         else:
-            print "Not sending %s as email to %s (block=%s)" % (mailfile, email, block)
-            print "subject: %s" % subject
+            print("Not sending %s as email to %s (block=%s)" % (mailfile, email, block))
+            print("subject: %s" % subject)
     else:
-        print block, "No email address.  Not sending email."
+        print(block, "No email address.  Not sending email.")
 
 
 def send_subblock_email(config, block, subblock, retval):
     """create PFW subblock email and send it"""
-    print "send_subblock_email BEG"
-    print "send_subblock_email block=%s" % block
-    print "send_subblock_email subblock=%s" % subblock
-    print "send_subblock_email retval=%s" % retval
+    print("send_subblock_email BEG")
+    print("send_subblock_email block=%s" % block)
+    print("send_subblock_email subblock=%s" % subblock)
+    print("send_subblock_email retval=%s" % retval)
     msg1 = "Failed subblock = %s" % subblock
     msg2 = get_subblock_output(subblock)
     send_email(config, block, retval, "[FAILED]", msg1, msg2)
-    print "send_subblock_email END"
+    print("send_subblock_email END")
 
 
 def get_job_info(block):

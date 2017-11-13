@@ -42,8 +42,8 @@ def create_master_list(config, configfile, modname, moddict,
     if 'exec' in search_dict:
         prog = search_dict['exec']
         if 'args' not in search_dict:
-            print "\t\tWarning:  %s in module %s does not have args defined\n" % \
-                (search_name, modname)
+            print("\t\tWarning:  %s in module %s does not have args defined\n" % \
+                (search_name, modname))
             args = ""
         else:
             args = search_dict['args']
@@ -61,8 +61,8 @@ def create_master_list(config, configfile, modname, moddict,
                (qoutfile, qouttype, configfile, modname, search_name)
 
     if not prog:
-        print "\tWarning: %s in module %s does not have exec or %s defined" % \
-            (search_name, modname, pfwdefs.SW_QUERYFIELDS)
+        print("\tWarning: %s in module %s does not have exec or %s defined" % \
+            (search_name, modname, pfwdefs.SW_QUERYFIELDS))
         return
 
     search_dict['qoutfile'] = qoutfile
@@ -104,13 +104,13 @@ def create_master_list(config, configfile, modname, moddict,
         pfw_dbh = None
 
     cwd = os.getcwd()
-    print "\t\tCalling code to create master list for obj %s in module %s" % \
-        (search_name, modname)
-    print "\t\t", prog, args
-    print "\t\tSee output in %s/%s" % (cwd, qlog)
-    print "\t\tSee master list will be in %s/%s" % (cwd, qoutfile)
+    print("\t\tCalling code to create master list for obj %s in module %s" % \
+        (search_name, modname))
+    print("\t\t", prog, args)
+    print("\t\tSee output in %s/%s" % (cwd, qlog))
+    print("\t\tSee master list will be in %s/%s" % (cwd, qoutfile))
 
-    print "\t\tCreating master list - start ", time.time()
+    print("\t\tCreating master list - start ", time.time())
 
     cmd = "%s %s" % (prog, args)
     exitcode = None
@@ -121,14 +121,14 @@ def create_master_list(config, configfile, modname, moddict,
         #exitcode = pfwutils.run_cmd_qcf(cmd, qlog, query_tid, os.path.basename(prog),
         #                                5000, config.getfull(pfwdefs.PF_USE_QCF))
     except:
-        print "******************************"
-        print "Error: "
+        print("******************************")
+        print("Error: ")
         (extype, exvalue, trback) = sys.exc_info()
-        print "******************************"
+        print("******************************")
         traceback.print_exception(extype, exvalue, trback, file=sys.stdout)
         exitcode = pfwdefs.PF_EXIT_FAILURE
 
-    print "\t\tCreating master list - end ", time.time()
+    print("\t\tCreating master list - end ", time.time())
     sys.stdout.flush()
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         pfw_dbh = pfwdb.PFWDB()
@@ -152,24 +152,24 @@ def runqueries(config, configfile, modname, modules_prev_in_list):
         if 'list_order' in moddict:
             listorder = miscutils.fwsplit(moddict['list_order'].lower())
         else:
-            listorder = uber_list_dict.keys()
+            listorder = list(uber_list_dict.keys())
 
         for listname in listorder:
             list_dict = uber_list_dict[listname]
             if 'depends' not in list_dict or \
                     list_dict['depends'] not in modules_prev_in_list:
-                print "\t%s-%s: creating master list\n" % \
-                      (modname, listname)
+                print("\t%s-%s: creating master list\n" % \
+                      (modname, listname))
                 create_master_list(config, configfile, modname,
                                    moddict, listname, list_dict, pfwdefs.SW_LISTSECT)
 
     # process each "file" in each module
     if pfwdefs.SW_FILESECT in moddict:
-        for filename, file_dict in moddict[pfwdefs.SW_FILESECT].items():
+        for filename, file_dict in list(moddict[pfwdefs.SW_FILESECT].items()):
             if 'depends' not in file_dict or \
                     not file_dict['depends'] not in modules_prev_in_list:
-                print "\t%s-%s: creating master list\n" % \
-                      (modname, filename)
+                print("\t%s-%s: creating master list\n" % \
+                      (modname, filename))
                 create_master_list(config, configfile, modname,
                                    moddict, filename, file_dict, pfwdefs.SW_FILESECT)
 

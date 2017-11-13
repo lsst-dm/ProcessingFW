@@ -23,11 +23,11 @@ def jobpre(argv=None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(sys.argv) # command line for debugging
-    print os.getcwd()
+    print(' '.join(sys.argv)) # command line for debugging
+    print(os.getcwd())
 
     if len(argv) < 3:
-        print 'Usage: jobpre configfile jobnum'
+        print('Usage: jobpre configfile jobnum')
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -49,7 +49,7 @@ def jobpre(argv=None):
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
     debugfh.close()
-    os.chmod(tmpfn, 0666)
+    os.chmod(tmpfn, 0o666)
     os.rename(tmpfn, new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh

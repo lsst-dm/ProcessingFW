@@ -24,13 +24,13 @@ def endrun(configfile):
     if pfwdefs.USE_HOME_ARCHIVE_OUTPUT in config and \
        config[pfwdefs.USE_HOME_ARCHIVE_OUTPUT].lower() == 'run':
         if pfwdefs.ATTEMPT_ARCHIVE_PATH not in config:
-            print "Error:  Cannot find %s in config" % pfwdefs.ATTEMPT_ARCHIVE_PATH
-            print "\tIt is needed for the mass copy of the run back to the " \
-                  "home archive at the end of the run"
+            print("Error:  Cannot find %s in config" % pfwdefs.ATTEMPT_ARCHIVE_PATH)
+            print("\tIt is needed for the mass copy of the run back to the " \
+                  "home archive at the end of the run")
             return pfwdefs.PF_EXIT_FAILURE
 
         archpath = config.getfull(config[pfwdefs.ATTEMPT_ARCHIVE_PATH])
-        print "archpath =", archpath
+        print("archpath =", archpath)
 
         # call archive transfer for target archive to home archive
         # check if using target archive
@@ -41,14 +41,14 @@ def endrun(configfile):
                     config.getfull(pfwdefs.TARGET_ARCHIVE) in config[pfwdefs.SW_ARCHIVESECT]:
                 target_info = config[pfwdefs.SW_ARCHIVESECT][config.getfull(pfwdefs.TARGET_ARCHIVE)]
             else:
-                print "Error:  cannot determine info for target archive"
+                print("Error:  cannot determine info for target archive")
                 return pfwdefs.PF_EXIT_FAILURE
         else:
-            print "Error:  Asked to transfer outputs at end of run, but not using target archive"
+            print("Error:  Asked to transfer outputs at end of run, but not using target archive")
             return pfwdefs.PF_EXIT_FAILURE
 
         home_info = None
-        print config[pfwdefs.HOME_ARCHIVE]
+        print(config[pfwdefs.HOME_ARCHIVE])
         if pfwdefs.HOME_ARCHIVE in config and \
                 config[pfwdefs.HOME_ARCHIVE] in config[pfwdefs.SW_ARCHIVESECT]:
             home_info = config[pfwdefs.SW_ARCHIVESECT][config.getfull(pfwdefs.HOME_ARCHIVE)]
@@ -72,10 +72,10 @@ def endrun(configfile):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print "Usage: endrun.py configfile"
+        print("Usage: endrun.py configfile")
         sys.exit(pfwdefs.PF_EXIT_FAILURE)
 
-    print ' '.join(sys.argv)    # print command so can run by hand if needed
+    print(' '.join(sys.argv))    # print command so can run by hand if needed
     sys.stdout.flush()
 
     sys.exit(endrun(sys.argv[1]))

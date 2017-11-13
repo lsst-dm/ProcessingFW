@@ -76,7 +76,7 @@ def parse_cmdline(argv):
 def can_submit(args):
     """ whether can submit another attempt or not """
 
-    print "%s: Checking whether can submit another attempt" % tsstr()
+    print("%s: Checking whether can submit another attempt" % tsstr())
     dosubmit = None
 
     constraint_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
@@ -96,13 +96,13 @@ def can_submit(args):
     else:
         dosubmit = True
 
-    print "%s:\tmaxjobs=%s, jobcnt=%s, can_submit=%s" % (tsstr(), args['maxjobs'], jobcnt, dosubmit)
+    print("%s:\tmaxjobs=%s, jobcnt=%s, can_submit=%s" % (tsstr(), args['maxjobs'], jobcnt, dosubmit))
     return dosubmit
 
 
 def submit(submitfile, logdir):
     """ Call dessubmit on the specific submit file that has mass submit variables replaced """
-    print "%s: Submitting %s" % (tsstr(), submitfile)
+    print("%s: Submitting %s" % (tsstr(), submitfile))
 
     cwd = os.getcwd()
 
@@ -117,7 +117,7 @@ def submit(submitfile, logdir):
         logfilename = "%s/%s" % (logdir, logfilename)
 
     os.chdir(submitdir)
-    print "%s: dessubmit stdout/stderr - %s" % (tsstr(), logfilename)
+    print("%s: dessubmit stdout/stderr - %s" % (tsstr(), logfilename))
     cmd = "dessubmit %s" % (submitbase)
     with open(logfilename, 'w') as logfh:
         # call dessubmit
@@ -128,14 +128,14 @@ def submit(submitfile, logdir):
                                        stderr=subprocess.STDOUT)
         except:
             (extype, exvalue, _) = sys.exc_info()
-            print "********************"
-            print "Unexpected error: %s" % exvalue
-            print "cmd> %s" % cmd
-            print "Probably could not find %s in path" % cmd.split()[0]
+            print("********************")
+            print("Unexpected error: %s" % exvalue)
+            print("cmd> %s" % cmd)
+            print("Probably could not find %s in path" % cmd.split()[0])
             raise
 
         process.wait()
-        print "%s: dessubmit finished with exit code = %s" % (tsstr(), process.returncode)
+        print("%s: dessubmit finished with exit code = %s" % (tsstr(), process.returncode))
         if process.returncode != 0:
             raise Exception("Non-zero exit code from dessubmit")
 
@@ -187,8 +187,8 @@ def main(argv):
                 # can I submit?
                 if not args['nosubmit']:
                     while not can_submit(args):
-                        print "%s: Shouldn't submit, sleeping %s seconds." % \
-                              (tsstr(), args['delay_check'])
+                        print("%s: Shouldn't submit, sleeping %s seconds." % \
+                              (tsstr(), args['delay_check']))
                         time.sleep(args['delay_check'])
 
                 newwcl = origtwcl
@@ -198,7 +198,7 @@ def main(argv):
 
                 newwcl += 'GROUP_SUBMIT_ID = %d\n' % args['group_submit_id']
 
-                print "%s: Writing submit wcl: %s" % (tsstr(), newtname)
+                print("%s: Writing submit wcl: %s" % (tsstr(), newtname))
                 with open(newtname, 'w') as ntwclfh:
                     ntwclfh.write(newwcl)
 
@@ -206,10 +206,10 @@ def main(argv):
                 if not args['nosubmit']:
                     submit(newtname, logdir)
 
-                    print "%s: Sleeping %s seconds after submit." % (tsstr(), args['delay'])
+                    print("%s: Sleeping %s seconds after submit." % (tsstr(), args['delay']))
                     time.sleep(args['delay'])
             else:
-                print "skipping %s" % newtname
+                print("skipping %s" % newtname)
 
 
 if __name__ == '__main__':

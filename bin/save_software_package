@@ -23,7 +23,7 @@ def parse_file(filename):
                 if match2:
                     contents.append((match2.group(1), match2.group(3)))
                 else:
-                    print "Warning: Skipping line.  Couldn't find name and version in line:", line
+                    print("Warning: Skipping line.  Couldn't find name and version in line:", line)
             #else:
             #    print "Skipping line:", line
     return contents
@@ -42,7 +42,7 @@ def save_meta_package(dbh, name, version, note):
         row['note'] = dbh.quote(note)
     sql = """insert into ops_meta_package (%s) select %s %s where not exists
              (select null from ops_meta_package where name=%s and version=%s)""" % \
-          (','.join(row.keys()), ','.join(row.values()), from_dual,
+          (','.join(list(row.keys())), ','.join(list(row.values())), from_dual,
            row['name'], row['version'])
     if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
         miscutils.fwdebug_print("\t%s\n" % sql)
@@ -67,7 +67,7 @@ def save_indiv_packages(dbh, packages):
         row['version'] = dbh.quote(version)
         sql = """insert into ops_indiv_package (%s) select %s %s where not exists
                  (select null from ops_indiv_package where name=%s and version=%s)""" % \
-              (','.join(row.keys()), ','.join(row.values()), from_dual,
+              (','.join(list(row.keys())), ','.join(list(row.values())), from_dual,
                row['name'], row['version'])
         if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
             miscutils.fwdebug_print("\t%s\n" % sql)
@@ -98,7 +98,7 @@ def save_meta_contents(dbh, metaname, metaversion, packages):
         sql = """insert into ops_meta_package_contents (%s) select %s %s where not exists
                  (select null from ops_meta_package_contents where meta_name=%s and
                   meta_version=%s and indiv_name=%s and indiv_version=%s)""" % \
-              (','.join(row.keys()), ','.join(row.values()), from_dual,
+              (','.join(list(row.keys())), ','.join(list(row.values())), from_dual,
                row['meta_name'], row['meta_version'], row['indiv_name'], row['indiv_version'])
         if miscutils.fwdebug_check(3, 'SAVESOFT_DEBUG'):
             miscutils.fwdebug_print("\t%s\n" % sql)

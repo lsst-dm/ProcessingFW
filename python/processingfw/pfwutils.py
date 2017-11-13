@@ -26,7 +26,7 @@ def pad_jobnum(jobnum):
 def get_hdrup_sections(wcl, prefix):
     """ Returns header update sections appearing in given wcl """
     hdrups = {}
-    for key, val in wcl.items():
+    for key, val in list(wcl.items()):
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
             miscutils.fwdebug_print("\tsearching for hdrup prefix in %s" % key)
 
@@ -42,7 +42,7 @@ def search_wcl_for_variables(wcl):
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
     usedvars = {}
-    for key, val in wcl.items():
+    for key, val in list(wcl.items()):
         if isinstance(val, dict):
             uvars = search_wcl_for_variables(val)
             if uvars is not None:
@@ -132,16 +132,16 @@ def untar_dir(filename, outputdir):
                 done = True
             except OSError as exc:
                 if exc.errno == errno.EEXIST:
-                    print "Problems untaring %s: %s" % (filename, exc)
+                    print("Problems untaring %s: %s" % (filename, exc))
                     if cnt < maxcnt:
-                        print "Trying again."
+                        print("Trying again.")
                 else:
-                    print "Error: %s" % exc
+                    print("Error: %s" % exc)
                     raise
         cnt += 1
 
     if not done:
-        print "Could not untar %s.  Aborting" % filename
+        print("Could not untar %s.  Aborting" % filename)
 
 
 # assumes exit code for version is 0
@@ -163,13 +163,13 @@ def get_version(execname, execdefs):
                                        stderr=subprocess.STDOUT)
         except:
             (extype, exvalue, _) = sys.exc_info()
-            print "********************"
-            print "Unexpected error: %s - %s" % (extype, exvalue)
-            print "cmd> %s" % cmd
-            print "Probably could not find %s in path" % cmd.split()[0]
-            print "Check for mispelled execname in submit wcl or"
-            print "    make sure that the corresponding eups package is in the metapackage "
-            print "    and it sets up the path correctly"
+            print("********************")
+            print("Unexpected error: %s - %s" % (extype, exvalue))
+            print("cmd> %s" % cmd)
+            print("Probably could not find %s in path" % cmd.split()[0])
+            print("Check for mispelled execname in submit wcl or")
+            print("    make sure that the corresponding eups package is in the metapackage ")
+            print("    and it sets up the path correctly")
             raise
 
         process.wait()
@@ -196,7 +196,7 @@ def get_version(execname, execdefs):
             except Exception as err:
                 #print type(err)
                 ver = None
-                print "Error: Exception from re.match.  Didn't find version: %s" % err
+                print("Error: Exception from re.match.  Didn't find version: %s" % err)
                 raise
     else:
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
@@ -230,13 +230,13 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
                                         stderr=subprocess.STDOUT)
     except:
         (extype, exvalue, _) = sys.exc_info()
-        print "********************"
-        print "Unexpected error: %s - %s" % (extype, exvalue)
-        print "cmd> %s" % cmd
-        print "Probably could not find %s in path" % cmd.split()[0]
-        print "Check for mispelled execname in submit wcl or"
-        print "    make sure that the corresponding eups package is in the metapackage "
-        print "    and it sets up the path correctly"
+        print("********************")
+        print("Unexpected error: %s - %s" % (extype, exvalue))
+        print("cmd> %s" % cmd)
+        print("Probably could not find %s in path" % cmd.split()[0])
+        print("Check for mispelled execname in submit wcl or")
+        print("    make sure that the corresponding eups package is in the metapackage ")
+        print("    and it sets up the path correctly")
         raise
 
     try:
@@ -246,11 +246,11 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
             buf = os.read(process_wrap.stdout.fileno(), bufsize)
 
     except IOError as exc:
-        print "\tI/O error({0}): {1}".format(exc.errno, exc.strerror)
+        print("\tI/O error({0}): {1}".format(exc.errno, exc.strerror))
 
     except:
         (extype, exvalue, _) = sys.exc_info()
-        print "\tError: Unexpected error: %s - %s" % (extype, exvalue)
+        print("\tError: Unexpected error: %s - %s" % (extype, exvalue))
         raise
 
     sys.stdout.flush()
@@ -270,7 +270,7 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
 def index_job_info(jobinfo):
     """ create dictionary of jobs indexed on blk task id """
     job_byblk = {}
-    for j, jdict in jobinfo.items():
+    for j, jdict in list(jobinfo.items()):
         blktid = jdict['pfw_block_task_id']
         if blktid not in job_byblk:
             job_byblk[blktid] = {}
@@ -283,7 +283,7 @@ def index_wrapper_info(wrapinfo):
     """ create dictionaries of wrappers indexed on jobnum and modname """
     wrap_byjob = {}
     wrap_bymod = {}
-    for wrap in wrapinfo.values():
+    for wrap in list(wrapinfo.values()):
         if wrap['pfw_job_task_id'] not in wrap_byjob:
             wrap_byjob[wrap['pfw_job_task_id']] = {}
         wrap_byjob[wrap['pfw_job_task_id']][wrap['wrapnum']] = wrap
@@ -299,10 +299,10 @@ def index_jobwrapper_info(jwrapinfo):
 
     jwrap_byjob = {}
     jwrap_bywrap = {}
-    for jwrap in jwrapinfo.values():
+    for jwrap in list(jwrapinfo.values()):
         if jwrap['label'] is None:
-            print "Missing label for jobwrapper task."
-            print "Make sure you are using print_job.py from same ProcessingFW version as processing attempt"
+            print("Missing label for jobwrapper task.")
+            print("Make sure you are using print_job.py from same ProcessingFW version as processing attempt")
             sys.exit(1)
         if jwrap['parent_task_id'] not in jwrap_byjob:
             jwrap_byjob[jwrap['parent_task_id']] = {}
@@ -379,7 +379,7 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
     except:
         (extype, exvalue, _) = sys.exc_info()
         msg = "Error: creating %s object - %s - %s" % (label, extype, exvalue)
-        print "\n%s" % msg
+        print("\n%s" % msg)
         if pfw_dbh is not None:
             Messaging.pfw_message(pfw_dbh, wcl['pfw_attempt_id'], parent_tid, msg, pfw_utils.PFWDB_MSG_ERROR)
         raise

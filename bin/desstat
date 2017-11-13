@@ -38,12 +38,12 @@ def main(argv=None):
         if args.verbose:
             raise
         else:
-            print str(exc)
+            print(str(exc))
             sys.exit(1)
 
     jobcnt = len(qjobs)
     if jobcnt == 0:
-        print "No framework jobs\n"
+        print("No framework jobs\n")
         return 1
 
     # Output jobs
@@ -51,7 +51,7 @@ def main(argv=None):
     if args.sort is not None and args.sort.upper() != "ID":  # ID is the default sort
         if args.sort.upper() not in ["ID", "PRJ", "PROJECT", "PIPELINE", "CAMPAIGN", "RUN", "BLOCK", "SUBBLOCK",
                                      "STAT", "OPERATOR", "RUNSITE", "STATUS"]:
-            print "%s is not an avaiable sort parameter." % (args.sort)
+            print("%s is not an avaiable sort parameter." % (args.sort))
             exit(0)
         print_header()
         if args.sort.upper() == "PRJ":
@@ -65,7 +65,7 @@ def main(argv=None):
         count += print_orphans(orphan_jobs, qjobs, args.campaign)
 
     if args.campaign is not None and count == 0:
-        print "No jobs found for campaign %s" % (args.campaign)
+        print("No jobs found for campaign %s" % (args.campaign))
 
     return 0
 
@@ -81,7 +81,7 @@ def print_sorted(attids, orphanids, qjobs, campaign, sort):
         if campaign is None or campaign.upper() == info['campaign'].upper():
             count += 1
             jobs[jobid] = info
-    data = sorted(jobs.items(), key=lambda x: x[1][sort])
+    data = sorted(list(jobs.items()), key=lambda x: x[1][sort])
     for item in data:
         jid = item[0]
         jtype = " "
@@ -93,10 +93,10 @@ def print_sorted(attids, orphanids, qjobs, campaign, sort):
 
 def print_header():
     """ Print header line """
-    print "%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-30s" % \
+    print("%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-30s" % \
           ("ID", "T", "PRJ", "PIPELINE", "CAMPAIGN", "RUN", "BLOCK", "SUBBLOCK",
-           "STAT (H/P/R/T)", "OPERATOR", "RUNSITE")
-    print "="*160
+           "STAT (H/P/R/T)", "OPERATOR", "RUNSITE"))
+    print("="*160)
 
 
 def print_attempts(attids, qjobs, campaign):
@@ -124,11 +124,11 @@ def print_orphans(orphanids, qjobs, campaign):
 def print_line(jid, jobtype, info):
     """ Print single line """
 
-    print "%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-s" % \
+    print("%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-s" % \
           (jid, jobtype, info['project'][:3], info['pipeline'][:15],
            info['campaign'][:14],
            info['run'][:27], info['block'][:25], info['subblock'][:15],
-           info['status'][:17], info['operator'][:8], info['runsite'])
+           info['status'][:17], info['operator'][:8], info['runsite']))
 
 
 if __name__ == "__main__":

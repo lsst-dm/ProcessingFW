@@ -20,10 +20,10 @@ def summary(argv=None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(argv)
+    print(' '.join(argv))
 
     if len(argv) < 2:
-        print 'Usage: summary configfile status'
+        print('Usage: summary configfile status')
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -33,7 +33,7 @@ def summary(argv=None):
         if status == 1:
             status = pfwdefs.PF_EXIT_FAILURE
     else:
-        print "summary: Missing status value"
+        print("summary: Missing status value")
         status = None
 
     # read sysinfo file
@@ -54,10 +54,10 @@ def summary(argv=None):
             msg1 = "Processing has successfully completed.\n"
             subject = ""
         else:
-            print "status = '%s'" % status
-            print "type(status) =", type(status)
-            print "SUCCESS = '%s'" % pfwdefs.PF_EXIT_SUCCESS
-            print "type(SUCCESS) =", type(pfwdefs.PF_EXIT_SUCCESS)
+            print("status = '%s'" % status)
+            print("type(status) =", type(status))
+            print("SUCCESS = '%s'" % pfwdefs.PF_EXIT_SUCCESS)
+            print("type(SUCCESS) =", type(pfwdefs.PF_EXIT_SUCCESS))
             msg1 = "Processing aborted with status %s.\n" % (status)
 
     subject = ""
@@ -67,9 +67,9 @@ def summary(argv=None):
         dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                           config.getfull('submit_des_db_section'))
         dbh.update_attempt_end_vals(config['pfw_attempt_id'], status)
-    print "summary: status = '%s'" % status
-    print "summary:", msg1
-    print "summary: End"
+    print("summary: status = '%s'" % status)
+    print("summary:", msg1)
+    print("summary: End")
     debugfh.close()
     return status
 

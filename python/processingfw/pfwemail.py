@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Utilities for sending PFW emails """
+"""Utilities for sending PFW emails.
+"""
 
 import os
 import glob
@@ -17,7 +16,8 @@ NUMLINES = 50
 
 
 def send_email(config, block, status, subject, msg1, msg2, sendit=True):
-    """create PFW email and send it"""
+    """Create PFW email and send it.
+    """
     project = config.getfull('project')
     run = config.getfull('submit_run')
 
@@ -107,7 +107,8 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
 
 
 def send_subblock_email(config, block, subblock, retval):
-    """create PFW subblock email and send it"""
+    """Create PFW subblock email and send it.
+    """
     print("send_subblock_email BEG")
     print("send_subblock_email block=%s" % block)
     print("send_subblock_email subblock=%s" % subblock)
@@ -119,7 +120,8 @@ def send_subblock_email(config, block, subblock, retval):
 
 
 def get_job_info(block):
-    """gather target job status info for email"""
+    """Gather target job status info for email.
+    """
     iostr = StringIO()
     iostr.write("%6s\t%25s\t%7s\t%7s\t%s" %
                 ('JOBNUM', 'MODULE', 'STATUS4', 'STATUS5', 'MSG'))
@@ -133,7 +135,8 @@ def get_job_info(block):
 
 
 def get_subblock_output(subblock):
-    """Grab tail of stdout/stderr to include in email"""
+    """Grab tail of stdout/stderr to include in email.
+    """
     (path, block) = os.path.split(os.getcwd())
 
     iostr = StringIO()

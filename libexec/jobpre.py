@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Steps executed submit-side prior to target job being submitted """
+"""Steps executed submit-side prior to target job being submitted.
+"""
 
 import sys
 import os
@@ -14,7 +15,8 @@ import processingfw.pfwdb as pfwdb
 
 
 def jobpre(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 

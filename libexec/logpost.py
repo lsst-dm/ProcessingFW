@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Bookkeeping steps executed submit-side after certain submit-side tasks """
+"""Bookkeeping steps executed submit-side after certain submit-side tasks.
+"""
 
 import sys
 import os
@@ -12,7 +13,8 @@ from processingfw.pfwlog import log_pfw_event
 
 
 def logpost(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 

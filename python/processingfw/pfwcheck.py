@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Contains functions used to check submit wcl for missing or invalid values """
+"""Contains functions used to check submit wcl for missing or invalid values.
+"""
 
 import processingfw.pfwdefs as pfwdefs
 import intgutils.intgmisc as intgmisc
@@ -30,8 +29,8 @@ def error(indent, message):
 
 
 def check_globals(config, indent=''):
-    """ Check global settings """
-
+    """Check global settings.
+    """
     print("%sChecking globals..." % (indent))
 
     # initialize counters
@@ -110,8 +109,8 @@ def check_globals(config, indent=''):
 
 
 def check_block(config, indent=''):
-    """ check blocks level defs """
-
+    """Check blocks level defs.
+    """
     cnts = [0] * NUMCNTS
 
     blocklist = miscutils.fwsplit(config[pfwdefs.SW_BLOCKLIST].lower(), ',')
@@ -159,8 +158,8 @@ def check_block(config, indent=''):
 
 
 def check_target_archive(config, indent=''):
-    """ check info related to target archive """
-
+    """Check info related to target archive.
+    """
     cnts = [0] * NUMCNTS
 
     print("%sChecking target archive..." % (indent))
@@ -217,8 +216,8 @@ def check_target_archive(config, indent=''):
 
 
 def check_home_archive(config, indent=''):
-    """ check info related to home archive """
-
+    """Check info related to home archive.
+    """
     cnts = [0] * NUMCNTS
 
     print("%sChecking home archive..." % (indent))
@@ -273,8 +272,8 @@ def check_home_archive(config, indent=''):
 
 
 def check_module(config, blockname, modname, indent=''):
-    """ Check module """
-
+    """Check module.
+    """
     cnts = [0] * NUMCNTS
 
     print("%sChecking module %s..." % (indent, modname))
@@ -310,8 +309,8 @@ def check_module(config, blockname, modname, indent=''):
 
 
 def parse_wcl_objname(objname):
-    """ Parse WCL object name into parts """
-
+    """Parse WCL object name into parts.
+    """
     sect = name = subname = None
 
     parts = miscutils.fwsplit(objname, '.')
@@ -329,8 +328,8 @@ def parse_wcl_objname(objname):
 
 
 def check_filepat_valid(config, filepat, blockname, modname, objname, objdict, indent=''):
-    """ Check if given file pattern is valid """
-
+    """Check if given file pattern is valid.
+    """
     cnts = [0] * NUMCNTS
 
     if pfwdefs.SW_FILEPATSECT not in config:
@@ -379,8 +378,8 @@ def check_file_valid_input(config, blockname, modname, fname, fdict, indent=''):
 
 
 def check_list_valid_input(config, blockname, modname, objname, objdict, indent=''):
-    """ Check if input list is valid """
-
+    """Check if input list is valid.
+    """
     cnts = [0] * NUMCNTS
 
     (sect, name, subname) = parse_wcl_objname(objname)
@@ -407,8 +406,8 @@ def check_list_valid_input(config, blockname, modname, objname, objdict, indent=
 
 
 def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
-    """ Check exec input definition is valid """
-
+    """Check exec input definition is valid.
+    """
     cnts = [0] * NUMCNTS
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
@@ -476,8 +475,8 @@ def check_exec_inputs(config, blockname, modname, dataobjs, xsectname, xsectdict
 
 
 def check_file_valid_output(config, blockname, modname, fname, fdict, indent=''):
-    """ Check if output file definition is valid """
-
+    """Check if output file definition is valid.
+    """
     cnts = [0] * NUMCNTS
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
@@ -521,8 +520,8 @@ def check_file_valid_output(config, blockname, modname, fname, fdict, indent='')
 
 
 def check_exec_outputs(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
-    """ Check if exec output definition is valid """
-
+    """Check if exec output definition is valid.
+    """
     # initialize
     cnts = [0] * NUMCNTS
     moddict = config[pfwdefs.SW_MODULESECT][modname]
@@ -555,7 +554,8 @@ def check_exec_outputs(config, blockname, modname, dataobjs, xsectname, xsectdic
 
 
 def check_exec_parentchild(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
-    """ Check that parent and children appear in inputs and outputs """
+    """Check that parent and children appear in inputs and outputs.
+    """
     # assumes check_exec_input and check_exec_output have already been executed so there are entries in dataobjs
 
     cnts = [0] * NUMCNTS
@@ -607,8 +607,8 @@ def check_exec_parentchild(config, blockname, modname, dataobjs, xsectname, xsec
 
 
 def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
-    """ calls functions to check files have all needed info as well as note extra file defs """
-
+    """Check if files have all needed info as well as note extra file defs.
+    """
     cnts = [0] * NUMCNTS
 
     # check every file
@@ -670,8 +670,8 @@ def check_dataobjs(config, blockname, modname, moddict, dataobjs, indent=''):
 
 
 def check_exec_cmd(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
-    """ Check exec cmd definition """
-
+    """Check exec cmd definition.
+    """
     cnts = [0] * NUMCNTS
 
     # check that each exec section has execname (required)
@@ -720,8 +720,8 @@ def check_exec_cmd(config, blockname, modname, dataobjs, xsectname, xsectdict, i
 
 
 def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, indent=''):
-    """ Check if exec section is valid """
-
+    """Check if exec section is valid.
+    """
     cnts = [0] * NUMCNTS
 
     print("%sChecking %s..." % (indent, xsectname))
@@ -769,8 +769,8 @@ def check_exec(config, blockname, modname, dataobjs, xsectname, xsectdict, inden
 
 
 def check(config, indent=''):
-    """ Check submit wcl """
-
+    """Check submit wcl.
+    """
     # initialize counters
 
     cnts = [0, 0, 0, 0]

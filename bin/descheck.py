@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Execute WCL checks """
+"""Execute WCL checks.
+"""
 
 import argparse
 
@@ -11,8 +12,8 @@ import processingfw.pfwdefs as pfwdefs
 
 
 def main():
-    """ Entry point when called as an executable """
-
+    """Entry point when called as an executable.
+    """
     parser = argparse.ArgumentParser(description='Run check on given submit wcl')
     parser.add_argument('--verbose', action='store', default=True)
     parser.add_argument('--des_db_section', action='store')

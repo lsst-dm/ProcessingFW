@@ -1,8 +1,7 @@
 #!usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Miscellaneous support functions for processing framework """
+"""Miscellaneous support functions for processing framework.
+"""
 
 import re
 import os
@@ -19,12 +18,14 @@ import qcframework.Messaging as Messaging
 
 
 def pad_jobnum(jobnum):
-    """ Pad the job number """
+    """Pad the job number.
+    """
     return "%04d" % int(jobnum)
 
 
 def get_hdrup_sections(wcl, prefix):
-    """ Returns header update sections appearing in given wcl """
+    """Returns header update sections appearing in given wcl.
+    """
     hdrups = {}
     for key, val in list(wcl.items()):
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
@@ -38,7 +39,8 @@ def get_hdrup_sections(wcl, prefix):
 
 
 def search_wcl_for_variables(wcl):
-    """ Find variables in given wcl """
+    """Find variables in given wcl.
+    """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
     usedvars = {}
@@ -65,7 +67,8 @@ def search_wcl_for_variables(wcl):
 
 
 def get_wcl_value(key, wcl):
-    """ Return value of key from wcl, follows section notation """
+    """Return value of key from wcl, follows section notation.
+    """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
     val = wcl
@@ -78,7 +81,8 @@ def get_wcl_value(key, wcl):
 
 
 def set_wcl_value(key, val, wcl):
-    """ Sets value of key in wcl, follows section notation """
+    """Sets value of key in wcl, follows section notation.
+    """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
     wclkeys = key.split('.')
@@ -93,7 +97,8 @@ def set_wcl_value(key, val, wcl):
 
 
 def tar_dir(filename, indir):
-    """ Tars a directory """
+    """Tars a directory.
+    """
     if filename.endswith('.gz'):
         mode = 'w:gz'
     else:
@@ -103,8 +108,8 @@ def tar_dir(filename, indir):
 
 
 def tar_list(tarfilename, filelist):
-    """ Tars a directory """
-
+    """Tars a directory.
+    """
     if tarfilename.endswith('.gz'):
         mode = 'w:gz'
     else:
@@ -116,7 +121,8 @@ def tar_list(tarfilename, filelist):
 
 
 def untar_dir(filename, outputdir):
-    """ Untars a directory """
+    """Untars a directory.
+    """
     if filename.endswith('.gz'):
         mode = 'r:gz'
     else:
@@ -146,8 +152,8 @@ def untar_dir(filename, outputdir):
 
 # assumes exit code for version is 0
 def get_version(execname, execdefs):
-    """run command with version flag and parse output for version"""
-
+    """Run command with version flag and parse output for version.
+    """
     ver = None
     if (execname.lower() in execdefs and
             'version_flag' in execdefs[execname.lower()] and
@@ -206,7 +212,8 @@ def get_version(execname, execdefs):
 
 
 def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwattid=0, patterns={}):
-    """ Execute the command piping stdout/stderr to log and QCF """
+    """Execute the command piping stdout/stderr to log and QCF.
+    """
     bufsize = 1024 * 10
 
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
@@ -268,7 +275,8 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
 
 
 def index_job_info(jobinfo):
-    """ create dictionary of jobs indexed on blk task id """
+    """Create dictionary of jobs indexed on blk task id.
+    """
     job_byblk = {}
     for j, jdict in list(jobinfo.items()):
         blktid = jdict['pfw_block_task_id']
@@ -280,7 +288,8 @@ def index_job_info(jobinfo):
 
 
 def index_wrapper_info(wrapinfo):
-    """ create dictionaries of wrappers indexed on jobnum and modname """
+    """Create dictionaries of wrappers indexed on jobnum and modname.
+    """
     wrap_byjob = {}
     wrap_bymod = {}
     for wrap in list(wrapinfo.values()):
@@ -295,8 +304,8 @@ def index_wrapper_info(wrapinfo):
 
 
 def index_jobwrapper_info(jwrapinfo):
-    """ create dictionaries of wrappers indexed on jobnum and wrapnum """
-
+    """create dictionaries of wrappers indexed on jobnum and wrapnum.
+    """
     jwrap_byjob = {}
     jwrap_bywrap = {}
     for jwrap in list(jwrapinfo.values()):
@@ -313,7 +322,8 @@ def index_jobwrapper_info(jwrapinfo):
 
 
 def should_save_file(mastersave, filesave, exitcode):
-    """ Determine whether should save the file """
+    """Determine whether should save the file.
+    """
     msave = mastersave.lower()
     fsave = miscutils.convertBool(filesave)
 
@@ -328,8 +338,8 @@ def should_save_file(mastersave, filesave, exitcode):
 
 
 def should_compress_file(mastercompress, filecompress, exitcode):
-    """ Determine whether should compress the file """
-
+    """Determine whether should compress the file.
+    """
     if miscutils.fwdebug_check(6, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG: master=%s, file=%s, exitcode=%s" %
                                 (mastercompress, filecompress, exitcode))
@@ -355,8 +365,8 @@ def should_compress_file(mastercompress, filecompress, exitcode):
 
 def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
                          label, classname, extra_info):
-    """ Dynamically load a class save timing info in task table """
-
+    """Dynamically load a class save timing info in task table.
+    """
     #task_id = -1
     #if pfw_dbh is not None:
     #    task_id = pfw_dbh.create_task(name='dynclass',
@@ -398,7 +408,8 @@ def diskusage(path):
     #    out = process.communicate()[0]
     #    (diskusage, _) = out.split()
     #    return int(diskusage)
-    """ Walks the path returning the sum of the filesizes """
+    """Walks the path returning the sum of the filesizes.
+    """
     ### avoids symlinked files, but
     ### doesn't avoid adding hardlinks twice
     usum = 0

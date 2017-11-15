@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
-""" Replaces mass submit variables in a template submit file and calls dessubmit
-    doing some throttling, spacing out of the submits """
+"""TODO: short summary.
+
+Replaces mass submit variables in a template submit file and calls dessubmit
+doing some throttling, spacing out of the submits.
+"""
 
 import argparse
 import subprocess
@@ -16,12 +19,14 @@ import processingfw.pfwdefs as pfwdefs
 
 
 def tsstr():
-    """ Return the current time as a string """
+    """Return the current time as a string.
+    """
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
 
 def parse_cmdline(argv):
-    """ Parse the command line """
+    """Parse the command line.
+    """
     #echo "Usage: submitmassjob.sh desfile tilelist maxjobs site";
     parser = argparse.ArgumentParser(description='Submit multiple runs to the processing framework')
     parser.add_argument('--delimiter', action='store', default=None,
@@ -74,8 +79,8 @@ def parse_cmdline(argv):
 
 
 def can_submit(args):
-    """ whether can submit another attempt or not """
-
+    """Whether can submit another attempt or not.
+    """
     print("%s: Checking whether can submit another attempt" % tsstr())
     dosubmit = None
 
@@ -101,7 +106,11 @@ def can_submit(args):
 
 
 def submit(submitfile, logdir):
-    """ Call dessubmit on the specific submit file that has mass submit variables replaced """
+    """Call dessubmit on the specific submit file.
+
+    Calls dessubmit on the specific submit file that has mass submit variables
+    replaced.
+    """
     print("%s: Submitting %s" % (tsstr(), submitfile))
 
     cwd = os.getcwd()
@@ -143,7 +152,8 @@ def submit(submitfile, logdir):
 
 
 def main(argv):
-    """ Program entry point """
+    """Program entry point.
+    """
     args = parse_cmdline(argv)
 
     origtname = args['templatewcl']

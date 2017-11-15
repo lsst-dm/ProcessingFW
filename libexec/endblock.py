@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Steps executed submit-side at the end of a block """
+"""Steps executed submit-side at the end of a block.
+"""
 
 import sys
 import os
@@ -13,7 +14,8 @@ import filemgmt.archive_transfer_utils as archive_transfer_utils
 
 
 def endblock(configfile):
-    """ Program entry point """
+    """Program entry point.
+    """
     miscutils.fwdebug_print("BEG")
 
     config = pfwconfig.PfwConfig({'wclfile': configfile})

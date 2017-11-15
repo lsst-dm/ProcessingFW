@@ -1,4 +1,5 @@
-""" Constants used across various files to make changes easier """
+"""Constants used across various files to make changes easier.
+"""
 
 # when changing values, check if change also needed in $PROCESSINGFW_DIR/etc/pfwconfig.des
 #

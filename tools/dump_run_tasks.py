@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Print task information for a processing attempt """
+"""Print task information for a processing attempt.
+"""
 
 import argparse
 import re
@@ -11,18 +12,21 @@ import processingfw.pfwdb as pfwdb
 
 
 def print_header():
-    """ Print report column headers """
+    """Print report column headers.
+    """
     print("tid, parent_tid, root_tid, name, label, status, infotable, start_time, end_time")
 
 
 def get_start_time(x):
-    """ Get non-null start_time """
+    """Get non-null start_time.
+    """
     maxdate = datetime.datetime.now()
     return x['start_time'] or maxdate
 
 
 def print_task(taskd, indent=''):
-    """ Print information for a single task """
+    """Print information for a single task.
+    """
     print(indent, taskd['id'], taskd['parent_task_id'], taskd['root_task_id'],\
         taskd['name'], taskd['label'], taskd['status'], end=' ')
 
@@ -45,7 +49,8 @@ def print_task(taskd, indent=''):
 
 
 def recurs_dump(tasks, tids, indent=''):
-    """ Recursively print task information """
+    """Recursively print task information.
+    """
     tlist = [tasks[t] for t in tids]
     for taskd in sorted(tlist, key=lambda x: get_start_time(x), reverse=False):
         #for taskd in sorted(tlist, key=lambda x: x['created_date'], reverse=False):
@@ -56,7 +61,8 @@ def recurs_dump(tasks, tids, indent=''):
 
 
 def parse_args(argv):
-    """ Parse command line arguments """
+    """Parse command line arguments.
+    """
     parser = argparse.ArgumentParser(description='Print task information for a processing attempt')
     parser.add_argument('--des_services', action='store', help='')
     parser.add_argument('--section', '-s', action='store',
@@ -78,7 +84,8 @@ def parse_args(argv):
 
 
 def parse_attempt_str(attstr):
-    """ Parse attempt string for reqnum, unitname, and attnum """
+    """Parse attempt string for reqnum, unitname, and attnum.
+    """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
     if amatch is None:
         print("Error:  cannot parse attempt string", attstr)
@@ -92,8 +99,8 @@ def parse_attempt_str(attstr):
 
 
 def get_task_info(args):
-    """ Query the DB for task information """
-
+    """Query the DB for task information.
+    """
     dbh = pfwdb.PFWDB(args['des_services'], args['section'])
 
     # get the run info
@@ -130,8 +137,8 @@ def get_task_info(args):
 
 
 def add_children(tasks):
-    """ To help printing, add children ids to tasks """
-
+    """To help printing, add children ids to tasks.
+    """
     orphans = {}
     for taskd in list(tasks.values()):
         if taskd['parent_task_id'] is not None:
@@ -146,8 +153,8 @@ def add_children(tasks):
 
 
 def main(argv):
-    """ Program entry point """
-
+    """Program entry point.
+    """
     args = parse_args(argv)
     print("unitname =", args['unitname'])
     print("reqnum =", args['reqnum'])

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" TODO docstring """
+"""TODO docstring.
+"""
 
 import argparse
 import os
@@ -22,7 +23,8 @@ __version__ = '$Rev: 43890 $'
 
 
 def create_dags(config, logfh):
-    """ Call functions to write condor dags needed at submission time """
+    """Call functions to write condor dags needed at submission time.
+    """
     realstdout = sys.stdout
     realstderr = sys.stderr
 
@@ -56,7 +58,8 @@ def create_dags(config, logfh):
 
 
 def parse_args(argv):
-    """ Parse command line arguments """
+    """Parse command line arguments.
+    """
     parser = argparse.ArgumentParser(description='Submit a run to the processing framework')
     boolargs = [pfwdefs.PF_DRYRUN, pfwdefs.PF_USE_DB_IN, pfwdefs.PF_USE_DB_OUT,
                 pfwdefs.PF_USE_QCF, 'usePFWconfig', 'version']
@@ -95,7 +98,10 @@ def parse_args(argv):
 
 
 def save_submit_file(submitfile, fullcfgstr, config):
-    """ save original submit file as is, after includes expanded and with db defaults """
+    """Save original submit file as is.
+
+    After includes expanded and with db defaults.
+    """
     print('Saving submit file...', end=' ')
 
     uberctrl = config.getfull('uberctrl_dir')
@@ -132,7 +138,8 @@ def save_submit_file(submitfile, fullcfgstr, config):
 
 
 def check_submit_file(config):
-    """ Check basic values are in config file """
+    """Check basic values are in config file.
+    """
     print('Checking submit file:')
     cnts = pfwcheck.check_globals(config, '    ')
     if cnts[pfwcheck.ERRCNT_POS] > 0:
@@ -144,7 +151,8 @@ def check_submit_file(config):
 
 
 def submit_attempt(config, maindag, logfh):
-    """ Submit processing attempt to condor queue """
+    """Submit processing attempt to condor queue.
+    """
     condorid = pfwsubmit.submit_main_dag(config, maindag, logfh)
     if (miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)) and
             condorid is not None):
@@ -158,7 +166,8 @@ def submit_attempt(config, maindag, logfh):
 
 
 def get_attnum(config):
-    """ Save attnum in config from either DB or give it default value """
+    """Save attnum in config from either DB or give it default value.
+    """
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
         print('Inserting run into PFW tables...', end=' ')
         import processingfw.pfwdb as pfwdb   # import late
@@ -176,7 +185,8 @@ def get_attnum(config):
 
 
 def main(argv):
-    """ Program entry point """
+    """Program entry point.
+    """
     os.putenv('PYTHONUNBUFFERED', 'true')
     print('Using version %s of dessubmit\n' % __version__)
     args = parse_args(argv)

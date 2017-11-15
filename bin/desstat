@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Print status of currently submitted/running processing attempts """
+"""Print status of currently submitted/running processing attempts.
+"""
 
 import argparse
 import sys
@@ -10,7 +11,8 @@ import processingfw.pfwdefs as pfwdefs
 
 
 def main(argv=None):
-    """ Entry point """
+    """Entry point.
+    """
     parser = argparse.ArgumentParser(description='desstat')
     parser.add_argument('--user', action='store', default=None)
     parser.add_argument('--desq', action='store', default=None)
@@ -71,7 +73,8 @@ def main(argv=None):
 
 
 def print_sorted(attids, orphanids, qjobs, campaign, sort):
-    """ Print lines in a sorted order """
+    """Print lines in a sorted order.
+    """
     count = 0
 
     order = []
@@ -92,7 +95,8 @@ def print_sorted(attids, orphanids, qjobs, campaign, sort):
 
 
 def print_header():
-    """ Print header line """
+    """Print header line.
+    """
     print("%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-30s" % \
           ("ID", "T", "PRJ", "PIPELINE", "CAMPAIGN", "RUN", "BLOCK", "SUBBLOCK",
            "STAT (H/P/R/T)", "OPERATOR", "RUNSITE"))
@@ -100,7 +104,8 @@ def print_header():
 
 
 def print_attempts(attids, qjobs, campaign):
-    """ print attempt info """
+    """Print attempt info.
+    """
     count = 0
     for topjobid in sorted(attids):
         info = pfwcondor.get_attempt_info(topjobid, qjobs)
@@ -111,7 +116,8 @@ def print_attempts(attids, qjobs, campaign):
 
 
 def print_orphans(orphanids, qjobs, campaign):
-    """ Print info for single orphan job """
+    """Print info for single orphan job.
+    """
     count = 0
     for topjobid in sorted(orphanids):
         info = pfwcondor.get_attempt_info(topjobid, qjobs)
@@ -122,8 +128,8 @@ def print_orphans(orphanids, qjobs, campaign):
 
 
 def print_line(jid, jobtype, info):
-    """ Print single line """
-
+    """Print single line.
+    """
     print("%8s %1s %3s %-15s %-14s %-27s %-30s %-15s %-17s %-8s %-s" % \
           (jid, jobtype, info['project'][:3], info['pipeline'][:15],
            info['campaign'][:14],

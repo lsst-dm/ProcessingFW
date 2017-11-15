@@ -1,22 +1,23 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Functions that handle a processing framework execution event """
+"""Functions that handle a processing framework execution event.
+"""
 
 import os
 import time
 
 
 def get_timestamp():
-    """Create timestamp in a particular format"""
+    """Create timestamp in a particular format.
+    """
     tstamp = time.strftime("%m/%d/%Y %H:%M:%S", time.localtime())
     return tstamp
 
 
 def log_pfw_event(config, block=None, subblock=None,
                   subblocktype=None, info=None):
-    """Write info for a PFW event to a log file"""
+    """Write info for a PFW event to a log file.
+    """
     if block:
         block = block.replace('"', '')
     else:

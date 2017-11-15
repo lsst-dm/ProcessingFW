@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Utilities for interactions with Condor """
+"""Utilities for interactions with Condor.
+"""
 
 import subprocess
 from datetime import datetime
@@ -14,7 +13,8 @@ import processingfw.pfwdefs as pfwdefs
 
 
 class CondorException(Exception):
-    "class for Condor exceptions"
+    """Class for Condor exceptions.
+    """
 
     def __init__(self, txt):
         Exception.__init__(self)
@@ -25,9 +25,11 @@ class CondorException(Exception):
 
 
 def condor_version():
-    """Calls condor_version command and returns the version
-       in string format easy to compare"""
+    """Get Condor version in a format easy to compare.
 
+    Calls condor_version command and returns the version in string format easy
+    to compare.
+    """
     cmd = 'condor_version'
 
     try:
@@ -55,7 +57,8 @@ def condor_version():
 
 
 def compare_condor_version(ver2):
-    """Compare running condor version against given version"""
+    """Compare running condor version against given version.
+    """
     # similar to strcmp
     # < 0 if current < ver2
     #   0 if current = ver2
@@ -96,8 +99,8 @@ def compare_condor_version(ver2):
 
 
 def condor_submit(submitfile):
-    """Call condor_submit on given condor description file"""
-
+    """Call condor_submit on given condor description file.
+    """
     cmd = 'condor_submit %s' % (submitfile)
 
     try:
@@ -112,7 +115,8 @@ def condor_submit(submitfile):
 
 
 def create_resource(info):
-    """ Create string for globus_rsl line in condor description file """
+    """Create string for globus_rsl line in condor description file.
+    """
     gridresource = ''
 
     print('\ncreateResource: ', info)
@@ -158,7 +162,8 @@ def create_resource(info):
 
 
 def create_rsl(info):
-    """Create RSL for grid job"""
+    """Create RSL for grid job.
+    """
     rslparts = []
 
     print("info=", info)
@@ -198,7 +203,8 @@ def create_rsl(info):
 
 
 def create_condor_env(envvars):
-    """Create string for environment line in condor description file"""
+    """Create string for environment line in condor description file.
+    """
     # see rules in environment section of condor_submit manual page
     envparts = ['SUBMIT_CONDORID=$(Cluster).$(Process)']
 
@@ -227,9 +233,10 @@ def create_condor_env(envvars):
 
 
 def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
-    """Creates <name>.condor description file
-       Assumes info contains valid condor key, value"""
+    """Create <name>.condor description file.
 
+    Assumes info contains valid condor key, value.
+    """
     #print 'write_condor_descfile', jobname
     #print jobattribs
 
@@ -267,8 +274,8 @@ def write_condor_descfile(jobname, filename, jobattribs, userattribs=None):
 
 
 def parse_condor_user_log(logfilename):
-    """parses a condor log into a dictionary"""
-
+    """Parses a condor log into a dictionary.
+    """
     #print "parse_condor_user_log:  logfilename=", logfilename
     log = open(logfilename)
     lines = log.read().split('\n...\n')
@@ -399,8 +406,11 @@ def parse_condor_user_log(logfilename):
 
 
 def condor_q(args_str=''):
-    """Given condor_q args, calls condor_q -l [args] and parses output into dictionary"""
+    """Parse output of condor_q into a dictionary.
 
+    Given condor_q args, calls condor_q -l [args] and parses output into
+    dictionary.
+    """
     qjobs = {}
     job = {}
     condorid = -9999
@@ -467,8 +477,8 @@ def condor_q(args_str=''):
 
 
 def condorq_dag(args_str=''):
-    """ Call condor_q and return in dag trees """
-
+    """Call condor_q and return in dag trees.
+    """
     qjobs = condor_q(args_str)
 
     top_jobs = []  # top dagman jobs
@@ -496,7 +506,8 @@ def condorq_dag(args_str=''):
 
 
 def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
-    """ Create the condor description file for a DAG with added attributes """
+    """Create the condor description file for a DAG with added attributes.
+    """
     print("add2dag: cwd =", os.getcwd())
     cmd = 'condor_submit_dag -f -no_submit -notification never '
 
@@ -576,8 +587,8 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
 
 
 def add2condor(condorstr, attributes, debugfh):
-    """add some attributes to condor submit file"""
-
+    """Add some attributes to condor submit file.
+    """
     debugfh.write('add2condor')
     debugfh.write('Pre-change\n')
     debugfh.write('============\n')
@@ -599,8 +610,8 @@ def add2condor(condorstr, attributes, debugfh):
 
 
 def check_condor(minver):
-    """ Check for Condor in path as well as daemons running """
-
+    """Check for Condor in path as well as daemons running.
+    """
     # checking condor executables are in path
     cmd = 'condor_submit notthere.condor'
     try:
@@ -652,8 +663,8 @@ def check_condor(minver):
 
 
 def get_grid_proxy_timeleft():
-    """ Check timeleft on grid proxy """
-
+    """Check timeleft on grid proxy.
+    """
     cmd = 'grid-proxy-info -timeleft'
     process = subprocess.Popen(cmd.split(), shell=False,
                                stdout=subprocess.PIPE,
@@ -670,7 +681,8 @@ def get_grid_proxy_timeleft():
 
 
 def get_job_status_str(jobnum, qjobs):
-    """ Return a status string for a particular condor job """
+    """Return a status string for a particular condor job.
+    """
     statusstr = "UNK"
 
     # Condor Job Status:
@@ -699,8 +711,8 @@ def get_job_status_str(jobnum, qjobs):
 
 
 def condor_rm(args_str=''):
-    """Given condor_rm args, calls condor_rm [args]"""
-
+    """Given condor_rm args, calls condor_rm [args].
+    """
     args_str = str(args_str)    # make sure string
 
     condorrm_cmd = ['condor_rm']
@@ -725,8 +737,8 @@ def condor_rm(args_str=''):
 
 
 def status_target_jobs(job, qjobs):
-    """ Convert condor/grid status """
-
+    """Convert condor/grid status.
+    """
     numtjobs = 'UNK'
     if '%snumjobs' % pfwdefs.ATTRIB_PREFIX in qjobs[qjobs[job]['children'][0]]:
         numtjobs = qjobs[qjobs[job]['children'][0]]['%snumjobs' % pfwdefs.ATTRIB_PREFIX]
@@ -746,8 +758,8 @@ def status_target_jobs(job, qjobs):
 
 
 def get_attempt_info(topjobid, qjobs):
-    """ Massage condor_q dag information into attempt information """
-
+    """Massage condor_q dag information into attempt information.
+    """
     info = {}
     if '%soperator' % pfwdefs.ATTRIB_PREFIX not in qjobs[topjobid]:
         if 'owner' in qjobs[topjobid]:

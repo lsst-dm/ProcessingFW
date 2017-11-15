@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-""" Bookkeeping steps executed submit-side prior to certain submit-side tasks """
+
+"""Bookkeeping steps executed submit-side prior to certain submit-side tasks.
+"""
 
 import sys
 import os
@@ -10,7 +12,8 @@ import processingfw.pfwconfig as pfwconfig
 
 
 def logpre(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 

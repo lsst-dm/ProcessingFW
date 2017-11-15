@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" need to write docstring """
+"""Need to write docstring.
+"""
 
 import sys
 import time
@@ -17,7 +16,8 @@ import processingfw.pfwlog as pfwlog
 
 
 def min_wcl_checks(config):
-    """ execute minimal submit wcl checks """
+    """Execute minimal submit wcl checks.
+    """
     max_label_length = 30    # todo: figure out how to get length from DB
 
     msg = "ERROR\nError: Missing %s in submit wcl.  Make sure submitting correct file.  "
@@ -44,8 +44,11 @@ def min_wcl_checks(config):
 
 
 def check_proxy(config):
-    """ Check if any block will submit to remote machine needing proxy, if so check for proxy """
+    """Check for proxy.
 
+    Check if any block will submit to remote machine needing proxy,
+    if so check for proxy.
+    """
     if miscutils.fwdebug_check(3, 'PFWSUBMIT_DEBUG'):
         miscutils.fwdebug_print("Beg")
 
@@ -71,8 +74,8 @@ def check_proxy(config):
 
 
 def create_common_vars(config, jobname):
-    """ Create string containing vars string for job """
-
+    """Create string containing vars string for job.
+    """
     blkname = config.getfull('blockname')
     attribs = config.get_condor_attributes(blkname, jobname)
     varstr = ""
@@ -87,8 +90,8 @@ def create_common_vars(config, jobname):
 
 
 def write_block_dag(config, blkdir, blockname, debugfh=None):
-    """  writes block dag file """
-
+    """Writes block dag file.
+    """
     if not debugfh:
         debugfh = sys.stderr
 
@@ -147,8 +150,8 @@ def write_block_dag(config, blkdir, blockname, debugfh=None):
 
 
 def write_stub_jobmngr_dag(config, block, blkdir, debugfh=None):
-    """  writes stub jobmngr dag file to be overwritten during block """
-
+    """Writes stub jobmngr dag file to be overwritten during block.
+    """
     if not debugfh:
         debugfh = sys.stderr
 
@@ -174,7 +177,8 @@ def write_stub_jobmngr_dag(config, block, blkdir, debugfh=None):
 
 
 def write_main_dag(config, maindag):
-    """ Writes main manager dag input file """
+    """Writes main manager dag input file.
+    """
     pfwdir = config.getfull('processingfw_dir')
 
     print("maindag = '%s', type=%s" % (maindag, type(maindag)))
@@ -226,8 +230,8 @@ VARS endrun arguments="../uberctrl/config.des"
 
 
 def run_sys_checks():
-    """ Check valid system environemnt (e.g., condor setup) """
-
+    """Check valid system environemnt (e.g., condor setup).
+    """
     ### Check for Condor in path as well as daemons running
     print('\tChecking for Condor....', end=' ')
     max_tries = 5
@@ -257,7 +261,8 @@ def run_sys_checks():
 
 
 def submit_main_dag(config, dagfile, logfh):
-    """ Submit main DAG file to Condor"""
+    """Submit main DAG file to Condor.
+    """
     (exitcode, outtuple) = pfwcondor.condor_submit('%s.condor.sub' % (dagfile))
     if exitcode or re.search('ERROR', outtuple[0]):
         sys.stderr.write('\n%s\n' % (outtuple[0]))
@@ -286,7 +291,8 @@ def submit_main_dag(config, dagfile, logfh):
 
 
 def create_submitside_dirs(config):
-    """ Create directories for storage of pfw files on submit side """
+    """Create directories for storage of pfw files on submit side.
+    """
     # make local working dir
     workdir = config.getfull('work_dir')
     if miscutils.fwdebug_check(3, 'PFWSUBMIT_DEBUG'):

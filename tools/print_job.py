@@ -11,7 +11,8 @@ from processingfw import pfwutils
 
 
 def parse_attempt_str(attstr):
-    """ Parse attempt string for reqnum, unitname, and attnum """
+    """Parse attempt string for reqnum, unitname, and attnum.
+    """
     amatch = re.search(r"(\S+)_r([^p]+)p([^_]+)", attstr)
     if amatch is None:
         print("Error:  cannot parse attempt string", attstr)
@@ -25,7 +26,8 @@ def parse_attempt_str(attstr):
 
 
 def parse_args(argv):
-    """ Parse command line arguments """
+    """Parse command line arguments.
+    """
     parser = argparse.ArgumentParser(description='Print task information for a processing attempt')
     parser.add_argument('--des_services', action='store', help='')
     parser.add_argument('--section', '-s', action='store',
@@ -50,7 +52,8 @@ def parse_args(argv):
 
 
 def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, indent='\t'):
-
+    """
+    """
     state = "UNK"
     modname = "UNK"
     wrapkeys = ""
@@ -120,6 +123,8 @@ def print_single_wrap(wrapnum, numwraps, expnumwrap, jdict, jwdict, wdict, inden
 
 
 def print_single_block(blknum, blockinfo, job_byblk, jwrap_byjob, wrap_byjob, verbose=False):
+    """
+    """
     #print "print_single_block(%s,..." % blknum
     print(blockinfo['name'])
 
@@ -163,8 +168,8 @@ def print_single_block(blknum, blockinfo, job_byblk, jwrap_byjob, wrap_byjob, ve
 
 
 def print_job_info(argv):
-    """    """
-
+    """
+    """
     args = parse_args(argv)
 
     try:

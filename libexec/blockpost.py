@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Perform end of block tasks whether block success or failure """
+"""Perform end of block tasks whether block success or failure.
+"""
 
 import sys
 import os
@@ -24,6 +23,8 @@ import despydmdb.dbsemaphore as dbsem
 
 
 def get_qcf_messages(qdbh, config, wraptids):
+    """
+    """
     wrapmsg = None
     if qdbh is not None and len(wraptids) > 0:
         miscutils.fwdebug_print("Querying QCF messages")
@@ -36,6 +37,8 @@ def get_qcf_messages(qdbh, config, wraptids):
 
 
 def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
+    """
+    """
     MAXMESG = 3
 
     tid = wrapdict['task_id']
@@ -55,7 +58,8 @@ def print_qcf_messages(config, wrapdict, wrapmsg, msg2):
 
 
 def blockpost(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 

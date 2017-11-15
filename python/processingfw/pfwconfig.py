@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Contains class definition that stores configuration and state information for PFW """
+"""Class definition that stores configuration and state information for PFW.
+"""
 
 from collections import OrderedDict
 import sys
@@ -26,9 +25,9 @@ PFW_SEARCH_ORDER = [pfwdefs.SW_FILESECT, pfwdefs.SW_LISTSECT, 'exec', 'job',
 
 
 class PfwConfig(WCL):
-    """ Contains configuration and state information for PFW """
+    """Contains configuration and state information for PFW.
+    """
 
-    ###########################################################################
     def __init__(self, args):
         """ Initialize configuration object, typically reading from wclfile """
 
@@ -136,11 +135,10 @@ class PfwConfig(WCL):
             if self[pfwdefs.PF_BLKNUM] <= len(block_array):
                 self.set_block_info()
 
-    ###########################################################################
     # assumes already run through chk
     def set_submit_info(self):
-        """ Initialize submit time values """
-
+        """Initialize submit time values.
+        """
         self['des_home'] = os.path.abspath(os.path.dirname(__file__)) + "/.."
         self['submit_dir'] = os.getcwd()
         self['submit_host'] = os.uname()[1]
@@ -208,9 +206,9 @@ class PfwConfig(WCL):
         else:
             self[pfwdefs.MASTER_SAVE_FILE] = pfwdefs.MASTER_SAVE_FILE_DEFAULT
 
-    ###########################################################################
     def set_block_info(self):
-        """ Set current vals to match current block number """
+        """Set current vals to match current block number.
+        """
         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("BEG")
 
@@ -304,35 +302,36 @@ class PfwConfig(WCL):
             miscutils.fwdebug_print("END")
 
     def inc_blknum(self):
-        """ increment the block number """
+        """Increment the block number.
+        """
         # note config stores numbers as strings
         self[pfwdefs.PF_BLKNUM] = str(int(self[pfwdefs.PF_BLKNUM]) + 1)
 
-    ###########################################################################
     def reset_blknum(self):
-        """ reset block number to 1 """
+        """Reset block number to 1.
+        """
         self[pfwdefs.PF_BLKNUM] = '1'
 
-    ###########################################################################
     def inc_jobnum(self, inc=1):
-        """ Increment running job number """
+        """Increment running job number.
+        """
         self[pfwdefs.PF_JOBNUM] = str(int(self[pfwdefs.PF_JOBNUM]) + inc)
         return self[pfwdefs.PF_JOBNUM]
 
-    ###########################################################################
     def inc_tasknum(self, inc=1):
-        """ Increment blktask number """
+        """Increment blktask number.
+        """
         self[pfwdefs.PF_TASKNUM] = str(int(self[pfwdefs.PF_TASKNUM]) + inc)
         return self[pfwdefs.PF_TASKNUM]
 
-    ###########################################################################
     def inc_wrapnum(self):
-        """ Increment running wrapper number """
+        """Increment running wrapper number.
+        """
         self[pfwdefs.PF_WRAPNUM] = str(int(self[pfwdefs.PF_WRAPNUM]) + 1)
 
-    ###########################################################################
     def get_block_name(self, blknum):
-        """ Return block name based upon given block num """
+        """Return block name based upon given block num.
+        """
         blknum = int(blknum)   # read in from file as string
 
         blockname = ''
@@ -341,9 +340,9 @@ class PfwConfig(WCL):
             blockname = blockarray[blknum-1]
         return blockname
 
-    ###########################################################################
     def get_condor_attributes(self, block, subblock):
-        """Create dictionary of attributes for condor jobs"""
+        """Create dictionary of attributes for condor jobs.
+        """
         attribs = {}
         attribs[pfwdefs.ATTRIB_PREFIX + 'isjob'] = 'TRUE'
         attribs[pfwdefs.ATTRIB_PREFIX + 'project'] = self['project']
@@ -362,9 +361,9 @@ class PfwConfig(WCL):
                 attribs['GLIDEIN_NAME'] = self['glidein_name']
         return attribs
 
-    ###########################################################################
     def get_dag_cmd_opts(self):
-        """Create dictionary of condor_submit_dag command line options"""
+        """Create dictionary of condor_submit_dag command line options.
+        """
         cmdopts = {}
         for key in ['max_pre', 'max_post', 'max_jobs', 'max_idle']:
             (exists, value) = self.search('dagman_' + key)
@@ -372,9 +371,9 @@ class PfwConfig(WCL):
                 cmdopts[key] = value
         return cmdopts
 
-    ###########################################################################
     def get_grid_info(self):
-        """Create dictionary of grid job submission options"""
+        """Create dictionary of grid job submission options.
+        """
         vals = {}
         for key in ['stdout', 'stderr', 'queue', 'psn', 'job_type',
                     'max_wall_time', 'max_time', 'max_cpu_time',
@@ -395,9 +394,9 @@ class PfwConfig(WCL):
 
         return vals
 
-    ###########################################################################
     def stagefile(self, opts):
-        """ Determine whether should stage files or not """
+        """Determine whether should stage files or not.
+        """
         retval = True
         (dryrun_exists, dryrun) = self.search(pfwdefs.PF_DRYRUN, opts)
         if dryrun_exists and miscutils.convertBool(dryrun):
@@ -407,10 +406,9 @@ class PfwConfig(WCL):
             retval = False
         return retval
 
-    ###########################################################################
     def get_filename(self, filepat=None, searchopts=None):
-        """ Return filename based upon given file pattern name """
-
+        """Return filename based upon given file pattern name.
+        """
         if miscutils.fwdebug_check(6, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("given filepat = %s, type = %s" % (filepat, type(filepat)))
             miscutils.fwdebug_print("given searchopts = %s" % (searchopts))
@@ -475,10 +473,9 @@ class PfwConfig(WCL):
 
         return retval
 
-    ###########################################################################
     def get_filepath(self, pathtype, dirpat=None, searchopts=None):
-        """ Return filepath based upon given pathtype and directory pattern name """
-
+        """Return filepath based upon given pathtype and directory pattern name.
+        """
         # get filename pattern from global settings:
         if not dirpat:
             (found, dirpat) = self.search(pfwdefs.DIRPAT, searchopts)
@@ -495,10 +492,9 @@ class PfwConfig(WCL):
         results = replfuncs.replace_vars_single(filepathpat, self, searchopts)
         return results
 
-    ###########################################################################
     def combine_lists_files(self, modulename):
-        """ Return python list of file and file list objects """
-
+        """Return python list of file and file list objects.
+        """
         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("BEG")
 
@@ -526,10 +522,9 @@ class PfwConfig(WCL):
             miscutils.fwdebug_print("END")
         return dataset
 
-    ###########################################################################
     def set_names(self):
-        """ set names for use in patterns (i.e., blockname, modulename) """
-
+        """set names for use in patterns (i.e., blockname, modulename).
+        """
         for tsname, tsval in list(self.items()):
             if isinstance(tsval, dict):
                 for nsname, nsval in list(tsval.items()):
@@ -538,10 +533,10 @@ class PfwConfig(WCL):
                         if namestr not in nsval:
                             nsval[namestr] = nsname
 
-    ###########################################################################
     # Determine whether should stage files or not
     def stagefiles(self, opts=None):
-        """ Return whether to save stage files to target archive """
+        """Return whether to save stage files to target archive.
+        """
         retval = True
 
         notarget_exists, notarget = self.search(pfwdefs.PF_DRYRUN, opts)
@@ -563,10 +558,10 @@ class PfwConfig(WCL):
         #print "stagefiles retval = %s" % retval
         return retval
 
-    ###########################################################################
     # Determine whether should save files or not
     def savefiles(self, opts=None):
-        """ Return whether to save files from job """
+        """Return whether to save files from job.
+        """
         retval = True
 
         savefiles_exists, savefiles = self.search(pfwdefs.SAVE_FILE_ARCHIVE, opts)
@@ -587,7 +582,8 @@ class PfwConfig(WCL):
         return retval
 
     def get_param_info(self, keys, opts=None):
-        """ returns values for given list of keys """
+        """Returns values for given list of keys.
+        """
         info = {}
         for key, stat in list(keys.items()):
             (found, value) = self.search(key, opts)

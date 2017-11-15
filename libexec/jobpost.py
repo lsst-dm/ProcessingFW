@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Steps executed submit-side after job success or failure """
+"""Steps executed submit-side after job success or failure.
+"""
 
 import sys
 import re
@@ -21,8 +22,11 @@ import qcframework.Messaging as Messaging
 
 
 def parse_job_output(config, jobnum, dbh=None, retval=None):
-    """ Search stdout/stderr for timing stats as well as eups setup
-        or DB connection error messages and insert them into db """
+    """TODO: short summary.
+
+    Search stdout/stderr for timing stats as well as eups setup or
+    DB connection error messages and insert them into db.
+    """
     jobbase = config.get_filename('job',
                                   {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM: jobnum,
                                                          'flabel': 'runjob',
@@ -108,8 +112,8 @@ def parse_job_output(config, jobnum, dbh=None, retval=None):
 
 
 def jobpost(argv=None):
-    """ Performs steps needed after a pipeline job """
-
+    """Performs steps needed after a pipeline job.
+    """
     condor2db = {'jobid': 'condor_job_id',
                  'csubmittime': 'condor_submit_time',
                  'gsubmittime': 'target_submit_time',

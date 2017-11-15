@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-"""
-Print information about DESDM jobs in the FermiGrid queue from
+"""Print information about DESDM.
+
+Prints information about DESDM jobs in the FermiGrid queue from
 the FermiGrid batch system (condor) viewpoint.
 
 Similar to logging onto HPC machine and running qstat.
@@ -41,7 +42,8 @@ import processingfw.pfwcondor as pfwcondor
 
 
 def print_jobs(chost, jobs, now):
-    """ Print jobs for a single FermiGrid condor pool """
+    """Print jobs for a single FermiGrid condor pool.
+    """
     # sort on FermiGrid condor id
     for j in sorted(jobs.keys()):
         jdict = jobs[j]
@@ -127,8 +129,8 @@ def print_jobs(chost, jobs, now):
 
 
 def main():
-    """ Entry point """
-
+    """Entry point.
+    """
     #OLD fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
     fermigridCE1 = "-name gpce01.fnal.gov -pool gpce01.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
     fermigridCE2 = "-name gpce02.fnal.gov -pool gpce02.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"

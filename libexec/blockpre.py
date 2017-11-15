@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-""" Steps needed to be performed prior to the block running """
+"""Steps needed to be performed prior to the block running.
+"""
+
 import sys
 import os
 import socket
@@ -13,7 +15,8 @@ import processingfw.pfwcondor as pfwcondor
 
 
 def write_block_condor(config):
-    """ Write the condor file for running a block task """
+    """Write the condor file for running a block task.
+    """
     blockname = config.getfull('blockname')
     blkdir = config.getfull('block_dir')
     filename = 'blocktask.condor'
@@ -57,7 +60,8 @@ def write_block_condor(config):
 
 
 def blockpre(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 

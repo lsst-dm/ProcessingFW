@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Program executed at beginning of processing attempt """
+"""Program executed at beginning of processing attempt.
+"""
 
 import sys
 import os
@@ -15,8 +16,8 @@ import qcframework.Messaging as Messaging
 
 
 def copy_files_home(config, archive_info, filemgmt):
-    """ Copy submit files to home archive """
-
+    """Copy submit files to home archive.
+    """
     origwcl = config['origwcl']
     expwcl = config['expwcl']
     fullwcl = config['fullwcl']
@@ -67,8 +68,11 @@ def copy_files_home(config, archive_info, filemgmt):
 
 
 def begrun(argv):
-    """ Performs steps executed on submit machine at beginning of processing attempt """
+    """TODO: short summary.
 
+    Performs steps executed on submit machine at beginning of processing
+    attempt.
+    """
     pfw_dbh = None
     try:
         configfile = argv[0]
@@ -132,8 +136,8 @@ def begrun(argv):
 
 
 def send_failed_email(config, msg2):
-    """ Send failed email """
-
+    """Send failed email.
+    """
     if 'when_to_email' in config and config.getfull('when_to_email').lower() != 'never':
         print("Sending run failed email\n")
         msg1 = "%s:  processing attempt has failed in begrun." % (config.getfull('submit_run'))

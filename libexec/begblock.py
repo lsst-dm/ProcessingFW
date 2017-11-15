@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Program run at beginning of block that performs job setup """
+"""Program run at beginning of block that performs job setup.
+"""
 
 import traceback
 import sys
@@ -20,7 +21,8 @@ import processingfw.pfwdb as pfwdb
 
 
 def begblock(argv):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv == None:
         argv = sys.argv
 
@@ -218,7 +220,8 @@ def begblock(argv):
 
 
 def write_workflow_taskfile(config, jobnum, tasks):
-    """ Write the list of wrapper executions for a single job to a file """
+    """Write the list of wrapper executions for a single job to a file.
+    """
     taskfile = config.get_filename('jobtasklist', {pfwdefs.PF_CURRVALS: {'jobnum': jobnum},
                                                    'required': True, intgdefs.REPLACE_VARS: True})
     tjpad = pfwutils.pad_jobnum(jobnum)

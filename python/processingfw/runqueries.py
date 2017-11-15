@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-""" Run queries for a block to determine input files """
+"""Run queries for a block to determine input files.
+"""
 
 import sys
 import os
@@ -21,7 +20,8 @@ from processingfw.pfwlog import log_pfw_event
 
 def create_master_list(config, configfile, modname, moddict,
                        search_name, search_dict, search_type):
-    """ Create master data list for a module's list or file def """
+    """Create master data list for a module's list or file def.
+    """
     miscutils.fwdebug_print("BEG")
 
     if 'qouttype' in search_dict:
@@ -143,7 +143,8 @@ def create_master_list(config, configfile, modname, moddict,
 
 
 def runqueries(config, configfile, modname, modules_prev_in_list):
-    """ Run any queries for a particular module """
+    """Run any queries for a particular module.
+    """
     moddict = config[pfwdefs.SW_MODULESECT][modname]
 
     # process each "list" in each module
@@ -175,7 +176,8 @@ def runqueries(config, configfile, modname, modules_prev_in_list):
 
 
 def main(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 

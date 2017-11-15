@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 
-""" Print information from database about runs
+"""Print information from database about runs.
 
-    (Alpha version assumes the following per attempt
-     1 label, 1 target site, 1 target pipeprod, 1 target pipever)
-
+Alpha version assumes the following per attempt 1 label, 1 target site,
+1 target pipeprod, 1 target pipever.
 """
-
-
 
 import argparse
 import sys
@@ -19,6 +16,7 @@ import despydb.desdbi as desdbi
 import despymisc.miscutils as miscutils
 import processingfw.pfwdefs as pfwdefs
 
+
 ADD_COLS = ['run', 'qwait', 'wallclock', 'numexpblk',
             'lastblk', 'lastmod-l', 'lastmod-h', 'target_site',
             'pipeline', 'pipeprod', 'pipever']
@@ -27,7 +25,8 @@ DEF_COLS = 'run, status, operator, wallclock, blkcnt, lastblk, lastmod, label'
 
 
 def get_column_names(dbh, table):
-    """ get the column names for a table """
+    """Get the column names for a table.
+    """
     curs = dbh.cursor()
     curs.execute("SELECT * FROM %s where 0=1" % table)
     colnames = [d[0].lower() for d in curs.description]
@@ -36,8 +35,8 @@ def get_column_names(dbh, table):
 
 
 def print_info(attempts, printopts, maxwidths):
-    """ print information about processing attempts in a table format """
-
+    """Print information about processing attempts in a table format.
+    """
     printcols = printopts['cols'].split(',')
     oformat = printopts['format'].lower()
 
@@ -79,7 +78,8 @@ def print_info(attempts, printopts, maxwidths):
 
 
 def convert_status(status):
-    """ convert status to meaningful character """
+    """Convert status to meaningful character.
+    """
     stlabel = ''
     if status is None:
         stlabel = 'U'
@@ -93,8 +93,8 @@ def convert_status(status):
 
 
 def massage_info(attempts):
-    """ Add extra information calculated from database results """
-
+    """Add extra information calculated from database results.
+    """
     maxwidths = {}
 
     for attd in list(attempts.values()):
@@ -185,8 +185,8 @@ def massage_info(attempts):
 
 
 def query_attempt(dbh, colnames, argsdict):
-    """ Query the db for information about attempts """
-
+    """Query the db for information about attempts.
+    """
     whereclauses = []
     for table in list(colnames.keys()):
         for col in colnames[table]:
@@ -230,8 +230,8 @@ def query_attempt(dbh, colnames, argsdict):
 
 
 def query_details(dbh, attempts):
-    """ Query the db for block and job info """
-
+    """Query the db for block and job info.
+    """
     # insert reqnum,unitname,attnum into global temp table to do joins in queries
     rows = []
     for attd in list(attempts.values()):
@@ -291,7 +291,8 @@ def query_details(dbh, attempts):
 
 
 def create_and_parse_args():
-    """ Create argument parser and parse command line """
+    """Create argument parser and parse command line.
+    """
     parser = argparse.ArgumentParser(description=__doc__, add_help=False)
     parser.add_argument('--des_services', action='store', help='')
     parser.add_argument('--section', action='store',
@@ -371,7 +372,8 @@ def create_and_parse_args():
 
 
 def main():
-    """ Program entry point"""
+    """Program entry point.
+    """
     dbh, colnames, queryopts, printopts = create_and_parse_args()
     attempts = query_attempt(dbh, colnames, queryopts)
     if len(attempts) == 0:

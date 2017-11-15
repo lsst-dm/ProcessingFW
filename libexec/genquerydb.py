@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Generic query to the DB to determine input files """
+"""Generic query to the DB to determine input files.
+"""
 
 import argparse
 import sys
@@ -15,7 +16,8 @@ import processingfw.pfwconfig as pfwconfig
 
 
 def main(argv):
-    """ Program entry point """
+    """Program entry point.
+    """
     parser = argparse.ArgumentParser(description='genquery.py')
     parser.add_argument('--qoutfile', action='store')
     parser.add_argument('--qouttype', action='store')

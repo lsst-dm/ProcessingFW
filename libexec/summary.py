@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Send summary email when run ends (successfully or not) """
+"""Send summary email when run ends (successfully or not).
+"""
 
 import despymisc.miscutils as miscutils
 import processingfw.pfwconfig as pfwconfig
@@ -12,7 +13,8 @@ import sys
 
 
 def summary(argv=None):
-    """ Create and send summary email """
+    """Create and send summary email.
+    """
     if argv is None:
         argv = sys.argv
 

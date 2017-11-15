@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
-# pylint: disable=print-statement
-
-"""
-    Functions used by the processing framework to compress/uncompress files
-    within a pipeline job
+"""Functions for compressing/uncompressing files within a pipeline job.
 """
 
 # reserved variables:  __UCFILE__ uncompressed file, __CFILE__ compressed file
@@ -19,8 +15,8 @@ import intgutils.replace_funcs as replfuncs
 
 
 def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
-    """ run the compression command """
-
+    """Run the compression command.
+    """
     trycnt = 1
     returncode = 1
     while trycnt <= max_try_cnt and returncode != 0:
@@ -44,8 +40,8 @@ def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
 
 
 def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cnt=3, cleanup=True):
-    """ Compress given files """
-
+    """Compress given files.
+    """
     if miscutils.fwdebug_check(3, 'PFWCOMPRESS_DEBUG'):
         miscutils.fwdebug_print("BEG num files to compress = %s" % (len(listfullnames)))
 

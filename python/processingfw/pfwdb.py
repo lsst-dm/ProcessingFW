@@ -1,8 +1,6 @@
 """Define a database utility class extending despydmdb.desdmdbi.
 """
 
-__version__ = "$Rev: 44450 $"
-
 import os
 import socket
 import sys

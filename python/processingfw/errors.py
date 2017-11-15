@@ -3,8 +3,6 @@
 """Define some exceptions.
 """
 
-__version__ = "$Rev: 41004 $"
-
 
 class MetadataConfigError (Exception):
     """Represent an error in the METADATA and/or FILETYPE tables.

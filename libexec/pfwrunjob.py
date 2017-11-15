@@ -35,7 +35,6 @@ import processingfw.pfwdb as pfwdb
 import processingfw.pfwcompression as pfwcompress
 import qcframework.Messaging as Messaging
 
-__version__ = '$Rev: 44517 $'
 
 pool = None
 stop_all = False

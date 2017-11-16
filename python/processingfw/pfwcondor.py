@@ -808,9 +808,9 @@ def get_block_names(info):
     info : `dict`
        Information about the job.
 
-    Retruns
+    Returns
     -------
-    block, sublock : `str`
+    block, subblock : `str`
         Name of the block and the subblock. Both defaults to 'UNK' if any
         problems are encountered.
     """
@@ -818,11 +818,11 @@ def get_block_names(info):
     if info is not None:
         path = info.get('userlog')
         try:
-            blk_info, sub_info = path.split('/')[-2:]
+            blk_str, sub_str = path.split('/')[-2:]
         except (AttributeError, IndexError):
             pass
         else:
-            block, subblock = blk_info.split('-')[-1], sub_info.split('.')[0]
+            block, subblock = blk_str.split('-', -1)[-1], sub_str.split('.')[0]
     return block, subblock
 
 

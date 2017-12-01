@@ -1,27 +1,23 @@
 #!/usr/bin/env python
-# $Id: pfwlog.py 41004 2015-12-11 15:49:41Z mgower $
-# $Rev:: 41004                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2015-12-11 09:49:41 #$:  # Date of last commit.
 
-# pylint: disable=print-statement
-
-""" Functions that handle a processing framework execution event """
+"""Functions that handle a processing framework execution event.
+"""
 
 import os
 import time
 
-#######################################################################
+
 def get_timestamp():
-    """Create timestamp in a particular format"""
+    """Create timestamp in a particular format.
+    """
     tstamp = time.strftime("%m/%d/%Y %H:%M:%S", time.localtime())
     return tstamp
 
 
-#######################################################################
 def log_pfw_event(config, block=None, subblock=None,
                   subblocktype=None, info=None):
-    """Write info for a PFW event to a log file"""
+    """Write info for a PFW event to a log file.
+    """
     if block:
         block = block.replace('"', '')
     else:

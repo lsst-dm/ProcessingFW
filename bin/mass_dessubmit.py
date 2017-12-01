@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-# $Id: mass_dessubmit.py 42539 2016-06-09 21:00:23Z mgower $
-# $Rev:: 42539                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-06-09 16:00:23 #$:  # Date of last commit.
+"""TODO: short summary.
 
-""" Replaces mass submit variables in a template submit file and calls dessubmit
-    doing some throttling, spacing out of the submits """
+Replaces mass submit variables in a template submit file and calls dessubmit
+doing some throttling, spacing out of the submits.
+"""
 
 import argparse
 import subprocess
@@ -19,14 +17,16 @@ import despymisc.miscutils as miscutils
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdefs as pfwdefs
 
-######################################################################
+
 def tsstr():
-    """ Return the current time as a string """
+    """Return the current time as a string.
+    """
     return datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
-######################################################################
+
 def parse_cmdline(argv):
-    """ Parse the command line """
+    """Parse the command line.
+    """
     #echo "Usage: submitmassjob.sh desfile tilelist maxjobs site";
     parser = argparse.ArgumentParser(description='Submit multiple runs to the processing framework')
     parser.add_argument('--delimiter', action='store', default=None,
@@ -49,7 +49,6 @@ def parse_cmdline(argv):
                         help='filter maxjobs on reqnum')
     parser.add_argument('--pipeline', action='store',
                         help='filter maxjobs on pipeline')
-
 
     parser.add_argument('--group_submit_id', action='store', type=int, default=1,
                         help='numeric value stored in pfw_attempt table')
@@ -78,11 +77,11 @@ def parse_cmdline(argv):
 
     return args
 
-######################################################################
-def can_submit(args):
-    """ whether can submit another attempt or not """
 
-    print "%s: Checking whether can submit another attempt" % tsstr()
+def can_submit(args):
+    """Whether can submit another attempt or not.
+    """
+    print("%s: Checking whether can submit another attempt" % tsstr())
     dosubmit = None
 
     constraint_str = "-constraint %sisjob " % pfwdefs.ATTRIB_PREFIX
@@ -102,14 +101,17 @@ def can_submit(args):
     else:
         dosubmit = True
 
-    print "%s:\tmaxjobs=%s, jobcnt=%s, can_submit=%s" % (tsstr(), args['maxjobs'], jobcnt, dosubmit)
+    print("%s:\tmaxjobs=%s, jobcnt=%s, can_submit=%s" % (tsstr(), args['maxjobs'], jobcnt, dosubmit))
     return dosubmit
 
 
-######################################################################
 def submit(submitfile, logdir):
-    """ Call dessubmit on the specific submit file that has mass submit variables replaced """
-    print "%s: Submitting %s" % (tsstr(), submitfile)
+    """Call dessubmit on the specific submit file.
+
+    Calls dessubmit on the specific submit file that has mass submit variables
+    replaced.
+    """
+    print("%s: Submitting %s" % (tsstr(), submitfile))
 
     cwd = os.getcwd()
 
@@ -124,7 +126,7 @@ def submit(submitfile, logdir):
         logfilename = "%s/%s" % (logdir, logfilename)
 
     os.chdir(submitdir)
-    print "%s: dessubmit stdout/stderr - %s" % (tsstr(), logfilename)
+    print("%s: dessubmit stdout/stderr - %s" % (tsstr(), logfilename))
     cmd = "dessubmit %s" % (submitbase)
     with open(logfilename, 'w') as logfh:
         # call dessubmit
@@ -135,24 +137,23 @@ def submit(submitfile, logdir):
                                        stderr=subprocess.STDOUT)
         except:
             (extype, exvalue, _) = sys.exc_info()
-            print "********************"
-            print "Unexpected error: %s" % exvalue
-            print "cmd> %s" % cmd
-            print "Probably could not find %s in path" % cmd.split()[0]
+            print("********************")
+            print("Unexpected error: %s" % exvalue)
+            print("cmd> %s" % cmd)
+            print("Probably could not find %s in path" % cmd.split()[0])
             raise
 
         process.wait()
-        print "%s: dessubmit finished with exit code = %s" % (tsstr(), process.returncode)
+        print("%s: dessubmit finished with exit code = %s" % (tsstr(), process.returncode))
         if process.returncode != 0:
             raise Exception("Non-zero exit code from dessubmit")
 
     os.chdir(cwd)
 
 
-
-######################################################################
 def main(argv):
-    """ Program entry point """
+    """Program entry point.
+    """
     args = parse_cmdline(argv)
 
     origtname = args['templatewcl']
@@ -188,7 +189,6 @@ def main(argv):
             if not newtname.endswith(".des"):
                 newtname += ".des"
 
-
             if args['force'] or not os.path.exists(newtname):
                 submitdir = os.path.dirname(newtname)
                 if submitdir != "":
@@ -197,8 +197,8 @@ def main(argv):
                 # can I submit?
                 if not args['nosubmit']:
                     while not can_submit(args):
-                        print "%s: Shouldn't submit, sleeping %s seconds." % \
-                              (tsstr(), args['delay_check'])
+                        print("%s: Shouldn't submit, sleeping %s seconds." % \
+                              (tsstr(), args['delay_check']))
                         time.sleep(args['delay_check'])
 
                 newwcl = origtwcl
@@ -208,7 +208,7 @@ def main(argv):
 
                 newwcl += 'GROUP_SUBMIT_ID = %d\n' % args['group_submit_id']
 
-                print "%s: Writing submit wcl: %s" % (tsstr(), newtname)
+                print("%s: Writing submit wcl: %s" % (tsstr(), newtname))
                 with open(newtname, 'w') as ntwclfh:
                     ntwclfh.write(newwcl)
 
@@ -216,10 +216,10 @@ def main(argv):
                 if not args['nosubmit']:
                     submit(newtname, logdir)
 
-                    print "%s: Sleeping %s seconds after submit." % (tsstr(), args['delay'])
+                    print("%s: Sleeping %s seconds after submit." % (tsstr(), args['delay']))
                     time.sleep(args['delay'])
             else:
-                print "skipping %s" % newtname
+                print("skipping %s" % newtname)
 
 
 if __name__ == '__main__':

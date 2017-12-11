@@ -1,6 +1,14 @@
 #!/usr/bin/env python
+# $Id: pfwcompression.py 44002 2016-09-15 18:37:31Z friedel $
+# $Rev:: 44002                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2016-09-15 13:37:31 #$:  # Date of last commit.
 
-"""Functions for compressing/uncompressing files within a pipeline job.
+# pylint: disable=print-statement
+
+"""
+    Functions used by the processing framework to compress/uncompress files
+    within a pipeline job
 """
 
 # reserved variables:  __UCFILE__ uncompressed file, __CFILE__ compressed file
@@ -13,10 +21,10 @@ import subprocess
 import despymisc.miscutils as miscutils
 import intgutils.replace_funcs as replfuncs
 
-
+######################################################################
 def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
-    """Run the compression command.
-    """
+    """ run the compression command """
+
     trycnt = 1
     returncode = 1
     while trycnt <= max_try_cnt and returncode != 0:
@@ -28,7 +36,7 @@ def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
             returncode = process_comp.returncode
         except OSError as exc:
             errstr = "I/O error({0}): {1}".format(exc.errno, exc.strerror)
-            print(errstr)
+            print errstr
             returncode = 1
             # check for partial compressed output and remove
             if os.path.exists(fname_compressed):
@@ -39,9 +47,10 @@ def run_compression_command(cmd, fname_compressed, max_try_cnt=1):
     return returncode
 
 
+######################################################################
 def compress_files(listfullnames, compresssuffix, execname, argsorig, max_try_cnt=3, cleanup=True):
-    """Compress given files.
-    """
+    """ Compress given files """
+
     if miscutils.fwdebug_check(3, 'PFWCOMPRESS_DEBUG'):
         miscutils.fwdebug_print("BEG num files to compress = %s" % (len(listfullnames)))
 

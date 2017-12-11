@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-"""Print information about DESDM.
-
-Prints information about DESDM jobs in the FermiGrid queue from
+"""
+Print information about DESDM jobs in the FermiGrid queue from
 the FermiGrid batch system (condor) viewpoint.
 
 Similar to logging onto HPC machine and running qstat.
@@ -42,8 +41,7 @@ import processingfw.pfwcondor as pfwcondor
 
 
 def print_jobs(chost, jobs, now):
-    """Print jobs for a single FermiGrid condor pool.
-    """
+    """ Print jobs for a single FermiGrid condor pool """
     # sort on FermiGrid condor id
     for j in sorted(jobs.keys()):
         jdict = jobs[j]
@@ -122,15 +120,15 @@ def print_jobs(chost, jobs, now):
             if match:
                 label = os.path.basename(match.group(1)).replace('job_', '')
 
-        print("%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
-            (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
-             datetime.fromtimestamp(int(jdict['qdate'])), flavor,
-             remotehost, wallclock, submit_condorid, label))
+        print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
+               (chost, j, name, pfwcondor.get_job_status_str(j, jobs),
+                datetime.fromtimestamp(int(jdict['qdate'])), flavor,
+                remotehost, wallclock, submit_condorid, label)
 
 
 def main():
-    """Entry point.
-    """
+    """ Entry point """
+
     #OLD fermigrid = "-name gk@fnpcosg1.fnal.gov -pool fnpccm1.fnal.gov -constraint 'x509UserProxyVOName == \"des\"'"
     fermigridCE1 = "-name gpce01.fnal.gov -pool gpce01.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
     fermigridCE2 = "-name gpce02.fnal.gov -pool gpce02.fnal.gov:9619 -constraint 'x509UserProxyVOName == \"des\"'"
@@ -139,11 +137,12 @@ def main():
     jobsCE1 = pfwcondor.condor_q(fermigridCE1)
     jobsCE2 = pfwcondor.condor_q(fermigridCE2)
 
+
     # print headers
-    print("%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
-        ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
-         'wallclock', 'DES CID', 'DES label'))
-    print('-'*168)
+    print "%10s %10s %20s %5s %20s %6s  %20s %15s %10s %s" % \
+           ('FG CHOST', 'FG CID', 'FG user/DES user', 'stat', 'qdate', 'flavor', 'remotehost',
+            'wallclock', 'DES CID', 'DES label')
+    print '-'*168
     #OLD print_jobs('fnpcosg1', jobs, now)
     print_jobs('gpce01', jobsCE1, now)
     print_jobs('gpce02', jobsCE2, now)

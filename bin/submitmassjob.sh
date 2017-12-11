@@ -1,4 +1,8 @@
 #!/bin/csh
+# $Id: submitmassjob.sh 15873 2013-10-29 16:47:24Z mgower $
+# $Rev:: 15873                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2013-10-29 11:47:24 #$:  # Date of last commit.
 
 # example of a shell-script which does mass production of DES jobs
 # this may need lots of tweaks depending on what needs to be done.

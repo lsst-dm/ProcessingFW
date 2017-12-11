@@ -1,12 +1,17 @@
 #!/usr/bin/env python
+# $Id: pfwemail.py 44447 2016-10-19 18:15:40Z mgower $
+# $Rev:: 44447                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2016-10-19 13:15:40 #$:  # Date of last commit.
 
-"""Utilities for sending PFW emails.
-"""
+# pylint: disable=print-statement
+
+""" Utilities for sending PFW emails """
 
 import os
 import glob
 import subprocess
-from io import StringIO
+from cStringIO import StringIO
 
 import processingfw.pfwdefs as pfwdefs
 import intgutils.intgdefs as intgdefs
@@ -14,10 +19,8 @@ from despymisc import miscutils
 
 NUMLINES = 50
 
-
 def send_email(config, block, status, subject, msg1, msg2, sendit=True):
-    """Create PFW email and send it.
-    """
+    """create PFW email and send it"""
     project = config.getfull('project')
     run = config.getfull('submit_run')
 
@@ -45,24 +48,26 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
         mailfh.write("pfw_attempt_id = %s\n" % config['pfw_attempt_id'])
     if 'task_id' in config and 'attempt' in config['task_id']:
         mailfh.write("pfw_attempt task_id = %s\n" % config['task_id']['attempt'])
-
+    
     mailfh.write("\n")
 
     (exists, home_archive) = config.search(pfwdefs.HOME_ARCHIVE, {intgdefs.REPLACE_VARS: True})
     if exists:
         mailfh.write("Home Archive:\n")
         mailfh.write("\t%s = %s\n" % (pfwdefs.HOME_ARCHIVE.lower(), home_archive))
-        mailfh.write("\tArchive directory = %s/%s\n" %
+        mailfh.write("\tArchive directory = %s/%s\n" % \
                      (config.getfull('root'),
                       config.getfull(pfwdefs.ATTEMPT_ARCHIVE_PATH)))
         mailfh.write("\n")
 
+
     mailfh.write("Submit:\n")
     mailfh.write("\tmachine = %s\n" % localmachine)
     mailfh.write("\tPROCESSINGFW_DIR = %s\n" % os.environ['PROCESSINGFW_DIR'])
-    mailfh.write("\torig config = %s/%s\n" %
+    mailfh.write("\torig config = %s/%s\n" % \
                  (config.getfull('submit_dir'), config.getfull('submitwcl')))
     mailfh.write("\tdirectory = %s\n\n" % config.getfull('work_dir'))
+
 
     mailfh.write("Target:\n")
     mailfh.write("\tsite = %s\n" % config.getfull('target_site'))
@@ -94,37 +99,34 @@ def send_email(config, block, status, subject, msg1, msg2, sendit=True):
     (exists, email) = config.search('email', {intgdefs.REPLACE_VARS: True})
     if exists:
         if sendit:
-            print("Sending %s as email to %s (block=%s)" % (mailfile, email, block))
+            print "Sending %s as email to %s (block=%s)" % (mailfile, email, block)
             mailfh = open(mailfile, 'r')
-            print(subprocess.check_output(['/bin/mail', '-s', '%s' % subject, email], stdin=mailfh))
+            print subprocess.check_output(['/bin/mail', '-s', '%s' % subject, email], stdin=mailfh)
             mailfh.close()
             # don't delete email file as helps others debug as well as sometimes emails are missed
         else:
-            print("Not sending %s as email to %s (block=%s)" % (mailfile, email, block))
-            print("subject: %s" % subject)
+            print "Not sending %s as email to %s (block=%s)" % (mailfile, email, block)
+            print "subject: %s" % subject
     else:
-        print(block, "No email address.  Not sending email.")
-
+        print block, "No email address.  Not sending email."
 
 def send_subblock_email(config, block, subblock, retval):
-    """Create PFW subblock email and send it.
-    """
-    print("send_subblock_email BEG")
-    print("send_subblock_email block=%s" % block)
-    print("send_subblock_email subblock=%s" % subblock)
-    print("send_subblock_email retval=%s" % retval)
+    """create PFW subblock email and send it"""
+    print "send_subblock_email BEG"
+    print "send_subblock_email block=%s" % block
+    print "send_subblock_email subblock=%s" % subblock
+    print "send_subblock_email retval=%s" % retval
     msg1 = "Failed subblock = %s" % subblock
     msg2 = get_subblock_output(subblock)
     send_email(config, block, retval, "[FAILED]", msg1, msg2)
-    print("send_subblock_email END")
+    print "send_subblock_email END"
 
 
 def get_job_info(block):
-    """Gather target job status info for email.
-    """
+    """gather target job status info for email"""
     iostr = StringIO()
-    iostr.write("%6s\t%25s\t%7s\t%7s\t%s" %
-                ('JOBNUM', 'MODULE', 'STATUS4', 'STATUS5', 'MSG'))
+    iostr.write("%6s\t%25s\t%7s\t%7s\t%s" % \
+            ('JOBNUM', 'MODULE', 'STATUS4', 'STATUS5', 'MSG'))
     filepat = "../%s_*/*.jobinfo.out" % block
     jobinfofiles = glob.glob(filepat)
     for fname in jobinfofiles.sort():
@@ -134,9 +136,9 @@ def get_job_info(block):
     return iostr.getvalue()
 
 
+
 def get_subblock_output(subblock):
-    """Grab tail of stdout/stderr to include in email.
-    """
+    """Grab tail of stdout/stderr to include in email"""
     (path, block) = os.path.split(os.getcwd())
 
     iostr = StringIO()

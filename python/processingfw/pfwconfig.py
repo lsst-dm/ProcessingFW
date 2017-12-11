@@ -1,7 +1,12 @@
 #!/usr/bin/env python
+# $Id: pfwconfig.py 45743 2017-06-02 18:34:40Z friedel $
+# $Rev:: 45743                            $:  # Revision of last commit.
+# $LastChangedBy:: friedel                $:  # Author of last commit.
+# $LastChangedDate:: 2017-06-02 13:34:40 #$:  # Date of last commit.
 
-"""Class definition that stores configuration and state information for PFW.
-"""
+# pylint: disable=print-statement
+
+""" Contains class definition that stores configuration and state information for PFW """
 
 from collections import OrderedDict
 import sys
@@ -23,11 +28,10 @@ PFW_SEARCH_ORDER = [pfwdefs.SW_FILESECT, pfwdefs.SW_LISTSECT, 'exec', 'job',
                     pfwdefs.SW_MODULESECT, pfwdefs.SW_BLOCKSECT,
                     pfwdefs.SW_ARCHIVESECT, pfwdefs.SW_SITESECT]
 
-
 class PfwConfig(WCL):
-    """Contains configuration and state information for PFW.
-    """
+    """ Contains configuration and state information for PFW """
 
+    ###########################################################################
     def __init__(self, args):
         """ Initialize configuration object, typically reading from wclfile """
 
@@ -43,13 +47,13 @@ class PfwConfig(WCL):
                 miscutils.fwdebug_print("Reading wclfile: %s" % (args['wclfile']))
             try:
                 starttime = time.time()
-                print("\tReading submit wcl...", end=' ')
+                print "\tReading submit wcl...",
                 with open(args['wclfile'], "r") as wclfh:
                     wclobj.read(wclfh, filename=args['wclfile'])
-                print("DONE (%0.2f secs)" % (time.time()-starttime))
+                print "DONE (%0.2f secs)" % (time.time()-starttime)
                 #wclobj['wclfile'] = args['wclfile']
             except IOError as err:
-                miscutils.fwdie("Error: Problem reading wcl file '%s' : %s" %
+                miscutils.fwdie("Error: Problem reading wcl file '%s' : %s" % \
                                 (args['wclfile'], err), pfwdefs.PF_EXIT_FAILURE)
 
         # location of des services file
@@ -83,12 +87,12 @@ class PfwConfig(WCL):
             if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
                 miscutils.fwdebug_print("Reading pfwconfig: %s" % (pfwconfig))
             starttime = time.time()
-            print("\tReading config from software install...", end=' ')
+            print "\tReading config from software install...",
             pfwcfg_wcl = WCL()
             with open(pfwconfig, "r") as wclfh:
                 pfwcfg_wcl.read(wclfh, filename=pfwconfig)
             self.update(pfwcfg_wcl)
-            print("DONE (%0.2f secs)" % (time.time()-starttime))
+            print "DONE (%0.2f secs)" % (time.time()-starttime)
 
         use_db_in = None
         if pfwdefs.PF_USE_DB_IN in wclobj:
@@ -97,11 +101,11 @@ class PfwConfig(WCL):
             use_db_in = miscutils.convertBool(self[pfwdefs.PF_USE_DB_IN])
 
         if (use_db_in and 'get_db_config' in args and args['get_db_config']):
-            print("\tGetting defaults from DB...", end=' ')
+            print "\tGetting defaults from DB...",
             sys.stdout.flush()
             starttime = time.time()
             dbh = pfwdb.PFWDB(wclobj['submit_des_services'], wclobj['submit_des_db_section'])
-            print("DONE (%0.2f secs)" % (time.time()-starttime))
+            print "DONE (%0.2f secs)" % (time.time()-starttime)
             self.update(dbh.get_database_defaults())
 
         # wclfile overrides all, so must be added last
@@ -109,6 +113,7 @@ class PfwConfig(WCL):
             if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
                 miscutils.fwdebug_print("Reading wclfile: %s" % (args['wclfile']))
             self.update(wclobj)
+
 
         self.set_names()
 
@@ -124,7 +129,7 @@ class PfwConfig(WCL):
             self['current'] = OrderedDict({'curr_block': '',
                                            'curr_archive': '',
                                            #'curr_software': '',
-                                           'curr_site': ''})
+                                           'curr_site' : ''})
             self[pfwdefs.PF_WRAPNUM] = '0'
             self[pfwdefs.PF_BLKNUM] = '1'
             self[pfwdefs.PF_TASKNUM] = '0'
@@ -135,17 +140,18 @@ class PfwConfig(WCL):
             if self[pfwdefs.PF_BLKNUM] <= len(block_array):
                 self.set_block_info()
 
+    ###########################################################################
     # assumes already run through chk
     def set_submit_info(self):
-        """Initialize submit time values.
-        """
+        """ Initialize submit time values """
+
         self['des_home'] = os.path.abspath(os.path.dirname(__file__)) + "/.."
         self['submit_dir'] = os.getcwd()
         self['submit_host'] = os.uname()[1]
 
         if 'submit_time' in self:   # operator providing submit_time
             submit_time = self['submit_time']
-            submit_epoch = int(time.mktime(time.strptime(submit_time, "%Y%m%d%H%M%S")))
+            submit_epoch = int(time.mktime(time.strptime(submit_time,"%Y%m%d%H%M%S")))
         else:
             submit_epoch = time.time()
             submit_time = time.strftime("%Y%m%d%H%M%S", time.localtime(submit_epoch))
@@ -161,12 +167,13 @@ class PfwConfig(WCL):
         self.reset_blknum()
         self.set_block_info()
 
-        self['submit_run'] = replfuncs.replace_vars_single("${unitname}_r${reqnum}p${attnum:2}",
+        self['submit_run'] = replfuncs.replace_vars_single("${unitname}_r${reqnum}p${attnum:2}", 
                                                            self, None)
         self['submit_%s' % pfwdefs.REQNUM] = self.getfull(pfwdefs.REQNUM)
         self['submit_%s' % pfwdefs.UNITNAME] = self.getfull(pfwdefs.UNITNAME)
         self['submit_%s' % pfwdefs.ATTNUM] = self.getfull(pfwdefs.ATTNUM)
         self['run'] = self.getfull('submit_run')
+
 
         work_dir = ''
         if pfwdefs.SUBMIT_RUN_DIR in self:
@@ -182,7 +189,7 @@ class PfwConfig(WCL):
         self['work_dir'] = work_dir
         self['uberctrl_dir'] = work_dir + "/uberctrl"
 
-        (exists, master_save_file) = self.search(pfwdefs.MASTER_SAVE_FILE,
+        (exists, master_save_file) = self.search(pfwdefs.MASTER_SAVE_FILE, 
                                                  {intgdefs.REPLACE_VARS: True})
         if exists:
             if master_save_file not in pfwdefs.VALID_MASTER_SAVE_FILE:
@@ -190,25 +197,28 @@ class PfwConfig(WCL):
                 if match:
                     if random.randrange(100) <= int(match.group(1)):
                         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
-                            miscutils.fwdebug_print('Changing %s to %s' %
+                            miscutils.fwdebug_print('Changing %s to %s' % \
                                                     (pfwdefs.MASTER_SAVE_FILE, 'always'))
                         self[pfwdefs.MASTER_SAVE_FILE] = 'always'
                     else:
                         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
-                            miscutils.fwdebug_print('Changing %s to %s' %
+                            miscutils.fwdebug_print('Changing %s to %s' % \
                                                     (pfwdefs.MASTER_SAVE_FILE, 'file'))
                         self[pfwdefs.MASTER_SAVE_FILE] = 'file'
                 else:
-                    miscutils.fwdie("Error:  Invalid value for %s (%s)" %
+                    miscutils.fwdie("Error:  Invalid value for %s (%s)" % \
                                     (pfwdefs.MASTER_SAVE_FILE,
                                      master_save_file),
                                     pfwdefs.PF_EXIT_FAILURE)
         else:
             self[pfwdefs.MASTER_SAVE_FILE] = pfwdefs.MASTER_SAVE_FILE_DEFAULT
 
+
+
+
+    ###########################################################################
     def set_block_info(self):
-        """Set current vals to match current block number.
-        """
+        """ Set current vals to match current block number """
         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("BEG")
 
@@ -223,7 +233,7 @@ class PfwConfig(WCL):
         # update current block name for accessing block information
         blockname = self.get_block_name(blknum)
         if not blockname:
-            miscutils.fwdie("Error: Cannot determine block name value for blknum=%s" %
+            miscutils.fwdie("Error: Cannot determine block name value for blknum=%s" % \
                             blknum, pfwdefs.PF_EXIT_FAILURE)
         curdict['curr_block'] = blockname
 
@@ -236,8 +246,8 @@ class PfwConfig(WCL):
 
         site = site.lower()
         if site not in self[pfwdefs.SW_SITESECT]:
-            print("Error: invalid site value (%s)" % (site))
-            print("\tsite defs contain entries for sites: ", list(self[pfwdefs.SW_SITESECT].keys()))
+            print "Error: invalid site value (%s)" % (site)
+            print "\tsite defs contain entries for sites: ", self[pfwdefs.SW_SITESECT].keys()
             miscutils.fwdie("Error: Invalid site value (%s)" % (site), pfwdefs.PF_EXIT_FAILURE)
         curdict['curr_site'] = site
         self['runsite'] = site
@@ -249,15 +259,15 @@ class PfwConfig(WCL):
                  miscutils.convertBool(self[pfwdefs.USE_TARGET_ARCHIVE_OUTPUT]))):
             (exists, archive) = self.search(pfwdefs.TARGET_ARCHIVE)
             if not exists:
-                miscutils.fwdie("Error: Cannot determine target_archive value.   \n"
-                                "\tEither set target_archive or set to FALSE both %s and %s" %
+                miscutils.fwdie("Error: Cannot determine target_archive value.   \n" \
+                                "\tEither set target_archive or set to FALSE both %s and %s" % \
                                 (pfwdefs.USE_TARGET_ARCHIVE_INPUT,
-                                 pfwdefs.USE_TARGET_ARCHIVE_OUTPUT), pfwdefs.PF_EXIT_FAILURE)
+                                pfwdefs.USE_TARGET_ARCHIVE_OUTPUT), pfwdefs.PF_EXIT_FAILURE)
 
             archive = archive.lower()
             if archive not in self[pfwdefs.SW_ARCHIVESECT]:
-                print("Error: invalid target_archive value (%s)" % archive)
-                print("\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT])
+                print "Error: invalid target_archive value (%s)" % archive
+                print "\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT]
                 miscutils.fwdie("Error: Invalid target_archive value (%s)" % archive,
                                 pfwdefs.PF_EXIT_FAILURE)
 
@@ -271,26 +281,27 @@ class PfwConfig(WCL):
                 self['list_target_archives'] = archive
 
         elif ((pfwdefs.USE_HOME_ARCHIVE_INPUT in self and
-               self[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never') or
-              (pfwdefs.USE_HOME_ARCHIVE_OUTPUT in self and
+               self[pfwdefs.USE_HOME_ARCHIVE_INPUT] != 'never') or 
+              (pfwdefs.USE_HOME_ARCHIVE_OUTPUT in self and 
                self[pfwdefs.USE_HOME_ARCHIVE_OUTPUT] != 'never')):
             (exists, archive) = self.search(pfwdefs.HOME_ARCHIVE)
             if not exists:
-                miscutils.fwdie("Error: Cannot determine home_archive value.\n"
-                                "\tEither set home_archive or set correctly both %s and %s" %
+                miscutils.fwdie("Error: Cannot determine home_archive value.\n" \
+                                "\tEither set home_archive or set correctly both %s and %s" % \
                                 (pfwdefs.USE_HOME_ARCHIVE_INPUT, pfwdefs.USE_HOME_ARCHIVE_OUTPUT),
                                 pfwdefs.PF_EXIT_FAILURE)
 
             archive = archive.lower()
             if archive not in self[pfwdefs.SW_ARCHIVESECT]:
-                print("Error: invalid home_archive value (%s)" % archive)
-                print("\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT])
+                print "Error: invalid home_archive value (%s)" % archive
+                print "\tarchive contains: ", self[pfwdefs.SW_ARCHIVESECT]
                 miscutils.fwdie("Error: Invalid home_archive value (%s)" % archive,
                                 pfwdefs.PF_EXIT_FAILURE)
             curdict['curr_archive'] = archive
         else:
             # make sure to reset curr_archive from possible prev block value
             curdict['curr_archive'] = None
+
 
         if 'submit_des_services' in self:
             self['des_services'] = self['submit_des_services']
@@ -301,37 +312,40 @@ class PfwConfig(WCL):
         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("END")
 
+
     def inc_blknum(self):
-        """Increment the block number.
-        """
+        """ increment the block number """
         # note config stores numbers as strings
         self[pfwdefs.PF_BLKNUM] = str(int(self[pfwdefs.PF_BLKNUM]) + 1)
 
+    ###########################################################################
     def reset_blknum(self):
-        """Reset block number to 1.
-        """
+        """ reset block number to 1 """
         self[pfwdefs.PF_BLKNUM] = '1'
 
+    ###########################################################################
     def inc_jobnum(self, inc=1):
-        """Increment running job number.
-        """
+        """ Increment running job number """
         self[pfwdefs.PF_JOBNUM] = str(int(self[pfwdefs.PF_JOBNUM]) + inc)
         return self[pfwdefs.PF_JOBNUM]
 
+
+    ###########################################################################
     def inc_tasknum(self, inc=1):
-        """Increment blktask number.
-        """
+        """ Increment blktask number """
         self[pfwdefs.PF_TASKNUM] = str(int(self[pfwdefs.PF_TASKNUM]) + inc)
         return self[pfwdefs.PF_TASKNUM]
 
+
+    ###########################################################################
     def inc_wrapnum(self):
-        """Increment running wrapper number.
-        """
+        """ Increment running wrapper number """
         self[pfwdefs.PF_WRAPNUM] = str(int(self[pfwdefs.PF_WRAPNUM]) + 1)
 
+
+    ###########################################################################
     def get_block_name(self, blknum):
-        """Return block name based upon given block num.
-        """
+        """ Return block name based upon given block num """
         blknum = int(blknum)   # read in from file as string
 
         blockname = ''
@@ -340,9 +354,10 @@ class PfwConfig(WCL):
             blockname = blockarray[blknum-1]
         return blockname
 
+
+    ###########################################################################
     def get_condor_attributes(self, block, subblock):
-        """Create dictionary of attributes for condor jobs.
-        """
+        """Create dictionary of attributes for condor jobs"""
         attribs = {}
         attribs[pfwdefs.ATTRIB_PREFIX + 'isjob'] = 'TRUE'
         attribs[pfwdefs.ATTRIB_PREFIX + 'project'] = self['project']
@@ -361,9 +376,10 @@ class PfwConfig(WCL):
                 attribs['GLIDEIN_NAME'] = self['glidein_name']
         return attribs
 
+
+    ###########################################################################
     def get_dag_cmd_opts(self):
-        """Create dictionary of condor_submit_dag command line options.
-        """
+        """Create dictionary of condor_submit_dag command line options"""
         cmdopts = {}
         for key in ['max_pre', 'max_post', 'max_jobs', 'max_idle']:
             (exists, value) = self.search('dagman_' + key)
@@ -371,9 +387,10 @@ class PfwConfig(WCL):
                 cmdopts[key] = value
         return cmdopts
 
+
+    ###########################################################################
     def get_grid_info(self):
-        """Create dictionary of grid job submission options.
-        """
+        """Create dictionary of grid job submission options"""
         vals = {}
         for key in ['stdout', 'stderr', 'queue', 'psn', 'job_type',
                     'max_wall_time', 'max_time', 'max_cpu_time',
@@ -394,9 +411,9 @@ class PfwConfig(WCL):
 
         return vals
 
+    ###########################################################################
     def stagefile(self, opts):
-        """Determine whether should stage files or not.
-        """
+        """ Determine whether should stage files or not """
         retval = True
         (dryrun_exists, dryrun) = self.search(pfwdefs.PF_DRYRUN, opts)
         if dryrun_exists and miscutils.convertBool(dryrun):
@@ -406,9 +423,11 @@ class PfwConfig(WCL):
             retval = False
         return retval
 
+
+    ###########################################################################
     def get_filename(self, filepat=None, searchopts=None):
-        """Return filename based upon given file pattern name.
-        """
+        """ Return filename based upon given file pattern name """
+
         if miscutils.fwdebug_check(6, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("given filepat = %s, type = %s" % (filepat, type(filepat)))
             miscutils.fwdebug_print("given searchopts = %s" % (searchopts))
@@ -431,8 +450,7 @@ class PfwConfig(WCL):
                 (found, filepat) = self.search(pfwdefs.SW_FILEPAT, searchopts)
 
                 if not found:
-                    miscutils.fwdie("Error: Could not find file pattern (%s) in file def section" %
-                                    pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE, 2)
+                    miscutils.fwdie("Error: Could not find file pattern (%s) in file def section" % pfwdefs.SW_FILEPAT, pfwdefs.PF_EXIT_FAILURE, 2)
         elif miscutils.fwdebug_check(6, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("working with given filepat = %s" % (filepat))
 
@@ -441,16 +459,15 @@ class PfwConfig(WCL):
 
         if pfwdefs.SW_FILEPATSECT not in self:
             self.write()
-            miscutils.fwdie("Error: Could not find filename pattern section (%s) in config" %
+            miscutils.fwdie("Error: Could not find filename pattern section (%s) in config" % \
                             pfwdefs.SW_FILEPATSECT, pfwdefs.PF_EXIT_FAILURE)
         elif filepat in self[pfwdefs.SW_FILEPATSECT]:
             filenamepat = self[pfwdefs.SW_FILEPATSECT][filepat]
         else:
             miscutils.fwdebug_print("%s keys: %s" % (pfwdefs.SW_FILEPATSECT,
-                                                     list(self[pfwdefs.SW_FILEPATSECT].keys())))
-            print("searchopts =", searchopts)
-            miscutils.fwdie("Error: Could not find value for filename pattern '%s' in file pattern section" %
-                            filepat, pfwdefs.PF_EXIT_FAILURE, 2)
+                                                     self[pfwdefs.SW_FILEPATSECT].keys()))
+            print "searchopts =", searchopts
+            miscutils.fwdie("Error: Could not find value for filename pattern '%s' in file pattern section" % filepat, pfwdefs.PF_EXIT_FAILURE, 2)
 
         if searchopts is not None:
             searchopts['required'] = origreq
@@ -458,7 +475,7 @@ class PfwConfig(WCL):
         retval = filenamepat
 
         if (searchopts is None or intgdefs.REPLACE_VARS not in searchopts or
-                miscutils.convertBool(searchopts[intgdefs.REPLACE_VARS])):
+               miscutils.convertBool(searchopts[intgdefs.REPLACE_VARS])):
             sopt2 = {}
             if searchopts is not None:
                 sopt2 = copy.deepcopy(searchopts)
@@ -473,9 +490,11 @@ class PfwConfig(WCL):
 
         return retval
 
+
+    ###########################################################################
     def get_filepath(self, pathtype, dirpat=None, searchopts=None):
-        """Return filepath based upon given pathtype and directory pattern name.
-        """
+        """ Return filepath based upon given pathtype and directory pattern name """
+
         # get filename pattern from global settings:
         if not dirpat:
             (found, dirpat) = self.search(pfwdefs.DIRPAT, searchopts)
@@ -486,15 +505,17 @@ class PfwConfig(WCL):
         if dirpat in self[pfwdefs.DIRPATSECT]:
             filepathpat = self[pfwdefs.DIRPATSECT][dirpat][pathtype]
         else:
-            miscutils.fwdie("Error: Could not find pattern %s in directory patterns" %
+            miscutils.fwdie("Error: Could not find pattern %s in directory patterns" % \
                             dirpat, pfwdefs.PF_EXIT_FAILURE)
 
         results = replfuncs.replace_vars_single(filepathpat, self, searchopts)
         return results
 
+
+    ###########################################################################
     def combine_lists_files(self, modulename):
-        """Return python list of file and file list objects.
-        """
+        """ Return python list of file and file list objects """
+
         if miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("BEG")
 
@@ -506,14 +527,14 @@ class PfwConfig(WCL):
             if 'list_order' in moduledict:
                 listorder = moduledict['list_order'].replace(' ', '').split(',')
             else:
-                listorder = list(moduledict[pfwdefs.SW_LISTSECT].keys())
+                listorder = moduledict[pfwdefs.SW_LISTSECT].keys()
             for key in listorder:
                 dataset.append(('list-%s' % key, moduledict[pfwdefs.SW_LISTSECT][key]))
         elif miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("no lists")
 
         if pfwdefs.SW_FILESECT in moduledict and len(moduledict[pfwdefs.SW_FILESECT]) > 0:
-            for key, val in list(moduledict[pfwdefs.SW_FILESECT].items()):
+            for key, val in moduledict[pfwdefs.SW_FILESECT].items():
                 dataset.append(('file-%s' % key, val))
         elif miscutils.fwdebug_check(3, 'PFWCONFIG_DEBUG'):
             miscutils.fwdebug_print("no files")
@@ -522,26 +543,29 @@ class PfwConfig(WCL):
             miscutils.fwdebug_print("END")
         return dataset
 
+    ###########################################################################
     def set_names(self):
-        """set names for use in patterns (i.e., blockname, modulename).
-        """
-        for tsname, tsval in list(self.items()):
+        """ set names for use in patterns (i.e., blockname, modulename) """
+
+        for tsname, tsval in self.items():
             if isinstance(tsval, dict):
-                for nsname, nsval in list(tsval.items()):
+                for nsname, nsval in tsval.items():
                     if isinstance(nsval, dict):
                         namestr = '%sname' % tsname
                         if namestr not in nsval:
                             nsval[namestr] = nsname
 
+
+
+    ###########################################################################
     # Determine whether should stage files or not
     def stagefiles(self, opts=None):
-        """Return whether to save stage files to target archive.
-        """
+        """ Return whether to save stage files to target archive """
         retval = True
 
         notarget_exists, notarget = self.search(pfwdefs.PF_DRYRUN, opts)
         if notarget_exists and miscutils.convertBool(notarget):
-            print("Do not stage file due to dry run\n")
+            print "Do not stage file due to dry run\n"
             retval = False
         else:
             stagefiles_exists, stagefiles = self.search(pfwdefs.STAGE_FILES, opts)
@@ -558,10 +582,11 @@ class PfwConfig(WCL):
         #print "stagefiles retval = %s" % retval
         return retval
 
+
+    ###########################################################################
     # Determine whether should save files or not
     def savefiles(self, opts=None):
-        """Return whether to save files from job.
-        """
+        """ Return whether to save files from job """
         retval = True
 
         savefiles_exists, savefiles = self.search(pfwdefs.SAVE_FILE_ARCHIVE, opts)
@@ -582,10 +607,9 @@ class PfwConfig(WCL):
         return retval
 
     def get_param_info(self, keys, opts=None):
-        """Returns values for given list of keys.
-        """
+        """ returns values for given list of keys """
         info = {}
-        for key, stat in list(keys.items()):
+        for key, stat in keys.items():
             (found, value) = self.search(key, opts)
             if found:
                 info[key] = value
@@ -601,12 +625,12 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         pfw = PfwConfig({'wclfile': sys.argv[1]})
         #pfw.write(sys.argv[2])
-        print(pfwdefs.SW_BLOCKLIST in pfw)
-        print('not_there' in pfw)
+        print pfwdefs.SW_BLOCKLIST in pfw
+        print 'not_there' in pfw
         pfw.set_block_info()
-        print(pfw[pfwdefs.PF_BLKNUM])
+        print pfw[pfwdefs.PF_BLKNUM]
         pfw.inc_blknum()
-        print(pfw[pfwdefs.PF_BLKNUM])
+        print pfw[pfwdefs.PF_BLKNUM]
         pfw.reset_blknum()
         pfw.set_block_info()
-        print(pfw[pfwdefs.PF_BLKNUM])
+        print pfw[pfwdefs.PF_BLKNUM]

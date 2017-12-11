@@ -1,7 +1,10 @@
 #!/usr/bin/env python
+# $Id: logpre.py 41004 2015-12-11 15:49:41Z mgower $
+# $Rev:: 41004                            $:  # Revision of last commit.
+# $LastChangedBy:: mgower                 $:  # Author of last commit.
+# $LastChangedDate:: 2015-12-11 09:49:41 #$:  # Date of last commit.
 
-"""Bookkeeping steps executed submit-side prior to certain submit-side tasks.
-"""
+""" Bookkeeping steps executed submit-side prior to certain submit-side tasks """
 
 import sys
 import os
@@ -10,10 +13,8 @@ import despymisc.miscutils as miscutils
 from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 
-
 def logpre(argv=None):
-    """Program entry point.
-    """
+    """ Program entry point """
     if argv is None:
         argv = sys.argv
 
@@ -22,10 +23,10 @@ def logpre(argv=None):
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print(' '.join(sys.argv)) # command line for debugging
+    print ' '.join(sys.argv) # command line for debugging
 
     if len(argv) < 5:
-        print('Usage: logpre configfile block subblocktype subblock')
+        print 'Usage: logpre configfile block subblocktype subblock'
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -44,24 +45,24 @@ def logpre(argv=None):
     new_log_name = config.get_filename('block',
                                        {pfwdefs.PF_CURRVALS: {'subblock': subblock,
                                                               'flabel': '${subblock}_logpre',
-                                                              'fsuffix': 'out'}})
+                                                              'fsuffix':'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
     debugfh.close()
 
-    os.chmod(default_log, 0o666)
+    os.chmod(default_log, 0666)
     os.rename(default_log, new_log_name)
 
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
 
+
     log_pfw_event(config, blockname, subblock, subblocktype, ['pretask'])
 
-    print("logpre done")
+    print "logpre done"
     debugfh.close()
     return pfwdefs.PF_EXIT_SUCCESS
-
 
 if __name__ == "__main__":
     sys.exit(logpre(sys.argv))

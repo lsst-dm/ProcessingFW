@@ -1,8 +1,5 @@
-# pylint: disable=print-statement
-
 """Define some exceptions.
 """
-
 
 class MetadataConfigError (Exception):
     """Represent an error in the METADATA and/or FILETYPE tables.

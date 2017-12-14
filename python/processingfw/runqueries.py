@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """Run queries for a block to determine input files.
 """
 

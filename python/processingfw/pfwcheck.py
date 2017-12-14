@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """Contains functions used to check submit wcl for missing or invalid values.
 """
 

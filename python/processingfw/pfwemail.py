@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """Utilities for sending PFW emails.
 """
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """Functions that handle a processing framework execution event.
 """
 

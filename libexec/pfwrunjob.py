@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """Executes a series of wrappers within a single job.
 """
 
@@ -1942,16 +1941,10 @@ def parse_args(argv):
     """Parse the command line arguments.
     """
     parser = argparse.ArgumentParser(description='pfwrun_job.py')
-    parser.add_argument('--version', action='store_true', default=False)
     parser.add_argument('--config', action='store', required=True)
     parser.add_argument('workflow', action='store')
 
     args = parser.parse_args(argv)
-
-    if args.version:
-        print(__version__)
-        sys.exit(0)
-
     return args
 
 

@@ -19,7 +19,6 @@ import processingfw.pfwlog as pfwlog
 from intgutils.wcl import WCL
 import intgutils.intgdefs as intgdefs
 
-__version__ = '$Rev: 43890 $'
 
 
 def create_dags(config, logfh):
@@ -188,7 +187,6 @@ def main(argv):
     """Program entry point.
     """
     os.putenv('PYTHONUNBUFFERED', 'true')
-    print('Using version %s of dessubmit\n' % __version__)
     args = parse_args(argv)
 
     if args['version']:

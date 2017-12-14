@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-# $Id: runqueries.py 41245 2016-01-27 17:13:31Z mgower $
-# $Rev:: 41245                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-01-27 11:13:31 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
 
 """ Run queries for a block to determine input files """
 

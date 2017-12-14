@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-# $Id: pfwsubmit.py 41004 2015-12-11 15:49:41Z mgower $
-# $Rev:: 41004                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2015-12-11 09:49:41 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
 
 """ need to write docstring """
 

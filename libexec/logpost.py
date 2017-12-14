@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: logpost.py 44447 2016-10-19 18:15:40Z mgower $
-# $Rev:: 44447                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-19 13:15:40 #$:  # Date of last commit.
 
 """ Bookkeeping steps executed submit-side after certain submit-side tasks """
 

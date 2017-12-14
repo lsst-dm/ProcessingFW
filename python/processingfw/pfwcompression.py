@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-# $Id: pfwcompression.py 44002 2016-09-15 18:37:31Z friedel $
-# $Rev:: 44002                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2016-09-15 13:37:31 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
 
 """
     Functions used by the processing framework to compress/uncompress files

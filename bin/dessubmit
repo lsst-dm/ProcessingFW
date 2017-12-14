@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# $Id: dessubmit 43890 2016-09-01 15:26:55Z mgower $
-# $Rev:: 43890                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-09-01 10:26:55 #$:  # Date of last commit.
 
 """ TODO docstring """
 
@@ -22,7 +18,6 @@ import processingfw.pfwlog as pfwlog
 from intgutils.wcl import WCL
 import intgutils.intgdefs as intgdefs
 
-__version__ = '$Rev: 43890 $'
 
 ################################################################
 def create_dags(config, logfh):
@@ -183,7 +178,6 @@ def get_attnum(config):
 def main(argv):
     """ Program entry point """
     os.putenv('PYTHONUNBUFFERED', 'true')
-    print 'Using version %s of dessubmit\n' % __version__
     args = parse_args(argv)
 
     if args['version']:

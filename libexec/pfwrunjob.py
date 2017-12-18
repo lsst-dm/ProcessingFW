@@ -128,12 +128,9 @@ class Err(object):
 
 
 class Capture(object):
-    """
-    """
-
-    def __init__(self, pfwattid, taskid, dbh, patterns={}):
+    def __init__(self, pfwattid, taskid, dbh, patterns={}, use_qcf=True):
         self.old_stdout = sys.stdout
-        self.msg = Messaging.Messaging(None, 'pfwrunjob.py', pfwattid, taskid, dbh, qcf_patterns=patterns)
+        self.msg = Messaging.Messaging(None, 'pfwrunjob.py', pfwattid, taskid, dbh, usedb=use_qcf, qcf_patterns=patterns)
         self.msg.setname('runjob.out')
 
     def write(self, text, tid=None):
@@ -1620,7 +1617,7 @@ def run_job(args):
         # update job batch/condor ids
         pfw_dbh = pfwdb.PFWDB()
         pfw_dbh.update_job_target_info(jobwcl, condor_id, batch_id, socket.gethostname())
-        stdo = Capture(jobwcl['pfw_attempt_id'], jobwcl['task_id']['job'], pfw_dbh, patterns=jobwcl['qcf'])
+        stdo = Capture(jobwcl['pfw_attempt_id'], jobwcl['task_id']['job'], pfw_dbh, patterns=jobwcl['qcf'], use_qcf=jobwcl['use_qcf'])
         sys.stdout = stdo
 
         #sys.stderr = sys.stdout

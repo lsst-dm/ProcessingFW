@@ -1,10 +1,4 @@
 #!usr/bin/env python
-# $Id: pfwutils.py 43916 2016-09-06 19:11:40Z friedel $
-# $Rev:: 43916                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2016-09-06 14:11:40 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
 
 """ Miscellaneous support functions for processing framework """
 

@@ -1,10 +1,3 @@
-# $Id: errors.py 41004 2015-12-11 15:49:41Z mgower $
-# $Rev:: 41004                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2015-12-11 09:49:41 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
-
 """
     Define some exceptions.
 
@@ -14,8 +7,6 @@
     Copyright (C) 2012 Board of Trustees of the University of Illinois. 
     All rights reserved.
 """
-
-__version__ = "$Rev: 41004 $"
 
 class MetadataConfigError (Exception):
     "Represent an error in the METADATA and/or FILETYPE tables."

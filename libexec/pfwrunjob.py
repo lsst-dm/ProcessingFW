@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-# $Id: pfwrunjob.py 44517 2016-10-25 12:41:47Z friedel $
-# $Rev:: 44517                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-25 07:41:47 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
 
 """ Executes a series of wrappers within a single job """
 
@@ -40,7 +34,6 @@ import processingfw.pfwdb as pfwdb
 import processingfw.pfwcompression as pfwcompress
 import qcframework.Messaging as Messaging
 
-__version__ = '$Rev: 44517 $'
 
 pool = None
 stop_all = False
@@ -1953,16 +1946,10 @@ def create_junk_tarball(pfw_dbh, wcl, jobfiles, exitcode):
 def parse_args(argv):
     """ Parse the command line arguments """
     parser = argparse.ArgumentParser(description='pfwrun_job.py')
-    parser.add_argument('--version', action='store_true', default=False)
     parser.add_argument('--config', action='store', required=True)
     parser.add_argument('workflow', action='store')
 
     args = parser.parse_args(argv)
-
-    if args.version:
-        print __version__
-        sys.exit(0)
-
     return args
 
 

@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-# $Id: pfwcheck.py 45253 2017-04-18 18:29:42Z friedel $
-# $Rev:: 45253                            $:  # Revision of last commit.
-# $LastChangedBy:: friedel                $:  # Author of last commit.
-# $LastChangedDate:: 2017-04-18 13:29:42 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
 
 """ Contains functions used to check submit wcl for missing or invalid values """
 

@@ -1,10 +1,3 @@
-# $Id: pfwdb.py 44450 2016-10-19 20:01:20Z mgower $
-# $Rev:: 44450                            $:  # Revision of last commit.
-# $LastChangedBy:: mgower                 $:  # Author of last commit.
-# $LastChangedDate:: 2016-10-19 15:01:20 #$:  # Date of last commit.
-
-# pylint: disable=print-statement
-
 """
     Define a database utility class extending despydmdb.desdmdbi
 
@@ -14,8 +7,6 @@
     Copyright (C) 2012 Board of Trustees of the University of Illinois.
     All rights reserved.
 """
-
-__version__ = "$Rev: 44450 $"
 
 import os
 import socket

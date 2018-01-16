@@ -130,11 +130,6 @@ class PfwConfig(WCL):
             self[pfwdefs.PF_TASKNUM] = '0'
             self[pfwdefs.PF_JOBNUM] = '0'
 
-        if pfwdefs.SW_BLOCKLIST in self:
-            block_array = miscutils.fwsplit(self[pfwdefs.SW_BLOCKLIST])
-            if self[pfwdefs.PF_BLKNUM] <= len(block_array):
-                self.set_block_info()
-
     # assumes already run through chk
     def set_submit_info(self):
         """Initialize submit time values.

@@ -20,7 +20,7 @@ def jobpre(argv=None):
     if argv is None:
         argv = sys.argv
 
-    debugfh = tempfile.NamedTemporaryFile(prefix='jobpre_', dir='.', delete=False)
+    debugfh = tempfile.NamedTemporaryFile(mode='w+', prefix='jobpre_', dir='.', delete=False)
     tmpfn = debugfh.name
     sys.stdout = debugfh
     sys.stderr = debugfh

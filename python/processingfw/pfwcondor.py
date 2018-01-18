@@ -35,7 +35,8 @@ def condor_version():
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   encoding='utf-8')
         process.wait()
         if process.returncode != 0:
             raise CondorException('Problem running condor_version - non-zero exit code')
@@ -106,7 +107,8 @@ def condor_submit(submitfile):
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   encoding='utf-8')
         process.wait()
     except:
         raise CondorException('Error: Could not run condor_submit.  Check PATH.')
@@ -428,12 +430,12 @@ def condor_q(args_str=''):
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         out = ""
-        buf = os.read(process.stdout.fileno(), 5000)
+        buf = os.read(process.stdout.fileno(), 5000).decode()
         if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print(buf)
         while process.poll() == None or len(buf) != 0:
             out += buf
-            buf = os.read(process.stdout.fileno(), 5000)
+            buf = os.read(process.stdout.fileno(), 5000).decode()
             if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
                 miscutils.fwdebug_print(buf)
     except Exception as err:
@@ -553,7 +555,8 @@ def add2dag(dagfile, cmdopts, attributes, initialdir, debugfh):
     debugfh.write('cmd> %s\n' % (cmd))
     process = subprocess.Popen(cmd.split(), shell=False,
                                stdout=debugfh,
-                               stderr=debugfh)
+                               stderr=debugfh,
+                               encoding='utf-8')
     process.wait()
     stat = process.returncode
     print("stat = ", stat)
@@ -617,7 +620,8 @@ def check_condor(minver):
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   encoding='utf-8')
         if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print("\t\tTrying %s" % cmd)
         process.wait()
@@ -633,18 +637,19 @@ def check_condor(minver):
     try:
         process = subprocess.Popen(cmd.split(), shell=False,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
+                                   stderr=subprocess.STDOUT,
+                                   encoding='utf-8')
         if miscutils.fwdebug_check(1, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print("\t\tTrying %s" % cmd)
 
         # must read from pipe or process hangs when condor_q output is long
         out = ""
-        buf = os.read(process.stdout.fileno(), 5000)
+        buf = os.read(process.stdout.fileno(), 5000).decode()
         if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
             miscutils.fwdebug_print(buf)
         while process.poll() == None or len(buf) != 0:
             out += buf
-            buf = os.read(process.stdout.fileno(), 5000)
+            buf = os.read(process.stdout.fileno(), 5000).decode()
             if miscutils.fwdebug_check(6, "PFWCONDOR_DEBUG"):
                 miscutils.fwdebug_print(buf)
         if process.returncode:
@@ -668,7 +673,8 @@ def get_grid_proxy_timeleft():
     cmd = 'grid-proxy-info -timeleft'
     process = subprocess.Popen(cmd.split(), shell=False,
                                stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT)
+                               stderr=subprocess.STDOUT,
+                               encoding='utf-8')
     process.wait()
 
     out = process.communicate()[0]
@@ -724,10 +730,10 @@ def condor_rm(args_str=''):
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         out = ""
-        buf = os.read(process.stdout.fileno(), 5000)
+        buf = os.read(process.stdout.fileno(), 5000).decode()
         while process.poll() == None or len(buf) != 0:
             out += buf
-            buf = os.read(process.stdout.fileno(), 5000)
+            buf = os.read(process.stdout.fileno(), 5000).decode()
 
         if process.returncode != 0:
             print("Cmd = ", condorrm_cmd)

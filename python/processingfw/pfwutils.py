@@ -247,10 +247,10 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
         raise
 
     try:
-        buf = os.read(process_wrap.stdout.fileno(), bufsize)
+        buf = os.read(process_wrap.stdout.fileno(), bufsize).decode()
         while process_wrap.poll() == None or len(buf) != 0:
             messaging.write(buf)
-            buf = os.read(process_wrap.stdout.fileno(), bufsize)
+            buf = os.read(process_wrap.stdout.fileno(), bufsize).decode()
 
     except IOError as exc:
         print("\tI/O error({0}): {1}".format(exc.errno, exc.strerror))

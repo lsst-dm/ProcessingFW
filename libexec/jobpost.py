@@ -123,7 +123,7 @@ def jobpost(argv=None):
     if argv is None:
         argv = sys.argv
 
-    debugfh = tempfile.NamedTemporaryFile(prefix='jobpost_', dir='.', delete=False)
+    debugfh = tempfile.NamedTemporaryFile(mode='w+', prefix='jobpost_', dir='.', delete=False)
     tmpfn = debugfh.name
     sys.stdout = debugfh
     sys.stderr = debugfh

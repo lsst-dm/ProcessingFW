@@ -67,7 +67,7 @@ def blockpre(argv=None):
 
     default_log = 'blockpre.out'
 
-    debugfh = open(default_log, 'w', 0)
+    debugfh = open(default_log, 'w')
     sys.stdout = debugfh
     sys.stderr = debugfh
 

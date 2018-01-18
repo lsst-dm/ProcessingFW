@@ -40,7 +40,7 @@ def log_pfw_event(config, block=None, subblock=None,
     if not dagid:
         dagid = 0
 
-    deslogfh = open("%s/%s.deslog" % (logdir, run), "a", 0)
+    deslogfh = open("%s/%s.deslog" % (logdir, run), "a")
     deslogfh.write("%s %s %s %s %s %s %s" % (get_timestamp(), dagid, run,
                                              runsite, block, subblocktype, subblock))
     if isinstance(info, list):

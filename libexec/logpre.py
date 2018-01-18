@@ -18,7 +18,7 @@ def logpre(argv=None):
         argv = sys.argv
 
     default_log = 'logpre.out'
-    debugfh = open(default_log, 'w', 0)
+    debugfh = open(default_log, 'w')
     sys.stdout = debugfh
     sys.stderr = debugfh
 

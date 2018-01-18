@@ -238,7 +238,7 @@ def main(argv):
 
             # log file for dessubmit
             logfile = '%s/dessubmit.log' % (uberctrl)
-            logfh = open(logfile, 'w', 0)
+            logfh = open(logfile, 'w')
 
             pfwlog.log_pfw_event(config, 'submit', '', '')
 

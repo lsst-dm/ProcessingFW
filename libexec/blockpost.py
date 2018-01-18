@@ -64,7 +64,7 @@ def blockpost(argv=None):
         argv = sys.argv
 
     # open file to catch error messages about command line
-    debugfh = open('blockpost.out', 'w', 0)
+    debugfh = open('blockpost.out', 'w')
     sys.stdout = debugfh
     sys.stderr = debugfh
 
@@ -102,7 +102,7 @@ def blockpost(argv=None):
     debugfh.close()
     os.chmod('blockpost.out', 0o666)
     os.rename('blockpost.out', new_log_name)
-    debugfh = open(new_log_name, 'a+', 0)
+    debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
 

@@ -18,7 +18,7 @@ def summary(argv=None):
     if argv is None:
         argv = sys.argv
 
-    debugfh = open('summary.out', 'w', 0)
+    debugfh = open('summary.out', 'w')
     sys.stdout = debugfh
     sys.stderr = debugfh
 

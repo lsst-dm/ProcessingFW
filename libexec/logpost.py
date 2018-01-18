@@ -19,7 +19,7 @@ def logpost(argv=None):
         argv = sys.argv
 
     # open file to catch error messages about command line
-    debugfh = open('logpost.out', 'w', 0)
+    debugfh = open('logpost.out', 'w')
     sys.stdout = debugfh
     sys.stderr = debugfh
 

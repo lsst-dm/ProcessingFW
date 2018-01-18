@@ -177,7 +177,7 @@ def create_simple_list(config, lname, ldict, currvals):
     if len(listdir) > 0 and not os.path.exists(listdir):
         miscutils.coremakedirs(listdir)
 
-    with open(listname, 'w', 0) as listfh:
+    with open(listname, 'w') as listfh:
         listfh.write(listcontents+"\n")
 
     miscutils.fwdebug_print("END\n\n")
@@ -2934,7 +2934,7 @@ def write_wrapper_wcl(config, filename, wrapperwcl):
     else:
         wcldir = os.path.dirname(filename)
         miscutils.coremakedirs(wcldir)
-        with open(filename, 'w', 0) as wclfh:
+        with open(filename, 'w') as wclfh:
             wrapperwcl.write(wclfh, True, 4)
 
 

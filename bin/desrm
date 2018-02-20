@@ -37,9 +37,9 @@ def get_attempt_from_condor_id(givcondorid):
         print "Error: attempt is not in current condor queue.   Not deleting attempt."
         return 1
 
-    attemptkey = pfwdefs.ATTRIB_PREFIX + 'attempt'
+    attemptkey = pfwdefs.ATTRIB_PREFIX + 'run'
     if attemptkey not in masterjob[givcondorid]:
-        print "Given argument doesn't look like a desdm job (missing %s)."
+        print "Given argument doesn't look like a desdm job (missing %s)." % attemptkey
         print "    Not deleting attempt" % attemptkey
         print masterjob
         sys.exit(1)

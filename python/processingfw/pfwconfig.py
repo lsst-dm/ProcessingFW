@@ -360,8 +360,9 @@ class PfwConfig(WCL):
         """Create dictionary of condor_submit_dag command line options.
         """
         cmdopts = {}
-        for key in ['max_pre', 'max_post', 'max_jobs', 'max_idle']:
-            (exists, value) = self.search('dagman_' + key)
+        for ending in ['max_pre', 'max_post', 'max_jobs', 'max_idle']:
+            key = 'dagman_' + ending
+            (exists, value) = self.search(key)
             if exists:
                 cmdopts[key] = value
         return cmdopts

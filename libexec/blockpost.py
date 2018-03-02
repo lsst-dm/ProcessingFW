@@ -327,42 +327,42 @@ def blockpost(argv=None):
                         msg2 += " - FAIL - Non-zero status"
                         retval = jobdict['status']
 
-                if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
-                    msg2 += "\n\t\t%s/runjob.out " % (submit_job_path)
-
-                msg2 += '\n'
-
-                # print pfw_messages
-                if 'message' in jobdict:
-                    print(jobdict['message'])
-                    for msgdict in sorted(jobdict['message'], key=lambda k: k['message_time']):
-                        level = int(msgdict['message_lvl'])
-                        levelstr = 'info'
-                        if level == pfwdefs.PFWDB_MSG_WARN:
-                            levelstr = 'WARN'
-                        elif level == pfwdefs.PFWDB_MSG_ERROR:
-                            levelstr = 'ERROR'
-
-                        msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['message'].replace('\n', '\n\t\t\t'))
-
-                if jobtid in wrap_byjob:
-                    # print log file name for failed/unfinished wrappers
-                    for wrapnum in failedwraps[jobtid]:
-                        wrapdict = wrap_byjob[jobtid][wrapnum]
-                        if wrapdict['log'] in logfullnames:
-                            msg2 += "\t\t%s - %s\n" % (wrapnum, logfullnames[wrapdict['log']])
-                        else:
-                            msg2 += "\t\t%s - Could not find log in archive (%s)\n" % (
-                                wrapnum, wrapdict['log'])
-                        wrapmsg = get_qcf_messages(qdbh, config, [wrapdict['task_id']])
-                        msg2 = print_qcf_messages(config, wrapdict, wrapmsg, msg2)
+                    if jobdict['status'] != pfwdefs.PF_EXIT_SUCCESS:
+                        msg2 += "\n\t\t%s/runjob.out " % (submit_job_path)
 
                     msg2 += '\n'
 
-                    # If weirdness happened in run, print a message
-                    if len(whyfailwraps[jobtid]) > 0:
-                        msg2 += "\n*** Contact framework developers.   Wrappers ran after at least 1 wrapper from a previous module that doesn't have success status.\n"
-                        msg2 += "\t%s\n" % ','.join(whyfailwraps[jobtid])
+                    # print pfw_messages
+                    if 'message' in jobdict:
+                        print(jobdict['message'])
+                        for msgdict in sorted(jobdict['message'], key=lambda k: k['message_time']):
+                            level = int(msgdict['message_lvl'])
+                            levelstr = 'info'
+                            if level == pfwdefs.PFWDB_MSG_WARN:
+                                levelstr = 'WARN'
+                            elif level == pfwdefs.PFWDB_MSG_ERROR:
+                                levelstr = 'ERROR'
+
+                            msg2 += "\t\t%s - %s\n" % (levelstr, msgdict['message'].replace('\n', '\n\t\t\t'))
+
+                    if jobtid in wrap_byjob:
+                        # print log file name for failed/unfinished wrappers
+                        for wrapnum in failedwraps[jobtid]:
+                            wrapdict = wrap_byjob[jobtid][wrapnum]
+                            if wrapdict['log'] in logfullnames:
+                                msg2 += "\t\t%s - %s\n" % (wrapnum, logfullnames[wrapdict['log']])
+                            else:
+                                msg2 += "\t\t%s - Could not find log in archive (%s)\n" % (
+                                    wrapnum, wrapdict['log'])
+                            wrapmsg = get_qcf_messages(qdbh, config, [wrapdict['task_id']])
+                            msg2 = print_qcf_messages(config, wrapdict, wrapmsg, msg2)
+
+                        msg2 += '\n'
+
+                        # If weirdness happened in run, print a message
+                        if len(whyfailwraps[jobtid]) > 0:
+                            msg2 += "\n*** Contact framework developers.   Wrappers ran after at least 1 wrapper from a previous module that doesn't have success status.\n"
+                            msg2 += "\t%s\n" % ','.join(whyfailwraps[jobtid])
 
         except Exception as exc:
             if sem is not None:

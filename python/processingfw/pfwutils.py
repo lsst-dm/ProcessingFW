@@ -1,6 +1,7 @@
 #!usr/bin/env python
 
-""" Miscellaneous support functions for processing framework """
+"""Miscellaneous support functions for processing framework.
+"""
 
 import re
 import os
@@ -16,17 +17,17 @@ import processingfw.pfwdefs as pfwdefs
 import qcframework.Messaging as Messaging
 
 
-#######################################################################
 def pad_jobnum(jobnum):
-    """ Pad the job number """
+    """Pad the job number.
+    """
     return "%04d" % int(jobnum)
 
 
-#######################################################################
 def get_hdrup_sections(wcl, prefix):
-    """ Returns header update sections appearing in given wcl """
+    """Returns header update sections appearing in given wcl.
+    """
     hdrups = {}
-    for key, val in wcl.items():
+    for key, val in list(wcl.items()):
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
             miscutils.fwdebug_print("\tsearching for hdrup prefix in %s" % key)
 
@@ -37,14 +38,13 @@ def get_hdrup_sections(wcl, prefix):
     return hdrups
 
 
-
-#######################################################################
 def search_wcl_for_variables(wcl):
-    """ Find variables in given wcl """
+    """Find variables in given wcl.
+    """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
     usedvars = {}
-    for key, val in wcl.items():
+    for key, val in list(wcl.items()):
         if isinstance(val, dict):
             uvars = search_wcl_for_variables(val)
             if uvars is not None:
@@ -58,16 +58,17 @@ def search_wcl_for_variables(wcl):
         else:
             if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
                 miscutils.fwdebug_print("Note: wcl is not string.")
-                miscutils.fwdebug_print("key = %s, type(val) = %s, val = '%s'" % \
+                miscutils.fwdebug_print("key = %s, type(val) = %s, val = '%s'" %
                                         (key, type(val), val))
 
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
     return usedvars
 
-#######################################################################
+
 def get_wcl_value(key, wcl):
-    """ Return value of key from wcl, follows section notation """
+    """Return value of key from wcl, follows section notation.
+    """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
     val = wcl
@@ -78,9 +79,10 @@ def get_wcl_value(key, wcl):
         miscutils.fwdebug_print("END")
     return val
 
-#######################################################################
+
 def set_wcl_value(key, val, wcl):
-    """ Sets value of key in wcl, follows section notation """
+    """Sets value of key in wcl, follows section notation.
+    """
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("BEG")
     wclkeys = key.split('.')
@@ -93,9 +95,10 @@ def set_wcl_value(key, val, wcl):
     if miscutils.fwdebug_check(9, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
 
-#######################################################################
+
 def tar_dir(filename, indir):
-    """ Tars a directory """
+    """Tars a directory.
+    """
     if filename.endswith('.gz'):
         mode = 'w:gz'
     else:
@@ -103,10 +106,10 @@ def tar_dir(filename, indir):
     with tarfile.open(filename, mode) as tar:
         tar.add(indir)
 
-#######################################################################
-def tar_list(tarfilename, filelist):
-    """ Tars a directory """
 
+def tar_list(tarfilename, filelist):
+    """Tars a directory.
+    """
     if tarfilename.endswith('.gz'):
         mode = 'w:gz'
     else:
@@ -117,10 +120,9 @@ def tar_list(tarfilename, filelist):
             tar.add(filen)
 
 
-
-#######################################################################
 def untar_dir(filename, outputdir):
-    """ Untars a directory """
+    """Untars a directory.
+    """
     if filename.endswith('.gz'):
         mode = 'r:gz'
     else:
@@ -136,23 +138,22 @@ def untar_dir(filename, outputdir):
                 done = True
             except OSError as exc:
                 if exc.errno == errno.EEXIST:
-                    print "Problems untaring %s: %s" % (filename, exc)
+                    print("Problems untaring %s: %s" % (filename, exc))
                     if cnt < maxcnt:
-                        print "Trying again."
+                        print("Trying again.")
                 else:
-                    print "Error: %s" % exc
+                    print("Error: %s" % exc)
                     raise
         cnt += 1
 
     if not done:
-        print "Could not untar %s.  Aborting" % filename
+        print("Could not untar %s.  Aborting" % filename)
 
 
-###########################################################################
 # assumes exit code for version is 0
 def get_version(execname, execdefs):
-    """run command with version flag and parse output for version"""
-
+    """Run command with version flag and parse output for version.
+    """
     ver = None
     if (execname.lower() in execdefs and
             'version_flag' in execdefs[execname.lower()] and
@@ -168,13 +169,13 @@ def get_version(execname, execdefs):
                                        stderr=subprocess.STDOUT)
         except:
             (extype, exvalue, _) = sys.exc_info()
-            print "********************"
-            print "Unexpected error: %s - %s" % (extype, exvalue)
-            print "cmd> %s" % cmd
-            print "Probably could not find %s in path" % cmd.split()[0]
-            print "Check for mispelled execname in submit wcl or"
-            print "    make sure that the corresponding eups package is in the metapackage "
-            print "    and it sets up the path correctly"
+            print("********************")
+            print("Unexpected error: %s - %s" % (extype, exvalue))
+            print("cmd> %s" % cmd)
+            print("Probably could not find %s in path" % cmd.split()[0])
+            print("Check for mispelled execname in submit wcl or")
+            print("    make sure that the corresponding eups package is in the metapackage ")
+            print("    and it sets up the path correctly")
             raise
 
         process.wait()
@@ -193,7 +194,7 @@ def get_version(execname, execdefs):
                     ver = pmatch.group(1)
                 else:
                     if miscutils.fwdebug_check(1, "PFWUTILS_DEBUG"):
-                        miscutils.fwdebug_print("re.search didn't find version for exec %s" % \
+                        miscutils.fwdebug_print("re.search didn't find version for exec %s" %
                                                 execname)
                     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
                         miscutils.fwdebug_print("\tcmd output=%s" % out)
@@ -201,7 +202,7 @@ def get_version(execname, execdefs):
             except Exception as err:
                 #print type(err)
                 ver = None
-                print "Error: Exception from re.match.  Didn't find version: %s" % err
+                print("Error: Exception from re.match.  Didn't find version: %s" % err)
                 raise
     else:
         if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
@@ -210,9 +211,9 @@ def get_version(execname, execdefs):
     return ver
 
 
-############################################################################
 def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwattid=0, patterns={}):
-    """ Execute the command piping stdout/stderr to log and QCF """
+    """Execute the command piping stdout/stderr to log and QCF.
+    """
     bufsize = 1024 * 10
 
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
@@ -236,50 +237,48 @@ def run_cmd_qcf(cmd, logfilename, wid, execnames, use_qcf=False, dbh=None, pfwat
                                         stderr=subprocess.STDOUT)
     except:
         (extype, exvalue, _) = sys.exc_info()
-        print "********************"
-        print "Unexpected error: %s - %s" % (extype, exvalue)
-        print "cmd> %s" % cmd
-        print "Probably could not find %s in path" % cmd.split()[0]
-        print "Check for mispelled execname in submit wcl or"
-        print "    make sure that the corresponding eups package is in the metapackage "
-        print "    and it sets up the path correctly"
+        print("********************")
+        print("Unexpected error: %s - %s" % (extype, exvalue))
+        print("cmd> %s" % cmd)
+        print("Probably could not find %s in path" % cmd.split()[0])
+        print("Check for mispelled execname in submit wcl or")
+        print("    make sure that the corresponding eups package is in the metapackage ")
+        print("    and it sets up the path correctly")
         raise
 
-
     try:
-        buf = os.read(process_wrap.stdout.fileno(), bufsize)
+        buf = os.read(process_wrap.stdout.fileno(), bufsize).decode()
         while process_wrap.poll() == None or len(buf) != 0:
             messaging.write(buf)
-            buf = os.read(process_wrap.stdout.fileno(), bufsize)
+            buf = os.read(process_wrap.stdout.fileno(), bufsize).decode()
 
     except IOError as exc:
-        print "\tI/O error({0}): {1}".format(exc.errno, exc.strerror)
+        print("\tI/O error({0}): {1}".format(exc.errno, exc.strerror))
 
     except:
         (extype, exvalue, _) = sys.exc_info()
-        print "\tError: Unexpected error: %s - %s" % (extype, exvalue)
+        print("\tError: Unexpected error: %s - %s" % (extype, exvalue))
         raise
 
     sys.stdout.flush()
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         if process_wrap.returncode != 0:
-            miscutils.fwdebug_print("\tInfo: cmd exited with non-zero exit code = %s" % \
+            miscutils.fwdebug_print("\tInfo: cmd exited with non-zero exit code = %s" %
                                     process_wrap.returncode)
             miscutils.fwdebug_print("\tInfo: failed cmd = %s" % cmd)
         else:
             miscutils.fwdebug_print("\tInfo: cmd exited with exit code = 0")
-
 
     if miscutils.fwdebug_check(3, "PFWUTILS_DEBUG"):
         miscutils.fwdebug_print("END")
     return process_wrap.returncode
 
 
-#######################################################################
 def index_job_info(jobinfo):
-    """ create dictionary of jobs indexed on blk task id """
+    """Create dictionary of jobs indexed on blk task id.
+    """
     job_byblk = {}
-    for j, jdict in jobinfo.items():
+    for j, jdict in list(jobinfo.items()):
         blktid = jdict['pfw_block_task_id']
         if blktid not in job_byblk:
             job_byblk[blktid] = {}
@@ -288,12 +287,12 @@ def index_job_info(jobinfo):
     return job_byblk
 
 
-#######################################################################
 def index_wrapper_info(wrapinfo):
-    """ create dictionaries of wrappers indexed on jobnum and modname """
+    """Create dictionaries of wrappers indexed on jobnum and modname.
+    """
     wrap_byjob = {}
     wrap_bymod = {}
-    for wrap in wrapinfo.values():
+    for wrap in list(wrapinfo.values()):
         if wrap['pfw_job_task_id'] not in wrap_byjob:
             wrap_byjob[wrap['pfw_job_task_id']] = {}
         wrap_byjob[wrap['pfw_job_task_id']][wrap['wrapnum']] = wrap
@@ -304,16 +303,15 @@ def index_wrapper_info(wrapinfo):
     return wrap_byjob, wrap_bymod
 
 
-#######################################################################
 def index_jobwrapper_info(jwrapinfo):
-    """ create dictionaries of wrappers indexed on jobnum and wrapnum """
-
+    """create dictionaries of wrappers indexed on jobnum and wrapnum.
+    """
     jwrap_byjob = {}
     jwrap_bywrap = {}
-    for jwrap in jwrapinfo.values():
+    for jwrap in list(jwrapinfo.values()):
         if jwrap['label'] is None:
-            print "Missing label for jobwrapper task."
-            print "Make sure you are using print_job.py from same ProcessingFW version as processing attempt" 
+            print("Missing label for jobwrapper task.")
+            print("Make sure you are using print_job.py from same ProcessingFW version as processing attempt")
             sys.exit(1)
         if jwrap['parent_task_id'] not in jwrap_byjob:
             jwrap_byjob[jwrap['parent_task_id']] = {}
@@ -323,9 +321,9 @@ def index_jobwrapper_info(jwrapinfo):
     return jwrap_byjob, jwrap_bywrap
 
 
-#######################################################################
 def should_save_file(mastersave, filesave, exitcode):
-    """ Determine whether should save the file """
+    """Determine whether should save the file.
+    """
     msave = mastersave.lower()
     fsave = miscutils.convertBool(filesave)
 
@@ -339,12 +337,12 @@ def should_save_file(mastersave, filesave, exitcode):
     return retval
 
 
-#######################################################################
 def should_compress_file(mastercompress, filecompress, exitcode):
-    """ Determine whether should compress the file """
-
+    """Determine whether should compress the file.
+    """
     if miscutils.fwdebug_check(6, "PFWUTILS_DEBUG"):
-        miscutils.fwdebug_print("BEG: master=%s, file=%s, exitcode=%s" % (mastercompress, filecompress, exitcode))
+        miscutils.fwdebug_print("BEG: master=%s, file=%s, exitcode=%s" %
+                                (mastercompress, filecompress, exitcode))
 
     mcompress = mastercompress
     if isinstance(mastercompress, str):
@@ -365,11 +363,10 @@ def should_compress_file(mastercompress, filecompress, exitcode):
     return retval
 
 
-######################################################################
 def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
                          label, classname, extra_info):
-    """ Dynamically load a class save timing info in task table """
-
+    """Dynamically load a class save timing info in task table.
+    """
     #task_id = -1
     #if pfw_dbh is not None:
     #    task_id = pfw_dbh.create_task(name='dynclass',
@@ -392,7 +389,7 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
     except:
         (extype, exvalue, _) = sys.exc_info()
         msg = "Error: creating %s object - %s - %s" % (label, extype, exvalue)
-        print "\n%s" % msg
+        print("\n%s" % msg)
         if pfw_dbh is not None:
             Messaging.pfw_message(pfw_dbh, wcl['pfw_attempt_id'], parent_tid, msg, pfw_utils.PFWDB_MSG_ERROR)
         raise
@@ -403,16 +400,16 @@ def pfw_dynam_load_class(pfw_dbh, wcl, parent_tid, attempt_task_id,
     return the_class_obj
 
 
-######################################################################
 def diskusage(path):
-#    """ Calls du to get disk space used by given path """
-#    process = subprocess.Popen(['du', '-s', path], shell=False,
-#                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-#    process.wait()
-#    out = process.communicate()[0]
-#    (diskusage, _) = out.split()
-#    return int(diskusage)
-    """ Walks the path returning the sum of the filesizes """
+    #    """ Calls du to get disk space used by given path """
+    #    process = subprocess.Popen(['du', '-s', path], shell=False,
+    #                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    #    process.wait()
+    #    out = process.communicate()[0]
+    #    (diskusage, _) = out.split()
+    #    return int(diskusage)
+    """Walks the path returning the sum of the filesizes.
+    """
     ### avoids symlinked files, but
     ### doesn't avoid adding hardlinks twice
     usum = 0

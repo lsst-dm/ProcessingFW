@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Execute WCL checks """
+"""Execute WCL checks.
+"""
 
 import argparse
 
@@ -9,9 +10,10 @@ import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwcheck as pfwcheck
 import processingfw.pfwdefs as pfwdefs
 
-def main():
-    """ Entry point when called as an executable """
 
+def main():
+    """Entry point when called as an executable.
+    """
     parser = argparse.ArgumentParser(description='Run check on given submit wcl')
     parser.add_argument('--verbose', action='store', default=True)
     parser.add_argument('--des_db_section', action='store')
@@ -29,16 +31,17 @@ def main():
     # usePFWconfig and get_db_config set to True because dessubmit does
     #   (work only done at submit time)
     #   use_db_in=False in submit wcl overrides get_db_config
-    print "Gathering wcl..."
+    print("Gathering wcl...")
     config = pfwconfig.PfwConfig(args)
 
     config[pfwdefs.ATTNUM] = '0'   # must be string as if read from wcl file
     testcnts = pfwcheck.check(config, '')
 
-    print "\nTest Summary"
-    print "\tErrors: %d" % testcnts[0]
-    print "\tWarnings: %d" % testcnts[1]
-    print "\tItems fixed: %d" % testcnts[2]
+    print("\nTest Summary")
+    print("\tErrors: %d" % testcnts[0])
+    print("\tWarnings: %d" % testcnts[1])
+    print("\tItems fixed: %d" % testcnts[2])
+
 
 if __name__ == '__main__':
     main()

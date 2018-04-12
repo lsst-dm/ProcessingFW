@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Bookkeeping steps executed submit-side after certain submit-side tasks """
+"""Bookkeeping steps executed submit-side after certain submit-side tasks.
+"""
 
 import sys
 import os
@@ -12,19 +13,20 @@ from processingfw.pfwlog import log_pfw_event
 
 
 def logpost(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 
     # open file to catch error messages about command line
-    debugfh = open('logpost.out', 'w', 0)
+    debugfh = open('logpost.out', 'w')
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(argv)  # print command line for debugging
+    print(' '.join(argv))  # print command line for debugging
 
     if len(argv) < 5:
-        print 'Usage: logpost configfile block subblocktype subblock retval'
+        print('Usage: logpost configfile block subblocktype subblock retval')
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -55,17 +57,16 @@ def logpost(argv=None):
     new_log_name = config.get_filename('block',
                                        {pfwdefs.PF_CURRVALS: {'flabel': '${subblock}_logpost',
                                                               'subblock': subblock,
-                                                              'fsuffix':'out'}})
+                                                              'fsuffix': 'out'}})
     new_log_name = "%s/%s" % (blkdir, new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
     debugfh.close()
-    os.chmod('logpost.out', 0666)
+    os.chmod('logpost.out', 0o666)
     os.rename('logpost.out', new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
-
 
     log_pfw_event(config, blockname, subblock, subblocktype, ['posttask', retval])
 
@@ -86,6 +87,7 @@ def logpost(argv=None):
     miscutils.fwdebug_print("logpost done")
     debugfh.close()
     return int(retval)
+
 
 if __name__ == "__main__":
     realstdout = sys.stdout

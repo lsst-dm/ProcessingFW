@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Steps executed submit-side prior to target job being submitted """
+"""Steps executed submit-side prior to target job being submitted.
+"""
 
 import sys
 import os
@@ -12,21 +13,23 @@ from processingfw.pfwlog import log_pfw_event
 import processingfw.pfwconfig as pfwconfig
 import processingfw.pfwdb as pfwdb
 
+
 def jobpre(argv=None):
-    """ Program entry point """
+    """Program entry point.
+    """
     if argv is None:
         argv = sys.argv
 
-    debugfh = tempfile.NamedTemporaryFile(prefix='jobpre_', dir='.', delete=False)
+    debugfh = tempfile.NamedTemporaryFile(mode='w+', prefix='jobpre_', dir='.', delete=False)
     tmpfn = debugfh.name
     sys.stdout = debugfh
     sys.stderr = debugfh
 
-    print ' '.join(sys.argv) # command line for debugging
-    print os.getcwd()
+    print(' '.join(sys.argv)) # command line for debugging
+    print(os.getcwd())
 
     if len(argv) < 3:
-        print 'Usage: jobpre configfile jobnum'
+        print('Usage: jobpre configfile jobnum')
         debugfh.close()
         return pfwdefs.PF_EXIT_FAILURE
 
@@ -41,21 +44,21 @@ def jobpre(argv=None):
 
     # now that have more information, can rename output file
     miscutils.fwdebug_print("getting new_log_name")
-    new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM:jobnum,
+    new_log_name = config.get_filename('job', {pfwdefs.PF_CURRVALS: {pfwdefs.PF_JOBNUM: jobnum,
                                                                      'flabel': 'jobpre',
-                                                                     'fsuffix':'out'}})
+                                                                     'fsuffix': 'out'}})
     new_log_name = "%s/%s/%s" % (blkdir, tjpad, new_log_name)
     miscutils.fwdebug_print("new_log_name = %s" % new_log_name)
 
     debugfh.close()
-    os.chmod(tmpfn, 0666)
+    os.chmod(tmpfn, 0o666)
     os.rename(tmpfn, new_log_name)
     debugfh = open(new_log_name, 'a+')
     sys.stdout = debugfh
     sys.stderr = debugfh
 
     if miscutils.convertBool(config.getfull(pfwdefs.PF_USE_DB_OUT)):
-        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'), 
+        dbh = pfwdb.PFWDB(config.getfull('submit_des_services'),
                           config.getfull('submit_des_db_section'))
         ctstr = dbh.get_current_timestamp_str()
         dbh.update_job_info(config, tjpad, {'condor_submit_time': ctstr,
@@ -66,6 +69,7 @@ def jobpre(argv=None):
     miscutils.fwdebug_print("jobpre done")
     debugfh.close()
     return pfwdefs.PF_EXIT_SUCCESS
+
 
 if __name__ == "__main__":
     sys.exit(jobpre(sys.argv))

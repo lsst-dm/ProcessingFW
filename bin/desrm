@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-""" Delete processing attempt from condor queue """
-
+"""Delete processing attempt from condor queue.
+"""
 
 import argparse
 import sys
@@ -12,14 +12,15 @@ import processingfw.pfwdefs as pfwdefs
 import processingfw.pfwcondor as pfwcondor
 import processingfw.pfwdb as pfwdb
 
-def update_db(dbh, task_id):
-    """ Tell DB that attempt was deleted """
 
+def update_db(dbh, task_id):
+    """Tell DB that attempt was deleted.
+    """
     # end task for all tasks in attempt that don't already have end
     sql = """select id from task where root_task_id=%s and start_time is not NULL and
              end_time is NULL""" % dbh.get_named_bind_string('root_task_id')
     curs = dbh.cursor()
-    curs.execute(sql, {'root_task_id':task_id})
+    curs.execute(sql, {'root_task_id': task_id})
     for (tid,) in curs:
         dbh.end_task(tid, pfwdefs.PF_EXIT_OPDELETE, False)
 
@@ -31,17 +32,18 @@ def update_db(dbh, task_id):
 
 
 def get_attempt_from_condor_id(givcondorid):
-    """ Get attempt string from given condor id """
+    """Get attempt string from given condor id.
+    """
     masterjob = pfwcondor.condor_q(givcondorid)
     if givcondorid not in masterjob:
-        print "Error: attempt is not in current condor queue.   Not deleting attempt."
+        print("Error: attempt is not in current condor queue.   Not deleting attempt.")
         return 1
 
     attemptkey = pfwdefs.ATTRIB_PREFIX + 'run'
     if attemptkey not in masterjob[givcondorid]:
-        print "Given argument doesn't look like a desdm job (missing %s)." % attemptkey
-        print "    Not deleting attempt" % attemptkey
-        print masterjob
+        print("Given argument doesn't look like a desdm job (missing %s)." % attemptkey)
+        print("    Not deleting attempt" % attemptkey)
+        print(masterjob)
         sys.exit(1)
 
     attempt = masterjob[givcondorid][attemptkey]
@@ -49,11 +51,12 @@ def get_attempt_from_condor_id(givcondorid):
 
 
 def parse_attempt_str(attempt):
-    """ Parse attempt string to get reqnum, unitname, attnum """
+    """Parse attempt string to get reqnum, unitname, attnum.
+    """
     match = re.match(r"(.+)_r(\d+)p(\d+)", attempt)
     if not match:
-        print "Error: attempt is not correct format (<unitname>_r<reqnum>p<attnum>)."
-        print "  Not deleting attempt"
+        print("Error: attempt is not correct format (<unitname>_r<reqnum>p<attnum>).")
+        print("  Not deleting attempt")
         sys.exit(1)
 
     reqnum = match.group(2)
@@ -61,9 +64,10 @@ def parse_attempt_str(attempt):
     attnum = str(int(match.group(3)))
     return (reqnum, unitname, attnum)
 
-def get_attempt_info_from_db(dbh, reqnum, unitname, attnum):
-    """ Get condor job id and task id from DB for the attempt """
 
+def get_attempt_info_from_db(dbh, reqnum, unitname, attnum):
+    """Get condor job id and task id from DB for the attempt.
+    """
     sql = """select condorid, task_id from pfw_attempt where reqnum='%s' and
              unitname='%s' and attnum='%s'""" % (reqnum, unitname, attnum)
     #print sql
@@ -71,11 +75,11 @@ def get_attempt_info_from_db(dbh, reqnum, unitname, attnum):
     curs.execute(sql)
     rows = curs.fetchall()
     if len(rows) > 1:
-        print "Error:   Found more than 1 row in pfw_attempt for the attempt"
-        print rows
+        print("Error:   Found more than 1 row in pfw_attempt for the attempt")
+        print(rows)
         sys.exit(1)
     elif len(rows) == 0:
-        print "Error:  Found 0 rows in pfw_attempt for the given attempt"
+        print("Error:  Found 0 rows in pfw_attempt for the given attempt")
         sys.exit(1)
 
     condorid = str(rows[0][0])
@@ -84,14 +88,14 @@ def get_attempt_info_from_db(dbh, reqnum, unitname, attnum):
 
 
 def main(argv=None):
-    """ Entry point """
+    """Entry point.
+    """
     parser = argparse.ArgumentParser(description='desrm')
     parser.add_argument('--des_services', action='store', help='')
     parser.add_argument('--section', action='store',
                         help='Must be specified if not set in environment')
     parser.add_argument('attempt', nargs=1, action='store', default=None)
     args = parser.parse_args(argv)
-
 
     condorid = None
     givcondorid = None
@@ -100,7 +104,7 @@ def main(argv=None):
     if '_' not in attempt:
         match = re.match(r"(\d+)[.\d+]?", attempt)
         if not match:
-            print "Given argument doesn't look like a condor id.   Not deleting attempt"
+            print("Given argument doesn't look like a condor id.   Not deleting attempt")
             sys.exit(1)
 
         givcondorid = match.group(1)
@@ -111,8 +115,8 @@ def main(argv=None):
     dbh = pfwdb.PFWDB(args.des_services, args.section)
     (condorid, attempt_task_id) = get_attempt_info_from_db(dbh, reqnum, unitname, attnum)
     if givcondorid is not None and givcondorid != condorid:
-        print "Error:  Condor id from DB doesn't match given condor id.  Not deleting attempt"
-        print "(%s, %s)" % (givcondorid, condorid)
+        print("Error:  Condor id from DB doesn't match given condor id.  Not deleting attempt")
+        print("(%s, %s)" % (givcondorid, condorid))
         sys.exit(1)
 
     #print "Condor id = ", condorid
@@ -120,12 +124,11 @@ def main(argv=None):
     if condorid is not None:
         masterjob = pfwcondor.condor_q(str(condorid))
         if len(masterjob) == 0:
-            print "Error: attempt is not in current condor queue.   Not deleting attempt."
+            print("Error: attempt is not in current condor queue.   Not deleting attempt.")
             sys.exit(1)
 
-    print "Deleting attempt: reqnum=%s, unitname=%s, attnum=%s, condorid=%s" % \
-           (reqnum, unitname, attnum, condorid)
-
+    print("Deleting attempt: reqnum=%s, unitname=%s, attnum=%s, condorid=%s" % \
+        (reqnum, unitname, attnum, condorid))
 
     # delete top condor job for attempt
     pfwcondor.condor_rm(condorid)
@@ -134,6 +137,7 @@ def main(argv=None):
     update_db(dbh, attempt_task_id)
     dbh.commit()
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

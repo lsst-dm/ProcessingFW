@@ -10,18 +10,17 @@ share_files = glob.glob("share/condor/*")
 
 # The main call
 setup(name='ProcessingFW',
-      version ='2.1.6',
-      license = "GPL",
-      description = "DESDM's processing framework",
-      author = "Michelle Gower",
-      author_email = "mgower@illinois.edu",
-      packages = ['processingfw'],
-      package_dir = {'': 'python'},
-      scripts = bin_files,
-      data_files=[('ups',['ups/ProcessingFW.table']),
-                  ('tools',tools_files),
-                  ('libexec',libexec_files),
-                  ('etc',etc_files),
+      version='2.1.6',
+      license="GPL",
+      description="DESDM's processing framework",
+      author="Michelle Gower",
+      author_email="mgower@illinois.edu",
+      packages=['processingfw'],
+      package_dir={'': 'python'},
+      scripts=bin_files,
+      data_files=[('ups', ['ups/ProcessingFW.table']),
+                  ('tools', tools_files),
+                  ('libexec', libexec_files),
+                  ('etc', etc_files),
                   ('share/condor', share_files)]
       )
-

@@ -1,4 +1,5 @@
-""" Constants used across various files to make changes easier """
+"""Constants used across various files to make changes easier.
+"""
 
 # when changing values, check if change also needed in $PROCESSINGFW_DIR/etc/pfwconfig.des
 #
@@ -7,9 +8,6 @@
 # OW_  (wrapper) output wcl
 # PF_  processing fw
 # DB_  database table/column names
-######################################################################
-
-
 
 
 FILETYPE = 'filetype'
@@ -44,7 +42,7 @@ VALID_TARGET_ARCHIVE_OUTPUT = ['wrapper', 'job', 'never']
 
 MASTER_USE_FWTHREADS = 'master_use_fwthreads'
 MASTER_USE_FWTHREADS_DEFAULT = False
-MAX_FWTHREADS = 'max_fwthreads' 
+MAX_FWTHREADS = 'max_fwthreads'
 MAX_FWTHREADS_DEFAULT = 1
 
 CREATE_JUNK_TARBALL = 'create_junk_tarball'
